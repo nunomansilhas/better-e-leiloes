@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         betterE-Leiloes (API Version)
 // @namespace    http://tampermonkey.net/
-// @version      12.4
+// @version      12.6
 // @description  Extensão para E-Leiloes.pt com dados reais via API backend
 // @author       Nuno Mansilhas
 // @match        https://www.e-leiloes.pt/*
@@ -440,7 +440,8 @@
             const modal = createDataModal();
             document.body.appendChild(modal);
             
-            await loadDataIntoModal(modal);
+            // Default: mostrar apenas imóveis
+            await loadDataIntoModal(modal, 1, { tipoEvento: 'imovel' });
             
         } catch (error) {
             alert(`❌ Erro ao carregar dados:\n${error.message}`);
@@ -580,7 +581,7 @@
                             cursor: pointer;
                         ">
                             <option value="">📋 Todos os Tipos</option>
-                            <option value="imovel">🏠 Apenas Imóveis</option>
+                            <option value="imovel" selected>🏠 Apenas Imóveis</option>
                             <option value="movel">🚗 Apenas Móveis</option>
                         </select>
                         <input type="text" id="filter-distrito" placeholder="Filtrar por distrito..." style="
@@ -673,15 +674,22 @@
         `;
         
         // Event listeners
-        modal.querySelector('#close-modal').addEventListener('click', () => modal.remove());
+        modal.querySelector('#close-modal').addEventListener('click', () => {
+            modalEventListenersSetup = false;
+            modal.remove();
+        });
         modal.addEventListener('click', (e) => {
-            if (e.target === modal) modal.remove();
+            if (e.target === modal) {
+                modalEventListenersSetup = false;
+                modal.remove();
+            }
         });
         
         return modal;
     }
 
     let currentViewMode = 'list'; // 'list' ou 'grid'
+    let modalEventListenersSetup = false;
 
     async function loadDataIntoModal(modal, page = 1, filters = {}) {
         const content = modal.querySelector('#modal-content');
@@ -692,6 +700,60 @@
         const btnFilter = modal.querySelector('#btn-apply-filters');
         const btnViewList = modal.querySelector('#btn-view-list');
         const btnViewGrid = modal.querySelector('#btn-view-grid');
+        const selectTipo = modal.querySelector('#filter-tipo-evento');
+        const inputDistrito = modal.querySelector('#filter-distrito');
+        
+        // Setup event listeners only once to prevent infinite loop
+        if (!modalEventListenersSetup) {
+            modalEventListenersSetup = true;
+            
+            // Auto-filter on tipo change
+            selectTipo.addEventListener('change', () => {
+                const tipoEvento = selectTipo.value;
+                const distrito = inputDistrito.value.trim();
+                
+                const newFilters = {};
+                if (distrito) newFilters.distrito = distrito;
+                if (tipoEvento) newFilters.tipoEvento = tipoEvento;
+                
+                loadDataIntoModal(modal, 1, newFilters);
+            });
+            
+            // Filter button for distrito
+            btnFilter.addEventListener('click', () => {
+                const tipoEvento = selectTipo.value;
+                const distrito = inputDistrito.value.trim();
+                
+                const newFilters = {};
+                if (distrito) newFilters.distrito = distrito;
+                if (tipoEvento) newFilters.tipoEvento = tipoEvento;
+                
+                loadDataIntoModal(modal, 1, newFilters);
+            });
+            
+            // View mode buttons
+            btnViewList.addEventListener('click', () => {
+                currentViewMode = 'list';
+                btnViewList.style.background = '#10b981';
+                btnViewGrid.style.background = '#6b7280';
+                loadDataIntoModal(modal, page, filters);
+            });
+            
+            btnViewGrid.addEventListener('click', () => {
+                currentViewMode = 'grid';
+                btnViewList.style.background = '#6b7280';
+                btnViewGrid.style.background = '#10b981';
+                loadDataIntoModal(modal, page, filters);
+            });
+        }
+        
+        // Atualiza select com filtro atual
+        if (filters.tipoEvento) {
+            selectTipo.value = filters.tipoEvento;
+        }
+        if (filters.distrito) {
+            inputDistrito.value = filters.distrito;
+        }
         
         try {
             const data = await listEventsFromAPI(page, 20, filters);
@@ -705,33 +767,6 @@
             
             btnPrev.onclick = () => loadDataIntoModal(modal, page - 1, filters);
             btnNext.onclick = () => loadDataIntoModal(modal, page + 1, filters);
-            
-            // Filter button
-            btnFilter.onclick = () => {
-                const tipoEvento = modal.querySelector('#filter-tipo-evento').value;
-                const distrito = modal.querySelector('#filter-distrito').value.trim();
-                
-                const newFilters = {};
-                if (distrito) newFilters.distrito = distrito;
-                if (tipoEvento) newFilters.tipoEvento = tipoEvento;
-                
-                loadDataIntoModal(modal, 1, newFilters);
-            };
-            
-            // View mode buttons
-            btnViewList.onclick = () => {
-                currentViewMode = 'list';
-                btnViewList.style.background = '#10b981';
-                btnViewGrid.style.background = '#6b7280';
-                loadDataIntoModal(modal, page, filters);
-            };
-            
-            btnViewGrid.onclick = () => {
-                currentViewMode = 'grid';
-                btnViewList.style.background = '#6b7280';
-                btnViewGrid.style.background = '#10b981';
-                loadDataIntoModal(modal, page, filters);
-            };
             
             // Update button states
             if (currentViewMode === 'list') {
@@ -785,6 +820,7 @@
         const gps = event.gps || {};
         const valores = event.valores || {};
         const tipoEvento = event.tipoEvento || 'imovel';
+        const eventoUrl = `https://www.e-leiloes.pt/leilao/imovel/${event.reference}`;
         
         return `
             <div style="
@@ -811,17 +847,28 @@
                         </div>
                         ${detalhes.tipo ? `<div style="font-size: 12px; color: #6b7280; margin-top: 4px;">${detalhes.tipo}</div>` : ''}
                     </div>
-                    ${gps && gps.latitude ? `
-                        <a href="https://www.google.com/maps?q=${gps.latitude},${gps.longitude}" target="_blank" style="
-                            background: #3b82f6;
+                    <div style="display: flex; gap: 8px;">
+                        <a href="${eventoUrl}" target="_blank" style="
+                            background: #8b5cf6;
                             color: white;
                             padding: 6px 12px;
                             border-radius: 6px;
                             text-decoration: none;
                             font-size: 12px;
                             font-weight: 600;
-                        ">📍 Ver no Mapa</a>
-                    ` : ''}
+                        ">🔗 Ver Evento</a>
+                        ${gps && gps.latitude ? `
+                            <a href="https://www.google.com/maps?q=${gps.latitude},${gps.longitude}" target="_blank" style="
+                                background: #3b82f6;
+                                color: white;
+                                padding: 6px 12px;
+                                border-radius: 6px;
+                                text-decoration: none;
+                                font-size: 12px;
+                                font-weight: 600;
+                            ">📍 Ver no Mapa</a>
+                        ` : ''}
+                    </div>
                 </div>
                 
                 <!-- Valores do Leilão -->
@@ -868,6 +915,7 @@
         const gps = event.gps || {};
         const valores = event.valores || {};
         const tipoEvento = event.tipoEvento || 'imovel';
+        const eventoUrl = `https://www.e-leiloes.pt/leilao/imovel/${event.reference}`;
         
         const formatShort = (value) => {
             if (!value) return 'N/A';
@@ -888,7 +936,6 @@
                 flex-direction: column;
                 gap: 8px;
                 transition: all 0.2s;
-                cursor: pointer;
             " onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'" onmouseout="this.style.boxShadow='none'">
                 <!-- Header -->
                 <div>
@@ -902,14 +949,22 @@
                             font-weight: 700;
                             text-transform: uppercase;
                         ">${tipoEvento === 'imovel' ? '🏠' : '🚗'}</span>
-                        ${gps && gps.latitude ? `
-                            <a href="https://www.google.com/maps?q=${gps.latitude},${gps.longitude}" target="_blank" 
+                        <div style="display: flex; gap: 4px;">
+                            <a href="${eventoUrl}" target="_blank" 
                                onclick="event.stopPropagation()" style="
-                                color: #3b82f6;
+                                color: #8b5cf6;
                                 text-decoration: none;
                                 font-size: 14px;
-                            " title="Ver no Mapa">📍</a>
-                        ` : ''}
+                            " title="Ver Evento">🔗</a>
+                            ${gps && gps.latitude ? `
+                                <a href="https://www.google.com/maps?q=${gps.latitude},${gps.longitude}" target="_blank" 
+                                   onclick="event.stopPropagation()" style="
+                                    color: #3b82f6;
+                                    text-decoration: none;
+                                    font-size: 14px;
+                                " title="Ver no Mapa">📍</a>
+                            ` : ''}
+                        </div>
                     </div>
                     <strong style="font-size: 13px; color: #111827; display: block;">${event.reference}</strong>
                     ${detalhes.tipo ? `<div style="font-size: 10px; color: #6b7280; margin-top: 2px;">${detalhes.tipo}</div>` : ''}

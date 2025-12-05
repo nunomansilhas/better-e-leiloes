@@ -80,12 +80,10 @@ class EventScraper:
             await page.goto(url, wait_until="networkidle", timeout=15000)
             await asyncio.sleep(1.5)
             
-            body_text = await page.content()
-            
             # GPS (apenas para imóveis)
             gps = None
             if tipo_evento == "imovel":
-                gps = await self._extract_gps(body_text)
+                gps = await self._extract_gps(page)
             
             # Detalhes (diferente para imovel vs movel)
             if tipo_evento == "imovel":
@@ -120,15 +118,48 @@ class EventScraper:
             await page.close()
             await context.close()
     
-    async def _extract_gps(self, body_text: str) -> GPSCoordinates:
-        """Extrai coordenadas GPS do texto da página"""
-        lat_match = re.search(r'GPS\s*Latitude[:\s]*(-?\d+\.?\d*)', body_text, re.IGNORECASE)
-        lon_match = re.search(r'GPS\s*Longitude[:\s]*(-?\d+\.?\d*)', body_text, re.IGNORECASE)
-        
-        return GPSCoordinates(
-            latitude=float(lat_match.group(1)) if lat_match else None,
-            longitude=float(lon_match.group(1)) if lon_match else None
-        )
+    async def _extract_gps(self, page: Page) -> GPSCoordinates:
+        """Extrai coordenadas GPS do DOM da página"""
+        try:
+            latitude = None
+            longitude = None
+            
+            # Procura por spans com "GPS Latitude:" e "GPS Longitude:"
+            spans = await page.query_selector_all('.flex.w-full .font-semibold')
+            
+            for span in spans:
+                text = await span.text_content()
+                if not text:
+                    continue
+                
+                text = text.strip()
+                
+                if text == 'GPS Latitude:':
+                    # Pega próximo elemento (o valor)
+                    next_el = await span.evaluate_handle('el => el.nextElementSibling')
+                    if next_el:
+                        value = await next_el.text_content()
+                        if value:
+                            try:
+                                latitude = float(value.strip())
+                            except ValueError:
+                                pass
+                
+                elif text == 'GPS Longitude:':
+                    next_el = await span.evaluate_handle('el => el.nextElementSibling')
+                    if next_el:
+                        value = await next_el.text_content()
+                        if value:
+                            try:
+                                longitude = float(value.strip())
+                            except ValueError:
+                                pass
+            
+            return GPSCoordinates(latitude=latitude, longitude=longitude)
+            
+        except Exception as e:
+            print(f"⚠️ Erro ao extrair GPS: {e}")
+            return GPSCoordinates(latitude=None, longitude=None)
     
     async def _extract_valores_from_page(self, page: Page) -> ValoresLeilao:
         """Extrai valores da página individual do evento"""
@@ -336,6 +367,8 @@ class EventScraper:
         """
         FASE 1: Extrai referências + valores da página de listagem
         
+        Usa paginação com first=0, first=12, first=24, etc. (12 eventos por página)
+        
         Returns:
             Lista de dicts com {reference, valores}
         """
@@ -345,14 +378,16 @@ class EventScraper:
         events_preview = []
         
         try:
-            page_num = 1
+            page_num = 0  # Começa em 0
+            first_offset = 0  # Offset inicial
             
             while True:
-                self.current_page = page_num
+                self.current_page = page_num + 1  # Para display (página 1, 2, 3...)
                 
-                # Navega para página de listagem
-                url = f"https://www.e-leiloes.pt/eventos?tipo={tipo}&page={page_num}"
-                print(f"🌐 Navegando para {url}...")
+                # Navega para página de listagem com offset correto
+                # https://www.e-leiloes.pt/eventos?layout=grid&first=0&sort=dataFimAsc&tipo=1
+                url = f"https://www.e-leiloes.pt/eventos?layout=grid&first={first_offset}&sort=dataFimAsc&tipo={tipo}"
+                print(f"🌐 Navegando para página {page_num + 1} (first={first_offset})...")
                 await page.goto(url, wait_until="networkidle")
                 await asyncio.sleep(1.5)
                 
@@ -391,16 +426,18 @@ class EventScraper:
                         continue
                 
                 count_new = len(events_preview) - count_before
-                print(f"📄 Página {page_num}: +{count_new} eventos (total: {len(events_preview)})")
+                print(f"📄 Página {page_num + 1}: +{count_new} eventos (total: {len(events_preview)})")
                 
                 if count_new == 0:
                     break
                 
-                if max_pages and page_num >= max_pages:
+                if max_pages and (page_num + 1) >= max_pages:
                     print(f"📄 Limite de {max_pages} páginas atingido")
                     break
                 
+                # Incrementa offset de 12 em 12
                 page_num += 1
+                first_offset += 12
             
             return events_preview
             
