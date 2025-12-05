@@ -1347,7 +1347,7 @@
         console.log(`🤖 Recolha automática: ${cardsToProcess.length}/${cards.length} novos`);
         let processed = 0;
         
-        // 🚀 OPTIMIZAÇÃO: Processa 4 de cada vez (era 2, agora mais rápido)
+        // � OPTIMIZAÇÃO: Processa 4 de cada vez (era 2, agora mais rápido)
         const batchSize = 4;
         for (let i = 0; i < cardsToProcess.length; i += batchSize) {
             const batch = cardsToProcess.slice(i, i + batchSize);
@@ -1388,7 +1388,7 @@
             
             await Promise.all(promises);
             
-            // 🚀 OPTIMIZAÇÃO: Delay reduzido para 200ms (era 500ms)
+            // � OPTIMIZAÇÃO: Delay reduzido para 200ms (era 500ms)
             if (i + batchSize < cardsToProcess.length) {
                 await new Promise(resolve => setTimeout(resolve, 200));
             }
@@ -1732,7 +1732,7 @@
                         console.warn(`⚠️ Continuando apesar do erro na página ${page}...`);
                     }
                     
-                    // 🚀 OPTIMIZAÇÃO: Delay reduzido de 1s para 300ms
+                    // � OPTIMIZAÇÃO: Delay reduzido de 1s para 300ms
                     await new Promise(resolve => setTimeout(resolve, 300));
                 }
                 

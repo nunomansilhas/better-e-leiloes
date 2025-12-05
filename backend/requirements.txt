@@ -1,0 +1,21 @@
+# Backend API Requirements
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+pydantic==2.5.3
+python-dotenv==1.0.0
+
+# Web Scraping
+httpx==0.26.0
+beautifulsoup4==4.12.3
+lxml==5.1.0
+playwright==1.41.0
+
+# Database
+sqlalchemy==2.0.25
+aiosqlite==0.19.0
+
+# CORS
+fastapi-cors==0.0.6
+
+# Caching
+redis==5.0.1
