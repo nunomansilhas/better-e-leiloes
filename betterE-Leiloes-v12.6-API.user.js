@@ -250,45 +250,10 @@
     // ==== VISUAL-ONLY ENHANCEMENT (NO API) ====
     // Enhances cards using only data already present in the HTML
     
-    function enhanceNativeCardsVisual() {
-        const cards = document.querySelectorAll('.p-evento:not([data-visual-enhanced])');
-        
-        if (cards.length === 0) {
-            console.log('⚠️ Nenhum card encontrado para enhancement');
-            return;
-        }
-        
-        console.log(`🎨 Enhancing ${cards.length} cards visually (no API)`);
-        
-        let enhancedCount = 0;
-        cards.forEach((card, index) => {
-            try {
-                // Skip if already being processed
-                if (card.hasAttribute('data-processing')) {
-                    return;
-                }
-                card.setAttribute('data-processing', 'true');
-                
-                const data = extractCardDataFromHTML(card);
-                if (data) {
-                    reorganizeCardVisual(card, data);
-                    card.setAttribute('data-visual-enhanced', 'true');
-                    card.removeAttribute('data-processing');
-                    enhancedCount++;
-                } else {
-                    console.warn(`⚠️ Sem dados para card ${index + 1}`);
-                    card.removeAttribute('data-processing');
-                }
-            } catch (err) {
-                console.error(`❌ Erro ao enhancing card ${index + 1}:`, err);
-                card.removeAttribute('data-processing');
-            }
-        });
-        
-        console.log(`✅ ${enhancedCount}/${cards.length} cards enhanced com sucesso`);
-    }
+
     
     function extractCardDataFromHTML(card) {
+        // Accepts a third argument: isApiData (default false)
         try {
             // Extract reference
             const refElement = card.querySelector('.pi-tag + span');
@@ -397,8 +362,11 @@
             
             // Skip if already reorganized
             if (footer.hasAttribute('data-simplified')) {
-                console.log('⏭️ Footer já reorganizado, skip');
-                return;
+                // If this is API data, allow update
+                if (!arguments[2]) {
+                    console.log('⏭️ Footer já reorganizado, skip');
+                    return;
+                }
             }
             
             // Store original content for debugging
@@ -504,40 +472,50 @@
     async function enrichCardsWithAPIData() {
         // Prevent concurrent enrichment
         if (enrichmentInProgress) return;
-        
         enrichmentInProgress = true;
         const references = extractReferencesFromPage();
-        
-        // Filter out already processed references
-        const newReferences = references.filter(ref => !processedReferences.has(ref));
-        
-        if (newReferences.length === 0) {
+
+        // Instead of only new references, process ALL references that do not have data-api-enhanced
+        const unenhancedReferences = references.filter(ref => {
+            const cardLinks = document.querySelectorAll(`a[href*="${ref}"]`);
+            // If any card for this reference does NOT have data-api-enhanced, process it
+            return Array.from(cardLinks).some(link => {
+                const parentCard = link.closest('.p-evento');
+                return parentCard && !parentCard.getAttribute('data-api-enhanced');
+            });
+        });
+
+        if (unenhancedReferences.length === 0) {
+            console.log('[API ENRICH] Nenhum card para enriquecer.');
             enrichmentInProgress = false;
             return;
         }
-        
-        console.log(`🔍 ${newReferences.length} novos eventos encontrados na página`);
-        
-        // ADICIONA loading overlay em TODOS os cards novos PRIMEIRO
-        newReferences.forEach(ref => {
+
+        console.log(`[API ENRICH] ${unenhancedReferences.length} referências para enriquecer:`, unenhancedReferences);
+
+        // Add loading overlay to all unenhanced cards
+        unenhancedReferences.forEach(ref => {
             const cardLinks = document.querySelectorAll(`a[href*="${ref}"]`);
             cardLinks.forEach(link => {
                 const parentCard = link.closest('.p-evento');
-                if (parentCard && !parentCard.dataset.enhanced && !parentCard.querySelector('.eleiloes-loading')) {
+                if (parentCard && !parentCard.getAttribute('data-api-enhanced') && !parentCard.querySelector('.eleiloes-loading')) {
                     addLoadingOverlay(parentCard);
                 }
             });
         });
-        
-        // PROCESSA um a um com delay visual
-        for (const ref of newReferences) {
+
+        // Process each reference with API enrichment
+        for (const ref of unenhancedReferences) {
             try {
+                console.log(`[API ENRICH] Buscando dados da API para referência: ${ref}`);
                 const data = await getEventFromAPI(ref);
+                console.log(`[API ENRICH] Dados recebidos para ${ref}:`, data);
                 addBadgesToCard(ref, data);
+                console.log(`[API ENRICH] Card atualizado para referência: ${ref}`);
                 processedReferences.add(ref);
                 await new Promise(resolve => setTimeout(resolve, 50)); // 50ms delay entre cards
             } catch (error) {
-                console.warn(`⚠️ Evento ${ref} não disponível na API:`, error.message);
+                console.warn(`[API ENRICH] Erro ao buscar/enriquecer referência ${ref}:`, error);
                 // Remove loading mesmo em erro
                 const cardLinks = document.querySelectorAll(`a[href*="${ref}"]`);
                 cardLinks.forEach(link => {
@@ -549,7 +527,7 @@
                 });
             }
         }
-        
+
         enrichmentInProgress = false;
     }
 
@@ -559,122 +537,245 @@
         if (cards.length === 0) return;
         
         cards.forEach(cardLink => {
-            // Encontra o container do card principal
             const parentCard = cardLink.closest('.p-evento');
-            if (!parentCard || parentCard.dataset.enhanced) return;
-            
-            // REMOVE o loading overlay
+            if (!parentCard || parentCard.getAttribute('data-api-enhanced') === 'true') return;
+
+            // Remove loading overlay
             const loadingOverlay = parentCard.querySelector('.eleiloes-loading');
             if (loadingOverlay) loadingOverlay.remove();
-            
-            parentCard.dataset.enhanced = 'true';
-            
-            // 1. ADICIONAR BADGES (✓ e ? no canto superior direito)
-            const headerDiv = parentCard.querySelector('.flex.w-full.flex-wrap.align-items-center.justify-content-between.px-3.pt-3.gap-1');
-            if (headerDiv && !headerDiv.querySelector('.eleiloes-badge')) {
-                const badgesContainer = document.createElement('div');
-                badgesContainer.style.cssText = 'display: flex; gap: 4px; margin-left: auto;';
-                
-                // Badge de lances (se tem lance atual)
-                if (data.valores && data.valores.lanceAtual) {
-                    const lancesBadge = document.createElement('span');
-                    lancesBadge.className = 'eleiloes-badge success';
-                    lancesBadge.setAttribute('data-tooltip', 'Tem lances ativos');
-                    lancesBadge.textContent = '✓';
-                    badgesContainer.appendChild(lancesBadge);
-                }
-                
-                // Badge de desconto (se VM existe e há desconto)
-                if (data.valores && data.valores.valorMercado && data.valores.valorBase) {
-                    const desconto = ((data.valores.valorMercado - data.valores.valorBase) / data.valores.valorMercado * 100).toFixed(1);
-                    if (parseFloat(desconto) > 0) {
-                        const descontoBadge = document.createElement('span');
-                        descontoBadge.className = 'eleiloes-badge info';
-                        descontoBadge.setAttribute('data-tooltip', `Desconto: -${desconto}% face ao VM`);
-                        descontoBadge.textContent = '?';
-                        badgesContainer.appendChild(descontoBadge);
+
+            parentCard.setAttribute('data-api-enhanced', 'true');
+
+            // 1. Header: show colored 2-letter prefix for ref, remove event-type tag, add map+event badges
+            const headerDiv = parentCard.querySelector('.flex.w-full.flex-wrap.align-items-center.justify-content-between') || parentCard.querySelector('.p-evento-header') || parentCard.querySelector('[class*="header"]');
+            if (headerDiv) {
+                try {
+                    // Remove existing event-type tag if present (example: .pi-tag)
+                    const piTag = headerDiv.querySelector('.pi-tag');
+                    if (piTag) piTag.remove();
+
+                    // Find reference element (common pattern: .pi-tag + span or strong)
+                    let refElem = headerDiv.querySelector('.pi-tag + span') || headerDiv.querySelector('strong') || headerDiv.querySelector('span');
+                    // If not found inside header, try searching the whole card
+                    if (!refElem) refElem = parentCard.querySelector('.pi-tag + span') || parentCard.querySelector('strong');
+
+                    const refText = reference || (refElem ? refElem.textContent.trim() : '');
+                    const tipoNeg = getTipoNegocio(refText) || { color: '#6b7280' };
+
+                    // Build styled reference: first two letters colored
+                    const prefix = refText.substring(0,2);
+                    const rest = refText.substring(2);
+                    const styledRef = document.createElement('div');
+                    styledRef.style.cssText = 'display:flex;align-items:center;gap:8px;';
+                    const refSpan = document.createElement('span');
+                    refSpan.innerHTML = `<span style="color: ${tipoNeg.color}; font-weight:700;">${prefix}</span>${rest}`;
+                    refSpan.style.fontSize = '16px';
+                    refSpan.style.fontWeight = '700';
+                    styledRef.appendChild(refSpan);
+
+                    // Badges container
+                    let badgesContainer = headerDiv.querySelector('.eleiloes-badges-container');
+                    if (!badgesContainer) {
+                        badgesContainer = document.createElement('div');
+                        badgesContainer.className = 'eleiloes-badges-container';
+                        badgesContainer.style.cssText = 'display: flex; gap: 6px; margin-left: auto; align-items: center;';
                     }
+                    badgesContainer.innerHTML = '';
+
+                    // Badge: Google Maps (if GPS exists)
+                    if (data.gps && data.gps.latitude) {
+                        const mapsUrl = `https://www.google.com/maps?q=${data.gps.latitude},${data.gps.longitude}`;
+                        const mapAnchor = document.createElement('a');
+                        mapAnchor.href = mapsUrl;
+                        mapAnchor.target = '_blank';
+                        mapAnchor.rel = 'noopener noreferrer';
+                        mapAnchor.title = 'Abrir no Google Maps';
+                        const mapBadge = document.createElement('span');
+                        mapBadge.className = 'eleiloes-badge info eleiloes-map-icon';
+                        mapBadge.innerHTML = '📍';
+                        mapAnchor.appendChild(mapBadge);
+                        badgesContainer.appendChild(mapAnchor);
+                    }
+
+                    // Badge: Open event (opens new window)
+                    const eventUrl = `https://www.e-leiloes.pt/evento/${encodeURIComponent(reference)}`;
+                    const eventAnchor = document.createElement('a');
+                    eventAnchor.href = eventUrl;
+                    eventAnchor.target = '_blank';
+                    eventAnchor.rel = 'noopener noreferrer';
+                    eventAnchor.title = 'Abrir evento em nova janela';
+                    const eventBadge = document.createElement('span');
+                    eventBadge.className = 'eleiloes-badge info';
+                    eventBadge.innerHTML = '🔗';
+                    eventAnchor.appendChild(eventBadge);
+                    badgesContainer.appendChild(eventAnchor);
+
+                    // Append API badge
+                    const apiBadge = document.createElement('span');
+                    apiBadge.className = 'eleiloes-badge info';
+                    apiBadge.textContent = 'API';
+                    apiBadge.setAttribute('data-tooltip', 'Dados enriquecidos via API');
+                    badgesContainer.appendChild(apiBadge);
+
+                    // Replace or inject styledRef into header
+                    // Remove existing simple ref text if present
+                    if (refElem && refElem.parentNode) {
+                        refElem.parentNode.insertBefore(styledRef, refElem);
+                        refElem.remove();
+                    } else {
+                        headerDiv.insertBefore(styledRef, headerDiv.firstChild);
+                    }
+
+                    // Ensure badges container is appended
+                    if (!headerDiv.contains(badgesContainer)) headerDiv.appendChild(badgesContainer);
+                } catch (err) {
+                    console.warn('Erro ao atualizar header nativo:', err);
                 }
-                
-                headerDiv.appendChild(badgesContainer);
             }
-            
-            // 2. ADICIONAR ÍCONE DE MAPA (ao lado da localização)
-            const locationDiv = parentCard.querySelector('.flex.align-items-center.gap-1 .pi-map-marker');
-            if (locationDiv && data.gps && data.gps.latitude && !locationDiv.parentElement.querySelector('.eleiloes-map-icon')) {
-                const mapIcon = document.createElement('i');
-                mapIcon.className = 'pi pi-map eleiloes-map-icon';
-                mapIcon.title = 'Ver no Google Maps';
-                mapIcon.style.cursor = 'pointer';
-                mapIcon.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    window.open(`https://www.google.com/maps?q=${data.gps.latitude},${data.gps.longitude}`, '_blank');
-                });
-                locationDiv.parentElement.appendChild(mapIcon);
-            }
-            
-            // 3. SUBSTITUIR FOOTER COM VALORES INLINE E DATA RELATIVA
+
+            // 2. Update card body with API details (full modal-style rendering)
+            const infoContainers = parentCard.querySelectorAll('.p-evento-content, .p-evento-body, .flex.flex-column.gap-2');
+            infoContainers.forEach(container => {
+                container.innerHTML = '';
+                const detalhes = data.detalhes || {};
+                const gps = data.gps || {};
+                // Tipo, subtipo, tipologia
+                if (detalhes.tipo || detalhes.subtipo || detalhes.tipologia) {
+                    const classDiv = document.createElement('div');
+                    classDiv.style.cssText = 'margin-bottom: 6px; font-size: 13px; color: #6b7280; font-weight: 600;';
+                    if (detalhes.tipo) classDiv.innerHTML += `<span>Tipo: <b>${detalhes.tipo}</b></span> `;
+                    if (detalhes.subtipo) classDiv.innerHTML += `<span>Subtipo: <b>${detalhes.subtipo}</b></span> `;
+                    if (detalhes.tipologia) classDiv.innerHTML += `<span>Tipologia: <b>${detalhes.tipologia}</b></span>`;
+                    container.appendChild(classDiv);
+                }
+                // Áreas
+                if (detalhes.areaPrivativa || detalhes.areaDependente || detalhes.areaTotal) {
+                    const areaDiv = document.createElement('div');
+                    areaDiv.style.cssText = 'margin-bottom: 6px; font-size: 13px; color: #334155;';
+                    if (detalhes.areaPrivativa) areaDiv.innerHTML += `<span>Privativa: <b>${formatArea(detalhes.areaPrivativa)} m²</b></span> `;
+                    if (detalhes.areaDependente) areaDiv.innerHTML += `<span>Dependente: <b>${formatArea(detalhes.areaDependente)} m²</b></span> `;
+                    if (detalhes.areaTotal) areaDiv.innerHTML += `<span>Total: <b>${formatArea(detalhes.areaTotal)} m²</b></span>`;
+                    container.appendChild(areaDiv);
+                }
+                // Veículo
+                if (detalhes.matricula || detalhes.marca || detalhes.modelo || detalhes.ano || detalhes.combustivel || detalhes.cilindrada || detalhes.cor) {
+                    const carDiv = document.createElement('div');
+                    carDiv.style.cssText = 'margin-bottom: 6px; font-size: 13px; color: #334155;';
+                    if (detalhes.matricula) carDiv.innerHTML += `<span>Matrícula: <b>${detalhes.matricula}</b></span> `;
+                    if (detalhes.marca) carDiv.innerHTML += `<span>Marca: <b>${detalhes.marca}</b></span> `;
+                    if (detalhes.modelo) carDiv.innerHTML += `<span>Modelo: <b>${detalhes.modelo}</b></span> `;
+                    if (detalhes.ano) carDiv.innerHTML += `<span>Ano: <b>${detalhes.ano}</b></span> `;
+                    if (detalhes.combustivel) carDiv.innerHTML += `<span>Combustível: <b>${detalhes.combustivel}</b></span> `;
+                    if (detalhes.cilindrada) carDiv.innerHTML += `<span>Cilindrada: <b>${detalhes.cilindrada}</b></span> `;
+                    if (detalhes.cor) carDiv.innerHTML += `<span>Cor: <b>${detalhes.cor}</b></span>`;
+                    container.appendChild(carDiv);
+                }
+                // Localização
+                if (detalhes.freguesia || detalhes.concelho || detalhes.distrito || (gps && gps.latitude)) {
+                    const locDiv = document.createElement('div');
+                    locDiv.style.cssText = 'margin-bottom: 6px; font-size: 13px; color: #1e40af;';
+                    if (detalhes.freguesia) locDiv.innerHTML += `<span>Freguesia: <b>${detalhes.freguesia}</b></span> `;
+                    if (detalhes.concelho) locDiv.innerHTML += `<span>Concelho: <b>${detalhes.concelho}</b></span> `;
+                    if (detalhes.distrito) locDiv.innerHTML += `<span>Distrito: <b>${detalhes.distrito}</b></span> `;
+                    if (gps && gps.latitude) locDiv.innerHTML += `<span>GPS: <b>${gps.latitude}, ${gps.longitude}</b></span>`;
+                    container.appendChild(locDiv);
+                }
+            });
+
+            // 3. Update footer with values row (VB | VA | VM | PMA) and start/end datetime
             const footer = parentCard.querySelector('.p-evento-footer');
-            if (footer && !footer.dataset.simplified) {
-                footer.dataset.simplified = 'true';
-                footer.innerHTML = ''; // Limpa conteúdo antigo
-                footer.style.cssText = 'display: flex; align-items: center; justify-content: space-between; margin-top: 0.5rem; padding: 0.5rem 0.75rem; background: rgb(241, 245, 249); border-radius: 0 0 8px 8px;';
-                
-                // Container de valores inline
-                const valuesContainer = document.createElement('div');
-                valuesContainer.className = 'eleiloes-values-inline';
-                
-                const valores = data.valores || {};
-                const items = [];
-                
-                if (valores.valorBase) items.push({ label: 'VB', value: valores.valorBase });
-                if (valores.valorMercado) items.push({ label: 'VM', value: valores.valorMercado });
-                if (valores.lanceAtual) items.push({ label: 'PMA', value: valores.lanceAtual, highlight: true });
-                else if (valores.valorAbertura) items.push({ label: 'VA', value: valores.valorAbertura });
-                
-                items.forEach((item, idx) => {
-                    if (idx > 0) {
-                        const separator = document.createElement('span');
-                        separator.className = 'value-separator';
-                        separator.textContent = '|';
-                        valuesContainer.appendChild(separator);
+            if (footer) {
+                try {
+                    // Build values row
+                    footer.dataset.simplified = 'true';
+                    footer.innerHTML = '';
+                    footer.style.cssText = 'display: flex; flex-direction: column; gap:6px; margin-top: 0.5rem; padding: 0.5rem 0.75rem; background: rgb(241, 245, 249); border-radius: 0 0 8px 8px;';
+
+                    const valuesRow = document.createElement('div');
+                    valuesRow.style.cssText = 'display:flex;gap:10px;align-items:center;flex-wrap:wrap;';
+                    const v = data.valores || {};
+                    // Helper to try many possible API keys for a monetary field
+                    const getMonetaryField = (obj, keys) => {
+                        for (const k of keys) {
+                            if (!obj) continue;
+                            if (Object.prototype.hasOwnProperty.call(obj, k) && obj[k] !== null && obj[k] !== undefined && obj[k] !== '') return obj[k];
+                        }
+                        return null;
+                    };
+
+                    const VB = getMonetaryField(v, ['valorBase', 'valor_base', 'VB', 'vb', 'base', 'valorBaseFormatted', 'valor_base_format']);
+                    const VA = getMonetaryField(v, ['valorAbertura', 'valor_abertura', 'VA', 'va', 'valorAberturaFormatted', 'valorAbert']);
+                    const VM = getMonetaryField(v, ['valorMercado', 'valor_mercado', 'VM', 'vm', 'valorMerc']);
+                    const PMA = getMonetaryField(v, ['lanceAtual', 'lance_atual', 'PMA', 'pma', 'lanceAtualFormatted', 'lance', 'LA', 'la']);
+
+                    const makeVal = (label, value, highlight) => {
+                        const item = document.createElement('div');
+                        item.className = 'value-inline-item';
+                        const labelSpan = document.createElement('span');
+                        labelSpan.className = 'value-inline-label';
+                        labelSpan.textContent = label + ':';
+                        const amountSpan = document.createElement('span');
+                        amountSpan.className = 'value-inline-amount' + (highlight ? ' highlight' : '');
+                        amountSpan.textContent = formatMoneyValue(value);
+                        item.appendChild(labelSpan);
+                        item.appendChild(amountSpan);
+                        return item;
+                    };
+
+                    valuesRow.appendChild(makeVal('VB', VB, false));
+                    valuesRow.appendChild(makeVal('VA', VA, false));
+                    valuesRow.appendChild(makeVal('VM', VM, false));
+                    valuesRow.appendChild(makeVal('PMA', PMA, true));
+
+                    footer.appendChild(valuesRow);
+
+                    // Dates row
+                    const datesRow = document.createElement('div');
+                    datesRow.style.cssText = 'display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:12px;color:#334155;';
+                    const inicio = data.dataInicio || data.inicio || data.start || null;
+                    const fim = data.dataFim || data.fim || data.end || null;
+                    if (inicio) {
+                        const d1 = document.createElement('div');
+                        d1.innerHTML = `<span style="color:#6b7280;font-weight:600;margin-right:6px;">Início:</span><span style=\"font-weight:700\">${formatDateTimePT(inicio)}</span>`;
+                        datesRow.appendChild(d1);
                     }
-                    
-                    const itemSpan = document.createElement('span');
-                    itemSpan.className = 'value-inline-item';
-                    
-                    const label = document.createElement('span');
-                    label.className = 'value-inline-label';
-                    label.textContent = item.label + ':';
-                    
-                    const amount = document.createElement('span');
-                    amount.className = 'value-inline-amount' + (item.highlight ? ' highlight' : '');
-                    amount.textContent = formatMoney(item.value);
-                    
-                    itemSpan.appendChild(label);
-                    itemSpan.appendChild(amount);
-                    valuesContainer.appendChild(itemSpan);
-                });
-                
-                footer.appendChild(valuesContainer);
-                
-                // Data relativa
-                if (data.dataFim) {
-                    const dateRelative = document.createElement('div');
-                    dateRelative.className = 'eleiloes-date-relative';
-                    dateRelative.setAttribute('data-exact-date', formatDatePT(data.dataFim));
-                    
-                    const relativeText = getRelativeDate(data.dataFim);
-                    dateRelative.textContent = relativeText;
-                    
-                    // Adiciona classe "urgent" se termina hoje ou amanhã
-                    if (relativeText.includes('hoje') || relativeText.includes('Termina em')) {
-                        dateRelative.classList.add('urgent');
+                    if (fim) {
+                        const d2 = document.createElement('div');
+                        d2.innerHTML = `<span style="color:#6b7280;font-weight:600;margin-right:6px;">Fim:</span><span style=\"font-weight:700;color:#dc2626\">${formatDateTimePT(fim)}</span>`;
+                        datesRow.appendChild(d2);
                     }
-                    
-                    footer.appendChild(dateRelative);
+                    if (datesRow.children.length) footer.appendChild(datesRow);
+                } catch (err) {
+                    console.warn('Erro ao atualizar footer nativo:', err);
                 }
+            }
+
+            // 4. Neutralize internal links and make clicks open event in a new window
+            try {
+                const internalAnchors = parentCard.querySelectorAll('a[href]');
+                internalAnchors.forEach(a => {
+                    const href = a.getAttribute('href') || '';
+                    if (href.includes('/evento/') || href.includes('/leilao/')) {
+                        a.addEventListener('click', (ev) => {
+                            ev.preventDefault();
+                            ev.stopPropagation();
+                            window.open(eventUrl, '_blank');
+                        });
+                        a.removeAttribute('href');
+                        a.style.cursor = 'pointer';
+                    }
+                });
+
+                // Clicking the card opens event in new tab
+                parentCard.style.cursor = 'pointer';
+                parentCard.addEventListener('click', (ev) => {
+                    // avoid when clicking on links/buttons inside
+                    const tag = ev.target.tagName.toLowerCase();
+                    if (tag === 'a' || tag === 'button' || ev.target.closest('a')) return;
+                    window.open(eventUrl, '_blank');
+                });
+            } catch (err) {
+                console.warn('Erro ao aplicar comportamento de clique no card:', err);
             }
         });
     }
@@ -697,200 +798,131 @@
         return `${day}/${month}/${year}`;
     }
 
+    // Formata data e hora para PT (DD/MM/YYYY HH:MM:SS)
+    function formatDateTimePT(dateString) {
+        if (!dateString) return '';
+        const d = new Date(dateString);
+        if (isNaN(d.getTime())) return dateString;
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const year = d.getFullYear();
+        const hh = String(d.getHours()).padStart(2, '0');
+        const mm = String(d.getMinutes()).padStart(2, '0');
+        const ss = String(d.getSeconds()).padStart(2, '0');
+        return `${day}/${month}/${year} ${hh}:${mm}:${ss}`;
+    }
+
     // Calcula data relativa (Termina hoje, Termina em 2 dias, etc)
-    function getRelativeDate(dateString) {
-        const now = new Date();
-        const endDate = new Date(dateString);
-        const diffTime = endDate - now;
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        
-        if (diffDays < 0) return 'Terminado';
-        if (diffDays === 0) return 'Termina hoje';
-        if (diffDays === 1) return 'Termina amanhã';
-        if (diffDays <= 7) return `Termina em ${diffDays} dias`;
-        if (diffDays <= 30) return `Termina em ${Math.ceil(diffDays / 7)} semanas`;
-        return `Termina em ${Math.ceil(diffDays / 30)} meses`;
-    }
-
-    function createEnhancedOverlay(data) {
-        const overlay = document.createElement('div');
-        overlay.className = 'better-eleiloes-overlay';
-        overlay.style.cssText = `
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 40%, rgba(0,0,0,0.85) 100%);
-            border-radius: 8px;
-            padding: 12px;
-            pointer-events: none;
-            opacity: 0.95;
-            transition: opacity 0.3s ease;
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-end;
-            z-index: 5;
-        `;
-        
-        // Container de badges no topo
-        const topBadges = document.createElement('div');
-        topBadges.style.cssText = `
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            display: flex;
-            gap: 6px;
-            flex-wrap: wrap;
-            max-width: 50%;
-            justify-content: flex-end;
-        `;
-        
-        // Badge de tipo de negócio
-        const tipoEvento = data.reference.startsWith('NP') ? 'NP' : data.reference.startsWith('LO') ? 'LO' : 'LE';
-        const tipoBadge = createCompactBadge(
-            tipoEvento,
-            tipoEvento === 'NP' ? '#10b981' : tipoEvento === 'LO' ? '#3b82f6' : '#f59e0b',
-            tipoEvento === 'NP' ? 'Negociação Particular' : tipoEvento === 'LO' ? 'Leilão Online' : 'Leilão Eletrónico'
-        );
-        topBadges.appendChild(tipoBadge);
-        
-        // Badge GPS (clicável)
-        if (data.gps && data.gps.latitude) {
-            const gpsBadge = createCompactBadge('📍', '#8b5cf6', `GPS: ${data.gps.latitude}, ${data.gps.longitude}\nClique para abrir Google Maps`);
-            gpsBadge.style.cursor = 'pointer';
-            gpsBadge.style.pointerEvents = 'all';
-            gpsBadge.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                window.open(`https://www.google.com/maps?q=${data.gps.latitude},${data.gps.longitude}`, '_blank');
-            });
-            topBadges.appendChild(gpsBadge);
+    function enhanceNativeCardsVisual() {
+        const cards = document.querySelectorAll('.p-evento:not([data-visual-enhanced])');
+        if (cards.length === 0) {
+            console.log('⚠️ Nenhum card encontrado para enhancement');
+            return;
         }
-        
-        overlay.appendChild(topBadges);
-        
-        // Informações na parte inferior
-        const infoContainer = document.createElement('div');
-        infoContainer.style.cssText = `
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-            color: white;
-            font-size: 11px;
-        `;
-        
-        // Linha de valores (destaque)
-        if (data.valores && (data.valores.valorBase || data.valores.lanceAtual)) {
-            const valoresLine = document.createElement('div');
-            valoresLine.style.cssText = `
-                background: rgba(255, 255, 255, 0.15);
-                backdrop-filter: blur(8px);
-                padding: 8px 10px;
-                border-radius: 8px;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                border: 1px solid rgba(255, 255, 255, 0.2);
-            `;
-            
-            let valorPrincipal = data.valores.lanceAtual || data.valores.valorBase;
-            let labelPrincipal = data.valores.lanceAtual ? 'LANCE ATUAL' : 'VALOR BASE';
-            
-            valoresLine.innerHTML = `
-                <span style="font-weight: 700; font-size: 9px; color: #fbbf24; letter-spacing: 0.5px;">💰 ${labelPrincipal}</span>
-                <span style="font-weight: 800; font-size: 14px; color: #fbbf24; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">${formatMoney(valorPrincipal)}</span>
-            `;
-            
-            infoContainer.appendChild(valoresLine);
-        }
-        
-        // Linha de detalhes (imóveis)
-        if (data.detalhes && data.detalhes.tipo === 'Imóvel') {
-            const detalhesLine = document.createElement('div');
-            detalhesLine.style.cssText = `
-                display: flex;
-                gap: 8px;
-                flex-wrap: wrap;
-                font-size: 10px;
-            `;
-            
-            const items = [];
-            
-            if (data.detalhes.tipologia) {
-                items.push(`<span style="background: rgba(59, 130, 246, 0.9); padding: 3px 8px; border-radius: 4px; font-weight: 600;">🏠 ${data.detalhes.tipologia}</span>`);
+        console.log(`🎨 [v11 logic] Enhancing ${cards.length} cards visually (no API)`);
+        let enhancedCount = 0;
+        cards.forEach((card, index) => {
+            try {
+                if (card.hasAttribute('data-processing')) return;
+                card.setAttribute('data-processing', 'true');
+                // --- v11 extraction logic ---
+                const footer = card.querySelector('.p-evento-footer');
+                if (!footer) {
+                    console.warn('⚠️ Footer não encontrado no card');
+                    card.removeAttribute('data-processing');
+                    return;
+                }
+                const refElement = card.querySelector('.pi-tag + span');
+                const reference = refElement ? refElement.textContent.trim() : '';
+                // Extract VB, VM, PMA/LA, endDate
+                const footerText = footer.innerText || footer.textContent || '';
+                const vbMatch = footerText.match(/VB:\s*([0-9\s,\.]+) ?€/);
+                const vmMatch = footerText.match(/VM:\s*([0-9\s,\.]+) ?€/);
+                const laMatch = footerText.match(/LA:\s*([0-9\s,\.]+) ?€/);
+                const pmaMatch = footerText.match(/PMA:\s*([0-9\s,\.]+) ?€/);
+                const vaMatch = footerText.match(/VA:\s*([0-9\s,\.]+) ?€/);
+                const dateMatches = footerText.match(/(\d{2}\/\d{2}\/\d{4})/g);
+                const endDate = dateMatches && dateMatches.length > 0 ? dateMatches[dateMatches.length - 1] : null;
+                // Prefer PMA > LA > VA
+                let lanceValue = pmaMatch ? pmaMatch[1].trim() : (laMatch ? laMatch[1].trim() : (vaMatch ? vaMatch[1].trim() : null));
+                let lanceLabel = pmaMatch ? 'PMA' : (laMatch ? 'LA' : (vaMatch ? 'VA' : 'LANCE'));
+                // --- v11 header badges ---
+                const headerDiv = card.querySelector('.flex.w-full.flex-wrap.align-items-center.justify-content-between');
+                if (headerDiv && !headerDiv.querySelector('.eleiloes-badge')) {
+                    const hasLance = lanceValue && parseFloat(lanceValue.replace(/\s/g, '').replace(/\./g, '').replace(',', '.')) > 0;
+                    const badge1 = document.createElement('span');
+                    badge1.className = `eleiloes-badge ${hasLance ? 'success' : 'danger'}`;
+                    badge1.innerHTML = hasLance ? '✓' : '✗';
+                    badge1.setAttribute('data-tooltip', hasLance ? 'Tem lances ativos' : 'Sem lances');
+                    const badge2 = document.createElement('span');
+                    badge2.className = 'eleiloes-badge info';
+                    badge2.innerHTML = '?';
+                    const vmValue = vmMatch ? parseFloat(vmMatch[1].replace(/\s/g, '').replace(/\./g, '').replace(',', '.')) : 0;
+                    const lanceNum = lanceValue ? parseFloat(lanceValue.replace(/\s/g, '').replace(/\./g, '').replace(',', '.')) : 0;
+                    const discount = vmValue > 0 ? ((vmValue - lanceNum) / vmValue * 100).toFixed(1) : 0;
+                    badge2.setAttribute('data-tooltip', `Desconto: ${discount}% face ao VM`);
+                    const badgesContainer = document.createElement('div');
+                    badgesContainer.style.display = 'flex';
+                    badgesContainer.style.gap = '4px';
+                    badgesContainer.style.marginLeft = 'auto';
+                    badgesContainer.appendChild(badge1);
+                    badgesContainer.appendChild(badge2);
+                    headerDiv.appendChild(badgesContainer);
+                }
+                // --- v11 footer inline values ---
+                if (!footer.getAttribute('data-simplified')) {
+                    footer.setAttribute('data-simplified', 'true');
+                    footer.innerHTML = '';
+                    const valuesDiv = document.createElement('div');
+                    valuesDiv.className = 'eleiloes-values-inline';
+                    valuesDiv.innerHTML = `
+                        <span class="value-inline-item">
+                            <span class="value-inline-label">VB:</span>
+                            <span class="value-inline-amount">${vbMatch ? vbMatch[1].trim() : 'N/A'} €</span>
+                        </span>
+                        <span class="value-separator">|</span>
+                        <span class="value-inline-item">
+                            <span class="value-inline-label">VM:</span>
+                            <span class="value-inline-amount">${vmMatch ? vmMatch[1].trim() : 'N/A'} €</span>
+                        </span>
+                        <span class="value-separator">|</span>
+                        <span class="value-inline-item">
+                            <span class="value-inline-label">${lanceLabel}:</span>
+                            <span class="value-inline-amount ${lanceValue && parseFloat(lanceValue.replace(/\s/g, '').replace(/\./g, '').replace(',', '.')) > 0 ? 'highlight' : ''}">${lanceValue ? lanceValue : 'N/A'} €</span>
+                        </span>
+                    `;
+                    footer.appendChild(valuesDiv);
+                    // --- v11 relative date ---
+                    if (endDate) {
+                        const now = new Date();
+                        const parts = endDate.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+                        let relativeText = '';
+                        if (parts) {
+                            const endDateObj = new Date(parts[3], parts[2] - 1, parts[1]);
+                            const diff = endDateObj - now;
+                            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                            if (days > 0) {
+                                relativeText = `Daqui a ${days} dia${days !== 1 ? 's' : ''}`;
+                            } else {
+                                relativeText = 'Termina hoje';
+                            }
+                        }
+                        const dateDiv = document.createElement('div');
+                        dateDiv.className = `eleiloes-date-relative ${days <= 2 ? 'urgent' : ''}`;
+                        dateDiv.textContent = relativeText;
+                        dateDiv.setAttribute('data-exact-date', endDate);
+                        footer.appendChild(dateDiv);
+                    }
+                }
+                card.setAttribute('data-visual-enhanced', 'true');
+                card.removeAttribute('data-processing');
+                enhancedCount++;
+            } catch (err) {
+                console.error(`❌ Erro ao enhancing card ${index + 1}:`, err);
+                card.removeAttribute('data-processing');
             }
-            
-            if (data.detalhes.areaTotal) {
-                items.push(`<span style="background: rgba(16, 185, 129, 0.9); padding: 3px 8px; border-radius: 4px; font-weight: 600;">📐 ${formatArea(data.detalhes.areaTotal)}</span>`);
-            }
-            
-            if (data.detalhes.concelho) {
-                items.push(`<span style="background: rgba(139, 92, 246, 0.9); padding: 3px 8px; border-radius: 4px; font-weight: 600;">📍 ${data.detalhes.concelho}</span>`);
-            }
-            
-            detalhesLine.innerHTML = items.join('');
-            infoContainer.appendChild(detalhesLine);
-        }
-        
-        // Linha de detalhes (móveis)
-        if (data.detalhes && data.detalhes.tipo === 'Móvel') {
-            const detalhesLine = document.createElement('div');
-            detalhesLine.style.cssText = `
-                display: flex;
-                gap: 8px;
-                flex-wrap: wrap;
-                font-size: 10px;
-            `;
-            
-            const items = [];
-            
-            if (data.detalhes.marca) {
-                items.push(`<span style="background: rgba(59, 130, 246, 0.9); padding: 3px 8px; border-radius: 4px; font-weight: 600;">🚗 ${data.detalhes.marca}</span>`);
-            }
-            
-            if (data.detalhes.modelo) {
-                items.push(`<span style="background: rgba(16, 185, 129, 0.9); padding: 3px 8px; border-radius: 4px; font-weight: 600;">${data.detalhes.modelo}</span>`);
-            }
-            
-            if (data.detalhes.ano) {
-                items.push(`<span style="background: rgba(139, 92, 246, 0.9); padding: 3px 8px; border-radius: 4px; font-weight: 600;">📅 ${data.detalhes.ano}</span>`);
-            }
-            
-            detalhesLine.innerHTML = items.join('');
-            infoContainer.appendChild(detalhesLine);
-        }
-        
-        overlay.appendChild(infoContainer);
-        
-        return overlay;
-    }
-
-    function createCompactBadge(text, color, tooltip) {
-        const badge = document.createElement('div');
-        badge.style.cssText = `
-            background: ${color};
-            color: white;
-            padding: 4px 8px;
-            border-radius: 6px;
-            font-size: 10px;
-            font-weight: 700;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-            transition: transform 0.2s ease;
-            white-space: nowrap;
-        `;
-        badge.textContent = text;
-        badge.title = tooltip;
-        
-        badge.addEventListener('mouseenter', () => {
-            badge.style.transform = 'scale(1.1)';
         });
-        
-        badge.addEventListener('mouseleave', () => {
-            badge.style.transform = 'scale(1)';
-        });
-        
-        return badge;
+        console.log(`✅ ${enhancedCount}/${cards.length} cards enhanced com sucesso [v11 logic]`);
     }
 
 
@@ -1517,6 +1549,49 @@
             maximumFractionDigits: 2
         }).format(value).replace(/\u00A0/g, ' ');
     };
+
+    // Parse money-like strings to number. Accepts formats like "143 600,00 €", "143.600,00", "143600"
+    function parseMoneyToNumber(val) {
+        if (val === null || val === undefined) return null;
+        if (typeof val === 'number' && !isNaN(val)) return val;
+        if (typeof val !== 'string') return null;
+        let s = val.trim();
+        // Remove currency symbol
+        s = s.replace(/€/g, '').replace(/\s+/g, ' ').trim();
+        // If contains comma as decimal separator and dot/space as thousand, normalize
+        // Examples: "143 600,00" -> "143600.00" ; "143.600,00" -> "143600.00"
+        // Remove non-numeric except , and .
+        // First handle comma decimal
+        const commaDecimal = /,\d{1,2}$/.test(s);
+        if (commaDecimal) {
+            // remove thousand separators (dots or spaces)
+            s = s.replace(/[\.\s]/g, '');
+            s = s.replace(',', '.');
+        } else {
+            // remove spaces
+            s = s.replace(/\s/g, '');
+        }
+        // Remove any non-digit/non-dot
+        s = s.replace(/[^0-9.\-]/g, '');
+        const n = parseFloat(s);
+        if (isNaN(n)) return null;
+        return n;
+    }
+
+    // Formats a money value which might be a number or a string; returns a readable string (with currency)
+    function formatMoneyValue(val) {
+        if (val === null || val === undefined) return 'N/A';
+        if (typeof val === 'number' && !isNaN(val)) return formatMoney(val);
+        if (typeof val === 'string') {
+            // If already contains € or non-digit characters, try to preserve human-readable form
+            const hasEuro = /€/g.test(val);
+            const parsed = parseMoneyToNumber(val);
+            if (parsed !== null) return formatMoney(parsed);
+            // fallback: return trimmed string (keep currency symbol if present)
+            return val.trim();
+        }
+        return 'N/A';
+    }
     
     // Formata áreas com espaços (32 650m²)
     const formatArea = (value) => {
@@ -1850,19 +1925,27 @@
         
         // Observer para novas páginas (SPA) com debounce
         const observer = new MutationObserver(() => {
-            // Clear existing timeout
             if (observerTimeout) clearTimeout(observerTimeout);
-            
-            // Debounce: wait 500ms after last mutation before enriching
             observerTimeout = setTimeout(() => {
                 // FIRST: Visual enhancement (fast, no API)
                 enhanceNativeCardsVisual();
-                
                 // THEN: API enrichment (if enabled)
-                enrichCardsWithAPIData();
+                // Re-aplica API enhancement a cards que perderam
+                document.querySelectorAll('.p-evento').forEach(card => {
+                    if (!card.getAttribute('data-api-enhanced')) {
+                        // Try to get reference
+                        const refElement = card.querySelector('.pi-tag + span');
+                        const reference = refElement ? refElement.textContent.trim() : null;
+                        if (reference) {
+                            getEventFromAPI(reference).then(data => {
+                                addBadgesToCard(reference, data);
+                            }).catch(() => {});
+                        }
+                    }
+                });
             }, 500);
         });
-        
+
         observer.observe(document.body, {
             childList: true,
             subtree: true
