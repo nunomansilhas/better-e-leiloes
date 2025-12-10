@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         betterE-Leiloes (API Version)
 // @namespace    http://tampermonkey.net/
-// @version      12.8
+// @version      12.9
 // @description  Extensão para E-Leiloes.pt com native card enrichment premium e modal otimizado
 // @author       Nuno Mansilhas
 // @match        https://www.e-leiloes.pt/*
@@ -610,12 +610,7 @@
                     eventAnchor.appendChild(eventBadge);
                     badgesContainer.appendChild(eventAnchor);
 
-                    // Append API badge
-                    const apiBadge = document.createElement('span');
-                    apiBadge.className = 'eleiloes-badge info';
-                    apiBadge.textContent = 'API';
-                    apiBadge.setAttribute('data-tooltip', 'Dados enriquecidos via API');
-                    badgesContainer.appendChild(apiBadge);
+                    // Note: API badge removed - only Maps and Event badges as per requirements
 
                     // Replace or inject styledRef into header
                     // Remove existing simple ref text if present
@@ -633,51 +628,64 @@
                 }
             }
 
-            // 2. Update card body with API details (full modal-style rendering)
+            // 2. Update card body with API details (matching modal structure)
             const infoContainers = parentCard.querySelectorAll('.p-evento-content, .p-evento-body, .flex.flex-column.gap-2');
             infoContainers.forEach(container => {
                 container.innerHTML = '';
+                container.style.cssText = 'display: flex; flex-direction: column; gap: 8px; padding: 0.75rem; font-size: 13px;';
+
                 const detalhes = data.detalhes || {};
                 const gps = data.gps || {};
-                // Tipo, subtipo, tipologia
+
+                // Classificação (Tipo, Subtipo, Tipologia)
                 if (detalhes.tipo || detalhes.subtipo || detalhes.tipologia) {
                     const classDiv = document.createElement('div');
-                    classDiv.style.cssText = 'margin-bottom: 6px; font-size: 13px; color: #6b7280; font-weight: 600;';
-                    if (detalhes.tipo) classDiv.innerHTML += `<span>Tipo: <b>${detalhes.tipo}</b></span> `;
-                    if (detalhes.subtipo) classDiv.innerHTML += `<span>Subtipo: <b>${detalhes.subtipo}</b></span> `;
-                    if (detalhes.tipologia) classDiv.innerHTML += `<span>Tipologia: <b>${detalhes.tipologia}</b></span>`;
+                    classDiv.style.cssText = 'display: flex; flex-wrap: wrap; gap: 12px; padding: 8px; background: #f9fafb; border-radius: 6px; border: 1px solid #e5e7eb;';
+                    const parts = [];
+                    if (detalhes.tipo) parts.push(`<span style="color: #6b7280; font-size: 11px; font-weight: 600;">Tipo:</span> <span style="color: #111827; font-weight: 600; font-size: 13px;">${detalhes.tipo}</span>`);
+                    if (detalhes.subtipo) parts.push(`<span style="color: #6b7280; font-size: 11px; font-weight: 600;">Subtipo:</span> <span style="color: #111827; font-weight: 500; font-size: 13px;">${detalhes.subtipo}</span>`);
+                    if (detalhes.tipologia) parts.push(`<span style="color: #6b7280; font-size: 11px; font-weight: 600;">Tipologia:</span> <span style="color: #111827; font-weight: 500; font-size: 13px;">${detalhes.tipologia}</span>`);
+                    classDiv.innerHTML = parts.join('<span style="color: #cbd5e1; margin: 0 4px;">|</span>');
                     container.appendChild(classDiv);
                 }
-                // Áreas
+
+                // Áreas (para imóveis)
                 if (detalhes.areaPrivativa || detalhes.areaDependente || detalhes.areaTotal) {
                     const areaDiv = document.createElement('div');
-                    areaDiv.style.cssText = 'margin-bottom: 6px; font-size: 13px; color: #334155;';
-                    if (detalhes.areaPrivativa) areaDiv.innerHTML += `<span>Privativa: <b>${formatArea(detalhes.areaPrivativa)} m²</b></span> `;
-                    if (detalhes.areaDependente) areaDiv.innerHTML += `<span>Dependente: <b>${formatArea(detalhes.areaDependente)} m²</b></span> `;
-                    if (detalhes.areaTotal) areaDiv.innerHTML += `<span>Total: <b>${formatArea(detalhes.areaTotal)} m²</b></span>`;
+                    areaDiv.style.cssText = 'display: flex; flex-wrap: wrap; gap: 12px; padding: 8px; background: #f0f9ff; border-radius: 6px; border: 1px solid #bae6fd;';
+                    const parts = [];
+                    if (detalhes.areaPrivativa) parts.push(`<span style="color: #0284c7; font-size: 11px; font-weight: 600;">Privativa:</span> <span style="color: #111827; font-weight: 600; font-size: 13px;">${formatArea(detalhes.areaPrivativa)} m²</span>`);
+                    if (detalhes.areaDependente) parts.push(`<span style="color: #0284c7; font-size: 11px; font-weight: 600;">Dependente:</span> <span style="color: #111827; font-weight: 600; font-size: 13px;">${formatArea(detalhes.areaDependente)} m²</span>`);
+                    if (detalhes.areaTotal) parts.push(`<span style="color: #0284c7; font-size: 11px; font-weight: 700;">Total:</span> <span style="color: #1e40af; font-weight: 700; font-size: 14px;">${formatArea(detalhes.areaTotal)} m²</span>`);
+                    areaDiv.innerHTML = parts.join('<span style="color: #cbd5e1; margin: 0 4px;">|</span>');
                     container.appendChild(areaDiv);
                 }
-                // Veículo
+
+                // Características do Veículo (para móveis)
                 if (detalhes.matricula || detalhes.marca || detalhes.modelo || detalhes.ano || detalhes.combustivel || detalhes.cilindrada || detalhes.cor) {
                     const carDiv = document.createElement('div');
-                    carDiv.style.cssText = 'margin-bottom: 6px; font-size: 13px; color: #334155;';
-                    if (detalhes.matricula) carDiv.innerHTML += `<span>Matrícula: <b>${detalhes.matricula}</b></span> `;
-                    if (detalhes.marca) carDiv.innerHTML += `<span>Marca: <b>${detalhes.marca}</b></span> `;
-                    if (detalhes.modelo) carDiv.innerHTML += `<span>Modelo: <b>${detalhes.modelo}</b></span> `;
-                    if (detalhes.ano) carDiv.innerHTML += `<span>Ano: <b>${detalhes.ano}</b></span> `;
-                    if (detalhes.combustivel) carDiv.innerHTML += `<span>Combustível: <b>${detalhes.combustivel}</b></span> `;
-                    if (detalhes.cilindrada) carDiv.innerHTML += `<span>Cilindrada: <b>${detalhes.cilindrada}</b></span> `;
-                    if (detalhes.cor) carDiv.innerHTML += `<span>Cor: <b>${detalhes.cor}</b></span>`;
+                    carDiv.style.cssText = 'display: flex; flex-wrap: wrap; gap: 10px; padding: 8px; background: #fef3c7; border-radius: 6px; border: 1px solid #fde68a;';
+                    const parts = [];
+                    if (detalhes.matricula) parts.push(`<span style="color: #92400e; font-size: 11px; font-weight: 600;">Matrícula:</span> <span style="color: #111827; font-weight: 600; font-size: 12px;">${detalhes.matricula}</span>`);
+                    if (detalhes.marca) parts.push(`<span style="color: #92400e; font-size: 11px; font-weight: 600;">Marca:</span> <span style="color: #111827; font-weight: 500; font-size: 12px;">${detalhes.marca}</span>`);
+                    if (detalhes.modelo) parts.push(`<span style="color: #92400e; font-size: 11px; font-weight: 600;">Modelo:</span> <span style="color: #111827; font-weight: 500; font-size: 12px;">${detalhes.modelo}</span>`);
+                    if (detalhes.ano) parts.push(`<span style="color: #92400e; font-size: 11px; font-weight: 600;">Ano:</span> <span style="color: #111827; font-weight: 500; font-size: 12px;">${detalhes.ano}</span>`);
+                    if (detalhes.combustivel) parts.push(`<span style="color: #92400e; font-size: 11px; font-weight: 600;">Combustível:</span> <span style="color: #111827; font-weight: 500; font-size: 12px;">${detalhes.combustivel}</span>`);
+                    if (detalhes.cilindrada) parts.push(`<span style="color: #92400e; font-size: 11px; font-weight: 600;">Cilindrada:</span> <span style="color: #111827; font-weight: 500; font-size: 12px;">${detalhes.cilindrada}</span>`);
+                    if (detalhes.cor) parts.push(`<span style="color: #92400e; font-size: 11px; font-weight: 600;">Cor:</span> <span style="color: #111827; font-weight: 500; font-size: 12px;">${detalhes.cor}</span>`);
+                    carDiv.innerHTML = parts.join('<span style="color: #cbd5e1; margin: 0 4px;">|</span>');
                     container.appendChild(carDiv);
                 }
+
                 // Localização
-                if (detalhes.freguesia || detalhes.concelho || detalhes.distrito || (gps && gps.latitude)) {
+                if (detalhes.freguesia || detalhes.concelho || detalhes.distrito) {
                     const locDiv = document.createElement('div');
-                    locDiv.style.cssText = 'margin-bottom: 6px; font-size: 13px; color: #1e40af;';
-                    if (detalhes.freguesia) locDiv.innerHTML += `<span>Freguesia: <b>${detalhes.freguesia}</b></span> `;
-                    if (detalhes.concelho) locDiv.innerHTML += `<span>Concelho: <b>${detalhes.concelho}</b></span> `;
-                    if (detalhes.distrito) locDiv.innerHTML += `<span>Distrito: <b>${detalhes.distrito}</b></span> `;
-                    if (gps && gps.latitude) locDiv.innerHTML += `<span>GPS: <b>${gps.latitude}, ${gps.longitude}</b></span>`;
+                    locDiv.style.cssText = 'display: flex; flex-wrap: wrap; gap: 12px; padding: 8px; background: #eff6ff; border-radius: 6px; border: 1px solid #93c5fd;';
+                    const parts = [];
+                    if (detalhes.freguesia) parts.push(`<span style="color: #1e40af; font-size: 11px; font-weight: 600;">Freguesia:</span> <span style="color: #1e40af; font-weight: 600; font-size: 13px;">${detalhes.freguesia}</span>`);
+                    if (detalhes.concelho) parts.push(`<span style="color: #1e40af; font-size: 11px; font-weight: 600;">Concelho:</span> <span style="color: #1e40af; font-weight: 600; font-size: 13px;">${detalhes.concelho}</span>`);
+                    if (detalhes.distrito) parts.push(`<span style="color: #1e40af; font-size: 11px; font-weight: 600;">Distrito:</span> <span style="color: #1e40af; font-weight: 600; font-size: 13px;">${detalhes.distrito}</span>`);
+                    locDiv.innerHTML = parts.join('<span style="color: #cbd5e1; margin: 0 4px;">|</span>');
                     container.appendChild(locDiv);
                 }
             });
@@ -692,8 +700,9 @@
                     footer.style.cssText = 'display: flex; flex-direction: column; gap:6px; margin-top: 0.5rem; padding: 0.5rem 0.75rem; background: rgb(241, 245, 249); border-radius: 0 0 8px 8px;';
 
                     const valuesRow = document.createElement('div');
-                    valuesRow.style.cssText = 'display:flex;gap:10px;align-items:center;flex-wrap:wrap;';
+                    valuesRow.style.cssText = 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-weight:600;';
                     const v = data.valores || {};
+
                     // Helper to try many possible API keys for a monetary field
                     const getMonetaryField = (obj, keys) => {
                         for (const k of keys) {
@@ -709,23 +718,54 @@
                     const PMA = getMonetaryField(v, ['lanceAtual', 'lance_atual', 'PMA', 'pma', 'lanceAtualFormatted', 'lance', 'LA', 'la']);
 
                     const makeVal = (label, value, highlight) => {
+                        if (!value && value !== 0) return null;
                         const item = document.createElement('div');
-                        item.className = 'value-inline-item';
+                        item.style.cssText = highlight
+                            ? 'display:flex;align-items:baseline;gap:6px;padding:6px 12px;background:#d1fae5;border-radius:6px;'
+                            : 'display:flex;align-items:baseline;gap:6px;';
+
                         const labelSpan = document.createElement('span');
-                        labelSpan.className = 'value-inline-label';
+                        labelSpan.style.cssText = highlight
+                            ? 'color:#059669;font-size:11px;font-weight:700;'
+                            : 'color:#6b7280;font-size:11px;font-weight:600;';
                         labelSpan.textContent = label + ':';
+
                         const amountSpan = document.createElement('span');
-                        amountSpan.className = 'value-inline-amount' + (highlight ? ' highlight' : '');
+                        amountSpan.style.cssText = highlight
+                            ? 'color:#059669;font-size:14px;font-weight:700;'
+                            : 'color:#111827;font-size:13px;font-weight:600;';
                         amountSpan.textContent = formatMoneyValue(value);
+
                         item.appendChild(labelSpan);
                         item.appendChild(amountSpan);
                         return item;
                     };
 
-                    valuesRow.appendChild(makeVal('VB', VB, false));
-                    valuesRow.appendChild(makeVal('VA', VA, false));
-                    valuesRow.appendChild(makeVal('VM', VM, false));
-                    valuesRow.appendChild(makeVal('PMA', PMA, true));
+                    const vbEl = makeVal('VB', VB, false);
+                    const vaEl = makeVal('VA', VA, false);
+                    const vmEl = makeVal('VM', VM, false);
+                    const pmaEl = makeVal('PMA', PMA, true);
+
+                    const addSeparator = () => {
+                        const sep = document.createElement('span');
+                        sep.style.cssText = 'color:#cbd5e1;font-weight:400;';
+                        sep.textContent = '|';
+                        return sep;
+                    };
+
+                    if (vbEl) {
+                        valuesRow.appendChild(vbEl);
+                        if (vaEl || vmEl || pmaEl) valuesRow.appendChild(addSeparator());
+                    }
+                    if (vaEl) {
+                        valuesRow.appendChild(vaEl);
+                        if (vmEl || pmaEl) valuesRow.appendChild(addSeparator());
+                    }
+                    if (vmEl) {
+                        valuesRow.appendChild(vmEl);
+                        if (pmaEl) valuesRow.appendChild(addSeparator());
+                    }
+                    if (pmaEl) valuesRow.appendChild(pmaEl);
 
                     footer.appendChild(valuesRow);
 
@@ -949,7 +989,7 @@
         
         panel.innerHTML = `
             <div style="font-weight: bold; margin-bottom: 10px; font-size: 14px;">
-                🚀 betterE-Leiloes v12.8
+                🚀 betterE-Leiloes v12.9
             </div>
             <div style="display: flex; flex-direction: column; gap: 8px;">
                 <button id="btn-scrape-all" style="${getButtonStyle('#10b981')}">
