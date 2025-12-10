@@ -115,6 +115,26 @@ class DatabaseManager:
     
     async def save_event(self, event: EventData):
         """Guarda ou atualiza um evento"""
+        # Debug: Mostra os dados completos antes de guardar
+        print("\n" + "="*80)
+        print(f"📝 GUARDANDO EVENTO: {event.reference}")
+        print("="*80)
+        print(f"Tipo de Evento: {event.tipoEvento}")
+        print(f"Valores: VB={event.valores.valorBase}, VA={event.valores.valorAbertura}, "
+              f"VM={event.valores.valorMinimo}, Leilão={event.valores.lanceAtual}")
+        if event.gps:
+            print(f"GPS: Lat={event.gps.latitude}, Long={event.gps.longitude}")
+        print(f"Detalhes: Tipo={event.detalhes.tipo}, Subtipo={event.detalhes.subtipo}, "
+              f"Tipologia={event.detalhes.tipologia}")
+        print(f"Áreas: Privativa={event.detalhes.areaPrivativa}, Dependente={event.detalhes.areaDependente}, "
+              f"Total={event.detalhes.areaTotal}")
+        print(f"Localização: {event.detalhes.distrito} > {event.detalhes.concelho} > {event.detalhes.freguesia}")
+        print(f"Matrícula: {event.detalhes.matricula}")
+        print(f"📅 Data Início: {event.dataInicio}")
+        print(f"📅 Data Fim: {event.dataFim}")
+        print(f"Scraped at: {event.scraped_at}")
+        print("="*80 + "\n")
+
         # Verifica se já existe
         result = await self.session.execute(
             select(EventDB).where(EventDB.reference == event.reference)
