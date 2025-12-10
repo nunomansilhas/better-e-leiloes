@@ -43,16 +43,20 @@ class EventData(BaseModel):
     """Dados completos de um evento"""
     reference: str = Field(..., description="Referência única (NP-XXXX ou LO-XXXX)")
     tipoEvento: str = Field(..., description="'imovel' ou 'movel'")
-    
+
     # Valores do leilão
     valores: ValoresLeilao
-    
+
     # GPS (apenas para imóveis)
     gps: Optional[GPSCoordinates] = None
-    
+
     # Detalhes
     detalhes: EventDetails
-    
+
+    # Datas do evento (início e fim do leilão)
+    dataInicio: Optional[datetime] = None
+    dataFim: Optional[datetime] = None
+
     # Metadados
     scraped_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: Optional[datetime] = None

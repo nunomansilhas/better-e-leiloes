@@ -84,16 +84,19 @@ class EventScraper:
             gps = None
             if tipo_evento == "imovel":
                 gps = await self._extract_gps(page)
-            
+
+            # Datas do leilão (início e fim)
+            data_inicio, data_fim = await self._extract_dates(page)
+
             # Detalhes (diferente para imovel vs movel)
             if tipo_evento == "imovel":
                 detalhes = await self._extract_imovel_details(page)
             else:
                 detalhes = await self._extract_movel_details(page)
-            
+
             # Confirma/atualiza valores na página individual (podem ser mais precisos)
             valores_pagina = await self._extract_valores_from_page(page)
-            
+
             # Merge valores (prioridade: página individual > listagem)
             valores_final = ValoresLeilao(
                 valorBase=valores_pagina.valorBase or valores_listagem.valorBase,
@@ -101,13 +104,15 @@ class EventScraper:
                 valorMinimo=valores_pagina.valorMinimo or valores_listagem.valorMinimo,
                 lanceAtual=valores_pagina.lanceAtual or valores_listagem.lanceAtual
             )
-            
+
             return EventData(
                 reference=reference,
                 tipoEvento=tipo_evento,
                 valores=valores_final,
                 gps=gps,
                 detalhes=detalhes,
+                dataInicio=data_inicio,
+                dataFim=data_fim,
                 scraped_at=datetime.utcnow()
             )
             
@@ -123,17 +128,17 @@ class EventScraper:
         try:
             latitude = None
             longitude = None
-            
+
             # Procura por spans com "GPS Latitude:" e "GPS Longitude:"
             spans = await page.query_selector_all('.flex.w-full .font-semibold')
-            
+
             for span in spans:
                 text = await span.text_content()
                 if not text:
                     continue
-                
+
                 text = text.strip()
-                
+
                 if text == 'GPS Latitude:':
                     # Pega próximo elemento (o valor)
                     next_el = await span.evaluate_handle('el => el.nextElementSibling')
@@ -144,7 +149,7 @@ class EventScraper:
                                 latitude = float(value.strip())
                             except ValueError:
                                 pass
-                
+
                 elif text == 'GPS Longitude:':
                     next_el = await span.evaluate_handle('el => el.nextElementSibling')
                     if next_el:
@@ -154,12 +159,64 @@ class EventScraper:
                                 longitude = float(value.strip())
                             except ValueError:
                                 pass
-            
+
             return GPSCoordinates(latitude=latitude, longitude=longitude)
-            
+
         except Exception as e:
             print(f"⚠️ Erro ao extrair GPS: {e}")
             return GPSCoordinates(latitude=None, longitude=None)
+
+    async def _extract_dates(self, page: Page) -> tuple[Optional[datetime], Optional[datetime]]:
+        """
+        Extrai datas de início e fim do leilão
+        Formato esperado: DD/MM/YYYY HH:MM:SS (formato europeu)
+        """
+        try:
+            data_inicio = None
+            data_fim = None
+
+            # Procura por spans com "Início:" e "Fim:"
+            spans = await page.query_selector_all('.flex.w-full .text-xs')
+
+            for span in spans:
+                text = await span.text_content()
+                if not text:
+                    continue
+
+                text = text.strip()
+
+                if text == 'Início:':
+                    # Pega próximo elemento (o valor da data)
+                    next_el = await span.evaluate_handle('el => el.nextElementSibling')
+                    if next_el:
+                        value = await next_el.text_content()
+                        if value:
+                            data_str = value.strip()
+                            # Parse formato: DD/MM/YYYY HH:MM:SS
+                            try:
+                                data_inicio = datetime.strptime(data_str, '%d/%m/%Y %H:%M:%S')
+                            except ValueError:
+                                print(f"⚠️ Erro ao parsear data início: {data_str}")
+                                pass
+
+                elif text == 'Fim:':
+                    next_el = await span.evaluate_handle('el => el.nextElementSibling')
+                    if next_el:
+                        value = await next_el.text_content()
+                        if value:
+                            data_str = value.strip()
+                            # Parse formato: DD/MM/YYYY HH:MM:SS
+                            try:
+                                data_fim = datetime.strptime(data_str, '%d/%m/%Y %H:%M:%S')
+                            except ValueError:
+                                print(f"⚠️ Erro ao parsear data fim: {data_str}")
+                                pass
+
+            return data_inicio, data_fim
+
+        except Exception as e:
+            print(f"⚠️ Erro ao extrair datas: {e}")
+            return None, None
     
     async def _extract_valores_from_page(self, page: Page) -> ValoresLeilao:
         """Extrai valores da página individual do evento"""
