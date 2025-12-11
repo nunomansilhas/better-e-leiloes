@@ -882,7 +882,7 @@
                     </select>
                 </div>
                 <div class="filter-buttons">
-                    <button class="btn btn-primary" onclick="loadEvents('imoveis')">
+                    <button class="btn btn-primary" onclick="reloadAllData('imoveis')">
                         <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
                         </svg>
@@ -947,7 +947,7 @@
                     </select>
                 </div>
                 <div class="filter-buttons">
-                    <button class="btn btn-primary" onclick="loadEvents('moveis')">
+                    <button class="btn btn-primary" onclick="reloadAllData('moveis')">
                         <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
                         </svg>
@@ -979,6 +979,9 @@
         let totalPagesData = { imoveis: 1, moveis: 1 };
         let allDistritos = new Set();
         let activeTypeFilter = null;
+        let allLoadedEvents = { imoveis: [], moveis: [] }; // Store all loaded events
+        let filteredEvents = { imoveis: [], moveis: [] }; // Store filtered events
+        const ITEMS_PER_PAGE = 50;
 
         // Navigation
         function showPage(pageId) {
@@ -1071,48 +1074,54 @@
             const contentId = `${type}-content`;
             const content = document.getElementById(contentId);
 
-            content.innerHTML = `
-                <div class="loading">
-                    <div class="loading-spinner"></div>
-                    <div class="loading-text">A carregar ${type}...</div>
-                </div>
-            `;
-
-            const searchInput = document.getElementById(`search-${type}`);
-            const distritoSelect = document.getElementById(`distrito-${type}`);
-            const concelhoSelect = document.getElementById(`concelho-${type}`);
-            const freguesiaSelect = document.getElementById(`freguesia-${type}`);
-            const sortSelect = document.getElementById(`sort-${type}`);
-
-            const search = searchInput ? searchInput.value : '';
-            const distrito = distritoSelect ? distritoSelect.value : '';
-            const concelho = concelhoSelect ? concelhoSelect.value : '';
-            const freguesia = freguesiaSelect ? freguesiaSelect.value : '';
-            const sortBy = sortSelect ? sortSelect.value : '';
+            // Only show loading on first load
+            if (allLoadedEvents[type].length === 0) {
+                content.innerHTML = `
+                    <div class="loading">
+                        <div class="loading-spinner"></div>
+                        <div class="loading-text">A carregar ${type}...</div>
+                    </div>
+                `;
+            }
 
             try {
-                let url = `${API_BASE}/api/events?page=${page}&limit=50`;
-                url += `&tipo_evento=${type === 'imoveis' ? 'imovel' : 'movel'}`;
-                if (distrito) url += `&distrito=${distrito}`;
+                // Load ALL events if not already loaded
+                if (allLoadedEvents[type].length === 0) {
+                    let url = `${API_BASE}/api/events?limit=1000`;
+                    url += `&tipo_evento=${type === 'imoveis' ? 'imovel' : 'movel'}`;
 
-                const response = await fetch(url);
-                const data = await response.json();
+                    const response = await fetch(url);
+                    const data = await response.json();
 
-                currentPageData[type] = data.page;
-                totalPagesData[type] = data.pages;
+                    allLoadedEvents[type] = data.events;
 
-                // Collect distritos
-                if (type === 'imoveis') {
-                    data.events.forEach(event => {
-                        if (event.detalhes.distrito) {
-                            allDistritos.add(event.detalhes.distrito);
-                        }
-                    });
-                    updateDistritoFilter();
+                    // Collect distritos
+                    if (type === 'imoveis') {
+                        data.events.forEach(event => {
+                            if (event.detalhes.distrito) {
+                                allDistritos.add(event.detalhes.distrito);
+                            }
+                        });
+                        updateDistritoFilter();
+                    }
                 }
 
-                // Filter by search, type prefix, and location
-                let events = data.events;
+                // Get filter values
+                const searchInput = document.getElementById(`search-${type}`);
+                const distritoSelect = document.getElementById(`distrito-${type}`);
+                const concelhoSelect = document.getElementById(`concelho-${type}`);
+                const freguesiaSelect = document.getElementById(`freguesia-${type}`);
+                const sortSelect = document.getElementById(`sort-${type}`);
+
+                const search = searchInput ? searchInput.value : '';
+                const distrito = distritoSelect ? distritoSelect.value : '';
+                const concelho = concelhoSelect ? concelhoSelect.value : '';
+                const freguesia = freguesiaSelect ? freguesiaSelect.value : '';
+                const sortBy = sortSelect ? sortSelect.value : '';
+
+                // Apply ALL filters to create filtered list
+                let events = [...allLoadedEvents[type]];
+
                 if (search) {
                     events = events.filter(e =>
                         e.reference.toLowerCase().includes(search.toLowerCase())
@@ -1120,6 +1129,9 @@
                 }
                 if (activeTypeFilter) {
                     events = events.filter(e => e.reference.startsWith(activeTypeFilter));
+                }
+                if (distrito) {
+                    events = events.filter(e => e.detalhes.distrito === distrito);
                 }
                 if (concelho) {
                     events = events.filter(e => e.detalhes.concelho === concelho);
@@ -1167,7 +1179,21 @@
                     });
                 }
 
-                if (events.length === 0) {
+                // Store filtered events
+                filteredEvents[type] = events;
+
+                // Calculate pagination
+                const totalItems = events.length;
+                const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+                currentPageData[type] = page;
+                totalPagesData[type] = totalPages;
+
+                // Get items for current page
+                const startIdx = (page - 1) * ITEMS_PER_PAGE;
+                const endIdx = startIdx + ITEMS_PER_PAGE;
+                const pageEvents = events.slice(startIdx, endIdx);
+
+                if (pageEvents.length === 0) {
                     content.innerHTML = `
                         <div class="no-data">
                             <svg class="no-data-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -1183,7 +1209,7 @@
                 const grid = document.createElement('div');
                 grid.className = 'events-grid';
 
-                events.forEach(event => {
+                pageEvents.forEach(event => {
                     const card = createEventCard(event);
                     grid.appendChild(card);
                 });
@@ -1353,14 +1379,6 @@
                             <div class="detail-row">
                                 <span class="detail-label">Freguesia:</span>
                                 <span class="detail-value ${!event.detalhes.freguesia ? 'empty' : ''}">${getValue(event.detalhes.freguesia)}</span>
-                            </div>
-                            <div class="detail-row">
-                                <span class="detail-label">GPS Latitude:</span>
-                                <span class="detail-value ${!event.gps?.latitude ? 'empty' : ''}">${event.gps?.latitude ? event.gps.latitude.toFixed(6) : 'N/A'}</span>
-                            </div>
-                            <div class="detail-row">
-                                <span class="detail-label">GPS Longitude:</span>
-                                <span class="detail-value ${!event.gps?.longitude ? 'empty' : ''}">${event.gps?.longitude ? event.gps.longitude.toFixed(6) : 'N/A'}</span>
                             </div>
                         </div>
 
@@ -1585,6 +1603,8 @@
             const pagination = document.getElementById(`pagination-${type}`);
             if (!pagination) return;
 
+            const totalFiltered = filteredEvents[type].length;
+
             if (totalPagesData[type] <= 1) {
                 pagination.style.display = 'none';
                 return;
@@ -1598,7 +1618,7 @@
                     </svg>
                     Anterior
                 </button>
-                <span class="page-info">Página ${currentPageData[type]} de ${totalPagesData[type]}</span>
+                <span class="page-info">Página ${currentPageData[type]} de ${totalPagesData[type]} (${totalFiltered} eventos)</span>
                 <button ${currentPageData[type] === totalPagesData[type] ? 'disabled' : ''} onclick="loadEvents('${type}', ${currentPageData[type] + 1})">
                     Próxima
                     <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -1632,7 +1652,15 @@
             document.querySelectorAll('.type-badge').forEach(b => b.classList.remove('active'));
 
             currentPageData[type] = 1;
-            loadEvents(type);
+            loadEvents(type, 1);
+        }
+
+        function reloadAllData(type) {
+            // Clear cache to force fresh load
+            allLoadedEvents[type] = [];
+            filteredEvents[type] = [];
+            currentPageData[type] = 1;
+            loadEvents(type, 1);
         }
 
         // Event Listeners
