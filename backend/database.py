@@ -194,10 +194,10 @@ class DatabaseManager:
             existing.imagens = json.dumps(event.imagens) if event.imagens else None
             existing.descricao = event.descricao
             existing.observacoes = event.observacoes
-            existing.descricao_predial = json.dumps(event.descricaoPredial.dict()) if event.descricaoPredial else None
-            existing.cerimonia_encerramento = json.dumps(event.cerimoniaEncerramento.dict(), default=str) if event.cerimoniaEncerramento else None
-            existing.agente_execucao = json.dumps(event.agenteExecucao.dict()) if event.agenteExecucao else None
-            existing.dados_processo = json.dumps(event.dadosProcesso.dict()) if event.dadosProcesso else None
+            existing.descricao_predial = json.dumps(event.descricaoPredial.model_dump()) if event.descricaoPredial else None
+            existing.cerimonia_encerramento = json.dumps(event.cerimoniaEncerramento.model_dump(), default=str) if event.cerimoniaEncerramento else None
+            existing.agente_execucao = json.dumps(event.agenteExecucao.model_dump()) if event.agenteExecucao else None
+            existing.dados_processo = json.dumps(event.dadosProcesso.model_dump()) if event.dadosProcesso else None
 
             existing.updated_at = datetime.utcnow()
         else:
@@ -227,10 +227,10 @@ class DatabaseManager:
                 imagens=json.dumps(event.imagens) if event.imagens else None,
                 descricao=event.descricao,
                 observacoes=event.observacoes,
-                descricao_predial=json.dumps(event.descricaoPredial.dict()) if event.descricaoPredial else None,
-                cerimonia_encerramento=json.dumps(event.cerimoniaEncerramento.dict(), default=str) if event.cerimoniaEncerramento else None,
-                agente_execucao=json.dumps(event.agenteExecucao.dict()) if event.agenteExecucao else None,
-                dados_processo=json.dumps(event.dadosProcesso.dict()) if event.dadosProcesso else None,
+                descricao_predial=json.dumps(event.descricaoPredial.model_dump()) if event.descricaoPredial else None,
+                cerimonia_encerramento=json.dumps(event.cerimoniaEncerramento.model_dump(), default=str) if event.cerimoniaEncerramento else None,
+                agente_execucao=json.dumps(event.agenteExecucao.model_dump()) if event.agenteExecucao else None,
+                dados_processo=json.dumps(event.dadosProcesso.model_dump()) if event.dadosProcesso else None,
                 scraped_at=event.scraped_at
             )
             self.session.add(new_event)
