@@ -4,14 +4,17 @@ Database layer usando SQLAlchemy + SQLite
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy import select, func, String, Float, DateTime
+from sqlalchemy import select, func, String, Float, DateTime, Text
 from typing import List, Tuple, Optional
 from datetime import datetime
 from contextlib import asynccontextmanager
 import os
 import json
 
-from models import EventData, GPSCoordinates, EventDetails, ValoresLeilao
+from models import (
+    EventData, GPSCoordinates, EventDetails, ValoresLeilao,
+    DescricaoPredial, CerimoniaEncerramento, AgenteExecucao, DadosProcesso
+)
 
 # Database URL
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./eleiloes.db")
@@ -62,12 +65,49 @@ class EventDB(Base):
     data_inicio: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     data_fim: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
+    # Galeria e textos descritivos
+    imagens: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON list of URLs
+    descricao: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    observacoes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Informações adicionais (JSON)
+    descricao_predial: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON
+    cerimonia_encerramento: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON
+    agente_execucao: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON
+    dados_processo: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON
+
     # Metadados
     scraped_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     
     def to_model(self) -> EventData:
         """Converte DB model para Pydantic model"""
+        # Deserializa JSON fields
+        imagens_list = json.loads(self.imagens) if self.imagens else []
+
+        descricao_predial_obj = None
+        if self.descricao_predial:
+            data = json.loads(self.descricao_predial)
+            descricao_predial_obj = DescricaoPredial(**data)
+
+        cerimonia_obj = None
+        if self.cerimonia_encerramento:
+            data = json.loads(self.cerimonia_encerramento)
+            # Parse datetime se presente
+            if data.get('data') and isinstance(data['data'], str):
+                data['data'] = datetime.fromisoformat(data['data'])
+            cerimonia_obj = CerimoniaEncerramento(**data)
+
+        agente_obj = None
+        if self.agente_execucao:
+            data = json.loads(self.agente_execucao)
+            agente_obj = AgenteExecucao(**data)
+
+        dados_processo_obj = None
+        if self.dados_processo:
+            data = json.loads(self.dados_processo)
+            dados_processo_obj = DadosProcesso(**data)
+
         return EventData(
             reference=self.reference,
             tipoEvento=self.tipo_evento,
@@ -95,6 +135,13 @@ class EventDB(Base):
             ),
             dataInicio=self.data_inicio,
             dataFim=self.data_fim,
+            imagens=imagens_list,
+            descricao=self.descricao,
+            observacoes=self.observacoes,
+            descricaoPredial=descricao_predial_obj,
+            cerimoniaEncerramento=cerimonia_obj,
+            agenteExecucao=agente_obj,
+            dadosProcesso=dados_processo_obj,
             scraped_at=self.scraped_at,
             updated_at=self.updated_at
         )
@@ -142,6 +189,16 @@ class DatabaseManager:
             existing.matricula = event.detalhes.matricula
             existing.data_inicio = event.dataInicio
             existing.data_fim = event.dataFim
+
+            # Novos campos
+            existing.imagens = json.dumps(event.imagens) if event.imagens else None
+            existing.descricao = event.descricao
+            existing.observacoes = event.observacoes
+            existing.descricao_predial = json.dumps(event.descricaoPredial.dict()) if event.descricaoPredial else None
+            existing.cerimonia_encerramento = json.dumps(event.cerimoniaEncerramento.dict(), default=str) if event.cerimoniaEncerramento else None
+            existing.agente_execucao = json.dumps(event.agenteExecucao.dict()) if event.agenteExecucao else None
+            existing.dados_processo = json.dumps(event.dadosProcesso.dict()) if event.dadosProcesso else None
+
             existing.updated_at = datetime.utcnow()
         else:
             # Insere novo
@@ -166,6 +223,14 @@ class DatabaseManager:
                 matricula=event.detalhes.matricula,
                 data_inicio=event.dataInicio,
                 data_fim=event.dataFim,
+                # Novos campos
+                imagens=json.dumps(event.imagens) if event.imagens else None,
+                descricao=event.descricao,
+                observacoes=event.observacoes,
+                descricao_predial=json.dumps(event.descricaoPredial.dict()) if event.descricaoPredial else None,
+                cerimonia_encerramento=json.dumps(event.cerimoniaEncerramento.dict(), default=str) if event.cerimoniaEncerramento else None,
+                agente_execucao=json.dumps(event.agenteExecucao.dict()) if event.agenteExecucao else None,
+                dados_processo=json.dumps(event.dadosProcesso.dict()) if event.dadosProcesso else None,
                 scraped_at=event.scraped_at
             )
             self.session.add(new_event)
