@@ -25,7 +25,7 @@ class EventDetails(BaseModel):
     """Detalhes do evento (IMOVEL ou MOVEL)"""
     tipo: str = "N/A"
     subtipo: str = "N/A"
-    
+
     # Campos específicos de IMOVEIS
     tipologia: Optional[str] = None
     areaPrivativa: Optional[float] = None  # em m²
@@ -34,9 +34,41 @@ class EventDetails(BaseModel):
     distrito: Optional[str] = None
     concelho: Optional[str] = None
     freguesia: Optional[str] = None
-    
+
     # Campos específicos de MOVEIS (automóveis)
     matricula: Optional[str] = None
+
+
+class DescricaoPredial(BaseModel):
+    """Informação da descrição predial"""
+    numeroDescricao: Optional[str] = None
+    fracao: Optional[str] = None
+    distritoCode: Optional[str] = None
+    concelhoCode: Optional[str] = None
+    freguesiaCode: Optional[str] = None
+    artigos: Optional[List[dict]] = Field(default_factory=list)  # Lista de artigos matriciais
+
+
+class CerimoniaEncerramento(BaseModel):
+    """Dados da cerimónia de encerramento"""
+    data: Optional[datetime] = None
+    local: Optional[str] = None
+    morada: Optional[str] = None
+
+
+class AgenteExecucao(BaseModel):
+    """Dados do agente de execução"""
+    nome: Optional[str] = None
+    email: Optional[str] = None
+    telefone: Optional[str] = None
+
+
+class DadosProcesso(BaseModel):
+    """Dados do processo judicial"""
+    processo: Optional[str] = None
+    tribunal: Optional[str] = None
+    unidadeOrganica: Optional[str] = None
+    requerentes: Optional[List[str]] = Field(default_factory=list)
 
 
 class EventData(BaseModel):
@@ -56,6 +88,19 @@ class EventData(BaseModel):
     # Datas do evento
     dataInicio: Optional[datetime] = Field(None, description="Data de início do evento")
     dataFim: Optional[datetime] = Field(None, description="Data de fim do evento")
+
+    # Galeria de imagens
+    imagens: Optional[List[str]] = Field(default_factory=list, description="URLs das imagens do evento")
+
+    # Textos descritivos
+    descricao: Optional[str] = Field(None, description="Descrição completa do bem")
+    observacoes: Optional[str] = Field(None, description="Observações sobre o evento")
+
+    # Informações adicionais
+    descricaoPredial: Optional[DescricaoPredial] = None
+    cerimoniaEncerramento: Optional[CerimoniaEncerramento] = None
+    agenteExecucao: Optional[AgenteExecucao] = None
+    dadosProcesso: Optional[DadosProcesso] = None
 
     # Metadados
     scraped_at: datetime = Field(default_factory=datetime.utcnow)

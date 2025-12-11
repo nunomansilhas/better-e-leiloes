@@ -135,6 +135,15 @@ class EventScraper:
                 lanceAtual=valores_pagina.lanceAtual or valores_listagem.lanceAtual
             )
 
+            # Extrai novas informações
+            imagens = await self._extract_gallery(page)
+            descricao = await self._extract_descricao(page)
+            observacoes = await self._extract_observacoes(page)
+            descricao_predial = await self._extract_descricao_predial(page)
+            cerimonia = await self._extract_cerimonia(page)
+            agente = await self._extract_agente(page)
+            dados_processo = await self._extract_dados_processo(page)
+
             return EventData(
                 reference=reference,
                 tipoEvento=tipo_evento,
@@ -143,6 +152,13 @@ class EventScraper:
                 detalhes=detalhes,
                 dataInicio=data_inicio,
                 dataFim=data_fim,
+                imagens=imagens,
+                descricao=descricao,
+                observacoes=observacoes,
+                descricaoPredial=descricao_predial,
+                cerimoniaEncerramento=cerimonia,
+                agenteExecucao=agente,
+                dadosProcesso=dados_processo,
                 scraped_at=datetime.utcnow()
             )
             
@@ -261,7 +277,326 @@ class EventScraper:
         except Exception as e:
             print(f"⚠️ Erro ao extrair GPS: {e}")
             return GPSCoordinates(latitude=None, longitude=None)
-    
+
+    async def _extract_gallery(self, page: Page) -> List[str]:
+        """Extrai todas as URLs das imagens da galeria"""
+        try:
+            images = []
+            # Procura por todas as imagens na galeria
+            # Estrutura: div.p-galleria-item > div com style="background-image: url(...)"
+            gallery_items = await page.query_selector_all('.p-galleria-item .p-evento-image, .p-evento-image')
+
+            for item in gallery_items:
+                style = await item.get_attribute('style')
+                if style and 'background-image: url(' in style:
+                    # Extrai URL do background-image
+                    import re
+                    match = re.search(r'url\(["\']?([^"\']+)["\']?\)', style)
+                    if match:
+                        url = match.group(1).replace('&quot;', '')
+                        if url and url not in images:
+                            images.append(url)
+
+            print(f"📷 Galeria: {len(images)} imagens encontradas")
+            return images
+
+        except Exception as e:
+            print(f"⚠️ Erro ao extrair galeria: {e}")
+            return []
+
+    async def _extract_descricao(self, page: Page) -> Optional[str]:
+        """Extrai a descrição completa do bem"""
+        try:
+            # Procura pela seção "Descrição"
+            title_divs = await page.query_selector_all('.font-semibold.text-xl')
+
+            for title_div in title_divs:
+                text = await title_div.text_content()
+                if text and 'Descrição' in text.strip():
+                    # Pega o elemento pai (a seção completa)
+                    section = await title_div.evaluate_handle(
+                        'el => el.closest(".flex.flex-column.w-full")'
+                    )
+                    if section:
+                        # Pega o próximo div após o título (que contém a descrição)
+                        desc_div = await section.query_selector('div:not(.flex.flex-column)')
+                        if desc_div:
+                            descricao = await desc_div.text_content()
+                            return descricao.strip() if descricao else None
+
+            return None
+
+        except Exception as e:
+            print(f"⚠️ Erro ao extrair descrição: {e}")
+            return None
+
+    async def _extract_observacoes(self, page: Page) -> Optional[str]:
+        """Extrai as observações sobre o evento"""
+        try:
+            # Procura pela seção "Observações"
+            title_divs = await page.query_selector_all('.font-semibold.text-xl')
+
+            for title_div in title_divs:
+                text = await title_div.text_content()
+                if text and 'Observações' in text.strip() or 'Observacoes' in text.strip():
+                    # Pega o elemento pai (a seção completa)
+                    section = await title_div.evaluate_handle(
+                        'el => el.closest(".flex.flex-column.w-full")'
+                    )
+                    if section:
+                        # Pega o próximo div após o título (que contém as observações)
+                        obs_div = await section.query_selector('div:not(.flex.flex-column)')
+                        if obs_div:
+                            observacoes = await obs_div.text_content()
+                            return observacoes.strip() if observacoes else None
+
+            return None
+
+        except Exception as e:
+            print(f"⚠️ Erro ao extrair observações: {e}")
+            return None
+
+    async def _extract_descricao_predial(self, page: Page):
+        """Extrai informação da descrição predial"""
+        try:
+            from models import DescricaoPredial
+
+            # Procura pela seção "Descrição Predial"
+            title_divs = await page.query_selector_all('.font-semibold.text-xl')
+
+            for title_div in title_divs:
+                text = await title_div.text_content()
+                if text and 'Descrição Predial' in text.strip():
+                    section = await title_div.evaluate_handle(
+                        'el => el.closest(".flex.flex-column.w-full")'
+                    )
+                    if not section:
+                        continue
+
+                    # Extrai campos
+                    numero_desc = None
+                    fracao = None
+                    distrito_code = None
+                    concelho_code = None
+                    freguesia_code = None
+                    artigos = []
+
+                    spans = await section.query_selector_all('.font-semibold')
+                    for span in spans:
+                        label = await span.text_content()
+                        if not label:
+                            continue
+
+                        label = label.strip()
+
+                        # Pega o próximo elemento (o valor)
+                        next_el = await span.evaluate_handle('el => el.nextElementSibling')
+                        if next_el:
+                            value = await next_el.text_content()
+                            if value:
+                                value = value.strip()
+
+                                if 'N.º da Descrição:' in label:
+                                    numero_desc = value
+                                elif 'Fração:' in label:
+                                    fracao = value if value else None
+                                elif 'Distrito:' in label:
+                                    distrito_code = value
+                                elif 'Concelho:' in label:
+                                    concelho_code = value
+                                elif 'Freguesia:' in label:
+                                    freguesia_code = value
+
+                    return DescricaoPredial(
+                        numeroDescricao=numero_desc,
+                        fracao=fracao,
+                        distritoCode=distrito_code,
+                        concelhoCode=concelho_code,
+                        freguesiaCode=freguesia_code,
+                        artigos=artigos
+                    )
+
+            return None
+
+        except Exception as e:
+            print(f"⚠️ Erro ao extrair descrição predial: {e}")
+            return None
+
+    async def _extract_cerimonia(self, page: Page):
+        """Extrai dados da cerimónia de encerramento"""
+        try:
+            from models import CerimoniaEncerramento
+
+            # Procura pela seção "Cerimonia de Encerramento"
+            title_divs = await page.query_selector_all('.font-semibold.text-xl')
+
+            for title_div in title_divs:
+                text = await title_div.text_content()
+                if text and 'Cerimonia' in text.strip() or 'Cerimónia' in text.strip():
+                    section = await title_div.evaluate_handle(
+                        'el => el.closest(".flex.flex-column.w-full")'
+                    )
+                    if not section:
+                        continue
+
+                    data = None
+                    local = None
+                    morada = None
+
+                    spans = await section.query_selector_all('.font-semibold')
+                    for span in spans:
+                        label = await span.text_content()
+                        if not label:
+                            continue
+
+                        label = label.strip()
+
+                        next_el = await span.evaluate_handle('el => el.nextElementSibling')
+                        if next_el:
+                            value = await next_el.text_content()
+                            if value:
+                                value = value.strip()
+
+                                if 'Data:' in label:
+                                    try:
+                                        # Parse ISO datetime
+                                        data = datetime.fromisoformat(value.replace('Z', '+00:00'))
+                                    except:
+                                        pass
+                                elif 'Local:' in label:
+                                    local = value
+                                elif 'Morada:' in label:
+                                    morada = value
+
+                    return CerimoniaEncerramento(
+                        data=data,
+                        local=local,
+                        morada=morada
+                    )
+
+            return None
+
+        except Exception as e:
+            print(f"⚠️ Erro ao extrair cerimónia: {e}")
+            return None
+
+    async def _extract_agente(self, page: Page):
+        """Extrai dados do agente de execução"""
+        try:
+            from models import AgenteExecucao
+
+            # Procura pela seção "Agente de Execução"
+            title_divs = await page.query_selector_all('.font-semibold.text-xl')
+
+            for title_div in title_divs:
+                text = await title_div.text_content()
+                if text and 'Agente de Execução' in text.strip() or 'Agente de Execucao' in text.strip():
+                    section = await title_div.evaluate_handle(
+                        'el => el.closest(".flex.flex-column.w-full")'
+                    )
+                    if not section:
+                        continue
+
+                    # Pega todos os spans dentro da seção
+                    all_spans = await section.query_selector_all('span')
+                    nome = None
+                    email = None
+                    telefone = None
+
+                    for span in all_spans:
+                        value = await span.text_content()
+                        if not value:
+                            continue
+
+                        value = value.strip()
+
+                        # Detecta email
+                        if '@' in value:
+                            email = value
+                        # Detecta telefone (simples)
+                        elif value.replace(' ', '').isdigit() and len(value.replace(' ', '')) >= 9:
+                            telefone = value
+                        # Primeiro span não vazio é o nome
+                        elif not nome and len(value) > 3:
+                            nome = value
+
+                    return AgenteExecucao(
+                        nome=nome,
+                        email=email,
+                        telefone=telefone
+                    )
+
+            return None
+
+        except Exception as e:
+            print(f"⚠️ Erro ao extrair agente: {e}")
+            return None
+
+    async def _extract_dados_processo(self, page: Page):
+        """Extrai dados do processo judicial"""
+        try:
+            from models import DadosProcesso
+
+            # Procura pela seção "Dados do Processo"
+            title_divs = await page.query_selector_all('.font-semibold.text-xl')
+
+            for title_div in title_divs:
+                text = await title_div.text_content()
+                if text and 'Dados do Processo' in text.strip():
+                    section = await title_div.evaluate_handle(
+                        'el => el.closest(".flex.flex-column.w-full")'
+                    )
+                    if not section:
+                        continue
+
+                    processo = None
+                    tribunal = None
+                    unidade_organica = None
+                    requerentes = []
+
+                    spans = await section.query_selector_all('.font-semibold')
+                    for span in spans:
+                        label = await span.text_content()
+                        if not label:
+                            continue
+
+                        label = label.strip()
+
+                        next_el = await span.evaluate_handle('el => el.nextElementSibling')
+                        if next_el:
+                            value = await next_el.text_content()
+                            if value:
+                                value = value.strip()
+
+                                if 'Processo:' in label:
+                                    processo = value
+                                elif 'Tribunal:' in label:
+                                    tribunal = value
+                                elif 'Unidade Orgânica:' in label or 'Unidade Organica:' in label:
+                                    unidade_organica = value
+                                elif 'Requerentes' in label or 'Requeridos' in label or 'Interessados' in label:
+                                    # Pega todos os próximos spans com nomes
+                                    parent = await next_el.evaluate_handle('el => el.parentElement')
+                                    if parent:
+                                        name_spans = await parent.query_selector_all('span:not(.font-semibold)')
+                                        for name_span in name_spans:
+                                            name = await name_span.text_content()
+                                            if name and name.strip() and len(name.strip()) > 3:
+                                                requerentes.append(name.strip())
+
+                    return DadosProcesso(
+                        processo=processo,
+                        tribunal=tribunal,
+                        unidadeOrganica=unidade_organica,
+                        requerentes=requerentes
+                    )
+
+            return None
+
+        except Exception as e:
+            print(f"⚠️ Erro ao extrair dados do processo: {e}")
+            return None
+
     async def _extract_valores_from_page(self, page: Page) -> ValoresLeilao:
         """Extrai valores da página individual do evento"""
         valores = ValoresLeilao()
