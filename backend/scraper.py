@@ -129,43 +129,42 @@ class EventScraper:
             data_inicio = None
             data_fim = None
 
-            # Procura por spans com texto "Início:" e "Fim:"
-            # As datas aparecem em formato DD/MM/YYYY HH:MM:SS
-            spans = await page.query_selector_all('span.text-xs')
+            # Procura por divs que contenham as datas
+            # Estrutura: <div><span>Início:</span><span class="font-semibold">DATA</span></div>
+            divs = await page.query_selector_all('div.flex.justify-content-between')
 
-            for span in spans:
-                text = await span.text_content()
+            for div in divs:
+                text = await div.text_content()
                 if not text:
                     continue
 
                 text = text.strip()
 
-                if text == 'Início:' or 'Início' in text:
-                    # Procura pelo próximo span com classe font-semibold que contém a data
-                    parent = await span.evaluate_handle('el => el.parentElement')
-                    if parent:
-                        date_span = await parent.query_selector('span.font-semibold')
-                        if date_span:
-                            value = await date_span.text_content()
-                            if value:
-                                try:
-                                    # Parse data no formato DD/MM/YYYY HH:MM:SS
-                                    data_inicio = datetime.strptime(value.strip(), '%d/%m/%Y %H:%M:%S')
-                                except ValueError as e:
-                                    print(f"⚠️ Erro ao parsear data de início '{value}': {e}")
+                # Verifica se é a div de Início
+                if 'Início:' in text:
+                    # Busca o span com font-semibold dentro desta div
+                    date_span = await div.query_selector('span.font-semibold')
+                    if date_span:
+                        value = await date_span.text_content()
+                        if value:
+                            try:
+                                # Parse data no formato DD/MM/YYYY HH:MM:SS
+                                data_inicio = datetime.strptime(value.strip(), '%d/%m/%Y %H:%M:%S')
+                            except ValueError as e:
+                                print(f"⚠️ Erro ao parsear data de início '{value}': {e}")
 
-                elif text == 'Fim:' or 'Fim' in text:
-                    parent = await span.evaluate_handle('el => el.parentElement')
-                    if parent:
-                        date_span = await parent.query_selector('span.font-semibold')
-                        if date_span:
-                            value = await date_span.text_content()
-                            if value:
-                                try:
-                                    # Parse data no formato DD/MM/YYYY HH:MM:SS
-                                    data_fim = datetime.strptime(value.strip(), '%d/%m/%Y %H:%M:%S')
-                                except ValueError as e:
-                                    print(f"⚠️ Erro ao parsear data de fim '{value}': {e}")
+                # Verifica se é a div de Fim
+                elif 'Fim:' in text:
+                    # Busca o span com font-semibold dentro desta div
+                    date_span = await div.query_selector('span.font-semibold')
+                    if date_span:
+                        value = await date_span.text_content()
+                        if value:
+                            try:
+                                # Parse data no formato DD/MM/YYYY HH:MM:SS
+                                data_fim = datetime.strptime(value.strip(), '%d/%m/%Y %H:%M:%S')
+                            except ValueError as e:
+                                print(f"⚠️ Erro ao parsear data de fim '{value}': {e}")
 
             return data_inicio, data_fim
 
