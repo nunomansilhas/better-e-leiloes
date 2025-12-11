@@ -362,8 +362,8 @@
         /* Events Grid */
         .events-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
-            gap: 24px;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 18px;
             margin-bottom: 32px;
         }
 
@@ -383,41 +383,44 @@
         }
 
         .event-card-header {
-            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
-            padding: 16px 20px;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            padding: 12px 16px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 8px;
         }
 
         .event-ref-badge {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
+            flex: 1;
         }
 
         .event-type-prefix {
-            font-size: 11px;
-            font-weight: 700;
-            padding: 4px 8px;
-            border-radius: 4px;
-            letter-spacing: 0.5px;
+            font-size: 13px;
+            font-weight: 800;
+            padding: 6px 10px;
+            border-radius: 6px;
+            letter-spacing: 0.8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
 
         .event-type-prefix.lo {
-            background: rgba(37, 99, 235, 0.2);
-            color: #60a5fa;
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            color: white;
         }
 
         .event-type-prefix.np {
-            background: rgba(225, 29, 72, 0.2);
-            color: #fb7185;
+            background: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
+            color: white;
         }
 
         .event-ref-text {
-            font-size: 16px;
+            font-size: 14px;
             font-weight: 700;
-            color: white;
+            color: #e2e8f0;
         }
 
         .event-type-badge {
@@ -448,13 +451,63 @@
         }
 
         .event-card-body {
-            padding: 20px;
+            padding: 14px;
         }
 
         .event-section {
-            margin-bottom: 20px;
-            padding-bottom: 16px;
+            margin-bottom: 14px;
+            padding-bottom: 12px;
             border-bottom: 1px solid #f1f5f9;
+        }
+
+        .card-actions {
+            display: flex;
+            gap: 6px;
+            padding: 10px 14px;
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .card-action-btn {
+            flex: 1;
+            padding: 8px;
+            border: 1.5px solid #e2e8f0;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #64748b;
+        }
+
+        .card-action-btn:hover {
+            background: #6366f1;
+            border-color: #6366f1;
+            color: white;
+            transform: translateY(-1px);
+        }
+
+        .card-action-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            background: #f1f5f9;
+        }
+
+        .card-action-btn:disabled:hover {
+            background: #f1f5f9;
+            border-color: #e2e8f0;
+            color: #94a3b8;
+            transform: none;
+        }
+
+        .card-action-btn svg {
+            width: 14px;
+            height: 14px;
         }
 
         .event-section:last-child {
@@ -464,40 +517,40 @@
         }
 
         .section-title {
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 700;
             color: #64748b;
             text-transform: uppercase;
             letter-spacing: 0.8px;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 4px;
         }
 
         .section-title svg {
-            width: 14px;
-            height: 14px;
+            width: 12px;
+            height: 12px;
         }
 
         .detail-row {
             display: flex;
             justify-content: space-between;
             align-items: start;
-            padding: 8px 0;
-            gap: 12px;
+            padding: 6px 0;
+            gap: 8px;
         }
 
         .detail-label {
             color: #64748b;
-            font-size: 13px;
+            font-size: 11px;
             font-weight: 500;
             flex-shrink: 0;
         }
 
         .detail-value {
             color: #0f172a;
-            font-size: 13px;
+            font-size: 11px;
             font-weight: 600;
             text-align: right;
             word-break: break-word;
@@ -795,9 +848,37 @@
                     <input type="text" class="filter-input" id="search-imoveis" placeholder="🔍 Referência do evento...">
                 </div>
                 <div class="filter-group">
+                    <label class="filter-label">Ordenar por</label>
+                    <select class="filter-select" id="sort-imoveis">
+                        <option value="">Selecione...</option>
+                        <option value="dataFim_asc">Data fim: mais próxima</option>
+                        <option value="dataFim_desc">Data fim: mais distante</option>
+                        <option value="dataInicio_asc">Data início: mais antiga</option>
+                        <option value="dataInicio_desc">Data início: mais recente</option>
+                        <option value="valorBase_asc">Valor base: mais baixo</option>
+                        <option value="valorBase_desc">Valor base: mais alto</option>
+                        <option value="valorMinimo_asc">Valor mínimo: mais baixo</option>
+                        <option value="valorMinimo_desc">Valor mínimo: mais alto</option>
+                        <option value="lanceAtual_asc">Lance atual: mais baixo</option>
+                        <option value="lanceAtual_desc">Lance atual: mais alto</option>
+                    </select>
+                </div>
+                <div class="filter-group">
                     <label class="filter-label">Distrito</label>
-                    <select class="filter-select" id="distrito-imoveis">
+                    <select class="filter-select" id="distrito-imoveis" onchange="updateConcelhoFilter('imoveis')">
                         <option value="">Todos os distritos</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">Concelho</label>
+                    <select class="filter-select" id="concelho-imoveis" onchange="updateFreguesiaFilter('imoveis')" disabled>
+                        <option value="">Todos os concelhos</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">Freguesia</label>
+                    <select class="filter-select" id="freguesia-imoveis" disabled>
+                        <option value="">Todas as freguesias</option>
                     </select>
                 </div>
                 <div class="filter-buttons">
@@ -848,6 +929,22 @@
                 <div class="filter-group">
                     <label class="filter-label">Pesquisar</label>
                     <input type="text" class="filter-input" id="search-moveis" placeholder="🔍 Referência do evento...">
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">Ordenar por</label>
+                    <select class="filter-select" id="sort-moveis">
+                        <option value="">Selecione...</option>
+                        <option value="dataFim_asc">Data fim: mais próxima</option>
+                        <option value="dataFim_desc">Data fim: mais distante</option>
+                        <option value="dataInicio_asc">Data início: mais antiga</option>
+                        <option value="dataInicio_desc">Data início: mais recente</option>
+                        <option value="valorBase_asc">Valor base: mais baixo</option>
+                        <option value="valorBase_desc">Valor base: mais alto</option>
+                        <option value="valorMinimo_asc">Valor mínimo: mais baixo</option>
+                        <option value="valorMinimo_desc">Valor mínimo: mais alto</option>
+                        <option value="lanceAtual_asc">Lance atual: mais baixo</option>
+                        <option value="lanceAtual_desc">Lance atual: mais alto</option>
+                    </select>
                 </div>
                 <div class="filter-buttons">
                     <button class="btn btn-primary" onclick="loadEvents('moveis')">
@@ -983,9 +1080,15 @@
 
             const searchInput = document.getElementById(`search-${type}`);
             const distritoSelect = document.getElementById(`distrito-${type}`);
+            const concelhoSelect = document.getElementById(`concelho-${type}`);
+            const freguesiaSelect = document.getElementById(`freguesia-${type}`);
+            const sortSelect = document.getElementById(`sort-${type}`);
 
             const search = searchInput ? searchInput.value : '';
             const distrito = distritoSelect ? distritoSelect.value : '';
+            const concelho = concelhoSelect ? concelhoSelect.value : '';
+            const freguesia = freguesiaSelect ? freguesiaSelect.value : '';
+            const sortBy = sortSelect ? sortSelect.value : '';
 
             try {
                 let url = `${API_BASE}/api/events?page=${page}&limit=50`;
@@ -1008,7 +1111,7 @@
                     updateDistritoFilter();
                 }
 
-                // Filter by search and type prefix
+                // Filter by search, type prefix, and location
                 let events = data.events;
                 if (search) {
                     events = events.filter(e =>
@@ -1017,6 +1120,51 @@
                 }
                 if (activeTypeFilter) {
                     events = events.filter(e => e.reference.startsWith(activeTypeFilter));
+                }
+                if (concelho) {
+                    events = events.filter(e => e.detalhes.concelho === concelho);
+                }
+                if (freguesia) {
+                    events = events.filter(e => e.detalhes.freguesia === freguesia);
+                }
+
+                // Apply sorting
+                if (sortBy) {
+                    const [field, order] = sortBy.split('_');
+                    events.sort((a, b) => {
+                        let valueA, valueB;
+
+                        switch(field) {
+                            case 'dataInicio':
+                                valueA = a.dataInicio ? new Date(a.dataInicio) : new Date(0);
+                                valueB = b.dataInicio ? new Date(b.dataInicio) : new Date(0);
+                                break;
+                            case 'dataFim':
+                                valueA = a.dataFim ? new Date(a.dataFim) : new Date(0);
+                                valueB = b.dataFim ? new Date(b.dataFim) : new Date(0);
+                                break;
+                            case 'valorBase':
+                                valueA = a.valores?.valorBase || 0;
+                                valueB = b.valores?.valorBase || 0;
+                                break;
+                            case 'valorMinimo':
+                                valueA = a.valores?.valorMinimo || 0;
+                                valueB = b.valores?.valorMinimo || 0;
+                                break;
+                            case 'lanceAtual':
+                                valueA = a.valores?.lanceAtual || 0;
+                                valueB = b.valores?.lanceAtual || 0;
+                                break;
+                            default:
+                                return 0;
+                        }
+
+                        if (order === 'asc') {
+                            return valueA > valueB ? 1 : valueA < valueB ? -1 : 0;
+                        } else {
+                            return valueA < valueB ? 1 : valueA > valueB ? -1 : 0;
+                        }
+                    });
                 }
 
                 if (events.length === 0) {
@@ -1085,11 +1233,14 @@
 
             const getValue = (val) => val || 'N/A';
 
+            // Remove prefix LO/NP from reference text
+            const referenceWithoutPrefix = event.reference.substring(2);
+
             card.innerHTML = `
                 <div class="event-card-header">
                     <div class="event-ref-badge">
                         <span class="event-type-prefix ${typePrefixClass}">${typePrefix}</span>
-                        <span class="event-ref-text">${event.reference}</span>
+                        <span class="event-ref-text">${referenceWithoutPrefix}</span>
                     </div>
                     <div class="event-type-badge ${eventType}">
                         ${eventType === 'imovel' ? `
@@ -1236,9 +1387,170 @@
                         </div>
                     ` : ''}
                 </div>
+
+                <div class="card-actions">
+                    <button class="card-action-btn" onclick="reloadEvent('${event.reference}')" title="Recarregar dados do evento">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                        Reload
+                    </button>
+                    <button class="card-action-btn" onclick="openLocation(${event.gps?.latitude}, ${event.gps?.longitude})" ${!event.gps?.latitude ? 'disabled' : ''} title="Abrir localização no mapa">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                        Mapa
+                    </button>
+                </div>
             `;
 
             return card;
+        }
+
+        // Card Actions
+        async function reloadEvent(reference) {
+            try {
+                // Show loading indicator
+                const card = event.target.closest('.event-card');
+                if (card) {
+                    card.style.opacity = '0.5';
+                    card.style.pointerEvents = 'none';
+                }
+
+                // Force API to re-scrape the event
+                const response = await fetch(`${API_BASE}/api/scrape/event/${reference}`, {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    // Wait a moment for the scraping to complete
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+
+                    // Reload the current page
+                    const activePage = document.querySelector('.page.active').id;
+                    loadEvents(activePage);
+                } else {
+                    alert('Erro ao recarregar o evento. Por favor, tente novamente.');
+                    if (card) {
+                        card.style.opacity = '1';
+                        card.style.pointerEvents = 'auto';
+                    }
+                }
+            } catch (error) {
+                console.error('Erro ao recarregar evento:', error);
+                alert('Erro ao recarregar o evento. Por favor, tente novamente.');
+            }
+        }
+
+        function openLocation(lat, lng) {
+            if (lat && lng) {
+                window.open(`https://www.google.com/maps?q=${lat},${lng}`, '_blank');
+            }
+        }
+
+        // Cascade Filters
+        let allEventsCache = [];
+
+        async function updateConcelhoFilter(type) {
+            const distritoSelect = document.getElementById(`distrito-${type}`);
+            const concelhoSelect = document.getElementById(`concelho-${type}`);
+            const freguesiaSelect = document.getElementById(`freguesia-${type}`);
+
+            if (!distritoSelect || !concelhoSelect) return;
+
+            const selectedDistrito = distritoSelect.value;
+
+            // Reset concelho and freguesia
+            concelhoSelect.innerHTML = '<option value="">Todos os concelhos</option>';
+            freguesiaSelect.innerHTML = '<option value="">Todas as freguesias</option>';
+            freguesiaSelect.disabled = true;
+
+            if (!selectedDistrito) {
+                concelhoSelect.disabled = true;
+                return;
+            }
+
+            // Fetch all events if not cached
+            if (allEventsCache.length === 0) {
+                try {
+                    const response = await fetch(`${API_BASE}/api/events?limit=1000&tipo_evento=imovel`);
+                    const data = await response.json();
+                    allEventsCache = data.events;
+                } catch (error) {
+                    console.error('Erro ao carregar eventos para filtros:', error);
+                    return;
+                }
+            }
+
+            // Filter events by distrito and collect unique concelhos
+            const concelhos = new Set();
+            allEventsCache.forEach(event => {
+                if (event.detalhes.distrito === selectedDistrito && event.detalhes.concelho) {
+                    concelhos.add(event.detalhes.concelho);
+                }
+            });
+
+            // Populate concelho dropdown
+            Array.from(concelhos).sort().forEach(concelho => {
+                const option = document.createElement('option');
+                option.value = concelho;
+                option.textContent = concelho;
+                concelhoSelect.appendChild(option);
+            });
+
+            concelhoSelect.disabled = false;
+        }
+
+        async function updateFreguesiaFilter(type) {
+            const distritoSelect = document.getElementById(`distrito-${type}`);
+            const concelhoSelect = document.getElementById(`concelho-${type}`);
+            const freguesiaSelect = document.getElementById(`freguesia-${type}`);
+
+            if (!distritoSelect || !concelhoSelect || !freguesiaSelect) return;
+
+            const selectedDistrito = distritoSelect.value;
+            const selectedConcelho = concelhoSelect.value;
+
+            // Reset freguesia
+            freguesiaSelect.innerHTML = '<option value="">Todas as freguesias</option>';
+
+            if (!selectedDistrito || !selectedConcelho) {
+                freguesiaSelect.disabled = true;
+                return;
+            }
+
+            // Fetch all events if not cached
+            if (allEventsCache.length === 0) {
+                try {
+                    const response = await fetch(`${API_BASE}/api/events?limit=1000&tipo_evento=imovel`);
+                    const data = await response.json();
+                    allEventsCache = data.events;
+                } catch (error) {
+                    console.error('Erro ao carregar eventos para filtros:', error);
+                    return;
+                }
+            }
+
+            // Filter events by distrito and concelho, collect unique freguesias
+            const freguesias = new Set();
+            allEventsCache.forEach(event => {
+                if (event.detalhes.distrito === selectedDistrito &&
+                    event.detalhes.concelho === selectedConcelho &&
+                    event.detalhes.freguesia) {
+                    freguesias.add(event.detalhes.freguesia);
+                }
+            });
+
+            // Populate freguesia dropdown
+            Array.from(freguesias).sort().forEach(freguesia => {
+                const option = document.createElement('option');
+                option.value = freguesia;
+                option.textContent = freguesia;
+                freguesiaSelect.appendChild(option);
+            });
+
+            freguesiaSelect.disabled = false;
         }
 
         function updateDistritoFilter() {
@@ -1288,9 +1600,22 @@
         function clearFilters(type) {
             const searchInput = document.getElementById(`search-${type}`);
             const distritoSelect = document.getElementById(`distrito-${type}`);
+            const concelhoSelect = document.getElementById(`concelho-${type}`);
+            const freguesiaSelect = document.getElementById(`freguesia-${type}`);
+            const sortSelect = document.getElementById(`sort-${type}`);
 
             if (searchInput) searchInput.value = '';
             if (distritoSelect) distritoSelect.value = '';
+            if (sortSelect) sortSelect.value = '';
+
+            if (concelhoSelect) {
+                concelhoSelect.innerHTML = '<option value="">Todos os concelhos</option>';
+                concelhoSelect.disabled = true;
+            }
+            if (freguesiaSelect) {
+                freguesiaSelect.innerHTML = '<option value="">Todas as freguesias</option>';
+                freguesiaSelect.disabled = true;
+            }
 
             activeTypeFilter = null;
             document.querySelectorAll('.type-badge').forEach(b => b.classList.remove('active'));
