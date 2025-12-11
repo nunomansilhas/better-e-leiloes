@@ -30,6 +30,89 @@
             overflow-y: auto;
             box-shadow: 4px 0 12px rgba(0,0,0,0.1);
             z-index: 1000;
+            transition: transform 0.3s ease, width 0.3s ease;
+        }
+
+        .sidebar.collapsed {
+            width: 70px;
+        }
+
+        .sidebar.collapsed .sidebar-header h1 span,
+        .sidebar.collapsed .sidebar-header p,
+        .sidebar.collapsed .nav-item span,
+        .sidebar.collapsed .nav-dropdown {
+            display: none;
+        }
+
+        .sidebar-toggle {
+            position: absolute;
+            top: 20px;
+            right: -15px;
+            width: 30px;
+            height: 30px;
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            border: 2px solid #f8fafc;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
+            transition: all 0.2s;
+            z-index: 1001;
+        }
+
+        .sidebar-toggle:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.6);
+        }
+
+        .sidebar-toggle svg {
+            width: 16px;
+            height: 16px;
+            color: white;
+            transition: transform 0.3s;
+        }
+
+        .sidebar.collapsed .sidebar-toggle svg {
+            transform: rotate(180deg);
+        }
+
+        .sidebar-lock {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 8px 12px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .sidebar-lock:hover {
+            background: rgba(255,255,255,0.15);
+        }
+
+        .sidebar-lock svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        .sidebar.collapsed .sidebar-lock {
+            width: 30px;
+            padding: 8px;
+            gap: 0;
+        }
+
+        .sidebar.collapsed .sidebar-lock span {
+            display: none;
         }
 
         .sidebar-header {
@@ -121,6 +204,12 @@
             flex: 1;
             padding: 32px;
             width: calc(100% - 260px);
+            transition: margin-left 0.3s ease, width 0.3s ease;
+        }
+
+        .main-content.sidebar-collapsed {
+            margin-left: 70px;
+            width: calc(100% - 70px);
         }
 
         .page {
@@ -727,13 +816,19 @@
 </head>
 <body>
     <!-- Sidebar -->
-    <div class="sidebar">
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-toggle" onclick="toggleSidebar()" title="Expandir/Colapsar sidebar">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+            </svg>
+        </div>
+
         <div class="sidebar-header">
             <h1>
                 <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 24px; height: 24px;">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/>
                 </svg>
-                E-Leilões
+                <span>E-Leilões</span>
             </h1>
             <p>Sistema de Gestão</p>
         </div>
@@ -743,34 +838,41 @@
                 <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
                 </svg>
-                Dashboard
+                <span>Dashboard</span>
             </div>
 
             <div class="nav-item" onclick="toggleDropdown(this)">
                 <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
                 </svg>
-                Eventos
+                <span>Eventos</span>
             </div>
             <div class="nav-dropdown">
                 <div class="nav-dropdown-item" onclick="showPage('imoveis')">
                     <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
                     </svg>
-                    Imóveis
+                    <span>Imóveis</span>
                 </div>
                 <div class="nav-dropdown-item" onclick="showPage('moveis')">
                     <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
                     </svg>
-                    Móveis
+                    <span>Móveis</span>
                 </div>
             </div>
         </nav>
+
+        <div class="sidebar-lock" onclick="toggleSidebarLock()" id="sidebarLock" title="Travar estado da sidebar">
+            <svg id="lockIcon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"/>
+            </svg>
+            <span id="lockText">Destravar</span>
+        </div>
     </div>
 
     <!-- Main Content -->
-    <div class="main-content">
+    <div class="main-content" id="mainContent">
         <!-- Dashboard Page -->
         <div id="dashboard" class="page active">
             <div class="page-header">
@@ -982,6 +1084,61 @@
         let allLoadedEvents = { imoveis: [], moveis: [] }; // Store all loaded events
         let filteredEvents = { imoveis: [], moveis: [] }; // Store filtered events
         const ITEMS_PER_PAGE = 50;
+        let sidebarLocked = false;
+
+        // Sidebar Toggle
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.getElementById('mainContent');
+            const isCollapsed = sidebar.classList.contains('collapsed');
+
+            if (isCollapsed) {
+                sidebar.classList.remove('collapsed');
+                mainContent.classList.remove('sidebar-collapsed');
+                if (!sidebarLocked) {
+                    localStorage.setItem('sidebarCollapsed', 'false');
+                }
+            } else {
+                sidebar.classList.add('collapsed');
+                mainContent.classList.add('sidebar-collapsed');
+                if (!sidebarLocked) {
+                    localStorage.setItem('sidebarCollapsed', 'true');
+                }
+            }
+        }
+
+        function toggleSidebarLock() {
+            sidebarLocked = !sidebarLocked;
+            const lockIcon = document.getElementById('lockIcon');
+            const lockText = document.getElementById('lockText');
+
+            if (sidebarLocked) {
+                lockIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>';
+                lockText.textContent = 'Travado';
+                localStorage.setItem('sidebarLocked', 'true');
+            } else {
+                lockIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"/>';
+                lockText.textContent = 'Destravar';
+                localStorage.setItem('sidebarLocked', 'false');
+            }
+        }
+
+        // Restore sidebar state on load
+        function restoreSidebarState() {
+            const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+            const isLocked = localStorage.getItem('sidebarLocked') === 'true';
+
+            if (isCollapsed) {
+                document.getElementById('sidebar').classList.add('collapsed');
+                document.getElementById('mainContent').classList.add('sidebar-collapsed');
+            }
+
+            if (isLocked) {
+                sidebarLocked = true;
+                document.getElementById('lockIcon').innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>';
+                document.getElementById('lockText').textContent = 'Travado';
+            }
+        }
 
         // Navigation
         function showPage(pageId) {
@@ -1674,6 +1831,7 @@
         });
 
         // Initial load
+        restoreSidebarState();
         loadDashboard();
     </script>
 </body>
