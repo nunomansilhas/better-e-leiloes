@@ -46,7 +46,7 @@ class DescricaoPredial(BaseModel):
     distritoCode: Optional[str] = None
     concelhoCode: Optional[str] = None
     freguesiaCode: Optional[str] = None
-    artigos: List[dict] = []  # Lista de artigos matriciais
+    artigos: List[dict] = Field(default_factory=list)  # Lista de artigos matriciais
 
 
 class CerimoniaEncerramento(BaseModel):
@@ -68,7 +68,7 @@ class DadosProcesso(BaseModel):
     processo: Optional[str] = None
     tribunal: Optional[str] = None
     unidadeOrganica: Optional[str] = None
-    requerentes: List[str] = []
+    requerentes: List[str] = Field(default_factory=list)
 
 
 class EventData(BaseModel):
@@ -90,7 +90,7 @@ class EventData(BaseModel):
     dataFim: Optional[datetime] = None
 
     # Galeria de imagens
-    imagens: List[str] = []
+    imagens: List[str] = Field(default_factory=list)
 
     # Textos descritivos
     descricao: Optional[str] = None
@@ -103,7 +103,7 @@ class EventData(BaseModel):
     dadosProcesso: Optional[DadosProcesso] = None
 
     # Metadados
-    scraped_at: datetime
+    scraped_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: Optional[datetime] = None
     
     class Config:
