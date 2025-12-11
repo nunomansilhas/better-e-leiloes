@@ -13,7 +13,8 @@ if sys.platform == 'win32':
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 from typing import List, Optional
 import os
@@ -69,11 +70,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Servir arquivos estáticos
+static_dir = os.path.join(os.path.dirname(__file__), "static")
+if os.path.exists(static_dir):
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
 
 # ============== ENDPOINTS ==============
 
 @app.get("/")
 async def root():
+    """Redireciona para a dashboard"""
+    return FileResponse(os.path.join(static_dir, "index.html"))
+
+
+@app.get("/health")
+async def health():
     """Health check"""
     return {
         "status": "online",
