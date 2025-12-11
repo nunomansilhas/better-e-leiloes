@@ -54,7 +54,37 @@ class EventScraper:
             await self.browser.close()
         if self.playwright:
             await self.playwright.stop()
-    
+
+    async def scrape_event(self, reference: str) -> EventData:
+        """
+        Scrape público de um único evento por referência.
+        Detecta automaticamente se é imóvel (LO) ou móvel (NP) pela referência.
+
+        Args:
+            reference: Referência do evento (ex: LO1234567890 ou NP1234567890)
+
+        Returns:
+            EventData completo do evento
+        """
+        await self.init_browser()
+
+        # Determina tipo baseado no prefixo da referência
+        # LO = Leilão Online (geralmente imóveis)
+        # NP = Negociação Particular (pode ser móveis ou imóveis)
+        # Para segurança, vamos tentar buscar a página e detectar o tipo
+        tipo_evento = "imovel" if reference.startswith("LO") else "imovel"  # default imovel
+
+        # Cria preview fake (valores virão da página individual)
+        preview = {
+            'reference': reference,
+            'valores': ValoresLeilao()  # Vazio, será preenchido na página
+        }
+
+        try:
+            return await self._scrape_event_details(preview, tipo_evento)
+        except Exception as e:
+            raise Exception(f"Erro ao fazer scrape do evento {reference}: {str(e)}")
+
     async def _scrape_event_details(self, preview: dict, tipo_evento: str) -> EventData:
         """
         FASE 2: Entra na página individual para extrair detalhes completos
@@ -173,13 +203,30 @@ class EventScraper:
             return None, None
 
     async def _extract_gps(self, page: Page) -> GPSCoordinates:
-        """Extrai coordenadas GPS do DOM da página"""
+        """Extrai coordenadas GPS do DOM da página (apenas da seção Localização)"""
         try:
             latitude = None
             longitude = None
 
-            # Procura por spans com "GPS Latitude:" e "GPS Longitude:"
-            spans = await page.query_selector_all('.flex.w-full .font-semibold')
+            # Primeiro, encontra a div com título "Localização"
+            localizacao_section = None
+            title_divs = await page.query_selector_all('.font-semibold.text-xl')
+
+            for title_div in title_divs:
+                text = await title_div.text_content()
+                if text and 'Localização' in text.strip():
+                    # Pega o elemento pai (a seção completa de localização)
+                    localizacao_section = await title_div.evaluate_handle(
+                        'el => el.closest(".flex.flex-column.w-full")'
+                    )
+                    break
+
+            if not localizacao_section:
+                print("⚠️ Seção 'Localização' não encontrada")
+                return GPSCoordinates(latitude=None, longitude=None)
+
+            # Agora procura GPS apenas dentro desta seção
+            spans = await localizacao_section.query_selector_all('.font-semibold')
 
             for span in spans:
                 text = await span.text_content()
