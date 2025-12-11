@@ -46,7 +46,7 @@ class DescricaoPredial(BaseModel):
     distritoCode: Optional[str] = None
     concelhoCode: Optional[str] = None
     freguesiaCode: Optional[str] = None
-    artigos: Optional[List[dict]] = Field(default_factory=list)  # Lista de artigos matriciais
+    artigos: List[dict] = []  # Lista de artigos matriciais
 
 
 class CerimoniaEncerramento(BaseModel):
@@ -68,7 +68,7 @@ class DadosProcesso(BaseModel):
     processo: Optional[str] = None
     tribunal: Optional[str] = None
     unidadeOrganica: Optional[str] = None
-    requerentes: Optional[List[str]] = Field(default_factory=list)
+    requerentes: List[str] = []
 
 
 class EventData(BaseModel):
@@ -86,15 +86,15 @@ class EventData(BaseModel):
     detalhes: EventDetails
 
     # Datas do evento
-    dataInicio: Optional[datetime] = Field(None, description="Data de início do evento")
-    dataFim: Optional[datetime] = Field(None, description="Data de fim do evento")
+    dataInicio: Optional[datetime] = None
+    dataFim: Optional[datetime] = None
 
     # Galeria de imagens
-    imagens: Optional[List[str]] = Field(default_factory=list, description="URLs das imagens do evento")
+    imagens: List[str] = []
 
     # Textos descritivos
-    descricao: Optional[str] = Field(None, description="Descrição completa do bem")
-    observacoes: Optional[str] = Field(None, description="Observações sobre o evento")
+    descricao: Optional[str] = None
+    observacoes: Optional[str] = None
 
     # Informações adicionais
     descricaoPredial: Optional[DescricaoPredial] = None
@@ -103,7 +103,7 @@ class EventData(BaseModel):
     dadosProcesso: Optional[DadosProcesso] = None
 
     # Metadados
-    scraped_at: datetime = Field(default_factory=datetime.utcnow)
+    scraped_at: datetime
     updated_at: Optional[datetime] = None
     
     class Config:
