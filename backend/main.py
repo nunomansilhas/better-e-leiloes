@@ -135,16 +135,16 @@ async def get_event(reference: str):
 @app.get("/api/events", response_model=EventListResponse)
 async def get_events(
     page: int = Query(1, ge=1, description="Número da página"),
-    limit: int = Query(50, ge=1, le=200, description="Eventos por página"),
+    limit: int = Query(50, ge=1, le=5000, description="Eventos por página"),
     tipo: Optional[str] = None,
     tipo_evento: Optional[str] = None,
     distrito: Optional[str] = None
 ):
     """
     Lista eventos com paginação e filtros.
-    
+
     - **page**: Número da página (começa em 1)
-    - **limit**: Quantidade de resultados por página (max 200)
+    - **limit**: Quantidade de resultados por página (max 5000)
     - **tipo**: Filtrar por tipo (Apartamento, Moradia, etc)
     - **tipo_evento**: Filtrar por tipo de evento (imovel, movel)
     - **distrito**: Filtrar por distrito
