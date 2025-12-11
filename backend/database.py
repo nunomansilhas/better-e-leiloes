@@ -57,7 +57,11 @@ class EventDB(Base):
     
     # Detalhes MOVEIS
     matricula: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    
+
+    # Datas do evento
+    data_inicio: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    data_fim: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
     # Metadados
     scraped_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
@@ -89,6 +93,8 @@ class EventDB(Base):
                 freguesia=self.freguesia,
                 matricula=self.matricula
             ),
+            dataInicio=self.data_inicio,
+            dataFim=self.data_fim,
             scraped_at=self.scraped_at,
             updated_at=self.updated_at
         )
@@ -134,6 +140,8 @@ class DatabaseManager:
             existing.concelho = event.detalhes.concelho
             existing.freguesia = event.detalhes.freguesia
             existing.matricula = event.detalhes.matricula
+            existing.data_inicio = event.dataInicio
+            existing.data_fim = event.dataFim
             existing.updated_at = datetime.utcnow()
         else:
             # Insere novo
@@ -156,6 +164,8 @@ class DatabaseManager:
                 concelho=event.detalhes.concelho,
                 freguesia=event.detalhes.freguesia,
                 matricula=event.detalhes.matricula,
+                data_inicio=event.dataInicio,
+                data_fim=event.dataFim,
                 scraped_at=event.scraped_at
             )
             self.session.add(new_event)

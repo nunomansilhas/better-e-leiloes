@@ -79,21 +79,24 @@ class EventScraper:
             # Navega para página do evento
             await page.goto(url, wait_until="networkidle", timeout=15000)
             await asyncio.sleep(1.5)
-            
+
+            # Extrai datas do evento
+            data_inicio, data_fim = await self._extract_dates(page)
+
             # GPS (apenas para imóveis)
             gps = None
             if tipo_evento == "imovel":
                 gps = await self._extract_gps(page)
-            
+
             # Detalhes (diferente para imovel vs movel)
             if tipo_evento == "imovel":
                 detalhes = await self._extract_imovel_details(page)
             else:
                 detalhes = await self._extract_movel_details(page)
-            
+
             # Confirma/atualiza valores na página individual (podem ser mais precisos)
             valores_pagina = await self._extract_valores_from_page(page)
-            
+
             # Merge valores (prioridade: página individual > listagem)
             valores_final = ValoresLeilao(
                 valorBase=valores_pagina.valorBase or valores_listagem.valorBase,
@@ -101,13 +104,15 @@ class EventScraper:
                 valorMinimo=valores_pagina.valorMinimo or valores_listagem.valorMinimo,
                 lanceAtual=valores_pagina.lanceAtual or valores_listagem.lanceAtual
             )
-            
+
             return EventData(
                 reference=reference,
                 tipoEvento=tipo_evento,
                 valores=valores_final,
                 gps=gps,
                 detalhes=detalhes,
+                dataInicio=data_inicio,
+                dataFim=data_fim,
                 scraped_at=datetime.utcnow()
             )
             
@@ -118,22 +123,72 @@ class EventScraper:
             await page.close()
             await context.close()
     
+    async def _extract_dates(self, page: Page) -> tuple[Optional[datetime], Optional[datetime]]:
+        """Extrai datas de início e fim do evento do DOM da página"""
+        try:
+            data_inicio = None
+            data_fim = None
+
+            # Procura por spans com texto "Início:" e "Fim:"
+            # As datas aparecem em formato DD/MM/YYYY HH:MM:SS
+            spans = await page.query_selector_all('span.text-xs')
+
+            for span in spans:
+                text = await span.text_content()
+                if not text:
+                    continue
+
+                text = text.strip()
+
+                if text == 'Início:' or 'Início' in text:
+                    # Procura pelo próximo span com classe font-semibold que contém a data
+                    parent = await span.evaluate_handle('el => el.parentElement')
+                    if parent:
+                        date_span = await parent.query_selector('span.font-semibold')
+                        if date_span:
+                            value = await date_span.text_content()
+                            if value:
+                                try:
+                                    # Parse data no formato DD/MM/YYYY HH:MM:SS
+                                    data_inicio = datetime.strptime(value.strip(), '%d/%m/%Y %H:%M:%S')
+                                except ValueError as e:
+                                    print(f"⚠️ Erro ao parsear data de início '{value}': {e}")
+
+                elif text == 'Fim:' or 'Fim' in text:
+                    parent = await span.evaluate_handle('el => el.parentElement')
+                    if parent:
+                        date_span = await parent.query_selector('span.font-semibold')
+                        if date_span:
+                            value = await date_span.text_content()
+                            if value:
+                                try:
+                                    # Parse data no formato DD/MM/YYYY HH:MM:SS
+                                    data_fim = datetime.strptime(value.strip(), '%d/%m/%Y %H:%M:%S')
+                                except ValueError as e:
+                                    print(f"⚠️ Erro ao parsear data de fim '{value}': {e}")
+
+            return data_inicio, data_fim
+
+        except Exception as e:
+            print(f"⚠️ Erro ao extrair datas: {e}")
+            return None, None
+
     async def _extract_gps(self, page: Page) -> GPSCoordinates:
         """Extrai coordenadas GPS do DOM da página"""
         try:
             latitude = None
             longitude = None
-            
+
             # Procura por spans com "GPS Latitude:" e "GPS Longitude:"
             spans = await page.query_selector_all('.flex.w-full .font-semibold')
-            
+
             for span in spans:
                 text = await span.text_content()
                 if not text:
                     continue
-                
+
                 text = text.strip()
-                
+
                 if text == 'GPS Latitude:':
                     # Pega próximo elemento (o valor)
                     next_el = await span.evaluate_handle('el => el.nextElementSibling')
@@ -144,7 +199,7 @@ class EventScraper:
                                 latitude = float(value.strip())
                             except ValueError:
                                 pass
-                
+
                 elif text == 'GPS Longitude:':
                     next_el = await span.evaluate_handle('el => el.nextElementSibling')
                     if next_el:
@@ -154,9 +209,9 @@ class EventScraper:
                                 longitude = float(value.strip())
                             except ValueError:
                                 pass
-            
+
             return GPSCoordinates(latitude=latitude, longitude=longitude)
-            
+
         except Exception as e:
             print(f"⚠️ Erro ao extrair GPS: {e}")
             return GPSCoordinates(latitude=None, longitude=None)
