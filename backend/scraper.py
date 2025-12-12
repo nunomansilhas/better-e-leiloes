@@ -1138,3 +1138,239 @@ class EventScraper:
             started_at=self.started_at,
             last_update=self.last_update
         )
+
+    # ============== MULTI-STAGE SCRAPING ==============
+    # Stage 1: Scrape apenas IDs
+    # Stage 2: Scrape detalhes por ID
+    # Stage 3: Scrape imagens por ID
+
+    async def scrape_ids_only(self, tipo: Optional[int] = None, max_pages: Optional[int] = None) -> List[dict]:
+        """
+        STAGE 1: Scrape apenas referências e valores básicos da listagem (rápido).
+
+        Args:
+            tipo: 1=imoveis, 2=moveis, None=ambos
+            max_pages: Máximo de páginas por tipo
+
+        Returns:
+            Lista de dicts: [{reference, tipo_evento, valores}, ...]
+        """
+        await self.init_browser()
+
+        all_ids = []
+
+        try:
+            if tipo is None:
+                # Scrape ambos os tipos
+                print("🆔 Stage 1: Scraping IDs de IMÓVEIS...")
+                imoveis_ids = await self._extract_from_listing(tipo=1, max_pages=max_pages)
+                for item in imoveis_ids:
+                    item['tipo_evento'] = 'imovel'
+                all_ids.extend(imoveis_ids)
+
+                print("🆔 Stage 1: Scraping IDs de MÓVEIS...")
+                moveis_ids = await self._extract_from_listing(tipo=2, max_pages=max_pages)
+                for item in moveis_ids:
+                    item['tipo_evento'] = 'movel'
+                all_ids.extend(moveis_ids)
+            else:
+                # Scrape tipo específico
+                tipo_nome = "IMÓVEIS" if tipo == 1 else "MÓVEIS"
+                print(f"🆔 Stage 1: Scraping IDs de {tipo_nome}...")
+                ids = await self._extract_from_listing(tipo=tipo, max_pages=max_pages)
+                tipo_evento = 'imovel' if tipo == 1 else 'movel'
+                for item in ids:
+                    item['tipo_evento'] = tipo_evento
+                all_ids.extend(ids)
+
+            print(f"✅ Stage 1 completo: {len(all_ids)} IDs recolhidos")
+            return all_ids
+
+        except Exception as e:
+            print(f"❌ Erro no Stage 1: {e}")
+            raise
+
+    async def scrape_details_by_ids(self, references: List[str]) -> List[EventData]:
+        """
+        STAGE 2: Scrape detalhes completos (SEM imagens) para lista de referências.
+
+        Args:
+            references: Lista de referências (ex: ["LO-2024-001", "NP-2024-002"])
+
+        Returns:
+            Lista de EventData (sem imagens)
+        """
+        await self.init_browser()
+
+        events = []
+        failed = []
+
+        print(f"📋 Stage 2: Scraping detalhes de {len(references)} eventos...")
+
+        # Processa em batches paralelos
+        for i in range(0, len(references), self.concurrent):
+            batch = references[i:i + self.concurrent]
+
+            tasks = []
+            for ref in batch:
+                # Determina tipo baseado no prefixo
+                tipo_evento = "imovel" if ref.startswith("LO") or ref.startswith("NP") else "imovel"
+
+                # Cria preview fake (valores virão da página)
+                preview = {
+                    'reference': ref,
+                    'valores': ValoresLeilao()
+                }
+
+                tasks.append(self._scrape_event_details_no_images(preview, tipo_evento))
+
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+
+            for idx, result in enumerate(results):
+                if isinstance(result, EventData):
+                    events.append(result)
+                    print(f"  ✓ {batch[idx]}")
+                else:
+                    failed.append(batch[idx])
+                    print(f"  ✗ {batch[idx]}: {str(result)[:50]}")
+
+            await asyncio.sleep(self.delay)
+
+        print(f"✅ Stage 2 completo: {len(events)} eventos / {len(failed)} falhas")
+        return events
+
+    async def _scrape_event_details_no_images(self, preview: dict, tipo_evento: str) -> EventData:
+        """
+        Scrape detalhes de um evento SEM extrair imagens (mais rápido).
+        Similar a _scrape_event_details mas pula a galeria.
+        """
+        reference = preview['reference']
+        valores_listagem = preview['valores']
+
+        url = f"https://www.e-leiloes.pt/evento/{reference}"
+
+        context = await self.browser.new_context(
+            user_agent=self.user_agent,
+            viewport={'width': 1920, 'height': 1080}
+        )
+
+        page = await context.new_page()
+
+        try:
+            await page.goto(url, wait_until="networkidle", timeout=15000)
+            await asyncio.sleep(1.5)
+
+            # Extrai datas
+            data_inicio, data_fim = await self._extract_dates(page)
+
+            # GPS (apenas imóveis)
+            gps = None
+            if tipo_evento == "imovel":
+                gps = await self._extract_gps(page)
+
+            # Detalhes
+            if tipo_evento == "imovel":
+                detalhes = await self._extract_imovel_details(page)
+            else:
+                detalhes = await self._extract_movel_details(page)
+
+            # Valores
+            valores_pagina = await self._extract_valores_from_page(page)
+            valores_final = ValoresLeilao(
+                valorBase=valores_pagina.valorBase or valores_listagem.valorBase,
+                valorAbertura=valores_pagina.valorAbertura or valores_listagem.valorAbertura,
+                valorMinimo=valores_pagina.valorMinimo or valores_listagem.valorMinimo,
+                lanceAtual=valores_pagina.lanceAtual or valores_listagem.lanceAtual
+            )
+
+            # Textos e informações (SEM IMAGENS)
+            descricao = await self._extract_descricao(page)
+            observacoes = await self._extract_observacoes(page)
+            descricao_predial = await self._extract_descricao_predial(page)
+            cerimonia = await self._extract_cerimonia(page)
+            agente = await self._extract_agente(page)
+            dados_processo = await self._extract_dados_processo(page)
+
+            return EventData(
+                reference=reference,
+                tipoEvento=tipo_evento,
+                valores=valores_final,
+                gps=gps,
+                detalhes=detalhes,
+                dataInicio=data_inicio,
+                dataFim=data_fim,
+                imagens=[],  # VAZIO - Stage 3 preenche isto
+                descricao=descricao,
+                observacoes=observacoes,
+                descricaoPredial=descricao_predial,
+                cerimoniaEncerramento=cerimonia,
+                agenteExecucao=agente,
+                dadosProcesso=dados_processo,
+                scraped_at=datetime.utcnow()
+            )
+
+        finally:
+            await page.close()
+            await context.close()
+
+    async def scrape_images_by_ids(self, references: List[str]) -> dict:
+        """
+        STAGE 3: Scrape apenas imagens para lista de referências.
+
+        Args:
+            references: Lista de referências
+
+        Returns:
+            Dict: {reference: [image_urls], ...}
+        """
+        await self.init_browser()
+
+        images_map = {}
+        failed = []
+
+        print(f"🖼️ Stage 3: Scraping imagens de {len(references)} eventos...")
+
+        # Processa em batches paralelos
+        for i in range(0, len(references), self.concurrent):
+            batch = references[i:i + self.concurrent]
+
+            tasks = [self._scrape_images_only(ref) for ref in batch]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+
+            for idx, result in enumerate(results):
+                ref = batch[idx]
+                if isinstance(result, list):
+                    images_map[ref] = result
+                    print(f"  ✓ {ref}: {len(result)} imagens")
+                else:
+                    images_map[ref] = []
+                    failed.append(ref)
+                    print(f"  ✗ {ref}: {str(result)[:50]}")
+
+            await asyncio.sleep(self.delay)
+
+        print(f"✅ Stage 3 completo: {len(images_map)} eventos / {len(failed)} falhas")
+        return images_map
+
+    async def _scrape_images_only(self, reference: str) -> List[str]:
+        """Scrape apenas as imagens de um evento"""
+        url = f"https://www.e-leiloes.pt/evento/{reference}"
+
+        context = await self.browser.new_context(
+            user_agent=self.user_agent,
+            viewport={'width': 1920, 'height': 1080}
+        )
+
+        page = await context.new_page()
+
+        try:
+            await page.goto(url, wait_until="networkidle", timeout=15000)
+            await asyncio.sleep(1.5)
+
+            # Extrai apenas galeria
+            images = await self._extract_gallery(page)
+            return images
+
+        finally:
+            await page.close()
+            await context.close()

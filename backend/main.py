@@ -347,6 +347,139 @@ async def get_schedule_info():
     }
 
 
+# ============== MULTI-STAGE SCRAPING ENDPOINTS ==============
+
+@app.post("/api/scrape/stage1/ids")
+async def scrape_stage1_ids(
+    tipo: Optional[int] = Query(None, ge=1, le=2, description="1=imoveis, 2=moveis, None=ambos"),
+    max_pages: Optional[int] = Query(None, ge=1, description="Máximo de páginas por tipo")
+):
+    """
+    STAGE 1: Scrape apenas IDs e valores básicos da listagem (rápido).
+
+    - **tipo**: 1=imóveis, 2=móveis, None=ambos
+    - **max_pages**: Máximo de páginas por tipo
+
+    Retorna lista de IDs com valores básicos.
+    Ideal para descobrir rapidamente o que existe.
+    """
+    try:
+        ids = await scraper.scrape_ids_only(tipo=tipo, max_pages=max_pages)
+
+        return {
+            "stage": 1,
+            "total_ids": len(ids),
+            "ids": ids,
+            "message": f"Stage 1 completo: {len(ids)} IDs recolhidos"
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro no Stage 1: {str(e)}")
+
+
+@app.post("/api/scrape/stage2/details")
+async def scrape_stage2_details(
+    references: List[str] = Query(..., description="Lista de referências para scrape"),
+    save_to_db: bool = Query(True, description="Guardar na base de dados")
+):
+    """
+    STAGE 2: Scrape detalhes completos (SEM imagens) para lista de IDs.
+
+    - **references**: Lista de referências (ex: ["LO-2024-001", "NP-2024-002"])
+    - **save_to_db**: Se True, guarda eventos na BD
+
+    Retorna eventos com todos os detalhes exceto imagens.
+    """
+    try:
+        events = await scraper.scrape_details_by_ids(references)
+
+        # Guarda na BD se solicitado
+        if save_to_db:
+            async with get_db() as db:
+                for event in events:
+                    await db.save_event(event)
+                    await cache_manager.set(event.reference, event)
+
+        return {
+            "stage": 2,
+            "total_requested": len(references),
+            "total_scraped": len(events),
+            "events": [event.model_dump() for event in events],
+            "saved_to_db": save_to_db,
+            "message": f"Stage 2 completo: {len(events)} eventos processados"
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro no Stage 2: {str(e)}")
+
+
+@app.post("/api/scrape/stage3/images")
+async def scrape_stage3_images(
+    references: List[str] = Query(..., description="Lista de referências para scrape"),
+    update_db: bool = Query(True, description="Atualizar eventos na BD com imagens")
+):
+    """
+    STAGE 3: Scrape apenas imagens para lista de IDs.
+
+    - **references**: Lista de referências
+    - **update_db**: Se True, atualiza eventos existentes na BD com imagens
+
+    Retorna mapa {reference: [image_urls]}.
+    """
+    try:
+        images_map = await scraper.scrape_images_by_ids(references)
+
+        # Atualiza eventos na BD se solicitado
+        if update_db:
+            async with get_db() as db:
+                for ref, images in images_map.items():
+                    # Busca evento existente
+                    event = await db.get_event(ref)
+                    if event:
+                        # Atualiza imagens
+                        event.imagens = images
+                        event.updated_at = datetime.utcnow()
+                        await db.save_event(event)
+                        await cache_manager.set(ref, event)
+
+        return {
+            "stage": 3,
+            "total_requested": len(references),
+            "total_scraped": len(images_map),
+            "images_map": images_map,
+            "updated_db": update_db,
+            "message": f"Stage 3 completo: {len(images_map)} eventos processados"
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro no Stage 3: {str(e)}")
+
+
+@app.post("/api/scrape/pipeline")
+async def scrape_full_pipeline(
+    background_tasks: BackgroundTasks,
+    tipo: Optional[int] = Query(None, ge=1, le=2, description="1=imoveis, 2=moveis, None=ambos"),
+    max_pages: Optional[int] = Query(None, ge=1, description="Máximo de páginas por tipo")
+):
+    """
+    PIPELINE COMPLETO: Executa os 3 stages sequencialmente em background.
+
+    1. Stage 1: Scrape IDs
+    2. Stage 2: Scrape detalhes
+    3. Stage 3: Scrape imagens
+
+    Executa em background e guarda tudo na BD.
+    """
+    background_tasks.add_task(run_full_pipeline, tipo, max_pages)
+
+    return {
+        "message": "Pipeline completo iniciado em background",
+        "stages": ["Stage 1: IDs", "Stage 2: Detalhes", "Stage 3: Imagens"],
+        "tipo": tipo,
+        "max_pages": max_pages
+    }
+
+
 @app.delete("/api/cache")
 async def clear_cache():
     """
@@ -430,6 +563,68 @@ async def scheduled_scrape_task():
 
     print(f"⏰ Iniciando scraping agendado às {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     await scrape_all_events(max_pages=None)
+
+
+async def run_full_pipeline(tipo: Optional[int], max_pages: Optional[int]):
+    """
+    Executa o pipeline completo de 3 stages em sequência.
+
+    Stage 1: Scrape IDs → Stage 2: Scrape Detalhes → Stage 3: Scrape Imagens
+    """
+    try:
+        print(f"🚀 Iniciando pipeline completo (tipo={tipo}, max_pages={max_pages})...")
+
+        # Stage 1: Scrape IDs
+        print("\n" + "="*50)
+        print("STAGE 1: SCRAPING IDs")
+        print("="*50)
+        ids_data = await scraper.scrape_ids_only(tipo=tipo, max_pages=max_pages)
+        references = [item['reference'] for item in ids_data]
+        print(f"✅ Stage 1: {len(references)} IDs recolhidos\n")
+
+        if not references:
+            print("⚠️ Nenhum ID encontrado. Pipeline terminado.")
+            return
+
+        # Stage 2: Scrape Detalhes (sem imagens)
+        print("\n" + "="*50)
+        print("STAGE 2: SCRAPING DETALHES")
+        print("="*50)
+        events = await scraper.scrape_details_by_ids(references)
+        print(f"✅ Stage 2: {len(events)} eventos processados\n")
+
+        # Guarda eventos na BD
+        async with get_db() as db:
+            for event in events:
+                await db.save_event(event)
+                await cache_manager.set(event.reference, event)
+
+        # Stage 3: Scrape Imagens
+        print("\n" + "="*50)
+        print("STAGE 3: SCRAPING IMAGENS")
+        print("="*50)
+        images_map = await scraper.scrape_images_by_ids(references)
+        print(f"✅ Stage 3: {len(images_map)} eventos com imagens\n")
+
+        # Atualiza eventos com imagens
+        async with get_db() as db:
+            for ref, images in images_map.items():
+                event = await db.get_event(ref)
+                if event:
+                    event.imagens = images
+                    event.updated_at = datetime.utcnow()
+                    await db.save_event(event)
+                    await cache_manager.set(ref, event)
+
+        print("\n" + "="*50)
+        print("🎉 PIPELINE COMPLETO!")
+        print(f"   IDs: {len(references)}")
+        print(f"   Detalhes: {len(events)}")
+        print(f"   Imagens: {len(images_map)}")
+        print("="*50 + "\n")
+
+    except Exception as e:
+        print(f"❌ Erro no pipeline: {e}")
 
 
 # ============== ERRO HANDLERS ==============
