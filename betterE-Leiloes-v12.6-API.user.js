@@ -969,6 +969,10 @@
                 🚀 betterE-Leiloes v13.0
             </div>
             <div style="display: flex; flex-direction: column; gap: 8px;">
+                <button id="btn-open-dashboard" style="${getButtonStyle('#10b981')}; font-size: 14px; padding: 12px 16px;">
+                    🏠 Abrir Dashboard
+                </button>
+                <div style="border-top: 1px solid #e5e7eb; margin: 4px 0;"></div>
                 <button id="btn-view-data" style="${getButtonStyle('#3b82f6')}">
                     👁️ Ver Dados
                 </button>
@@ -984,6 +988,9 @@
         document.body.appendChild(panel);
 
         // Event listeners
+        document.getElementById('btn-open-dashboard').addEventListener('click', () => {
+            window.open('http://localhost:8000/', '_blank');
+        });
         document.getElementById('btn-view-data').addEventListener('click', handleViewData);
         document.getElementById('btn-stats').addEventListener('click', handleViewStats);
         document.getElementById('btn-clear-storage').addEventListener('click', handleClearBrowserStorage);
