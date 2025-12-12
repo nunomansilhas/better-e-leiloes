@@ -2793,11 +2793,28 @@
                     const idsText = document.getElementById('stage2-ids').value;
                     references = idsText.split(',').map(s => s.trim()).filter(s => s);
                 } else if (source === 'new') {
-                    if (stage1Results.length === 0) {
-                        alert('Execute primeiro o Stage 1!');
+                    // SMART SCRAPING: Identifica automaticamente eventos novos
+                    btn.textContent = '🧠 A identificar novos...';
+
+                    // Chama endpoint de smart scraping
+                    const smartUrl = `${API_BASE}/api/scrape/smart/new-events`;
+                    const smartResponse = await fetch(smartUrl, { method: 'POST' });
+                    const smartData = await smartResponse.json();
+
+                    if (!smartResponse.ok) {
+                        throw new Error(smartData.detail || 'Erro no scrape inteligente');
+                    }
+
+                    if (smartData.new_events === 0) {
+                        alert(`ℹ️ Scrape Inteligente\n\n✅ Nenhum evento novo!\n\nTotal scraped: ${smartData.total_scraped}\nJá na BD: ${smartData.already_in_db}`);
+                        result.className = 'stage-result success';
+                        result.textContent = '0 novos';
                         return;
                     }
-                    references = stage1Results.map(item => item.reference);
+
+                    // Usa os IDs novos
+                    references = smartData.new_ids.map(item => item.reference);
+                    alert(`🧠 Scrape Inteligente\n\n✨ ${smartData.new_events} eventos novos identificados!\n\nTotal scraped: ${smartData.total_scraped}\nJá na BD: ${smartData.already_in_db}`);
                 }
 
                 if (references.length === 0) {
@@ -2805,6 +2822,7 @@
                     return;
                 }
 
+                btn.textContent = '⏳ A extrair detalhes...';
                 const url = `${API_BASE}/api/scrape/stage2/details?` + references.map(ref => `references=${encodeURIComponent(ref)}`).join('&');
 
                 const response = await fetch(url, { method: 'POST' });

@@ -392,6 +392,59 @@ async def scrape_stage1_ids(
         raise HTTPException(status_code=500, detail=f"Erro no Stage 1: {str(e)}")
 
 
+@app.post("/api/scrape/smart/new-events")
+async def scrape_smart_new_events(
+    tipo: Optional[int] = Query(None, ge=1, le=2, description="1=imoveis, 2=moveis, None=ambos"),
+    max_pages: Optional[int] = Query(None, ge=1, description="Máximo de páginas por tipo")
+):
+    """
+    SCRAPE INTELIGENTE: Identifica automaticamente eventos novos.
+
+    Compara IDs scraped com os já existentes na BD e retorna apenas os novos.
+
+    - **tipo**: 1=imóveis, 2=móveis, None=ambos
+    - **max_pages**: Máximo de páginas por tipo
+
+    Retorna apenas IDs de eventos que ainda não estão na base de dados.
+    """
+    try:
+        add_dashboard_log("🧠 SCRAPE INTELIGENTE: A identificar eventos novos...", "info")
+
+        # 1. Scrape todos os IDs disponíveis
+        all_ids_data = await scraper.scrape_ids_only(tipo=tipo, max_pages=max_pages)
+        all_references = [item['reference'] for item in all_ids_data]
+        add_dashboard_log(f"📊 Total de eventos encontrados: {len(all_references)}", "info")
+
+        # 2. Obter IDs já existentes na BD
+        async with get_db() as db:
+            existing_references = await db.get_all_references()
+
+        existing_set = set(existing_references)
+        add_dashboard_log(f"💾 Eventos já na BD: {len(existing_references)}", "info")
+
+        # 3. Identificar novos eventos
+        new_ids_data = [item for item in all_ids_data if item['reference'] not in existing_set]
+        new_count = len(new_ids_data)
+
+        if new_count > 0:
+            add_dashboard_log(f"✨ {new_count} eventos novos identificados!", "success")
+        else:
+            add_dashboard_log("✅ Nenhum evento novo. BD está atualizada.", "success")
+
+        return {
+            "total_scraped": len(all_references),
+            "already_in_db": len(existing_references),
+            "new_events": new_count,
+            "new_ids": new_ids_data,
+            "message": f"Smart Scraping: {new_count} eventos novos de {len(all_references)} totais"
+        }
+
+    except Exception as e:
+        msg = f"❌ Erro no scrape inteligente: {str(e)}"
+        add_dashboard_log(msg, "error")
+        raise HTTPException(status_code=500, detail=msg)
+
+
 @app.post("/api/scrape/stage2/details")
 async def scrape_stage2_details(
     references: List[str] = Query(..., description="Lista de referências para scrape"),
