@@ -296,43 +296,56 @@ class EventScraper:
             except:
                 print("⚠️ Galeria não encontrada")
 
-            # Método 1: Procura por items da galeria com IDs (pv_id_*_item_*)
-            # Extrai o ID base do primeiro item para descobrir quantos items existem
-            first_item = await page.query_selector('.p-galleria-item[id]')
-            if first_item:
-                first_id = await first_item.get_attribute('id')
-                if first_id:
-                    # Extrai o prefixo do ID (ex: "pv_id_360" de "pv_id_360_item_0")
-                    id_match = re.match(r'(pv_id_\d+)_item_\d+', first_id)
-                    if id_match:
-                        id_prefix = id_match.group(1)
-                        print(f"🔍 Procurando imagens com prefixo: {id_prefix}")
+            # Método PRINCIPAL: Extrai TODAS as imagens do HTML source
+            # Este método é mais robusto e encontra todas as imagens, mesmo as não renderizadas
+            try:
+                page_content = await page.content()
 
-                        # Tenta encontrar todos os items (até 50 imagens)
-                        consecutive_misses = 0
-                        for i in range(50):
-                            item_id = f"{id_prefix}_item_{i}"
-                            item = await page.query_selector(f'#{item_id} .p-evento-image')
-                            if item:
-                                consecutive_misses = 0
-                                style = await item.get_attribute('style')
-                                if style and 'background-image: url(' in style:
-                                    match = re.search(r'url\(["\']?([^"\']+)["\']?\)', style)
-                                    if match:
-                                        url = match.group(1).replace('&quot;', '')
-                                        if url and url not in images:
-                                            images.append(url)
-                            else:
-                                consecutive_misses += 1
-                                # Parar após 3 tentativas consecutivas sem sucesso
-                                if consecutive_misses >= 3:
-                                    break
+                # Procura por URLs de imagens no formato /api/files/Verbas_Fotos/
+                api_matches = re.findall(r'/api/files/Verbas_Fotos/[^"\'<>\s\)]+', page_content)
+                for url in api_matches:
+                    # Garante URL completo
+                    if not url.startswith('http'):
+                        full_url = f"https://www.e-leiloes.pt{url}"
+                    else:
+                        full_url = url
 
-            # Método 2: Fallback - procura por todas as imagens visíveis
-            if len(images) == 0:
-                print("🔄 Usando método fallback para imagens")
+                    if full_url not in images:
+                        images.append(full_url)
+
+                if len(images) > 0:
+                    print(f"✅ Método HTML: {len(images)} imagens encontradas")
+            except Exception as e:
+                print(f"⚠️ Erro no método HTML: {e}")
+
+            # Método 2: Procura por items da galeria renderizados (complementar)
+            try:
+                first_item = await page.query_selector('.p-galleria-item[id]')
+                if first_item:
+                    first_id = await first_item.get_attribute('id')
+                    if first_id:
+                        id_match = re.match(r'(pv_id_\d+)_item_\d+', first_id)
+                        if id_match:
+                            id_prefix = id_match.group(1)
+
+                            # Procura TODOS os items (não para após misses)
+                            for i in range(100):
+                                item_id = f"{id_prefix}_item_{i}"
+                                item = await page.query_selector(f'#{item_id} .p-evento-image')
+                                if item:
+                                    style = await item.get_attribute('style')
+                                    if style and 'background-image: url(' in style:
+                                        match = re.search(r'url\(["\']?([^"\']+)["\']?\)', style)
+                                        if match:
+                                            url = match.group(1).replace('&quot;', '')
+                                            if url and url not in images:
+                                                images.append(url)
+            except Exception as e:
+                print(f"⚠️ Erro no método DOM: {e}")
+
+            # Método 3: Fallback - procura por todas as imagens visíveis
+            try:
                 gallery_items = await page.query_selector_all('.p-galleria-item .p-evento-image, .p-evento-image')
-
                 for item in gallery_items:
                     style = await item.get_attribute('style')
                     if style and 'background-image: url(' in style:
@@ -341,23 +354,10 @@ class EventScraper:
                             url = match.group(1).replace('&quot;', '')
                             if url and url not in images:
                                 images.append(url)
+            except Exception as e:
+                print(f"⚠️ Erro no método fallback: {e}")
 
-            # Método 3: Tenta buscar via API de imagens no HTML
-            if len(images) == 0:
-                try:
-                    print("🔄 Tentando extrair via API de fotos")
-                    page_content = await page.content()
-                    api_matches = re.findall(r'/api/files/Verbas_Fotos/[^"\'<>\s]+', page_content)
-                    for url in api_matches:
-                        if url not in images:
-                            # Garante URL completo
-                            if not url.startswith('http'):
-                                url = f"https://www.e-leiloes.pt{url}"
-                            images.append(url)
-                except Exception as e:
-                    print(f"⚠️ Erro ao buscar API de fotos: {e}")
-
-            print(f"📷 Galeria: {len(images)} imagens encontradas")
+            print(f"📷 Total de imagens únicas: {len(images)}")
             return images
 
         except Exception as e:
