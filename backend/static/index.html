@@ -1494,6 +1494,27 @@
                     </div>
                 </div>
 
+                <!-- Console Card -->
+                <div class="scraper-control-card">
+                    <div class="scraper-control-header">
+                        <h3>📟 Console de Logs</h3>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <button class="scraper-btn" onclick="toggleAutoScroll()" style="padding: 6px 12px; font-size: 12px;" id="btn-autoscroll">
+                                📌 Auto-scroll: ON
+                            </button>
+                            <button class="scraper-btn" onclick="clearConsole()" style="padding: 6px 12px; font-size: 12px;">
+                                🧹 Limpar
+                            </button>
+                        </div>
+                    </div>
+
+                    <div style="background: #1e1e1e; border-radius: 8px; padding: 16px; font-family: 'Courier New', monospace; font-size: 12px; color: #d4d4d4; max-height: 400px; overflow-y: auto; line-height: 1.6;" id="console-output">
+                        <div style="color: #6b7280;">
+                            🟢 Console iniciado. A aguardar logs...
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Danger Zone Card -->
                 <div class="scraper-control-card" style="border: 2px solid #ef4444; background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);">
                     <div class="scraper-control-header">
@@ -2661,6 +2682,7 @@
         // Initial load
         restoreSidebarState();
         loadDashboard();
+        startConsolePolling();
 
         // ============== MULTI-STAGE SCRAPING FUNCTIONS ==============
 
@@ -2901,6 +2923,95 @@
             } finally {
                 btn.disabled = false;
                 btn.textContent = '🚀 Executar Pipeline';
+            }
+        }
+
+        // Console Functions
+        let autoScroll = true;
+        let consolePollingInterval = null;
+
+        function toggleAutoScroll() {
+            autoScroll = !autoScroll;
+            const btn = document.getElementById('btn-autoscroll');
+            btn.textContent = autoScroll ? '📌 Auto-scroll: ON' : '📌 Auto-scroll: OFF';
+        }
+
+        function clearConsole() {
+            const console = document.getElementById('console-output');
+            console.innerHTML = '<div style="color: #6b7280;">🟢 Console limpo. A aguardar logs...</div>';
+        }
+
+        function addLog(message, level = 'info') {
+            const consoleOutput = document.getElementById('console-output');
+            const timestamp = new Date().toLocaleTimeString('pt-PT');
+
+            let color = '#d4d4d4';  // default
+            let icon = 'ℹ️';
+
+            if (level === 'success') {
+                color = '#10b981';
+                icon = '✅';
+            } else if (level === 'error') {
+                color = '#ef4444';
+                icon = '❌';
+            } else if (level === 'warning') {
+                color = '#f59e0b';
+                icon = '⚠️';
+            } else if (level === 'info') {
+                color = '#3b82f6';
+                icon = 'ℹ️';
+            }
+
+            const logEntry = document.createElement('div');
+            logEntry.style.color = color;
+            logEntry.innerHTML = `<span style="color: #6b7280;">[${timestamp}]</span> ${icon} ${message}`;
+
+            consoleOutput.appendChild(logEntry);
+
+            // Auto-scroll if enabled
+            if (autoScroll) {
+                consoleOutput.scrollTop = consoleOutput.scrollHeight;
+            }
+
+            // Limit to 100 log entries
+            while (consoleOutput.children.length > 100) {
+                consoleOutput.removeChild(consoleOutput.firstChild);
+            }
+        }
+
+        // Start console polling (check for new logs every 2 seconds)
+        function startConsolePolling() {
+            if (consolePollingInterval) {
+                clearInterval(consolePollingInterval);
+            }
+
+            // Initial log
+            addLog('Console iniciado. Monitorização ativa.', 'success');
+
+            // Poll every 2 seconds (can be adjusted)
+            consolePollingInterval = setInterval(async () => {
+                try {
+                    // Fetch logs from backend (we'll create this endpoint)
+                    const response = await fetch(`${API_BASE}/api/logs`, { method: 'GET' });
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.logs && data.logs.length > 0) {
+                            data.logs.forEach(log => {
+                                addLog(log.message, log.level);
+                            });
+                        }
+                    }
+                } catch (error) {
+                    // Silently fail - don't spam console with errors
+                }
+            }, 2000);
+        }
+
+        // Stop console polling
+        function stopConsolePolling() {
+            if (consolePollingInterval) {
+                clearInterval(consolePollingInterval);
+                consolePollingInterval = null;
             }
         }
 

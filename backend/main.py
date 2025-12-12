@@ -27,6 +27,8 @@ from models import EventData, EventListResponse, ScraperStatus
 from database import init_db, get_db
 from scraper import EventScraper
 from cache import CacheManager
+from collections import deque
+import threading
 
 load_dotenv()
 
@@ -35,6 +37,19 @@ scraper = None
 cache_manager = None
 scheduler = None
 scheduled_job_id = None
+
+# Logging system for dashboard console
+log_buffer = deque(maxlen=100)  # Circular buffer, keeps last 100 logs
+log_lock = threading.Lock()
+
+def add_dashboard_log(message: str, level: str = "info"):
+    """Adiciona um log ao buffer para o dashboard console"""
+    with log_lock:
+        log_buffer.append({
+            "message": message,
+            "level": level,
+            "timestamp": datetime.now().isoformat()
+        })
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -517,6 +532,23 @@ async def get_stats():
         return stats
 
 
+@app.get("/api/logs")
+async def get_logs():
+    """
+    Retorna os logs recentes do scraping e limpa o buffer.
+    Este endpoint é chamado pelo dashboard console para mostrar logs em tempo real.
+    """
+    logs_to_return = []
+
+    with log_lock:
+        # Copy all logs
+        logs_to_return = list(log_buffer)
+        # Clear buffer after reading
+        log_buffer.clear()
+
+    return {"logs": logs_to_return}
+
+
 # ============== BACKGROUND TASKS ==============
 
 async def scrape_and_update(reference: str):
@@ -572,26 +604,30 @@ async def run_full_pipeline(tipo: Optional[int], max_pages: Optional[int]):
     Stage 1: Scrape IDs → Stage 2: Scrape Detalhes → Stage 3: Scrape Imagens
     """
     try:
-        print(f"🚀 Iniciando pipeline completo (tipo={tipo}, max_pages={max_pages})...")
+        msg = f"🚀 Iniciando pipeline completo (tipo={tipo}, max_pages={max_pages})..."
+        print(msg)
+        add_dashboard_log(msg, "info")
 
         # Stage 1: Scrape IDs
-        print("\n" + "="*50)
-        print("STAGE 1: SCRAPING IDs")
-        print("="*50)
+        add_dashboard_log("STAGE 1: SCRAPING IDs", "info")
         ids_data = await scraper.scrape_ids_only(tipo=tipo, max_pages=max_pages)
         references = [item['reference'] for item in ids_data]
-        print(f"✅ Stage 1: {len(references)} IDs recolhidos\n")
+        msg = f"✅ Stage 1: {len(references)} IDs recolhidos"
+        print(msg)
+        add_dashboard_log(msg, "success")
 
         if not references:
-            print("⚠️ Nenhum ID encontrado. Pipeline terminado.")
+            msg = "⚠️ Nenhum ID encontrado. Pipeline terminado."
+            print(msg)
+            add_dashboard_log(msg, "warning")
             return
 
         # Stage 2: Scrape Detalhes (sem imagens)
-        print("\n" + "="*50)
-        print("STAGE 2: SCRAPING DETALHES")
-        print("="*50)
+        add_dashboard_log("STAGE 2: SCRAPING DETALHES", "info")
         events = await scraper.scrape_details_by_ids(references)
-        print(f"✅ Stage 2: {len(events)} eventos processados\n")
+        msg = f"✅ Stage 2: {len(events)} eventos processados"
+        print(msg)
+        add_dashboard_log(msg, "success")
 
         # Guarda eventos na BD
         async with get_db() as db:
@@ -600,11 +636,11 @@ async def run_full_pipeline(tipo: Optional[int], max_pages: Optional[int]):
                 await cache_manager.set(event.reference, event)
 
         # Stage 3: Scrape Imagens
-        print("\n" + "="*50)
-        print("STAGE 3: SCRAPING IMAGENS")
-        print("="*50)
+        add_dashboard_log("STAGE 3: SCRAPING IMAGENS", "info")
         images_map = await scraper.scrape_images_by_ids(references)
-        print(f"✅ Stage 3: {len(images_map)} eventos com imagens\n")
+        msg = f"✅ Stage 3: {len(images_map)} eventos com imagens"
+        print(msg)
+        add_dashboard_log(msg, "success")
 
         # Atualiza eventos com imagens
         async with get_db() as db:
@@ -616,15 +652,14 @@ async def run_full_pipeline(tipo: Optional[int], max_pages: Optional[int]):
                     await db.save_event(event)
                     await cache_manager.set(ref, event)
 
-        print("\n" + "="*50)
-        print("🎉 PIPELINE COMPLETO!")
-        print(f"   IDs: {len(references)}")
-        print(f"   Detalhes: {len(events)}")
-        print(f"   Imagens: {len(images_map)}")
-        print("="*50 + "\n")
+        msg = f"🎉 PIPELINE COMPLETO! IDs: {len(references)} | Detalhes: {len(events)} | Imagens: {len(images_map)}"
+        print(msg)
+        add_dashboard_log(msg, "success")
 
     except Exception as e:
-        print(f"❌ Erro no pipeline: {e}")
+        msg = f"❌ Erro no pipeline: {e}"
+        print(msg)
+        add_dashboard_log(msg, "error")
 
 
 # ============== ERRO HANDLERS ==============
