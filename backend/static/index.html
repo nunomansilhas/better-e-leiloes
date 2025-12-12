@@ -1279,11 +1279,11 @@
                     <div class="stat-value" id="stat-total">-</div>
                     <div class="stat-breakdown">
                         <div class="stat-breakdown-item">
-                            <div class="stat-breakdown-label">LO</div>
+                            <div class="stat-breakdown-label">LO · Leilão Online</div>
                             <div class="stat-breakdown-value lo" id="stat-total-lo">-</div>
                         </div>
                         <div class="stat-breakdown-item">
-                            <div class="stat-breakdown-label">NP</div>
+                            <div class="stat-breakdown-label">NP · Negociação Particular</div>
                             <div class="stat-breakdown-value np" id="stat-total-np">-</div>
                         </div>
                     </div>
@@ -1301,11 +1301,11 @@
                     <div class="stat-value" id="stat-imoveis">-</div>
                     <div class="stat-breakdown">
                         <div class="stat-breakdown-item">
-                            <div class="stat-breakdown-label">LO</div>
+                            <div class="stat-breakdown-label">LO · Leilão Online</div>
                             <div class="stat-breakdown-value lo" id="stat-imoveis-lo">-</div>
                         </div>
                         <div class="stat-breakdown-item">
-                            <div class="stat-breakdown-label">NP</div>
+                            <div class="stat-breakdown-label">NP · Negociação Particular</div>
                             <div class="stat-breakdown-value np" id="stat-imoveis-np">-</div>
                         </div>
                     </div>
@@ -1316,18 +1316,19 @@
                         <span class="stat-card-title">Móveis</span>
                         <div class="stat-icon purple">
                             <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 9.5h3.5m0 0a2 2 0 100-4 2 2 0 000 4zm0 0a2 2 0 100 4 2 2 0 000-4zm10.5-2V5a2 2 0 00-2-2H9.5a2 2 0 00-2 2v2.5m10.5 0h3.5m-3.5 0a2 2 0 100-4 2 2 0 000 4zm0 0a2 2 0 100 4 2 2 0 000-4z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3.5 14h17a1 1 0 001-1v-3a1 1 0 00-1-1h-2l-2-3h-8l-2 3h-2a1 1 0 00-1 1v3a1 1 0 001 1z"/>
                             </svg>
                         </div>
                     </div>
                     <div class="stat-value" id="stat-moveis">-</div>
                     <div class="stat-breakdown">
                         <div class="stat-breakdown-item">
-                            <div class="stat-breakdown-label">LO</div>
+                            <div class="stat-breakdown-label">LO · Leilão Online</div>
                             <div class="stat-breakdown-value lo" id="stat-moveis-lo">-</div>
                         </div>
                         <div class="stat-breakdown-item">
-                            <div class="stat-breakdown-label">NP</div>
+                            <div class="stat-breakdown-label">NP · Negociação Particular</div>
                             <div class="stat-breakdown-value np" id="stat-moveis-np">-</div>
                         </div>
                     </div>
@@ -1675,6 +1676,12 @@
         let allLoadedEvents = { imoveis: [], moveis: [] }; // Store all loaded events
         let filteredEvents = { imoveis: [], moveis: [] }; // Store filtered events
         const ITEMS_PER_PAGE = 50;
+
+        // Global variables for console and modals
+        let consolePollingInterval = null;
+        let autoScroll = true;
+        let deleteTimerInterval = null;
+
         // Sidebar Lock
         function toggleSidebarLock() {
             const sidebar = document.getElementById('sidebar');
@@ -2137,7 +2144,6 @@
 
             const typePrefix = event.reference.substring(0, 2);
             const typePrefixClass = typePrefix === 'LO' ? 'lo' : 'np';
-            const typePrefixText = typePrefix === 'LO' ? 'Leilão Online' : 'Negociação Particular';
             const eventType = event.tipoEvento === 'imovel' ? 'imovel' : 'movel';
 
             const formatDate = (dateStr) => {
@@ -2215,7 +2221,6 @@
                     <div class="event-ref-badge">
                         <span class="event-type-prefix ${typePrefixClass}">${typePrefix}</span>
                         <span class="event-ref-text">${referenceWithoutPrefix}</span>
-                        <span style="font-size: 10px; color: #64748b; margin-left: 4px;">· ${typePrefixText}</span>
                     </div>
                     <div class="event-type-badge ${eventType}">
                         ${eventType === 'imovel' ? `
@@ -2927,9 +2932,6 @@
         }
 
         // Console Functions
-        let autoScroll = true;
-        let consolePollingInterval = null;
-
         function toggleAutoScroll() {
             autoScroll = !autoScroll;
             const btn = document.getElementById('btn-autoscroll');
@@ -3016,8 +3018,6 @@
         }
 
         // Clear Database with Confirmation Modal + Timer
-        let deleteTimerInterval = null;
-
         function confirmClearDatabase() {
             const modal = document.getElementById('delete-confirm-modal');
             const timerDisplay = document.getElementById('delete-timer');
