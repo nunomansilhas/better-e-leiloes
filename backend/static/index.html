@@ -1493,6 +1493,27 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Danger Zone Card -->
+                <div class="scraper-control-card" style="border: 2px solid #ef4444; background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);">
+                    <div class="scraper-control-header">
+                        <h3 style="color: #dc2626;">⚠️ Zona de Perigo</h3>
+                    </div>
+
+                    <div class="scraper-controls">
+                        <div style="padding: 16px; background: white; border-radius: 8px; border: 1px solid #fecaca; margin-bottom: 16px;">
+                            <p style="color: #991b1b; font-size: 14px; font-weight: 600; margin-bottom: 8px;">
+                                🗑️ Limpar Base de Dados
+                            </p>
+                            <p style="color: #7f1d1d; font-size: 12px; line-height: 1.5; margin-bottom: 12px;">
+                                Esta ação irá <strong>apagar permanentemente TODOS os eventos</strong> da base de dados. Esta operação é <strong>irreversível</strong>!
+                            </p>
+                            <button class="scraper-btn stop" onclick="confirmClearDatabase()" style="width: auto;">
+                                💣 Limpar Base de Dados
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -2880,6 +2901,56 @@
             } finally {
                 btn.disabled = false;
                 btn.textContent = '🚀 Executar Pipeline';
+            }
+        }
+
+        // Clear Database with Confirmation
+        async function confirmClearDatabase() {
+            const confirmed = confirm(
+                '⚠️ CONFIRMAR LIMPEZA DA BASE DE DADOS\n\n' +
+                'Tem a certeza que pretende apagar TODOS os eventos da base de dados?\n\n' +
+                '❌ Esta operação é IRREVERSÍVEL!\n' +
+                '❌ Todos os dados serão perdidos permanentemente!\n\n' +
+                'Digite "CONFIRMAR" para continuar:'
+            );
+
+            if (!confirmed) {
+                return;
+            }
+
+            const confirmText = prompt(
+                '⚠️ ÚLTIMA CONFIRMAÇÃO\n\n' +
+                'Digite exactamente "CONFIRMAR" (em maiúsculas) para apagar a base de dados:'
+            );
+
+            if (confirmText !== 'CONFIRMAR') {
+                alert('❌ Operação cancelada. Texto de confirmação incorreto.');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/database`, {
+                    method: 'DELETE'
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert(
+                        '✅ Base de dados limpa com sucesso!\n\n' +
+                        `${data.deleted_events} eventos foram apagados.\n\n` +
+                        'A página vai recarregar...'
+                    );
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } else {
+                    throw new Error(data.detail || 'Erro desconhecido');
+                }
+
+            } catch (error) {
+                alert(`❌ Erro ao limpar base de dados:\n${error.message}`);
+                console.error(error);
             }
         }
     </script>
