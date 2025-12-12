@@ -154,10 +154,11 @@ class EventScraper:
                 lanceAtual=valores_pagina.lanceAtual or valores_listagem.lanceAtual
             )
 
-            # Extrai novas informações
+            # Extrai todas as secções (HTML completo)
             imagens = await self._extract_gallery(page)
             descricao = await self._extract_descricao(page)
             observacoes = await self._extract_observacoes(page)
+            onuselimitacoes = await self._extract_onus_limitacoes(page)  # NOVO
             descricao_predial = await self._extract_descricao_predial(page)
             cerimonia = await self._extract_cerimonia(page)
             agente = await self._extract_agente(page)
@@ -174,6 +175,7 @@ class EventScraper:
                 imagens=imagens,
                 descricao=descricao,
                 observacoes=observacoes,
+                onuselimitacoes=onuselimitacoes,  # NOVO
                 descricaoPredial=descricao_predial,
                 cerimoniaEncerramento=cerimonia,
                 agenteExecucao=agente,
@@ -317,6 +319,9 @@ class EventScraper:
                 # Procura por URLs de imagens no formato /api/files/Verbas_Fotos/
                 api_matches = re.findall(r'/api/files/Verbas_Fotos/[^"\'<>\s\)]+', page_content)
                 for url in api_matches:
+                    # Limpa entidades HTML e caracteres indesejados
+                    url = url.replace('&quot;', '').replace('&amp;', '&').rstrip('&"\';')
+
                     # Garante URL completo
                     if not url.startswith('http'):
                         full_url = f"https://www.e-leiloes.pt{url}"
@@ -377,59 +382,67 @@ class EventScraper:
             print(f"⚠️ Erro ao extrair galeria: {e}")
             return []
 
-    async def _extract_descricao(self, page: Page) -> Optional[str]:
-        """Extrai a descrição completa do bem"""
+    async def _extract_section_html(self, page: Page, section_title: str) -> Optional[str]:
+        """
+        Método genérico para extrair HTML completo de uma secção.
+
+        Args:
+            page: Página do Playwright
+            section_title: Título da secção (ex: "Descrição", "Observações", etc.)
+
+        Returns:
+            HTML completo da secção ou None se não encontrada
+        """
         try:
-            # Procura pela seção "Descrição"
             title_divs = await page.query_selector_all('.font-semibold.text-xl')
 
             for title_div in title_divs:
                 text = await title_div.text_content()
-                if text and 'Descrição' in text.strip():
+                if text and section_title.lower() in text.strip().lower():
                     # Pega o elemento pai (a seção completa)
                     section = await title_div.evaluate_handle(
                         'el => el.closest(".flex.flex-column.w-full")'
                     )
                     if section:
-                        # Pega o próximo div após o título (que contém a descrição)
-                        desc_div = await section.query_selector('div:not(.flex.flex-column)')
-                        if desc_div:
-                            descricao = await desc_div.text_content()
-                            return descricao.strip() if descricao else None
+                        # Retorna o HTML completo da secção
+                        html = await section.evaluate('el => el.innerHTML')
+                        return html.strip() if html else None
 
             return None
 
         except Exception as e:
-            print(f"⚠️ Erro ao extrair descrição: {e}")
+            print(f"⚠️ Erro ao extrair secção '{section_title}': {e}")
             return None
+
+    async def _extract_descricao(self, page: Page) -> Optional[str]:
+        """Extrai HTML completo da secção Descrição"""
+        return await self._extract_section_html(page, "Descrição")
 
     async def _extract_observacoes(self, page: Page) -> Optional[str]:
-        """Extrai as observações sobre o evento"""
-        try:
-            # Procura pela seção "Observações"
-            title_divs = await page.query_selector_all('.font-semibold.text-xl')
+        """Extrai HTML completo da secção Observações"""
+        return await self._extract_section_html(page, "Observações")
 
-            for title_div in title_divs:
-                text = await title_div.text_content()
-                if text and 'Observações' in text.strip() or 'Observacoes' in text.strip():
-                    # Pega o elemento pai (a seção completa)
-                    section = await title_div.evaluate_handle(
-                        'el => el.closest(".flex.flex-column.w-full")'
-                    )
-                    if section:
-                        # Pega o próximo div após o título (que contém as observações)
-                        obs_div = await section.query_selector('div:not(.flex.flex-column)')
-                        if obs_div:
-                            observacoes = await obs_div.text_content()
-                            return observacoes.strip() if observacoes else None
+    async def _extract_onus_limitacoes(self, page: Page) -> Optional[str]:
+        """Extrai HTML completo da secção Ónus e Limitações"""
+        return await self._extract_section_html(page, "Ónus")
 
-            return None
+    async def _extract_descricao_predial(self, page: Page) -> Optional[str]:
+        """Extrai HTML completo da secção Descrição Predial"""
+        return await self._extract_section_html(page, "Descrição Predial")
 
-        except Exception as e:
-            print(f"⚠️ Erro ao extrair observações: {e}")
-            return None
+    async def _extract_cerimonia(self, page: Page) -> Optional[str]:
+        """Extrai HTML completo da secção Cerimónia de Encerramento"""
+        return await self._extract_section_html(page, "Cerimónia")
 
-    async def _extract_descricao_predial(self, page: Page):
+    async def _extract_agente(self, page: Page) -> Optional[str]:
+        """Extrai HTML completo da secção Agente de Execução"""
+        return await self._extract_section_html(page, "Agente")
+
+    async def _extract_dados_processo(self, page: Page) -> Optional[str]:
+        """Extrai HTML completo da secção Dados do Processo"""
+        return await self._extract_section_html(page, "Dados do Processo")
+
+    async def _extract_descricao_predial_OLD(self, page: Page):
         """Extrai informação da descrição predial"""
         try:
             from models import DescricaoPredial
@@ -1313,6 +1326,7 @@ class EventScraper:
             # Textos e informações (SEM IMAGENS)
             descricao = await self._extract_descricao(page)
             observacoes = await self._extract_observacoes(page)
+            onuselimitacoes = await self._extract_onus_limitacoes(page)  # NOVO
             descricao_predial = await self._extract_descricao_predial(page)
             cerimonia = await self._extract_cerimonia(page)
             agente = await self._extract_agente(page)
@@ -1329,6 +1343,7 @@ class EventScraper:
                 imagens=[],  # VAZIO - Stage 3 preenche isto
                 descricao=descricao,
                 observacoes=observacoes,
+                onuselimitacoes=onuselimitacoes,  # NOVO
                 descricaoPredial=descricao_predial,
                 cerimoniaEncerramento=cerimonia,
                 agenteExecucao=agente,

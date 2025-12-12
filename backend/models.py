@@ -92,15 +92,16 @@ class EventData(BaseModel):
     # Galeria de imagens
     imagens: List[str] = Field(default_factory=list)
 
-    # Textos descritivos
+    # Textos descritivos e secções completas (HTML)
     descricao: Optional[str] = None
     observacoes: Optional[str] = None
+    onuselimitacoes: Optional[str] = None  # Novo campo
 
-    # Informações adicionais
-    descricaoPredial: Optional[DescricaoPredial] = None
-    cerimoniaEncerramento: Optional[CerimoniaEncerramento] = None
-    agenteExecucao: Optional[AgenteExecucao] = None
-    dadosProcesso: Optional[DadosProcesso] = None
+    # Informações adicionais (HTML completo das secções)
+    descricaoPredial: Optional[str] = None  # Alterado: era DescricaoPredial
+    cerimoniaEncerramento: Optional[str] = None  # Alterado: era CerimoniaEncerramento
+    agenteExecucao: Optional[str] = None  # Alterado: era AgenteExecucao
+    dadosProcesso: Optional[str] = None  # Alterado: era DadosProcesso
 
     # Metadados
     scraped_at: datetime = Field(default_factory=datetime.utcnow)
