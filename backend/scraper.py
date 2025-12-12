@@ -546,13 +546,13 @@ class EventScraper:
     
     async def _extract_imovel_details(self, page: Page) -> EventDetails:
         """Extrai detalhes COMPLETOS do IMÓVEL via DOM"""
-        
-        async def extract_detail(label: str) -> str:
+
+        async def extract_detail(label: str) -> Optional[str]:
             """Extrai valor de um campo específico"""
             try:
                 # Procura por span.font-semibold com o label
                 spans = await page.query_selector_all('.flex.w-full .font-semibold')
-                
+
                 for span in spans:
                     text = await span.text_content()
                     if text and text.strip() == label:
@@ -560,11 +560,11 @@ class EventScraper:
                         next_el = await span.evaluate_handle('el => el.nextElementSibling')
                         if next_el:
                             value = await next_el.text_content()
-                            return value.strip() if value else "N/A"
-                
-                return "N/A"
+                            return value.strip() if value else None
+
+                return None
             except:
-                return "N/A"
+                return None
         
         async def extract_area(label: str) -> Optional[float]:
             """Extrai área em m²"""
@@ -613,29 +613,29 @@ class EventScraper:
     
     async def _extract_movel_details(self, page: Page) -> EventDetails:
         """Extrai detalhes SIMPLIFICADOS do MÓVEL (automóvel) via DOM"""
-        
-        async def extract_detail(label: str) -> str:
+
+        async def extract_detail(label: str) -> Optional[str]:
             """Extrai valor de um campo específico"""
             try:
                 spans = await page.query_selector_all('.flex.w-full .font-semibold')
-                
+
                 for span in spans:
                     text = await span.text_content()
                     if text and text.strip() == label:
                         next_el = await span.evaluate_handle('el => el.nextElementSibling')
                         if next_el:
                             value = await next_el.text_content()
-                            return value.strip() if value else "N/A"
-                
-                return "N/A"
+                            return value.strip() if value else None
+
+                return None
             except:
-                return "N/A"
-        
+                return None
+
         # Extrai apenas os 3 campos necessários para móveis
         tipo = await extract_detail('Tipo:')
         subtipo = await extract_detail('Subtipo:')
         matricula = await extract_detail('Matrícula:')
-        
+
         return EventDetails(
             tipo=tipo,
             subtipo=subtipo,
