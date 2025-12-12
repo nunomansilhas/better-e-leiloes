@@ -306,24 +306,38 @@ class DatabaseManager:
             "by_type": tipos
         }
     
+    async def get_all_references(self) -> List[str]:
+        """
+        Retorna todas as referências de eventos já armazenadas na BD.
+        Útil para comparar com novos scrapes e identificar eventos novos.
+
+        Returns:
+            Lista de referências (e.g., ["NP-2024-12345", "LO-2024-67890"])
+        """
+        result = await self.session.execute(
+            select(EventDB.reference)
+        )
+        references = result.scalars().all()
+        return list(references)
+
     async def delete_all_events(self) -> int:
         """
         Apaga TODOS os eventos da base de dados.
         ATENÇÃO: Esta operação é irreversível!
-        
+
         Returns:
             Número de eventos apagados
         """
         from sqlalchemy import delete
-        
+
         # Conta quantos eventos existem
         count_result = await self.session.execute(select(func.count(EventDB.reference)))
         count = count_result.scalar()
-        
+
         # Apaga todos
         await self.session.execute(delete(EventDB))
         await self.session.commit()
-        
+
         return count
 
 
