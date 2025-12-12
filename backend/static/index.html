@@ -2699,7 +2699,7 @@
                 result.className = 'stage-result loading';
                 result.textContent = 'A processar...';
 
-                let url = `${API_BASE}/scrape/stage1/ids?`;
+                let url = `${API_BASE}/api/scrape/stage1/ids?`;
                 if (tipo) url += `tipo=${tipo}&`;
                 if (pages) url += `max_pages=${pages}`;
 
@@ -2762,7 +2762,7 @@
                     return;
                 }
 
-                const url = `${API_BASE}/scrape/stage2/details?` + references.map(ref => `references=${encodeURIComponent(ref)}`).join('&');
+                const url = `${API_BASE}/api/scrape/stage2/details?` + references.map(ref => `references=${encodeURIComponent(ref)}`).join('&');
 
                 const response = await fetch(url, { method: 'POST' });
                 const data = await response.json();
@@ -2823,7 +2823,7 @@
                     return;
                 }
 
-                const url = `${API_BASE}/scrape/stage3/images?` + references.map(ref => `references=${encodeURIComponent(ref)}`).join('&');
+                const url = `${API_BASE}/api/scrape/stage3/images?` + references.map(ref => `references=${encodeURIComponent(ref)}`).join('&');
 
                 const response = await fetch(url, { method: 'POST' });
                 const data = await response.json();
@@ -2861,7 +2861,7 @@
                 btn.disabled = true;
                 btn.textContent = '⏳ A executar pipeline...';
 
-                let url = `${API_BASE}/scrape/pipeline?`;
+                let url = `${API_BASE}/api/scrape/pipeline?`;
                 if (tipo) url += `tipo=${tipo}&`;
                 if (pages) url += `max_pages=${pages}`;
 
