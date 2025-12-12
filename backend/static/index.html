@@ -488,7 +488,7 @@
 
         .event-card-header {
             background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-            padding: 12px 16px;
+            padding: 10px 12px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -555,19 +555,19 @@
         }
 
         .event-card-body {
-            padding: 14px;
+            padding: 10px;
         }
 
         .event-section {
-            margin-bottom: 14px;
-            padding-bottom: 12px;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
             border-bottom: 1px solid #f1f5f9;
         }
 
         .card-actions {
             display: flex;
             gap: 6px;
-            padding: 10px 14px;
+            padding: 8px 10px;
             background: #f8fafc;
             border-top: 1px solid #e2e8f0;
         }
@@ -626,7 +626,7 @@
             color: #64748b;
             text-transform: uppercase;
             letter-spacing: 0.8px;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
             display: flex;
             align-items: center;
             gap: 4px;
@@ -641,7 +641,7 @@
             display: flex;
             justify-content: space-between;
             align-items: start;
-            padding: 6px 0;
+            padding: 4px 0;
             gap: 8px;
         }
 
@@ -952,6 +952,21 @@
                 </div>
             </div>
 
+            <div id="imoveis-stats" class="stats-grid" style="margin-bottom: 24px; display: none;">
+                <div class="stat-card">
+                    <div class="stat-card-header">
+                        <span class="stat-card-title">Total LO</span>
+                    </div>
+                    <div class="stat-value" id="stat-imoveis-lo">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-header">
+                        <span class="stat-card-title">Total NP</span>
+                    </div>
+                    <div class="stat-value" id="stat-imoveis-np">0</div>
+                </div>
+            </div>
+
             <div class="filters-bar">
                 <div class="filter-group">
                     <label class="filter-label">Pesquisar</label>
@@ -1032,6 +1047,21 @@
                 <div class="type-badge np" onclick="toggleTypeFilter('NP', this)">
                     <span>NP</span>
                     <span>Negociação Particular</span>
+                </div>
+            </div>
+
+            <div id="moveis-stats" class="stats-grid" style="margin-bottom: 24px; display: none;">
+                <div class="stat-card">
+                    <div class="stat-card-header">
+                        <span class="stat-card-title">Total LO</span>
+                    </div>
+                    <div class="stat-value" id="stat-moveis-lo">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-header">
+                        <span class="stat-card-title">Total NP</span>
+                    </div>
+                    <div class="stat-value" id="stat-moveis-np">0</div>
                 </div>
             </div>
 
@@ -1177,18 +1207,17 @@
         // Load Dashboard
         async function loadDashboard() {
             try {
-                const response = await fetch(`${API_BASE}/api/stats`);
-                const stats = await response.json();
-
-                document.getElementById('stat-total').textContent = stats.total_events || 0;
-
-                // Count imoveis and moveis from events
-                const eventsResponse = await fetch(`${API_BASE}/api/events?limit=1000`);
+                // Load ALL events to calculate accurate totals
+                const eventsResponse = await fetch(`${API_BASE}/api/events?limit=5000`);
                 const eventsData = await eventsResponse.json();
 
                 const imoveis = eventsData.events.filter(e => e.tipoEvento === 'imovel').length;
                 const moveis = eventsData.events.filter(e => e.tipoEvento === 'movel').length;
+                const totalLO = eventsData.events.filter(e => e.reference.startsWith('LO')).length;
+                const totalNP = eventsData.events.filter(e => e.reference.startsWith('NP')).length;
+                const total = eventsData.events.length;
 
+                document.getElementById('stat-total').textContent = total;
                 document.getElementById('stat-imoveis').textContent = imoveis;
                 document.getElementById('stat-moveis').textContent = moveis;
 
@@ -1198,13 +1227,13 @@
                             <div class="stat-card-header">
                                 <span class="stat-card-title">Leilão Online (LO)</span>
                             </div>
-                            <div class="stat-value">${eventsData.events.filter(e => e.reference.startsWith('LO')).length}</div>
+                            <div class="stat-value">${totalLO}</div>
                         </div>
                         <div class="stat-card">
                             <div class="stat-card-header">
                                 <span class="stat-card-title">Negociação Particular (NP)</span>
                             </div>
-                            <div class="stat-value">${eventsData.events.filter(e => e.reference.startsWith('NP')).length}</div>
+                            <div class="stat-value">${totalNP}</div>
                         </div>
                     </div>
                 `;
@@ -1231,7 +1260,7 @@
             try {
                 // Load ALL events if not already loaded
                 if (allLoadedEvents[type].length === 0) {
-                    let url = `${API_BASE}/api/events?limit=1000`;
+                    let url = `${API_BASE}/api/events?limit=5000`;
                     url += `&tipo_evento=${type === 'imoveis' ? 'imovel' : 'movel'}`;
 
                     const response = await fetch(url);
@@ -1325,6 +1354,17 @@
 
                 // Store filtered events
                 filteredEvents[type] = events;
+
+                // Update stats for this type (LO/NP counts from ALL loaded events, not filtered)
+                const totalLO = allLoadedEvents[type].filter(e => e.reference.startsWith('LO')).length;
+                const totalNP = allLoadedEvents[type].filter(e => e.reference.startsWith('NP')).length;
+
+                const statsContainer = document.getElementById(`${type}-stats`);
+                if (statsContainer) {
+                    document.getElementById(`stat-${type}-lo`).textContent = totalLO;
+                    document.getElementById(`stat-${type}-np`).textContent = totalNP;
+                    statsContainer.style.display = 'grid';
+                }
 
                 // Calculate pagination
                 const totalItems = events.length;
@@ -1524,6 +1564,12 @@
                                 <span class="detail-label">Freguesia:</span>
                                 <span class="detail-value ${!event.detalhes.freguesia ? 'empty' : ''}">${getValue(event.detalhes.freguesia)}</span>
                             </div>
+                            ${event.gps?.latitude && event.gps?.longitude ? `
+                                <div class="detail-row">
+                                    <span class="detail-label">GPS:</span>
+                                    <span class="detail-value">${event.gps.latitude.toFixed(6)}, ${event.gps.longitude.toFixed(6)}</span>
+                                </div>
+                            ` : ''}
                         </div>
 
                         <!-- Áreas -->
