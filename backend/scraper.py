@@ -10,7 +10,7 @@ import asyncio
 if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
-from typing import List, Optional
+from typing import List, Optional, Callable, Awaitable
 from datetime import datetime
 import re
 from playwright.async_api import async_playwright, Page, Browser
@@ -1050,12 +1050,17 @@ class EventScraper:
             print(f"❌ Erro no Stage 1: {e}")
             raise
 
-    async def scrape_details_by_ids(self, references: List[str]) -> List[EventData]:
+    async def scrape_details_by_ids(
+        self,
+        references: List[str],
+        on_event_scraped: Optional[Callable[[EventData], Awaitable[None]]] = None
+    ) -> List[EventData]:
         """
         STAGE 2: Scrape detalhes completos (SEM imagens) para lista de referências.
 
         Args:
             references: Lista de referências (ex: ["LO-2024-001", "NP-2024-002"])
+            on_event_scraped: Callback async chamado para cada evento scraped (inserção em tempo real)
 
         Returns:
             Lista de EventData (sem imagens)
@@ -1090,6 +1095,13 @@ class EventScraper:
                 if isinstance(result, EventData):
                     events.append(result)
                     print(f"  ✓ {batch[idx]}")
+
+                    # 🔥 INSERÇÃO EM TEMPO REAL via callback
+                    if on_event_scraped:
+                        try:
+                            await on_event_scraped(result)
+                        except Exception as e:
+                            print(f"  ⚠️ Erro ao salvar {batch[idx]}: {e}")
                 else:
                     failed.append(batch[idx])
                     print(f"  ✗ {batch[idx]}: {str(result)[:50]}")
@@ -1194,12 +1206,17 @@ class EventScraper:
             await page.close()
             await context.close()
 
-    async def scrape_images_by_ids(self, references: List[str]) -> dict:
+    async def scrape_images_by_ids(
+        self,
+        references: List[str],
+        on_images_scraped: Optional[Callable[[str, List[str]], Awaitable[None]]] = None
+    ) -> dict:
         """
         STAGE 3: Scrape apenas imagens para lista de referências.
 
         Args:
             references: Lista de referências
+            on_images_scraped: Callback async chamado para cada ref com imagens (inserção em tempo real)
 
         Returns:
             Dict: {reference: [image_urls], ...}
@@ -1223,6 +1240,13 @@ class EventScraper:
                 if isinstance(result, list):
                     images_map[ref] = result
                     print(f"  ✓ {ref}: {len(result)} imagens")
+
+                    # 🔥 INSERÇÃO EM TEMPO REAL via callback
+                    if on_images_scraped:
+                        try:
+                            await on_images_scraped(ref, result)
+                        except Exception as e:
+                            print(f"  ⚠️ Erro ao atualizar imagens {ref}: {e}")
                 else:
                     images_map[ref] = []
                     failed.append(ref)

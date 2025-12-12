@@ -675,35 +675,39 @@ async def run_full_pipeline(tipo: Optional[int], max_pages: Optional[int]):
             add_dashboard_log(msg, "warning")
             return
 
-        # Stage 2: Scrape Detalhes (sem imagens)
+        # Stage 2: Scrape Detalhes (sem imagens) - COM INSERÇÃO EM TEMPO REAL
         add_dashboard_log("STAGE 2: SCRAPING DETALHES", "info")
-        events = await scraper.scrape_details_by_ids(references)
-        msg = f"✅ Stage 2: {len(events)} eventos processados"
-        print(msg)
-        add_dashboard_log(msg, "success")
 
-        # Guarda eventos na BD
-        async with get_db() as db:
-            for event in events:
+        # Callback para inserir cada evento assim que é scraped
+        async def save_event_callback(event: EventData):
+            """Salva evento na BD em tempo real"""
+            async with get_db() as db:
                 await db.save_event(event)
                 await cache_manager.set(event.reference, event)
 
-        # Stage 3: Scrape Imagens
-        add_dashboard_log("STAGE 3: SCRAPING IMAGENS", "info")
-        images_map = await scraper.scrape_images_by_ids(references)
-        msg = f"✅ Stage 3: {len(images_map)} eventos com imagens"
+        events = await scraper.scrape_details_by_ids(references, on_event_scraped=save_event_callback)
+        msg = f"✅ Stage 2: {len(events)} eventos processados e salvos em tempo real"
         print(msg)
         add_dashboard_log(msg, "success")
 
-        # Atualiza eventos com imagens
-        async with get_db() as db:
-            for ref, images in images_map.items():
+        # Stage 3: Scrape Imagens - COM ATUALIZAÇÃO EM TEMPO REAL
+        add_dashboard_log("STAGE 3: SCRAPING IMAGENS", "info")
+
+        # Callback para atualizar imagens assim que são scraped
+        async def update_images_callback(ref: str, images: List[str]):
+            """Atualiza imagens do evento em tempo real"""
+            async with get_db() as db:
                 event = await db.get_event(ref)
                 if event:
                     event.imagens = images
                     event.updated_at = datetime.utcnow()
                     await db.save_event(event)
                     await cache_manager.set(ref, event)
+
+        images_map = await scraper.scrape_images_by_ids(references, on_images_scraped=update_images_callback)
+        msg = f"✅ Stage 3: {len(images_map)} eventos com imagens atualizadas em tempo real"
+        print(msg)
+        add_dashboard_log(msg, "success")
 
         msg = f"🎉 PIPELINE COMPLETO! IDs: {len(references)} | Detalhes: {len(events)} | Imagens: {len(images_map)}"
         print(msg)
