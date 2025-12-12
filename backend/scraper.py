@@ -119,16 +119,29 @@ class EventScraper:
             # Extrai datas do evento
             data_inicio, data_fim = await self._extract_dates(page)
 
-            # GPS (apenas para imóveis)
-            gps = None
-            if tipo_evento == "imovel":
-                gps = await self._extract_gps(page)
+            # Detalhes - extrai AMBOS os tipos para deteção automática
+            detalhes_imovel = await self._extract_imovel_details(page)
+            detalhes_movel = await self._extract_movel_details(page)
 
-            # Detalhes (diferente para imovel vs movel)
-            if tipo_evento == "imovel":
-                detalhes = await self._extract_imovel_details(page)
+            # DETECÇÃO AUTOMÁTICA: Se tem matrícula, marca, modelo, etc → é móvel
+            is_movel = (
+                detalhes_movel.matricula is not None or
+                "veículo" in (detalhes_movel.tipo or "").lower() or
+                "veiculo" in (detalhes_movel.tipo or "").lower() or
+                "ligeiro" in (detalhes_movel.tipo or "").lower() or
+                "pesado" in (detalhes_movel.tipo or "").lower() or
+                "motociclo" in (detalhes_movel.tipo or "").lower()
+            )
+
+            # Define o tipo correto
+            if is_movel:
+                tipo_evento = "movel"
+                detalhes = detalhes_movel
+                gps = None  # Móveis não têm GPS
             else:
-                detalhes = await self._extract_movel_details(page)
+                tipo_evento = "imovel"
+                detalhes = detalhes_imovel
+                gps = await self._extract_gps(page)
 
             # Confirma/atualiza valores na página individual (podem ser mais precisos)
             valores_pagina = await self._extract_valores_from_page(page)
@@ -1263,16 +1276,30 @@ class EventScraper:
             # Extrai datas
             data_inicio, data_fim = await self._extract_dates(page)
 
-            # GPS (apenas imóveis)
-            gps = None
-            if tipo_evento == "imovel":
-                gps = await self._extract_gps(page)
+            # Detalhes - extrai AMBOS os tipos para detetar automaticamente
+            detalhes_imovel = await self._extract_imovel_details(page)
+            detalhes_movel = await self._extract_movel_details(page)
 
-            # Detalhes
-            if tipo_evento == "imovel":
-                detalhes = await self._extract_imovel_details(page)
+            # DETECÇÃO AUTOMÁTICA: Se tem matrícula, marca, modelo, etc → é móvel
+            # Se tem tipologia, área, distrito, etc → é imóvel
+            is_movel = (
+                detalhes_movel.matricula is not None or
+                "veículo" in (detalhes_movel.tipo or "").lower() or
+                "veiculo" in (detalhes_movel.tipo or "").lower() or
+                "ligeiro" in (detalhes_movel.tipo or "").lower() or
+                "pesado" in (detalhes_movel.tipo or "").lower() or
+                "motociclo" in (detalhes_movel.tipo or "").lower()
+            )
+
+            # Define o tipo correto
+            if is_movel:
+                tipo_evento = "movel"
+                detalhes = detalhes_movel
+                gps = None  # Móveis não têm GPS
             else:
-                detalhes = await self._extract_movel_details(page)
+                tipo_evento = "imovel"
+                detalhes = detalhes_imovel
+                gps = await self._extract_gps(page)
 
             # Valores
             valores_pagina = await self._extract_valores_from_page(page)
