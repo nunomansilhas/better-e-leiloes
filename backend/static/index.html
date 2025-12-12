@@ -1242,7 +1242,8 @@
                 </div>
                 <div class="nav-dropdown-item" onclick="showPage('moveis')">
                     <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 9.5h3.5m0 0a2 2 0 100-4 2 2 0 000 4zm0 0a2 2 0 100 4 2 2 0 000-4zm10.5-2V5a2 2 0 00-2-2H9.5a2 2 0 00-2 2v2.5m10.5 0h3.5m-3.5 0a2 2 0 100-4 2 2 0 000 4zm0 0a2 2 0 100 4 2 2 0 000-4z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.5 14h17a1 1 0 001-1v-3a1 1 0 00-1-1h-2l-2-3h-8l-2 3h-2a1 1 0 00-1 1v3a1 1 0 001 1z"/>
                     </svg>
                     <span>Móveis</span>
                 </div>
@@ -2136,6 +2137,7 @@
 
             const typePrefix = event.reference.substring(0, 2);
             const typePrefixClass = typePrefix === 'LO' ? 'lo' : 'np';
+            const typePrefixText = typePrefix === 'LO' ? 'Leilão Online' : 'Negociação Particular';
             const eventType = event.tipoEvento === 'imovel' ? 'imovel' : 'movel';
 
             const formatDate = (dateStr) => {
@@ -2209,11 +2211,11 @@
             }
 
             card.innerHTML = `
-                ${carouselHTML}
                 <div class="event-card-header">
                     <div class="event-ref-badge">
                         <span class="event-type-prefix ${typePrefixClass}">${typePrefix}</span>
                         <span class="event-ref-text">${referenceWithoutPrefix}</span>
+                        <span style="font-size: 10px; color: #64748b; margin-left: 4px;">· ${typePrefixText}</span>
                     </div>
                     <div class="event-type-badge ${eventType}">
                         ${eventType === 'imovel' ? `
@@ -2229,6 +2231,8 @@
                         `}
                     </div>
                 </div>
+
+                ${carouselHTML}
 
                 <div class="event-card-body">
                     <!-- Informações Básicas -->
@@ -3011,29 +3015,62 @@
             }
         }
 
-        // Clear Database with Confirmation
-        async function confirmClearDatabase() {
-            const confirmed = confirm(
-                '⚠️ CONFIRMAR LIMPEZA DA BASE DE DADOS\n\n' +
-                'Tem a certeza que pretende apagar TODOS os eventos da base de dados?\n\n' +
-                '❌ Esta operação é IRREVERSÍVEL!\n' +
-                '❌ Todos os dados serão perdidos permanentemente!\n\n' +
-                'Digite "CONFIRMAR" para continuar:'
-            );
+        // Clear Database with Confirmation Modal + Timer
+        let deleteTimerInterval = null;
 
-            if (!confirmed) {
-                return;
+        function confirmClearDatabase() {
+            const modal = document.getElementById('delete-confirm-modal');
+            const timerDisplay = document.getElementById('delete-timer');
+            const confirmBtn = document.getElementById('confirm-delete-btn');
+
+            // Show modal
+            modal.style.display = 'flex';
+
+            // Reset timer
+            let timeLeft = 5;
+            timerDisplay.textContent = timeLeft;
+            confirmBtn.disabled = true;
+            confirmBtn.style.background = '#cbd5e1';
+            confirmBtn.style.borderColor = '#cbd5e1';
+            confirmBtn.style.color = '#94a3b8';
+            confirmBtn.style.cursor = 'not-allowed';
+
+            // Start countdown
+            deleteTimerInterval = setInterval(() => {
+                timeLeft--;
+                timerDisplay.textContent = timeLeft;
+
+                if (timeLeft <= 0) {
+                    clearInterval(deleteTimerInterval);
+                    // Enable confirm button
+                    confirmBtn.disabled = false;
+                    confirmBtn.style.background = '#dc2626';
+                    confirmBtn.style.borderColor = '#dc2626';
+                    confirmBtn.style.color = 'white';
+                    confirmBtn.style.cursor = 'pointer';
+                    timerDisplay.textContent = '✓';
+                    timerDisplay.style.color = '#10b981';
+                }
+            }, 1000);
+        }
+
+        function cancelDeleteDatabase() {
+            const modal = document.getElementById('delete-confirm-modal');
+            modal.style.display = 'none';
+
+            if (deleteTimerInterval) {
+                clearInterval(deleteTimerInterval);
+                deleteTimerInterval = null;
             }
+        }
 
-            const confirmText = prompt(
-                '⚠️ ÚLTIMA CONFIRMAÇÃO\n\n' +
-                'Digite exactamente "CONFIRMAR" (em maiúsculas) para apagar a base de dados:'
-            );
+        async function executeDeleteDatabase() {
+            const modal = document.getElementById('delete-confirm-modal');
+            const confirmBtn = document.getElementById('confirm-delete-btn');
 
-            if (confirmText !== 'CONFIRMAR') {
-                alert('❌ Operação cancelada. Texto de confirmação incorreto.');
-                return;
-            }
+            // Disable button during execution
+            confirmBtn.disabled = true;
+            confirmBtn.textContent = '⏳ A processar...';
 
             try {
                 const response = await fetch(`${API_BASE}/api/database`, {
@@ -3043,12 +3080,16 @@
                 const data = await response.json();
 
                 if (response.ok) {
-                    alert(
-                        '✅ Base de dados limpa com sucesso!\n\n' +
-                        `${data.deleted_events} eventos foram apagados.\n\n` +
-                        'A página vai recarregar...'
-                    );
+                    confirmBtn.textContent = '✓ Concluído!';
+                    confirmBtn.style.background = '#10b981';
+
                     setTimeout(() => {
+                        modal.style.display = 'none';
+                        alert(
+                            '✅ Base de dados limpa com sucesso!\n\n' +
+                            `${data.deleted_events} eventos foram apagados.\n\n` +
+                            'A página vai recarregar...'
+                        );
                         window.location.reload();
                     }, 1000);
                 } else {
@@ -3058,8 +3099,47 @@
             } catch (error) {
                 alert(`❌ Erro ao limpar base de dados:\n${error.message}`);
                 console.error(error);
+                modal.style.display = 'none';
+                cancelDeleteDatabase();
             }
         }
     </script>
+
+    <!-- Modal de Confirmação de Limpeza de BD -->
+    <div id="delete-confirm-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.7); z-index: 9999; align-items: center; justify-content: center;">
+        <div style="background: white; border-radius: 16px; padding: 32px; max-width: 500px; width: 90%; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); position: relative;">
+            <!-- Header -->
+            <div style="text-align: center; margin-bottom: 24px;">
+                <div style="font-size: 64px; margin-bottom: 16px;">⚠️</div>
+                <h2 style="color: #dc2626; margin: 0 0 8px 0; font-size: 24px;">Limpar Base de Dados</h2>
+                <p style="color: #64748b; font-size: 14px; margin: 0;">Esta ação é irreversível!</p>
+            </div>
+
+            <!-- Warning Message -->
+            <div style="background: #fef2f2; border: 2px solid #fecaca; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+                <p style="color: #991b1b; font-size: 14px; line-height: 1.6; margin: 0;">
+                    <strong>Todos os eventos serão apagados permanentemente!</strong><br>
+                    Esta operação não pode ser revertida.
+                </p>
+            </div>
+
+            <!-- Timer Display -->
+            <div style="text-align: center; margin-bottom: 24px;">
+                <div style="font-size: 48px; font-weight: 700; color: #3b82f6;" id="delete-timer">5</div>
+                <div style="font-size: 12px; color: #64748b; margin-top: 8px;">segundos restantes</div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div style="display: flex; gap: 12px;">
+                <button onclick="cancelDeleteDatabase()" style="flex: 1; padding: 14px; background: #f1f5f9; border: 2px solid #cbd5e1; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.2s; color: #475569;">
+                    ✗ Cancelar
+                </button>
+                <button id="confirm-delete-btn" onclick="executeDeleteDatabase()" disabled style="flex: 1; padding: 14px; background: #cbd5e1; border: 2px solid #cbd5e1; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: not-allowed; transition: all 0.2s; color: #94a3b8;">
+                    ✓ Confirmar
+                </button>
+            </div>
+        </div>
+    </div>
+
 </body>
 </html>
