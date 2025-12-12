@@ -1125,6 +1125,85 @@
                 min-width: 0;
             }
         }
+
+        /* Multi-Stage Controls */
+        .stage-control {
+            margin-bottom: 16px;
+            padding: 16px;
+            background: #f8fafc;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .stage-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .stage-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .stage-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: white;
+        }
+
+        .stage-badge.stage-1 {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .stage-badge.stage-2 {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .stage-badge.stage-3 {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+
+        .stage-result {
+            font-size: 14px;
+            font-weight: 600;
+            color: #64748b;
+            padding: 4px 12px;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .stage-result.success {
+            color: #16a34a;
+            border-color: #86efac;
+            background: #dcfce7;
+        }
+
+        .stage-result.loading {
+            color: #0284c7;
+            border-color: #7dd3fc;
+            background: #e0f2fe;
+        }
+
+        .stage-controls {
+            display: flex;
+            gap: 8px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+        }
+
+        .stage-controls textarea {
+            resize: vertical;
+            flex: 1;
+            min-width: 200px;
+        }
     </style>
 </head>
 <body>
@@ -1303,6 +1382,114 @@
                         </div>
                         <div class="progress-bar">
                             <div class="progress-bar-fill" id="progress-bar-fill"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Multi-Stage Scraping Control Card -->
+                <div class="scraper-control-card" style="margin-top: 24px;">
+                    <div class="scraper-control-header">
+                        <h3>⚙️ Scraping Multi-Stage (Avançado)</h3>
+                        <span style="font-size: 12px; color: #64748b;">Controlo granular por etapa</span>
+                    </div>
+
+                    <!-- Stage 1: IDs -->
+                    <div class="stage-control">
+                        <div class="stage-header">
+                            <div class="stage-info">
+                                <span class="stage-badge stage-1">Stage 1</span>
+                                <div>
+                                    <strong>Descoberta de IDs</strong>
+                                    <p style="font-size: 12px; color: #64748b; margin: 4px 0 0 0;">Rápido (~30s) - Lista todos os eventos disponíveis</p>
+                                </div>
+                            </div>
+                            <span class="stage-result" id="stage1-result">-</span>
+                        </div>
+                        <div class="stage-controls">
+                            <select class="filter-select" id="stage1-tipo" style="flex: 1;">
+                                <option value="">Ambos (Imóveis + Móveis)</option>
+                                <option value="1">Apenas Imóveis</option>
+                                <option value="2">Apenas Móveis</option>
+                            </select>
+                            <input type="number" class="filter-input" id="stage1-pages" placeholder="Páginas (vazio=todas)" style="width: 180px;">
+                            <button class="scraper-btn" id="btn-stage1" onclick="runStage1()">
+                                🔍 Descobrir IDs
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Stage 2: Detalhes -->
+                    <div class="stage-control">
+                        <div class="stage-header">
+                            <div class="stage-info">
+                                <span class="stage-badge stage-2">Stage 2</span>
+                                <div>
+                                    <strong>Extração de Detalhes</strong>
+                                    <p style="font-size: 12px; color: #64748b; margin: 4px 0 0 0;">Médio - Scrape dados completos (sem imagens)</p>
+                                </div>
+                            </div>
+                            <span class="stage-result" id="stage2-result">-</span>
+                        </div>
+                        <div class="stage-controls">
+                            <select class="filter-select" id="stage2-source" style="flex: 1;" onchange="toggleStage2Mode()">
+                                <option value="stage1">Usar IDs do Stage 1</option>
+                                <option value="manual">Inserir IDs manualmente</option>
+                                <option value="new">Apenas eventos novos</option>
+                            </select>
+                            <textarea class="filter-input" id="stage2-ids" placeholder="IDs separados por vírgula (ex: LO-123, NP-456)" style="display: none; min-height: 60px;"></textarea>
+                            <button class="scraper-btn" id="btn-stage2" onclick="runStage2()" disabled>
+                                📋 Extrair Detalhes
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Stage 3: Imagens -->
+                    <div class="stage-control">
+                        <div class="stage-header">
+                            <div class="stage-info">
+                                <span class="stage-badge stage-3">Stage 3</span>
+                                <div>
+                                    <strong>Download de Imagens</strong>
+                                    <p style="font-size: 12px; color: #64748b; margin: 4px 0 0 0;">Lento - Apenas galeria de fotos</p>
+                                </div>
+                            </div>
+                            <span class="stage-result" id="stage3-result">-</span>
+                        </div>
+                        <div class="stage-controls">
+                            <select class="filter-select" id="stage3-source" style="flex: 1;" onchange="toggleStage3Mode()">
+                                <option value="stage2">Usar IDs do Stage 2</option>
+                                <option value="stage1">Usar IDs do Stage 1</option>
+                                <option value="manual">Inserir IDs manualmente</option>
+                                <option value="missing">Eventos sem imagens</option>
+                            </select>
+                            <textarea class="filter-input" id="stage3-ids" placeholder="IDs separados por vírgula" style="display: none; min-height: 60px;"></textarea>
+                            <button class="scraper-btn" id="btn-stage3" onclick="runStage3()" disabled>
+                                🖼️ Download Imagens
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Pipeline Completo -->
+                    <div class="stage-control" style="border-top: 2px solid #e2e8f0; padding-top: 16px;">
+                        <div class="stage-header">
+                            <div class="stage-info">
+                                <span class="stage-badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">Pipeline</span>
+                                <div>
+                                    <strong>Executar Tudo</strong>
+                                    <p style="font-size: 12px; color: #64748b; margin: 4px 0 0 0;">Executa Stage 1 → 2 → 3 automaticamente</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="stage-controls">
+                            <select class="filter-select" id="pipeline-tipo" style="flex: 1;">
+                                <option value="">Ambos (Imóveis + Móveis)</option>
+                                <option value="1">Apenas Imóveis</option>
+                                <option value="2">Apenas Móveis</option>
+                            </select>
+                            <input type="number" class="filter-input" id="pipeline-pages" placeholder="Páginas (vazio=todas)" style="width: 180px;">
+                            <button class="scraper-btn start" id="btn-pipeline" onclick="runPipeline()">
+                                🚀 Executar Pipeline
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -2453,6 +2640,248 @@
         // Initial load
         restoreSidebarState();
         loadDashboard();
+
+        // ============== MULTI-STAGE SCRAPING FUNCTIONS ==============
+
+        // Global storage for stage results
+        let stage1Results = [];
+        let stage2Results = [];
+
+        // Toggle modes for Stage 2
+        function toggleStage2Mode() {
+            const source = document.getElementById('stage2-source').value;
+            const idsTextarea = document.getElementById('stage2-ids');
+            const btn = document.getElementById('btn-stage2');
+
+            if (source === 'manual') {
+                idsTextarea.style.display = 'block';
+                btn.disabled = false;
+            } else if (source === 'stage1') {
+                idsTextarea.style.display = 'none';
+                btn.disabled = stage1Results.length === 0;
+            } else if (source === 'new') {
+                idsTextarea.style.display = 'none';
+                btn.disabled = false;
+            }
+        }
+
+        // Toggle modes for Stage 3
+        function toggleStage3Mode() {
+            const source = document.getElementById('stage3-source').value;
+            const idsTextarea = document.getElementById('stage3-ids');
+            const btn = document.getElementById('btn-stage3');
+
+            if (source === 'manual') {
+                idsTextarea.style.display = 'block';
+                btn.disabled = false;
+            } else if (source === 'stage1') {
+                idsTextarea.style.display = 'none';
+                btn.disabled = stage1Results.length === 0;
+            } else if (source === 'stage2') {
+                idsTextarea.style.display = 'none';
+                btn.disabled = stage2Results.length === 0;
+            } else if (source === 'missing') {
+                idsTextarea.style.display = 'none';
+                btn.disabled = false;
+            }
+        }
+
+        // Stage 1: Discover IDs
+        async function runStage1() {
+            const btn = document.getElementById('btn-stage1');
+            const result = document.getElementById('stage1-result');
+            const tipo = document.getElementById('stage1-tipo').value;
+            const pages = document.getElementById('stage1-pages').value;
+
+            try {
+                btn.disabled = true;
+                btn.textContent = '⏳ A descobrir...';
+                result.className = 'stage-result loading';
+                result.textContent = 'A processar...';
+
+                let url = `${API_BASE}/scrape/stage1/ids?`;
+                if (tipo) url += `tipo=${tipo}&`;
+                if (pages) url += `max_pages=${pages}`;
+
+                const response = await fetch(url, { method: 'POST' });
+                const data = await response.json();
+
+                if (response.ok) {
+                    stage1Results = data.ids || [];
+                    result.className = 'stage-result success';
+                    result.textContent = `${stage1Results.length} IDs`;
+
+                    // Enable stage 2 and 3
+                    document.getElementById('btn-stage2').disabled = false;
+                    toggleStage3Mode();
+
+                    alert(`✅ Stage 1 completo!\n\n${stage1Results.length} eventos descobertos`);
+                } else {
+                    throw new Error(data.detail || 'Erro desconhecido');
+                }
+
+            } catch (error) {
+                result.className = 'stage-result';
+                result.textContent = 'Erro';
+                alert(`❌ Erro no Stage 1:\n${error.message}`);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🔍 Descobrir IDs';
+            }
+        }
+
+        // Stage 2: Extract Details
+        async function runStage2() {
+            const btn = document.getElementById('btn-stage2');
+            const result = document.getElementById('stage2-result');
+            const source = document.getElementById('stage2-source').value;
+
+            try {
+                btn.disabled = true;
+                btn.textContent = '⏳ A extrair...';
+                result.className = 'stage-result loading';
+                result.textContent = 'A processar...';
+
+                let references = [];
+
+                if (source === 'stage1') {
+                    references = stage1Results.map(item => item.reference);
+                } else if (source === 'manual') {
+                    const idsText = document.getElementById('stage2-ids').value;
+                    references = idsText.split(',').map(s => s.trim()).filter(s => s);
+                } else if (source === 'new') {
+                    if (stage1Results.length === 0) {
+                        alert('Execute primeiro o Stage 1!');
+                        return;
+                    }
+                    references = stage1Results.map(item => item.reference);
+                }
+
+                if (references.length === 0) {
+                    alert('Nenhum ID para processar!');
+                    return;
+                }
+
+                const url = `${API_BASE}/scrape/stage2/details?` + references.map(ref => `references=${encodeURIComponent(ref)}`).join('&');
+
+                const response = await fetch(url, { method: 'POST' });
+                const data = await response.json();
+
+                if (response.ok) {
+                    stage2Results = data.events || [];
+                    result.className = 'stage-result success';
+                    result.textContent = `${stage2Results.length} eventos`;
+
+                    // Enable stage 3
+                    toggleStage3Mode();
+
+                    alert(`✅ Stage 2 completo!\n\n${stage2Results.length} eventos processados`);
+                    loadDashboard();
+                } else {
+                    throw new Error(data.detail || 'Erro desconhecido');
+                }
+
+            } catch (error) {
+                result.className = 'stage-result';
+                result.textContent = 'Erro';
+                alert(`❌ Erro no Stage 2:\n${error.message}`);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '📋 Extrair Detalhes';
+            }
+        }
+
+        // Stage 3: Download Images
+        async function runStage3() {
+            const btn = document.getElementById('btn-stage3');
+            const result = document.getElementById('stage3-result');
+            const source = document.getElementById('stage3-source').value;
+
+            try {
+                btn.disabled = true;
+                btn.textContent = '⏳ A transferir...';
+                result.className = 'stage-result loading';
+                result.textContent = 'A processar...';
+
+                let references = [];
+
+                if (source === 'stage2') {
+                    references = stage2Results.map(event => event.reference);
+                } else if (source === 'stage1') {
+                    references = stage1Results.map(item => item.reference);
+                } else if (source === 'manual') {
+                    const idsText = document.getElementById('stage3-ids').value;
+                    references = idsText.split(',').map(s => s.trim()).filter(s => s);
+                } else if (source === 'missing') {
+                    const eventsResponse = await fetch(`${API_BASE}/api/events?limit=5000`);
+                    const eventsData = await eventsResponse.json();
+                    references = eventsData.events.filter(e => !e.imagens || e.imagens.length === 0).map(e => e.reference);
+                }
+
+                if (references.length === 0) {
+                    alert('Nenhum ID para processar!');
+                    return;
+                }
+
+                const url = `${API_BASE}/scrape/stage3/images?` + references.map(ref => `references=${encodeURIComponent(ref)}`).join('&');
+
+                const response = await fetch(url, { method: 'POST' });
+                const data = await response.json();
+
+                if (response.ok) {
+                    const imagesMap = data.images_map || {};
+                    const totalImages = Object.values(imagesMap).reduce((sum, imgs) => sum + imgs.length, 0);
+
+                    result.className = 'stage-result success';
+                    result.textContent = `${totalImages} imagens`;
+
+                    alert(`✅ Stage 3 completo!\n\n${Object.keys(imagesMap).length} eventos\n${totalImages} imagens`);
+                    loadDashboard();
+                } else {
+                    throw new Error(data.detail || 'Erro desconhecido');
+                }
+
+            } catch (error) {
+                result.className = 'stage-result';
+                result.textContent = 'Erro';
+                alert(`❌ Erro no Stage 3:\n${error.message}`);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🖼️ Download Imagens';
+            }
+        }
+
+        // Run Full Pipeline
+        async function runPipeline() {
+            const btn = document.getElementById('btn-pipeline');
+            const tipo = document.getElementById('pipeline-tipo').value;
+            const pages = document.getElementById('pipeline-pages').value;
+
+            try {
+                btn.disabled = true;
+                btn.textContent = '⏳ A executar pipeline...';
+
+                let url = `${API_BASE}/scrape/pipeline?`;
+                if (tipo) url += `tipo=${tipo}&`;
+                if (pages) url += `max_pages=${pages}`;
+
+                const response = await fetch(url, { method: 'POST' });
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert(`🚀 Pipeline iniciado!\n\n${data.stages.join(' → ')}\n\nVai demorar alguns minutos.`);
+                    setTimeout(() => loadDashboard(), 5000);
+                } else {
+                    throw new Error(data.detail || 'Erro desconhecido');
+                }
+
+            } catch (error) {
+                alert(`❌ Erro:\n${error.message}`);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🚀 Executar Pipeline';
+            }
+        }
     </script>
 </body>
 </html>
