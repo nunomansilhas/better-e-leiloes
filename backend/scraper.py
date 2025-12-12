@@ -28,6 +28,7 @@ class EventScraper:
         
         # Status tracking
         self.is_running = False
+        self.stop_requested = False
         self.events_processed = 0
         self.events_failed = 0
         self.current_page = None
@@ -54,6 +55,11 @@ class EventScraper:
             await self.browser.close()
         if self.playwright:
             await self.playwright.stop()
+
+    def stop(self):
+        """Solicita parada do scraping"""
+        print("🛑 Paragem do scraper solicitada...")
+        self.stop_requested = True
 
     async def scrape_event(self, reference: str) -> EventData:
         """
@@ -779,41 +785,48 @@ class EventScraper:
     async def scrape_all_events(self, max_pages: Optional[int] = None) -> List[EventData]:
         """
         Scrape TODOS os eventos (IMOVEIS + MOVEIS) do site
-        
+
         Args:
             max_pages: Máximo de páginas para processar POR TIPO (None = todas)
-            
+
         Returns:
             Lista com todos os eventos
         """
         self.is_running = True
+        self.stop_requested = False
         self.started_at = datetime.utcnow()
         self.events_processed = 0
         self.events_failed = 0
-        
+
         all_events = []
-        
+
         await self.init_browser()
-        
+
         try:
             # 1. SCRAPE IMOVEIS (tipo=1)
-            print("🏠 Iniciando scraping de IMÓVEIS...")
-            imoveis = await self._scrape_by_type(tipo=1, max_pages=max_pages)
-            all_events.extend(imoveis)
-            print(f"✅ Imóveis recolhidos: {len(imoveis)}")
-            
+            if not self.stop_requested:
+                print("🏠 Iniciando scraping de IMÓVEIS...")
+                imoveis = await self._scrape_by_type(tipo=1, max_pages=max_pages)
+                all_events.extend(imoveis)
+                print(f"✅ Imóveis recolhidos: {len(imoveis)}")
+
             # 2. SCRAPE MOVEIS (tipo=2)
-            print("🚗 Iniciando scraping de MÓVEIS...")
-            moveis = await self._scrape_by_type(tipo=2, max_pages=max_pages)
-            all_events.extend(moveis)
-            print(f"✅ Móveis recolhidos: {len(moveis)}")
-            
-            print(f"🎉 Total de eventos: {len(all_events)}")
-            
+            if not self.stop_requested:
+                print("🚗 Iniciando scraping de MÓVEIS...")
+                moveis = await self._scrape_by_type(tipo=2, max_pages=max_pages)
+                all_events.extend(moveis)
+                print(f"✅ Móveis recolhidos: {len(moveis)}")
+
+            if self.stop_requested:
+                print(f"⚠️ Scraping interrompido pelo utilizador. Total processado: {len(all_events)}")
+            else:
+                print(f"🎉 Total de eventos: {len(all_events)}")
+
             return all_events
-            
+
         finally:
             self.is_running = False
+            self.stop_requested = False
     
     async def _scrape_by_type(self, tipo: int, max_pages: Optional[int] = None) -> List[EventData]:
         """
@@ -830,27 +843,33 @@ class EventScraper:
         
         # FASE 2: Página individual (paralelo)
         all_events = []
-        
+
         for i in range(0, len(events_preview), self.concurrent):
+            # Verifica se foi solicitada paragem
+            if self.stop_requested:
+                print(f"🛑 Scraping interrompido na página {self.current_page}")
+                break
+
             batch = events_preview[i:i + self.concurrent]
-            
+
             tasks = [
-                self._scrape_event_details(preview, tipo_nome) 
+                self._scrape_event_details(preview, tipo_nome)
                 for preview in batch
             ]
             results = await asyncio.gather(*tasks, return_exceptions=True)
-            
+
             for result in results:
                 if isinstance(result, EventData):
                     all_events.append(result)
                     self.events_processed += 1
+                    self.last_update = datetime.utcnow()
                 else:
                     self.events_failed += 1
                     print(f"⚠️ Erro: {result}")
-            
+
             print(f"📊 Processados: {self.events_processed} eventos {tipo_nome}")
             await asyncio.sleep(self.delay)
-        
+
         return all_events
     
     async def _extract_from_listing(self, tipo: int, max_pages: Optional[int]) -> List[dict]:
@@ -872,8 +891,13 @@ class EventScraper:
             first_offset = 0  # Offset inicial
             
             while True:
+                # Verifica se foi solicitada paragem
+                if self.stop_requested:
+                    print(f"🛑 Scraping da listagem interrompido")
+                    break
+
                 self.current_page = page_num + 1  # Para display (página 1, 2, 3...)
-                
+
                 # Navega para página de listagem com offset correto
                 # https://www.e-leiloes.pt/eventos?layout=grid&first=0&sort=dataFimAsc&tipo=1
                 url = f"https://www.e-leiloes.pt/eventos?layout=grid&first={first_offset}&sort=dataFimAsc&tipo={tipo}"

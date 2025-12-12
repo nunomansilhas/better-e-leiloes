@@ -19,3 +19,6 @@ fastapi-cors==0.0.6
 
 # Caching
 redis==5.0.1
+
+# Scheduling
+apscheduler==3.10.4

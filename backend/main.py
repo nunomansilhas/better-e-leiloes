@@ -19,6 +19,9 @@ from contextlib import asynccontextmanager
 from typing import List, Optional
 import os
 from dotenv import load_dotenv
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.interval import IntervalTrigger
+from datetime import datetime
 
 from models import EventData, EventListResponse, ScraperStatus
 from database import init_db, get_db
@@ -30,25 +33,34 @@ load_dotenv()
 # Global instances
 scraper = None
 cache_manager = None
+scheduler = None
+scheduled_job_id = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup e shutdown da aplicação"""
-    global scraper, cache_manager
-    
+    global scraper, cache_manager, scheduler
+
     # Startup
     print("🚀 Iniciando E-Leiloes API...")
     await init_db()
-    
+
     scraper = EventScraper()
     cache_manager = CacheManager()
-    
+
+    # Inicializa scheduler para agendamento
+    scheduler = AsyncIOScheduler()
+    scheduler.start()
+    print("⏰ Scheduler iniciado")
+
     print("✅ API pronta!")
-    
+
     yield
-    
+
     # Shutdown
     print("👋 Encerrando API...")
+    if scheduler:
+        scheduler.shutdown()
     if scraper:
         await scraper.close()
     if cache_manager:
@@ -208,6 +220,133 @@ async def get_scraper_status():
     return scraper.get_status()
 
 
+@app.post("/api/scrape/stop")
+async def stop_scraper():
+    """
+    Para o scraping em execução.
+
+    Se o scraper estiver a correr, solicita a paragem graceful.
+    """
+    if not scraper.is_running:
+        raise HTTPException(
+            status_code=400,
+            detail="Scraper não está em execução"
+        )
+
+    scraper.stop()
+
+    return {
+        "message": "Paragem do scraper solicitada",
+        "status": "stopping"
+    }
+
+
+@app.post("/api/scrape/schedule")
+async def schedule_scraping(hours: int = Query(..., ge=1, le=24, description="Intervalo em horas (1-24)")):
+    """
+    Agenda scraping automático a cada X horas.
+
+    - **hours**: Intervalo em horas (1, 3, 6, 12, 24)
+
+    Remove agendamento anterior se existir.
+    """
+    global scheduled_job_id
+
+    # Remove job anterior se existir
+    if scheduled_job_id and scheduler.get_job(scheduled_job_id):
+        scheduler.remove_job(scheduled_job_id)
+        print(f"🗑️ Agendamento anterior removido")
+
+    # Cria novo job
+    trigger = IntervalTrigger(hours=hours)
+    job = scheduler.add_job(
+        scheduled_scrape_task,
+        trigger=trigger,
+        id=f"scrape_every_{hours}h",
+        name=f"Scraping a cada {hours}h",
+        replace_existing=True
+    )
+
+    scheduled_job_id = job.id
+    next_run = job.next_run_time
+
+    print(f"⏰ Scraping agendado a cada {hours}h. Próxima execução: {next_run}")
+
+    return {
+        "message": f"Scraping agendado a cada {hours} hora(s)",
+        "interval_hours": hours,
+        "next_run": next_run.isoformat() if next_run else None,
+        "job_id": scheduled_job_id
+    }
+
+
+@app.delete("/api/scrape/schedule")
+async def cancel_scheduled_scraping():
+    """
+    Cancela o agendamento automático de scraping.
+    """
+    global scheduled_job_id
+
+    if not scheduled_job_id:
+        raise HTTPException(
+            status_code=404,
+            detail="Não existe agendamento ativo"
+        )
+
+    job = scheduler.get_job(scheduled_job_id)
+    if not job:
+        scheduled_job_id = None
+        raise HTTPException(
+            status_code=404,
+            detail="Job de agendamento não encontrado"
+        )
+
+    scheduler.remove_job(scheduled_job_id)
+    print(f"🗑️ Agendamento '{scheduled_job_id}' cancelado")
+    scheduled_job_id = None
+
+    return {
+        "message": "Agendamento cancelado com sucesso"
+    }
+
+
+@app.get("/api/scrape/schedule")
+async def get_schedule_info():
+    """
+    Retorna informação sobre o agendamento ativo (se existir).
+    """
+    global scheduled_job_id
+
+    if not scheduled_job_id:
+        return {
+            "scheduled": False,
+            "interval_hours": None,
+            "next_run": None
+        }
+
+    job = scheduler.get_job(scheduled_job_id)
+    if not job:
+        scheduled_job_id = None
+        return {
+            "scheduled": False,
+            "interval_hours": None,
+            "next_run": None
+        }
+
+    # Extrai intervalo do trigger
+    interval_hours = None
+    if hasattr(job.trigger, 'interval'):
+        interval_seconds = job.trigger.interval.total_seconds()
+        interval_hours = int(interval_seconds / 3600)
+
+    return {
+        "scheduled": True,
+        "interval_hours": interval_hours,
+        "next_run": job.next_run_time.isoformat() if job.next_run_time else None,
+        "job_id": job.id
+    }
+
+
 @app.delete("/api/cache")
 async def clear_cache():
     """
@@ -266,18 +405,31 @@ async def scrape_all_events(max_pages: Optional[int] = None):
     """Scrape todos os eventos do site"""
     try:
         print(f"🚀 Iniciando scraping total (max_pages={max_pages})...")
-        
+
         all_events = await scraper.scrape_all_events(max_pages=max_pages)
-        
+
         async with get_db() as db:
             for event in all_events:
                 await db.save_event(event)
                 await cache_manager.set(event.reference, event)
-        
+
         print(f"✅ Scraping total concluído: {len(all_events)} eventos")
-        
+
     except Exception as e:
         print(f"❌ Erro no scraping total: {e}")
+
+
+async def scheduled_scrape_task():
+    """
+    Task agendada para scraping automático.
+    Usa a mesma lógica de scrape_all_events mas é chamada pelo scheduler.
+    """
+    if scraper.is_running:
+        print("⚠️ Scraping já em execução. Pulando execução agendada.")
+        return
+
+    print(f"⏰ Iniciando scraping agendado às {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    await scrape_all_events(max_pages=None)
 
 
 # ============== ERRO HANDLERS ==============

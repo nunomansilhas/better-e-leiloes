@@ -359,6 +359,176 @@
             color: #e11d48;
         }
 
+        /* Scraper Control Card */
+        .scraper-control-card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-top: 24px;
+        }
+
+        .scraper-control-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .scraper-control-header h3 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .scraper-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .scraper-status.running {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+
+        .scraper-status.stopped {
+            background: #f1f5f9;
+            color: #64748b;
+        }
+
+        .scraper-status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .scraper-status.running .scraper-status-dot {
+            background: #16a34a;
+        }
+
+        .scraper-status.stopped .scraper-status-dot {
+            background: #94a3b8;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .scraper-controls {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            align-items: end;
+        }
+
+        .control-group {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .control-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #64748b;
+            margin-bottom: 6px;
+        }
+
+        .control-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 14px;
+            color: #0f172a;
+            background: white;
+            cursor: pointer;
+        }
+
+        .scraper-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .scraper-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .scraper-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .scraper-btn.start {
+            background: #10b981;
+            color: white;
+        }
+
+        .scraper-btn.start:hover:not(:disabled) {
+            background: #059669;
+        }
+
+        .scraper-btn.stop {
+            background: #ef4444;
+            color: white;
+        }
+
+        .scraper-btn.stop:hover:not(:disabled) {
+            background: #dc2626;
+        }
+
+        .scraper-progress {
+            margin-top: 16px;
+            padding: 12px;
+            background: #f8fafc;
+            border-radius: 6px;
+            display: none;
+        }
+
+        .scraper-progress.active {
+            display: block;
+        }
+
+        .progress-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+            color: #64748b;
+            margin-bottom: 8px;
+        }
+
+        .progress-bar {
+            height: 6px;
+            background: #e2e8f0;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
         /* Filters */
         .filters-bar {
             background: white;
@@ -1085,9 +1255,56 @@
             </div>
 
             <div id="dashboard-content">
-                <div class="loading">
-                    <div class="loading-spinner"></div>
-                    <div class="loading-text">A carregar estatísticas...</div>
+                <!-- Scraper Control Card -->
+                <div class="scraper-control-card">
+                    <div class="scraper-control-header">
+                        <h3>🤖 Controlo de Scraping</h3>
+                        <div class="scraper-status stopped" id="scraper-status">
+                            <div class="scraper-status-dot"></div>
+                            <span id="scraper-status-text">Parado</span>
+                        </div>
+                    </div>
+
+                    <div class="scraper-controls">
+                        <div class="control-group">
+                            <label for="scrape-interval">Intervalo Automático</label>
+                            <select id="scrape-interval">
+                                <option value="manual">Manual (apenas quando iniciar)</option>
+                                <option value="1">A cada 1 hora</option>
+                                <option value="3">A cada 3 horas</option>
+                                <option value="6">A cada 6 horas</option>
+                                <option value="12">A cada 12 horas</option>
+                                <option value="24">A cada 24 horas</option>
+                            </select>
+                        </div>
+
+                        <div class="scraper-buttons">
+                            <button class="scraper-btn start" id="btn-start-scraper">
+                                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 18px; height: 18px;">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                Iniciar
+                            </button>
+                            <button class="scraper-btn stop" id="btn-stop-scraper" disabled>
+                                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 18px; height: 18px;">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"/>
+                                </svg>
+                                Parar
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="scraper-progress" id="scraper-progress">
+                        <div class="progress-info">
+                            <span id="progress-text">A processar eventos...</span>
+                            <span id="progress-count">0 / 0</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-bar-fill" id="progress-bar-fill"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1364,10 +1581,185 @@
                 document.getElementById('stat-moveis-lo').textContent = moveisLO;
                 document.getElementById('stat-moveis-np').textContent = moveisNP;
 
-                // Clear dashboard-content (we no longer need the LO/NP cards here)
-                document.getElementById('dashboard-content').innerHTML = '';
+                // Initialize scraper controls
+                initScraperControls();
+                // Check scraper status
+                updateScraperStatus();
             } catch (error) {
                 console.error('Erro ao carregar dashboard:', error);
+            }
+        }
+
+        // Scraper Control Functions
+        let scraperPollInterval = null;
+
+        function initScraperControls() {
+            const btnStart = document.getElementById('btn-start-scraper');
+            const btnStop = document.getElementById('btn-stop-scraper');
+            const intervalSelect = document.getElementById('scrape-interval');
+
+            btnStart?.addEventListener('click', startScraper);
+            btnStop?.addEventListener('click', stopScraper);
+            intervalSelect?.addEventListener('change', updateSchedule);
+        }
+
+        async function startScraper() {
+            try {
+                const btnStart = document.getElementById('btn-start-scraper');
+                btnStart.disabled = true;
+                btnStart.textContent = '⏳ A iniciar...';
+
+                const interval = document.getElementById('scrape-interval').value;
+                const maxPages = null; // Scrape all pages
+
+                const response = await fetch(`${API_BASE}/scrape/all${maxPages ? '?max_pages=' + maxPages : ''}`, {
+                    method: 'POST'
+                });
+
+                if (!response.ok) throw new Error('Erro ao iniciar scraper');
+
+                // Update schedule if not manual
+                if (interval !== 'manual') {
+                    await updateSchedule();
+                }
+
+                // Start polling status
+                startStatusPolling();
+
+            } catch (error) {
+                alert('❌ Erro ao iniciar scraper: ' + error.message);
+                console.error(error);
+                const btnStart = document.getElementById('btn-start-scraper');
+                btnStart.disabled = false;
+                btnStart.textContent = 'Iniciar';
+            }
+        }
+
+        async function stopScraper() {
+            try {
+                const btnStop = document.getElementById('btn-stop-scraper');
+                btnStop.disabled = true;
+                btnStop.textContent = '⏳ A parar...';
+
+                const response = await fetch(`${API_BASE}/scrape/stop`, {
+                    method: 'POST'
+                });
+
+                if (!response.ok) throw new Error('Erro ao parar scraper');
+
+                stopStatusPolling();
+                updateScraperStatus();
+
+            } catch (error) {
+                alert('❌ Erro ao parar scraper: ' + error.message);
+                console.error(error);
+                const btnStop = document.getElementById('btn-stop-scraper');
+                btnStop.disabled = false;
+                btnStop.textContent = 'Parar';
+            }
+        }
+
+        async function updateSchedule() {
+            try {
+                const interval = document.getElementById('scrape-interval').value;
+
+                if (interval === 'manual') {
+                    // Disable schedule
+                    const response = await fetch(`${API_BASE}/scrape/schedule`, {
+                        method: 'DELETE'
+                    });
+
+                    if (!response.ok && response.status !== 404) {
+                        console.warn('Erro ao cancelar agendamento');
+                    }
+                } else {
+                    // Set schedule (use query parameter)
+                    const response = await fetch(`${API_BASE}/scrape/schedule?hours=${interval}`, {
+                        method: 'POST'
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        console.log('Agendamento criado:', data);
+                    }
+                }
+            } catch (error) {
+                console.error('Erro ao atualizar schedule:', error);
+            }
+        }
+
+        function startStatusPolling() {
+            if (scraperPollInterval) clearInterval(scraperPollInterval);
+
+            scraperPollInterval = setInterval(updateScraperStatus, 2000);
+            updateScraperStatus(); // Update immediately
+        }
+
+        function stopStatusPolling() {
+            if (scraperPollInterval) {
+                clearInterval(scraperPollInterval);
+                scraperPollInterval = null;
+            }
+        }
+
+        async function updateScraperStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/scrape/status`);
+                const status = await response.json();
+
+                const statusDiv = document.getElementById('scraper-status');
+                const statusText = document.getElementById('scraper-status-text');
+                const progressDiv = document.getElementById('scraper-progress');
+                const progressText = document.getElementById('progress-text');
+                const progressCount = document.getElementById('progress-count');
+                const progressFill = document.getElementById('progress-bar-fill');
+                const btnStart = document.getElementById('btn-start-scraper');
+                const btnStop = document.getElementById('btn-stop-scraper');
+
+                if (status.is_running) {
+                    // Scraper is running
+                    statusDiv.className = 'scraper-status running';
+                    statusText.textContent = 'A correr';
+                    progressDiv.classList.add('active');
+                    btnStart.disabled = true;
+                    btnStop.disabled = false;
+                    btnStart.innerHTML = '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 18px; height: 18px;"><path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Iniciar';
+                    btnStop.innerHTML = '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 18px; height: 18px;"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"/></svg>Parar';
+
+                    // Update progress
+                    const processed = status.events_processed || 0;
+                    const failed = status.events_failed || 0;
+                    const currentPage = status.current_page || 0;
+
+                    progressText.textContent = `Página ${currentPage} • ${failed} falhas`;
+                    progressCount.textContent = `${processed} eventos processados`;
+                    progressFill.style.width = '100%'; // Indeterminate progress
+
+                    // Continue polling
+                    if (!scraperPollInterval) {
+                        startStatusPolling();
+                    }
+                } else {
+                    // Scraper is stopped
+                    statusDiv.className = 'scraper-status stopped';
+                    statusText.textContent = 'Parado';
+                    progressDiv.classList.remove('active');
+                    btnStart.disabled = false;
+                    btnStop.disabled = true;
+                    btnStart.innerHTML = '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 18px; height: 18px;"><path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Iniciar';
+                    btnStop.innerHTML = '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 18px; height: 18px;"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"/></svg>Parar';
+
+                    // Stop polling
+                    stopStatusPolling();
+
+                    // Reload stats if scraper just finished
+                    if (status.events_processed > 0) {
+                        loadDashboard();
+                    }
+                }
+            } catch (error) {
+                console.error('Erro ao verificar status:', error);
+                stopStatusPolling();
             }
         }
 
