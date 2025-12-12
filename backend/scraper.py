@@ -154,34 +154,39 @@ class EventScraper:
                 lanceAtual=valores_pagina.lanceAtual or valores_listagem.lanceAtual
             )
 
-            # Extrai todas as secções (HTML completo)
+            # Extrai todas as secções (HTML completo) - com safeguard para None
             imagens = await self._extract_gallery(page)
             descricao = await self._extract_descricao(page)
             observacoes = await self._extract_observacoes(page)
-            onuselimitacoes = await self._extract_onus_limitacoes(page)  # NOVO
+            onuselimitacoes = await self._extract_onus_limitacoes(page)
             descricao_predial = await self._extract_descricao_predial(page)
             cerimonia = await self._extract_cerimonia(page)
             agente = await self._extract_agente(page)
             dados_processo = await self._extract_dados_processo(page)
 
-            return EventData(
-                reference=reference,
-                tipoEvento=tipo_evento,
-                valores=valores_final,
-                gps=gps,
-                detalhes=detalhes,
-                dataInicio=data_inicio,
-                dataFim=data_fim,
-                imagens=imagens,
-                descricao=descricao,
-                observacoes=observacoes,
-                onuselimitacoes=onuselimitacoes,  # NOVO
-                descricaoPredial=descricao_predial,
-                cerimoniaEncerramento=cerimonia,
-                agenteExecucao=agente,
-                dadosProcesso=dados_processo,
-                scraped_at=datetime.utcnow()
-            )
+            # SAFEGUARD: Garante que tudo é None se vazio
+            try:
+                return EventData(
+                    reference=reference,
+                    tipoEvento=tipo_evento,
+                    valores=valores_final,
+                    gps=gps,
+                    detalhes=detalhes,
+                    dataInicio=data_inicio,
+                    dataFim=data_fim,
+                    imagens=imagens,
+                    descricao=descricao,
+                    observacoes=observacoes,
+                    onuselimitacoes=onuselimitacoes,
+                    descricaoPredial=descricao_predial,
+                    cerimoniaEncerramento=cerimonia,
+                    agenteExecucao=agente,
+                    dadosProcesso=dados_processo,
+                    scraped_at=datetime.utcnow()
+                )
+            except Exception as e:
+                print(f"❌ Erro validação EventData para {reference}: {e}")
+                raise
             
         except Exception as e:
             raise Exception(f"Erro ao scrape {reference}: {str(e)}")
@@ -391,7 +396,7 @@ class EventScraper:
             section_title: Título da secção (ex: "Descrição", "Observações", etc.)
 
         Returns:
-            HTML completo da secção ou None se não encontrada
+            HTML completo da secção ou None se não encontrada ou vazia
         """
         try:
             title_divs = await page.query_selector_all('.font-semibold.text-xl')
@@ -406,7 +411,10 @@ class EventScraper:
                     if section:
                         # Retorna o HTML completo da secção
                         html = await section.evaluate('el => el.innerHTML')
-                        return html.strip() if html else None
+                        # SAFEGUARD: Retorna None se vazio ou só whitespace
+                        if html and html.strip():
+                            return html.strip()
+                        return None
 
             return None
 
@@ -1323,33 +1331,38 @@ class EventScraper:
                 lanceAtual=valores_pagina.lanceAtual or valores_listagem.lanceAtual
             )
 
-            # Textos e informações (SEM IMAGENS)
+            # Textos e informações (SEM IMAGENS) - com safeguard para None
             descricao = await self._extract_descricao(page)
             observacoes = await self._extract_observacoes(page)
-            onuselimitacoes = await self._extract_onus_limitacoes(page)  # NOVO
+            onuselimitacoes = await self._extract_onus_limitacoes(page)
             descricao_predial = await self._extract_descricao_predial(page)
             cerimonia = await self._extract_cerimonia(page)
             agente = await self._extract_agente(page)
             dados_processo = await self._extract_dados_processo(page)
 
-            return EventData(
-                reference=reference,
-                tipoEvento=tipo_evento,
-                valores=valores_final,
-                gps=gps,
-                detalhes=detalhes,
-                dataInicio=data_inicio,
-                dataFim=data_fim,
-                imagens=[],  # VAZIO - Stage 3 preenche isto
-                descricao=descricao,
-                observacoes=observacoes,
-                onuselimitacoes=onuselimitacoes,  # NOVO
-                descricaoPredial=descricao_predial,
-                cerimoniaEncerramento=cerimonia,
-                agenteExecucao=agente,
-                dadosProcesso=dados_processo,
-                scraped_at=datetime.utcnow()
-            )
+            # SAFEGUARD: Garante que tudo é None se vazio
+            try:
+                return EventData(
+                    reference=reference,
+                    tipoEvento=tipo_evento,
+                    valores=valores_final,
+                    gps=gps,
+                    detalhes=detalhes,
+                    dataInicio=data_inicio,
+                    dataFim=data_fim,
+                    imagens=[],  # VAZIO - Stage 3 preenche isto
+                    descricao=descricao,
+                    observacoes=observacoes,
+                    onuselimitacoes=onuselimitacoes,
+                    descricaoPredial=descricao_predial,
+                    cerimoniaEncerramento=cerimonia,
+                    agenteExecucao=agente,
+                    dadosProcesso=dados_processo,
+                    scraped_at=datetime.utcnow()
+                )
+            except Exception as e:
+                print(f"❌ Erro validação EventData para {reference}: {e}")
+                raise
 
         finally:
             await page.close()
