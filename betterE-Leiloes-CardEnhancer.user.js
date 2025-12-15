@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      3.1
-// @description  Design moderno e organizado para os cards com layout melhorado e navegação otimizada
+// @version      3.2
+// @description  Design moderno com carousel de imagens e distinção visual de tipos de leilão
 // @author       Nuno Mansilhas
 // @match        https://www.e-leiloes.pt/*
 // @icon         https://www.e-leiloes.pt/favicon.ico
@@ -63,6 +63,20 @@
         .p-evento[data-better-enhanced="true"] .text-sm.font-semibold {
             text-align: center;
             width: 100%;
+        }
+
+        /* Colorir primeira parte da referência nativa (LO, NP) */
+        .p-evento[data-better-enhanced="true"] .pi-tag + span .native-ref-prefix {
+            color: #10b981 !important;
+            font-weight: 900 !important;
+        }
+
+        .p-evento[data-better-enhanced="true"] .pi-tag + span .native-ref-prefix.lo {
+            color: #3b82f6 !important;
+        }
+
+        .p-evento[data-better-enhanced="true"] .pi-tag + span .native-ref-prefix.np {
+            color: #f59e0b !important;
         }
 
         /* Fix para links abrirem em nova aba */
@@ -181,6 +195,93 @@
             display: flex;
             align-items: center;
             gap: 4px;
+        }
+
+        /* Carousel de imagens customizado */
+        .better-carousel {
+            position: relative;
+            width: 100%;
+            height: 240px;
+            overflow: hidden;
+            background: #f1f5f9;
+        }
+
+        .better-carousel-track {
+            display: flex;
+            transition: transform 0.3s ease;
+            height: 100%;
+        }
+
+        .better-carousel-slide {
+            min-width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .better-carousel-slide img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .better-carousel-nav {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(8px);
+            color: white;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            z-index: 5;
+            transition: all 0.2s ease;
+        }
+
+        .better-carousel-nav:hover {
+            background: rgba(0, 0, 0, 0.7);
+            transform: translateY(-50%) scale(1.1);
+        }
+
+        .better-carousel-nav.prev {
+            left: 10px;
+        }
+
+        .better-carousel-nav.next {
+            right: 10px;
+        }
+
+        .better-carousel-dots {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 6px;
+            z-index: 5;
+        }
+
+        .better-carousel-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.5);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .better-carousel-dot.active {
+            background: white;
+            width: 24px;
+            border-radius: 4px;
         }
 
         /* Detalhes - Row 3 */
@@ -528,6 +629,17 @@
                 });
             });
 
+            // ===== COLORIR PRIMEIRA PARTE DA REFERÊNCIA NATIVA (LO/NP) =====
+            const nativeRefSpan = card.querySelector('.pi-tag + span');
+            if (nativeRefSpan && reference) {
+                const refText = nativeRefSpan.textContent.trim();
+                const prefix = refText.substring(0, 2);
+                const rest = refText.substring(2);
+                const prefixClass = prefix.toLowerCase();
+                nativeRefSpan.innerHTML = `<span class="native-ref-prefix ${prefixClass}">${prefix}</span>${rest}`;
+                console.log(`🎨 Native reference colored: ${prefix} (${prefixClass})`);
+            }
+
             // ===== ROW 1: HEADER =====
             const refPrefix = reference.substring(0, 2);
             const refRest = reference.substring(2);
@@ -565,15 +677,88 @@
         card.insertBefore(headerDiv.firstChild, firstChild);
         console.log('✅ Header inserted');
 
-        // ===== ROW 2: CAROUSEL (MANTÉM O NATIVO) =====
-        // Adiciona badge de contagem
+        // ===== ROW 2: CAROUSEL DE IMAGENS =====
         const galleryContainer = card.querySelector('.p-galleria, .p-evento-header');
         if (galleryContainer && apiData.imagens && apiData.imagens.length > 0) {
-            galleryContainer.style.position = 'relative';
-            const imageBadge = document.createElement('div');
-            imageBadge.className = 'better-image-badge';
-            imageBadge.innerHTML = `📷 ${apiData.imagens.length}`;
-            galleryContainer.appendChild(imageBadge);
+            // Se houver múltiplas imagens, cria carousel customizado
+            if (apiData.imagens.length > 1) {
+                console.log(`🎠 Creating carousel with ${apiData.imagens.length} images`);
+
+                // Esconde o gallery nativo
+                galleryContainer.style.display = 'none';
+
+                // Cria carousel customizado
+                const carouselHTML = `
+                    <div class="better-carousel" data-current="0">
+                        <div class="better-carousel-track">
+                            ${apiData.imagens.map(img => `
+                                <div class="better-carousel-slide">
+                                    <img src="${img}" alt="Imagem do evento">
+                                </div>
+                            `).join('')}
+                        </div>
+                        <button class="better-carousel-nav prev">‹</button>
+                        <button class="better-carousel-nav next">›</button>
+                        <div class="better-carousel-dots">
+                            ${apiData.imagens.map((_, idx) => `
+                                <div class="better-carousel-dot ${idx === 0 ? 'active' : ''}" data-index="${idx}"></div>
+                            `).join('')}
+                        </div>
+                        <div class="better-image-badge">📷 ${apiData.imagens.length}</div>
+                    </div>
+                `;
+
+                // Insere o carousel após o gallery nativo
+                const carouselDiv = document.createElement('div');
+                carouselDiv.innerHTML = carouselHTML;
+                galleryContainer.parentNode.insertBefore(carouselDiv.firstChild, galleryContainer.nextSibling);
+
+                // Adiciona event handlers para o carousel
+                const carousel = card.querySelector('.better-carousel');
+                const track = carousel.querySelector('.better-carousel-track');
+                const prevBtn = carousel.querySelector('.better-carousel-nav.prev');
+                const nextBtn = carousel.querySelector('.better-carousel-nav.next');
+                const dots = carousel.querySelectorAll('.better-carousel-dot');
+
+                let currentSlide = 0;
+                const totalSlides = apiData.imagens.length;
+
+                function updateCarousel() {
+                    track.style.transform = `translateX(-${currentSlide * 100}%)`;
+                    dots.forEach((dot, idx) => {
+                        dot.classList.toggle('active', idx === currentSlide);
+                    });
+                }
+
+                prevBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    currentSlide = (currentSlide - 1 + totalSlides) % totalSlides;
+                    updateCarousel();
+                });
+
+                nextBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    currentSlide = (currentSlide + 1) % totalSlides;
+                    updateCarousel();
+                });
+
+                dots.forEach((dot, idx) => {
+                    dot.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        currentSlide = idx;
+                        updateCarousel();
+                    });
+                });
+
+                console.log('✅ Carousel created and configured');
+            } else {
+                // Uma só imagem - mantém nativo e adiciona badge
+                galleryContainer.style.position = 'relative';
+                const imageBadge = document.createElement('div');
+                imageBadge.className = 'better-image-badge';
+                imageBadge.innerHTML = `📷 1`;
+                galleryContainer.appendChild(imageBadge);
+            }
         }
 
         // ===== ROW 3: DETALHES (APENAS MATRÍCULA PARA MÓVEIS, SEM ÍCONE) =====
@@ -685,7 +870,7 @@
         // Não adiciona localização - usa a nativa
 
         // Insere rows no card - usa o primeiro div filho
-        const cardBody = card.querySelector('.w-full.border-1.surface-border.border-round');
+        const cardBody = card.querySelector('.w-full');
         console.log('🔧 Card body found:', cardBody);
         if (cardBody) {
             const newContent = detailsHTML + valoresHTML + countdownHTML;
@@ -763,7 +948,7 @@
     // ====================================
 
     function init() {
-        console.log('🚀 Better E-Leilões Card Enhancer v3.0');
+        console.log('🚀 Better E-Leilões Card Enhancer v3.2');
 
         createDashboardButton();
         enhanceAllCards();
@@ -773,7 +958,7 @@
             subtree: true
         });
 
-        console.log('✅ Card enhancer v3.0 ativo - Design moderno e organizado!');
+        console.log('✅ Card enhancer v3.2 ativo - Com carousel e tipos de leilão coloridos!');
     }
 
     if (document.readyState === 'loading') {
