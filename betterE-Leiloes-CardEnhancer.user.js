@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      3.9
+// @version      4.0
 // @description  Design moderno com carousel de imagens e distinção visual de tipos de leilão
 // @author       Nuno Mansilhas
 // @match        https://www.e-leiloes.pt/*
@@ -675,79 +675,50 @@
                 console.log('🔧 Border classes and styles removed from div:', div.className);
             });
 
-            // ===== ROW 1: HEADER =====
-            const refPrefix = reference.substring(0, 2);
-            const refRest = reference.substring(2);
+            // ===== USAR HEADER NATIVO E ADICIONAR BOTÕES =====
+            // Encontra o header nativo existente (linha com tag e referência)
+            const nativeHeader = card.querySelector('.flex.w-full.flex-wrap.align-items-center.justify-content-between');
+            if (nativeHeader) {
+                console.log('🔧 Found native header:', nativeHeader);
 
-            console.log('🗺️ GPS data:', apiData.gps);
-            const hasGPS = apiData.gps && apiData.gps.latitude;
-            console.log('🗺️ Has valid GPS:', hasGPS);
+                // Encontra o container do lado direito (onde está o tag badge e star)
+                const rightContainer = nativeHeader.querySelector('.flex.align-items-center.gap-1:last-child');
+                if (rightContainer) {
+                    console.log('🔧 Found right container:', rightContainer);
 
-            let mapsUrl = '';
-            if (hasGPS) {
-                mapsUrl = `https://www.google.com/maps?q=${apiData.gps.latitude},${apiData.gps.longitude}`;
-                console.log(`🗺️ Creating GPS button with coords: ${apiData.gps.latitude}, ${apiData.gps.longitude}`);
-                console.log(`🗺️ Maps URL: ${mapsUrl}`);
+                    // Limpa o conteúdo do lado direito (remove tag badge e star)
+                    rightContainer.innerHTML = '';
+                    rightContainer.className = 'flex align-items-center gap-1';
+
+                    // Adiciona GPS button se tiver coordenadas
+                    const hasGPS = apiData.gps && apiData.gps.latitude;
+                    if (hasGPS) {
+                        const mapsUrl = `https://www.google.com/maps?q=${apiData.gps.latitude},${apiData.gps.longitude}`;
+                        console.log(`🗺️ Creating GPS button with coords: ${apiData.gps.latitude}, ${apiData.gps.longitude}`);
+
+                        const gpsButton = document.createElement('a');
+                        gpsButton.href = mapsUrl;
+                        gpsButton.target = '_blank';
+                        gpsButton.rel = 'noopener noreferrer';
+                        gpsButton.className = 'better-btn better-btn-map';
+                        gpsButton.textContent = '📍 Mapa';
+                        gpsButton.onclick = (e) => e.stopPropagation();
+                        rightContainer.appendChild(gpsButton);
+                        console.log('✅ GPS button added to native header');
+                    }
+
+                    // Adiciona botão "Ver Mais"
+                    const verMaisBtn = document.createElement('button');
+                    verMaisBtn.className = 'better-btn better-btn-primary';
+                    verMaisBtn.textContent = '👁️ Ver Mais';
+                    verMaisBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        window.open(eventUrl, '_blank');
+                    };
+                    rightContainer.appendChild(verMaisBtn);
+                    console.log('✅ Ver Mais button added to native header');
+                }
             }
-
-            let headerHTML = `
-            <div class="better-card-header">
-                <div class="better-ref-badge"><span class="ref-prefix">${refPrefix}</span>${refRest}</div>
-                <div class="better-header-actions">
-                    <div class="better-tipo-badge ${apiData.tipoEvento}">
-                        ${apiData.tipoEvento === 'movel' ? '🚗' : '🏠'}
-                        ${apiData.tipoEvento === 'movel' ? 'Móvel' : 'Imóvel'}
-                    </div>
-                    <button class="better-btn better-btn-primary" data-url="${eventUrl}">
-                        👁️ Ver Mais
-                    </button>
-                </div>
-            </div>
-        `;
-
-        // Insere header no início do card
-        const firstChild = card.firstChild;
-        console.log('🔧 First child:', firstChild);
-        const headerDiv = document.createElement('div');
-        headerDiv.innerHTML = headerHTML;
-        const headerElement = headerDiv.firstElementChild; // Use firstElementChild to skip text nodes
-        card.insertBefore(headerElement, firstChild);
-        console.log('✅ Header inserted');
-
-        // Adiciona o botão GPS DEPOIS usando createElement (não innerHTML)
-        if (mapsUrl) {
-            const actionsContainer = headerElement.querySelector('.better-header-actions');
-            const tipoBadge = actionsContainer.querySelector('.better-tipo-badge');
-
-            // Cria o botão GPS programaticamente
-            const gpsButton = document.createElement('a');
-            gpsButton.href = mapsUrl;
-            gpsButton.target = '_blank';
-            gpsButton.rel = 'noopener noreferrer';
-            gpsButton.className = 'better-btn better-btn-map';
-            gpsButton.textContent = '📍 Mapa';
-            gpsButton.onclick = (e) => e.stopPropagation();
-
-            // Insere DEPOIS do tipo badge e ANTES do botão Ver Mais
-            actionsContainer.insertBefore(gpsButton, tipoBadge.nextSibling);
-            console.log('✅ GPS button added programmatically');
-        }
-
-        // Verifica se o botão GPS está presente no DOM
-        if (hasGPS) {
-            const mapBtnCheck = card.querySelector('.better-btn-map');
-            console.log('🔍 GPS button in DOM:', mapBtnCheck);
-            if (mapBtnCheck) {
-                const styles = window.getComputedStyle(mapBtnCheck);
-                console.log('🎨 GPS button styles:', {
-                    display: styles.display,
-                    visibility: styles.visibility,
-                    opacity: styles.opacity,
-                    width: styles.width,
-                    height: styles.height
-                });
-            }
-        }
 
         // ===== ROW 2: CAROUSEL DE IMAGENS =====
         const galleryContainer = card.querySelector('.p-galleria, .p-evento-header');
@@ -1011,7 +982,7 @@
     // ====================================
 
     function init() {
-        console.log('🚀 Better E-Leilões Card Enhancer v3.9');
+        console.log('🚀 Better E-Leilões Card Enhancer v4.0');
 
         createDashboardButton();
         enhanceAllCards();
@@ -1021,7 +992,7 @@
             subtree: true
         });
 
-        console.log('✅ Card enhancer v3.9 ativo - GPS button created programmatically!');
+        console.log('✅ Card enhancer v4.0 ativo - usando header nativo!');
     }
 
     if (document.readyState === 'loading') {
