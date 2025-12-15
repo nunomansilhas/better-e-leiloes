@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      4.3
+// @version      4.4
 // @description  Design moderno com carousel de imagens e distinção visual de tipos de leilão
 // @author       Nuno Mansilhas
 // @match        https://www.e-leiloes.pt/*
@@ -108,7 +108,7 @@
         }
 
         .p-evento a.pi-map:hover {
-            transform: scale(1.2);
+            transform: scale(1.1);
         }
 
         /* Header do card - Row 1 */
@@ -950,11 +950,18 @@
         // Click no card inteiro abre em nova aba (SEM atualizar atual)
         card.style.cursor = 'pointer';
         card.addEventListener('click', (e) => {
+            // Permite middle-click (botão do meio) para abrir em nova aba
+            if (e.button === 1 || e.which === 2) {
+                console.log('🖱️ Middle click detected - allowing default behavior');
+                return; // Deixa o navegador lidar com middle-click
+            }
+
             // PRIMEIRO verifica se clicou em algo que deve ignorar
             // Se clicou no GPS, star ou botão - NÃO faz nada (deixa o comportamento nativo)
             if (e.target.closest('.pi-map')) {
-                console.log('🗺️ GPS icon clicked - letting default behavior work');
-                return; // Return early, don't preventDefault
+                console.log('🗺️ GPS icon clicked - stopping propagation only');
+                e.stopPropagation(); // Stop event from bubbling, but let anchor tag work
+                return; // Return early, let the anchor tag handle it
             }
             if (e.target.closest('.pi-star')) return;
             if (e.target.closest('.better-btn')) return;
@@ -966,6 +973,14 @@
             // Abre APENAS em nova aba, não atualiza a atual
             window.open(eventUrl, '_blank');
             return false;
+        });
+
+        // Adiciona handler para mousedown para capturar middle-click
+        card.addEventListener('mousedown', (e) => {
+            if (e.button === 1) { // Middle button
+                e.preventDefault();
+                window.open(eventUrl, '_blank');
+            }
         });
 
         console.log(`✨ Card enhancement complete for ${reference}`);
@@ -994,7 +1009,7 @@
     // ====================================
 
     function init() {
-        console.log('🚀 Better E-Leilões Card Enhancer v4.3');
+        console.log('🚀 Better E-Leilões Card Enhancer v4.4');
 
         createDashboardButton();
         enhanceAllCards();
@@ -1004,7 +1019,7 @@
             subtree: true
         });
 
-        console.log('✅ Card enhancer v4.3 ativo - Better GPS icon with hover!');
+        console.log('✅ Card enhancer v4.4 ativo - GPS fixed + middle-click support!');
     }
 
     if (document.readyState === 'loading') {
