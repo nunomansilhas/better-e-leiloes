@@ -269,9 +269,9 @@ class EventScraper:
             for title_div in title_divs:
                 text = await title_div.text_content()
                 if text and 'Localização' in text.strip():
-                    # Pega o elemento pai (a seção completa de localização)
+                    # Pega o elemento pai mais próximo (bg-white shadow-1)
                     localizacao_section = await title_div.evaluate_handle(
-                        'el => el.closest(".flex.flex-column.w-full")'
+                        'el => el.closest(".bg-white.shadow-1") || el.closest(".flex.flex-column.w-full")'
                     )
                     break
 
@@ -279,64 +279,60 @@ class EventScraper:
                 print("⚠️ Seção 'Localização' não encontrada")
                 return GPSCoordinates(latitude=None, longitude=None), None, None, None
 
-            # Agora procura todos os campos dentro desta seção
-            spans = await localizacao_section.query_selector_all('.font-semibold')
+            # Procura por todos os containers .flex.flex-wrap.gap-1
+            field_containers = await localizacao_section.query_selector_all('.flex.flex-wrap.gap-1')
 
-            for span in spans:
-                text = await span.text_content()
-                if not text:
-                    continue
+            for container in field_containers:
+                # Dentro de cada container, procura label e valor
+                spans = await container.query_selector_all('span')
+                if len(spans) >= 2:
+                    label_span = spans[0]
+                    value_span = spans[1]
 
-                text = text.strip()
+                    label = await label_span.text_content()
+                    value = await value_span.text_content()
 
-                # GPS
-                if text == 'GPS Latitude:':
-                    next_el = await span.evaluate_handle('el => el.nextElementSibling')
-                    if next_el:
-                        value = await next_el.text_content()
-                        if value:
-                            try:
-                                latitude = float(value.strip())
-                            except ValueError:
-                                pass
+                    if not label or not value:
+                        continue
 
-                elif text == 'GPS Longitude:':
-                    next_el = await span.evaluate_handle('el => el.nextElementSibling')
-                    if next_el:
-                        value = await next_el.text_content()
-                        if value:
-                            try:
-                                longitude = float(value.strip())
-                            except ValueError:
-                                pass
+                    label = label.strip()
+                    value = value.strip()
 
-                # Distrito / Concelho / Freguesia
-                elif text == 'Distrito:':
-                    next_el = await span.evaluate_handle('el => el.nextElementSibling')
-                    if next_el:
-                        value = await next_el.text_content()
-                        if value:
-                            distrito = value.strip()
+                    # GPS
+                    if 'GPS Latitude' in label:
+                        try:
+                            latitude = float(value)
+                            print(f"  ✓ GPS Lat: {latitude}")
+                        except ValueError:
+                            pass
 
-                elif text == 'Concelho:':
-                    next_el = await span.evaluate_handle('el => el.nextElementSibling')
-                    if next_el:
-                        value = await next_el.text_content()
-                        if value:
-                            concelho = value.strip()
+                    elif 'GPS Longitude' in label:
+                        try:
+                            longitude = float(value)
+                            print(f"  ✓ GPS Lon: {longitude}")
+                        except ValueError:
+                            pass
 
-                elif text == 'Freguesia:':
-                    next_el = await span.evaluate_handle('el => el.nextElementSibling')
-                    if next_el:
-                        value = await next_el.text_content()
-                        if value:
-                            freguesia = value.strip()
+                    # Distrito / Concelho / Freguesia
+                    elif 'Distrito' in label:
+                        distrito = value
+                        print(f"  ✓ Distrito: {distrito}")
+
+                    elif 'Concelho' in label:
+                        concelho = value
+                        print(f"  ✓ Concelho: {concelho}")
+
+                    elif 'Freguesia' in label:
+                        freguesia = value
+                        print(f"  ✓ Freguesia: {freguesia}")
 
             gps = GPSCoordinates(latitude=latitude, longitude=longitude)
             return gps, distrito, concelho, freguesia
 
         except Exception as e:
             print(f"⚠️ Erro ao extrair Localização: {e}")
+            import traceback
+            traceback.print_exc()
             return GPSCoordinates(latitude=None, longitude=None), None, None, None
 
     async def _extract_gps(self, page: Page) -> GPSCoordinates:
@@ -345,87 +341,77 @@ class EventScraper:
         return gps
 
     async def _extract_gallery(self, page: Page) -> List[str]:
-        """Extrai apenas as imagens do evento atual (filtra por verba ID)"""
+        """Extrai TODAS as imagens iterando pelos IDs pv_id_X_item_Y"""
         try:
             import re
-            from collections import Counter
 
             # Aguarda a galeria carregar
             try:
                 await page.wait_for_selector('.p-galleria', timeout=3000)
             except:
                 print("⚠️ Galeria não encontrada")
-
-            all_images = []
-
-            # Extrai TODAS as imagens da galeria (dentro de .p-galleria)
-            try:
-                # Procura apenas dentro da secção .p-galleria
-                gallery_section = await page.query_selector('.p-galleria')
-                if gallery_section:
-                    gallery_html = await gallery_section.evaluate('el => el.innerHTML')
-
-                    # Procura por URLs de imagens no formato /api/files/Verbas_Fotos/verba_XXXXXX/
-                    api_matches = re.findall(
-                        r'/api/files/Verbas_Fotos/verba_(\d+)/[^"\'<>\s\)]+',
-                        gallery_html
-                    )
-
-                    # Reconstrói URLs completas
-                    for match in api_matches:
-                        # Procura URL completa com este verba ID
-                        full_match = re.search(
-                            rf'/api/files/Verbas_Fotos/verba_{match}/[^"\'<>\s\)]+',
-                            gallery_html
-                        )
-                        if full_match:
-                            url = full_match.group(0)
-                            url = url.replace('&quot;', '').replace('&amp;', '&').rstrip('&"\';')
-                            full_url = f"https://www.e-leiloes.pt{url}"
-                            all_images.append((match, full_url))
-            except Exception as e:
-                print(f"⚠️ Erro ao extrair da galeria: {e}")
-
-            # Fallback: Procura por items da galeria renderizados
-            try:
-                gallery_items = await page.query_selector_all('.p-galleria-item .p-evento-image')
-                for item in gallery_items:
-                    style = await item.get_attribute('style')
-                    if style and 'background-image: url(' in style:
-                        match = re.search(r'url\(["\']?([^"\']+)["\']?\)', style)
-                        if match:
-                            url = match.group(1).replace('&quot;', '')
-                            # Extrai verba ID
-                            verba_match = re.search(r'verba_(\d+)', url)
-                            if verba_match:
-                                verba_id = verba_match.group(1)
-                                all_images.append((verba_id, url))
-            except Exception as e:
-                print(f"⚠️ Erro no fallback: {e}")
-
-            if not all_images:
-                print("⚠️ Nenhuma imagem encontrada")
                 return []
 
-            # Identifica o verba ID mais comum (o evento atual)
-            verba_ids = [verba_id for verba_id, _ in all_images]
-            verba_counter = Counter(verba_ids)
-            main_verba_id = verba_counter.most_common(1)[0][0]
+            images = []
 
-            # Filtra apenas imagens do evento atual
-            event_images = [
-                url for verba_id, url in all_images
-                if verba_id == main_verba_id
-            ]
+            # Método 1: Itera pelos items da galeria (pv_id_X_item_0, item_1, item_2...)
+            try:
+                # Encontra o primeiro item para obter o prefixo do ID
+                first_item = await page.query_selector('.p-galleria-item[id]')
+                if first_item:
+                    first_id = await first_item.get_attribute('id')
+                    if first_id:
+                        # Extrai prefixo (ex: "pv_id_7" de "pv_id_7_item_0")
+                        id_match = re.match(r'(pv_id_\d+)_item_\d+', first_id)
+                        if id_match:
+                            id_prefix = id_match.group(1)
+                            print(f"🔍 Galeria ID: {id_prefix}")
 
-            # Remove duplicados mantendo ordem
-            unique_images = []
-            for img in event_images:
-                if img not in unique_images:
-                    unique_images.append(img)
+                            # Itera de item_0 até não encontrar mais
+                            item_num = 0
+                            consecutive_misses = 0
+                            max_misses = 3  # Para se houver gaps
 
-            print(f"📷 Verba ID: {main_verba_id} | {len(unique_images)} imagens (filtradas de {len(all_images)} totais)")
-            return unique_images
+                            while consecutive_misses < max_misses and item_num < 100:
+                                item_id = f"{id_prefix}_item_{item_num}"
+                                item = await page.query_selector(f'#{item_id} .p-evento-image')
+
+                                if item:
+                                    style = await item.get_attribute('style')
+                                    if style and 'background-image: url(' in style:
+                                        match = re.search(r'url\(["\']?([^"\']+)["\']?\)', style)
+                                        if match:
+                                            url = match.group(1).replace('&quot;', '')
+                                            if url and url not in images:
+                                                images.append(url)
+                                                print(f"  ✓ Imagem {item_num}: {url.split('/')[-1]}")
+                                    consecutive_misses = 0
+                                else:
+                                    consecutive_misses += 1
+
+                                item_num += 1
+
+                            print(f"📷 Total: {len(images)} imagens extraídas")
+            except Exception as e:
+                print(f"⚠️ Erro ao iterar items: {e}")
+
+            # Fallback: Se não encontrou nada, tenta buscar todos os items visíveis
+            if not images:
+                try:
+                    gallery_items = await page.query_selector_all('.p-galleria-item .p-evento-image')
+                    for item in gallery_items:
+                        style = await item.get_attribute('style')
+                        if style and 'background-image: url(' in style:
+                            match = re.search(r'url\(["\']?([^"\']+)["\']?\)', style)
+                            if match:
+                                url = match.group(1).replace('&quot;', '')
+                                if url and url not in images:
+                                    images.append(url)
+                    print(f"📷 Fallback: {len(images)} imagens")
+                except Exception as e:
+                    print(f"⚠️ Erro no fallback: {e}")
+
+            return images
 
         except Exception as e:
             print(f"⚠️ Erro ao extrair galeria: {e}")
