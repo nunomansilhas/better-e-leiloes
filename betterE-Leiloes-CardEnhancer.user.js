@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      3.3
+// @version      3.4
 // @description  Design moderno com carousel de imagens e distinção visual de tipos de leilão
 // @author       Nuno Mansilhas
 // @match        https://www.e-leiloes.pt/*
@@ -42,6 +42,18 @@
         .p-evento:hover {
             box-shadow: 0 8px 24px rgba(0,0,0,0.12) !important;
             transform: translateY(-2px) !important;
+        }
+
+        /* Força remover bordas do div nativo */
+        .p-evento[data-better-enhanced="true"] .w-full {
+            border: none !important;
+            border-radius: 0 !important;
+        }
+
+        /* Padroniza todas as fontes dentro do card */
+        .p-evento[data-better-enhanced="true"],
+        .p-evento[data-better-enhanced="true"] * {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
         }
 
         /* Esconde os elementos nativos que vamos substituir */
@@ -650,11 +662,16 @@
             }
 
             // ===== REMOVE CLASSES DE BORDA DO DIV NATIVO =====
-            const nativeCardBody = card.querySelector('.w-full.border-1.surface-border.border-round');
-            if (nativeCardBody) {
-                nativeCardBody.classList.remove('border-1', 'surface-border', 'border-round');
-                console.log('🔧 Border classes removed from native div');
-            }
+            // Busca todos os divs com w-full e remove as classes de borda
+            const nativeCardBodies = card.querySelectorAll('.w-full');
+            nativeCardBodies.forEach(div => {
+                // Remove as classes de borda
+                div.classList.remove('border-1', 'surface-border', 'border-round');
+                // Força remover estilos inline se houver
+                div.style.border = 'none';
+                div.style.borderRadius = '0';
+                console.log('🔧 Border classes and styles removed from div:', div.className);
+            });
 
             // ===== ROW 1: HEADER =====
             const refPrefix = reference.substring(0, 2);
@@ -677,7 +694,10 @@
                         ${apiData.tipoEvento === 'movel' ? 'Móvel' : 'Imóvel'}
                     </div>
                     ${hasGPS ? `
-                        <button class="better-btn better-btn-map" data-lat="${apiData.gps.latitude}" data-lon="${apiData.gps.longitude}">
+                        <button class="better-btn better-btn-map"
+                                data-lat="${apiData.gps.latitude}"
+                                data-lon="${apiData.gps.longitude}"
+                                style="display: inline-flex !important; visibility: visible !important; opacity: 1 !important; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important; color: white !important; border: none !important; padding: 6px 12px; border-radius: 8px; font-size: 11px; font-weight: 600; cursor: pointer; align-items: center; gap: 4px; white-space: nowrap; position: relative; z-index: 999;">
                             📍 Mapa
                         </button>
                     ` : ''}
@@ -984,7 +1004,7 @@
     // ====================================
 
     function init() {
-        console.log('🚀 Better E-Leilões Card Enhancer v3.3');
+        console.log('🚀 Better E-Leilões Card Enhancer v3.4');
 
         createDashboardButton();
         enhanceAllCards();
@@ -994,7 +1014,7 @@
             subtree: true
         });
 
-        console.log('✅ Card enhancer v3.3 ativo - Com GPS maps, carousel e tipos de leilão coloridos!');
+        console.log('✅ Card enhancer v3.4 ativo - GPS button with inline styles, unified fonts!');
     }
 
     if (document.readyState === 'loading') {
