@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      2.0
-// @description  Enriquece os cards com dados detalhados: GPS, localização, matrícula, tipologia, áreas, valores e imagens
+// @version      3.0
+// @description  Design moderno e organizado para os cards com layout melhorado e navegação otimizada
 // @author       Nuno Mansilhas
 // @match        https://www.e-leiloes.pt/*
 // @icon         https://www.e-leiloes.pt/favicon.ico
@@ -19,117 +19,292 @@
     const CONFIG = {
         API_BASE: 'http://localhost:8000/api',
         DASHBOARD_URL: 'http://localhost:8000',
-        ENABLE_API_ENRICHMENT: true  // Se false, só melhora visualmente sem chamar API
+        ENABLE_API_ENRICHMENT: true
     };
 
     // ====================================
-    // ESTILOS CSS
+    // ESTILOS CSS - DESIGN MODERNO
     // ====================================
 
     const styles = document.createElement('style');
     styles.textContent = `
-        /* Badge de dados disponíveis */
-        .better-badge {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-            color: white;
-            padding: 4px 8px;
-            border-radius: 12px;
-            font-size: 10px;
-            font-weight: 700;
-            z-index: 10;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        /* Override do card nativo */
+        .p-evento {
+            border-radius: 12px !important;
+            overflow: hidden !important;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08) !important;
+            transition: all 0.3s ease !important;
+            border: 1px solid #e5e7eb !important;
         }
 
-        /* Badge tipo de evento */
-        .better-tipo-badge {
-            position: absolute;
-            top: 8px;
-            left: 8px;
-            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+        .p-evento:hover {
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12) !important;
+            transform: translateY(-2px) !important;
+        }
+
+        /* Header do card - Row 1 */
+        .better-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .better-ref-badge {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
             color: white;
-            padding: 4px 8px;
-            border-radius: 12px;
-            font-size: 10px;
+            padding: 6px 12px;
+            border-radius: 8px;
             font-weight: 700;
-            z-index: 10;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            font-size: 12px;
+            letter-spacing: 0.5px;
+            box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+        }
+
+        .better-header-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .better-tipo-badge {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            padding: 6px 10px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 4px;
         }
 
         .better-tipo-badge.movel {
             background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
         }
 
-        /* Painel de informações detalhadas */
-        .better-info-panel {
-            background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+        .better-btn {
+            background: white;
+            border: 1px solid #e5e7eb;
+            padding: 6px 12px;
             border-radius: 8px;
-            padding: 10px;
-            margin-top: 10px;
-            border-left: 3px solid #10b981;
             font-size: 11px;
-            line-height: 1.6;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            color: #374151;
         }
 
-        .better-info-row {
+        .better-btn:hover {
+            background: #f9fafb;
+            border-color: #d1d5db;
+            transform: translateY(-1px);
+        }
+
+        .better-btn-primary {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            border: none;
+        }
+
+        .better-btn-primary:hover {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        }
+
+        /* Contador de imagens no carousel */
+        .better-image-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(8px);
+            color: white;
+            padding: 6px 10px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 600;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* Detalhes - Row 3 */
+        .better-details-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            background: white;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .better-icon-box {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            flex-shrink: 0;
+        }
+
+        .better-details-info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .better-detail-item {
+            font-size: 12px;
+            color: #64748b;
             display: flex;
             align-items: center;
             gap: 6px;
-            margin-bottom: 4px;
         }
 
-        .better-info-row:last-child {
-            margin-bottom: 0;
-        }
-
-        .better-info-icon {
-            font-size: 14px;
-            min-width: 18px;
-        }
-
-        .better-info-label {
+        .better-detail-label {
             font-weight: 600;
             color: #374151;
         }
 
-        .better-info-value {
+        .better-detail-value {
             color: #1f2937;
+            font-weight: 500;
         }
 
-        /* Localização compacta */
-        .better-location {
+        .better-matricula-badge {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            color: #92400e;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 11px;
+            border: 1px solid #fbbf24;
+        }
+
+        .better-tipologia-badge {
+            background: linear-gradient(135deg, #ddd6fe 0%, #c4b5fd 100%);
+            color: #5b21b6;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 11px;
+        }
+
+        /* Valores - Row 4 */
+        .better-valores-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 8px;
+            padding: 12px 16px;
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            border-bottom: 1px solid #bae6fd;
+        }
+
+        .better-valor-item {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .better-valor-label {
+            font-size: 9px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #0369a1;
+            letter-spacing: 0.5px;
+        }
+
+        .better-valor-amount {
+            font-size: 13px;
+            font-weight: 700;
+            color: #0c4a6e;
+        }
+
+        /* Countdown - Row 5 */
+        .better-countdown-row {
+            padding: 10px 16px;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .better-countdown {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+        }
+
+        .better-countdown-icon {
+            font-size: 16px;
+        }
+
+        .better-countdown-text {
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .better-countdown-time {
+            color: #dc2626;
+            font-weight: 700;
+        }
+
+        .better-countdown-time.ending-soon {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Localização extra */
+        .better-location-row {
+            padding: 8px 16px;
+            background: #f9fafb;
             display: flex;
             flex-wrap: wrap;
-            gap: 4px;
-            margin-top: 6px;
+            gap: 6px;
+            align-items: center;
             font-size: 10px;
         }
 
-        .better-location-item {
+        .better-location-tag {
             background: #e0f2fe;
             color: #0369a1;
-            padding: 2px 6px;
+            padding: 3px 8px;
             border-radius: 4px;
             font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 3px;
         }
 
-        /* GPS Coordenadas */
-        .better-gps-coords {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
+        /* GPS Badge */
+        .better-gps-badge {
             background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
             color: #1e40af;
             padding: 4px 8px;
             border-radius: 6px;
             font-size: 10px;
             font-weight: 600;
-            margin-top: 6px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
         }
 
-        /* Botão flutuante para dashboard */
+        /* Botão flutuante dashboard */
         .better-dashboard-btn {
             position: fixed;
             bottom: 24px;
@@ -155,275 +330,12 @@
             box-shadow: 0 6px 16px rgba(16, 185, 129, 0.6);
         }
 
-        /* Valores destacados */
-        .better-value-highlight {
-            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-            padding: 8px 10px;
-            border-radius: 6px;
-            border-left: 3px solid #3b82f6;
-            margin-top: 8px;
-            font-size: 11px;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-            gap: 6px;
-        }
-
-        .better-value-item {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .better-value-label {
-            color: #64748b;
-            font-size: 9px;
-            font-weight: 600;
-            text-transform: uppercase;
-            margin-bottom: 2px;
-        }
-
-        .better-value-amount {
-            color: #1e40af;
-            font-weight: 700;
-            font-size: 12px;
-        }
-
-        /* Contador de imagens */
-        .better-image-count {
-            position: absolute;
-            bottom: 8px;
-            right: 8px;
-            background: rgba(0, 0, 0, 0.75);
-            color: white;
-            padding: 4px 8px;
-            border-radius: 12px;
-            font-size: 11px;
-            font-weight: 600;
-            z-index: 10;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        /* Matrícula destaque */
-        .better-matricula {
-            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-            color: #92400e;
-            padding: 4px 8px;
-            border-radius: 6px;
-            font-weight: 700;
-            font-size: 11px;
-            display: inline-block;
-            margin-top: 6px;
-            border: 1px solid #fbbf24;
-        }
-
-        /* Tipologia imóvel */
-        .better-tipologia {
-            background: linear-gradient(135deg, #ddd6fe 0%, #c4b5fd 100%);
-            color: #5b21b6;
-            padding: 4px 8px;
-            border-radius: 6px;
-            font-weight: 700;
-            font-size: 11px;
-            display: inline-block;
-            margin-top: 6px;
+        /* Fix para links abrirem em nova aba */
+        .p-evento a[href*="/evento/"] {
+            pointer-events: none;
         }
     `;
     document.head.appendChild(styles);
-
-    // ====================================
-    // BOTÃO FLUTUANTE DASHBOARD
-    // ====================================
-
-    function createDashboardButton() {
-        const btn = document.createElement('button');
-        btn.className = 'better-dashboard-btn';
-        btn.innerHTML = '🏠';
-        btn.title = 'Abrir Dashboard Better E-Leilões';
-        btn.onclick = () => {
-            window.open(CONFIG.DASHBOARD_URL, '_blank');
-        };
-        document.body.appendChild(btn);
-    }
-
-    // ====================================
-    // FUNÇÕES DE API
-    // ====================================
-
-    async function getEventFromAPI(reference) {
-        if (!CONFIG.ENABLE_API_ENRICHMENT) return null;
-
-        try {
-            const response = await fetch(`${CONFIG.API_BASE}/events/${reference}`);
-            if (response.ok) {
-                return await response.json();
-            }
-        } catch (error) {
-            // Silently fail - API pode não estar disponível
-            console.debug(`API not available for ${reference}`);
-        }
-        return null;
-    }
-
-    // ====================================
-    // MELHORAR CARDS NATIVOS
-    // ====================================
-
-    function extractReferenceFromCard(card) {
-        // Procura pelo elemento que contém a referência
-        const refElement = card.querySelector('.pi-tag + span');
-        if (refElement) {
-            return refElement.textContent.trim();
-        }
-        return null;
-    }
-
-    async function enhanceCard(card) {
-        // Evita processar o mesmo card duas vezes
-        if (card.dataset.betterEnhanced) return;
-        card.dataset.betterEnhanced = 'true';
-
-        const reference = extractReferenceFromCard(card);
-        if (!reference) return;
-
-        // Adiciona posicionamento relativo para badges
-        card.style.position = 'relative';
-
-        // Tenta buscar dados da nossa API
-        const apiData = await getEventFromAPI(reference);
-
-        if (apiData) {
-            // ====== ENRIQUECIMENTO COM DADOS DA API ======
-
-            // Badge verde = dados disponíveis na nossa BD
-            const badge = document.createElement('div');
-            badge.className = 'better-badge';
-            badge.textContent = '✓ BD';
-            badge.title = 'Evento na nossa base de dados';
-            card.appendChild(badge);
-
-            // Badge do tipo de evento (móvel/imóvel)
-            const tipoBadge = document.createElement('div');
-            tipoBadge.className = `better-tipo-badge ${apiData.tipoEvento}`;
-            tipoBadge.textContent = apiData.tipoEvento === 'movel' ? '🚗 Móvel' : '🏠 Imóvel';
-            tipoBadge.title = `Tipo: ${apiData.tipoEvento}`;
-            card.appendChild(tipoBadge);
-
-            // Se tem imagens, mostra contador
-            if (apiData.imagens && apiData.imagens.length > 0) {
-                const imageCount = document.createElement('div');
-                imageCount.className = 'better-image-count';
-                imageCount.innerHTML = `📷 ${apiData.imagens.length}`;
-                imageCount.title = `${apiData.imagens.length} imagens disponíveis`;
-                card.appendChild(imageCount);
-            }
-
-            // Procura local para inserir o painel
-            const cardBody = card.querySelector('.p-evento-body') || card;
-
-            // ===== PAINEL DE INFORMAÇÕES =====
-            const infoPanel = document.createElement('div');
-            infoPanel.className = 'better-info-panel';
-
-            let panelHTML = '';
-
-            // DETALHES (Tipo, Subtipo, etc.)
-            if (apiData.detalhes) {
-                const det = apiData.detalhes;
-
-                // Tipo e Subtipo
-                if (det.tipo || det.subtipo) {
-                    panelHTML += `<div class="better-info-row">`;
-                    panelHTML += `<span class="better-info-icon">🏷️</span>`;
-                    panelHTML += `<span class="better-info-label">Tipo:</span>`;
-                    panelHTML += `<span class="better-info-value">${det.tipo || 'N/A'}`;
-                    if (det.subtipo) panelHTML += ` - ${det.subtipo}`;
-                    panelHTML += `</span></div>`;
-                }
-
-                // Matrícula (Móveis)
-                if (det.matricula) {
-                    panelHTML += `<div class="better-matricula">🚙 ${det.matricula}</div>`;
-                }
-
-                // Tipologia (Imóveis)
-                if (det.tipologia) {
-                    panelHTML += `<div class="better-tipologia">🏘️ ${det.tipologia}</div>`;
-                }
-
-                // Áreas (Imóveis)
-                if (det.areaPrivativa || det.areaTotal) {
-                    panelHTML += `<div class="better-info-row">`;
-                    panelHTML += `<span class="better-info-icon">📐</span>`;
-                    panelHTML += `<span class="better-info-label">Área:</span>`;
-                    panelHTML += `<span class="better-info-value">`;
-                    if (det.areaPrivativa) panelHTML += `${det.areaPrivativa}m²`;
-                    if (det.areaTotal && det.areaTotal !== det.areaPrivativa) {
-                        panelHTML += ` (Total: ${det.areaTotal}m²)`;
-                    }
-                    panelHTML += `</span></div>`;
-                }
-
-                // Localização (Distrito/Concelho/Freguesia)
-                if (det.distrito || det.concelho || det.freguesia) {
-                    panelHTML += `<div class="better-location">`;
-                    if (det.distrito) panelHTML += `<span class="better-location-item">${det.distrito}</span>`;
-                    if (det.concelho) panelHTML += `<span class="better-location-item">${det.concelho}</span>`;
-                    if (det.freguesia) panelHTML += `<span class="better-location-item">${det.freguesia}</span>`;
-                    panelHTML += `</div>`;
-                }
-            }
-
-            // GPS
-            if (apiData.gps && apiData.gps.latitude && apiData.gps.longitude) {
-                panelHTML += `<div class="better-gps-coords">`;
-                panelHTML += `📍 GPS: ${apiData.gps.latitude.toFixed(5)}, ${apiData.gps.longitude.toFixed(5)}`;
-                panelHTML += `</div>`;
-            }
-
-            infoPanel.innerHTML = panelHTML;
-            cardBody.appendChild(infoPanel);
-
-            // ===== VALORES =====
-            if (apiData.valores) {
-                const valuesSection = card.querySelector('.p-evento-footer') || cardBody;
-                const highlight = document.createElement('div');
-                highlight.className = 'better-value-highlight';
-
-                let valuesHTML = '';
-                if (apiData.valores.valorBase) {
-                    valuesHTML += `<div class="better-value-item">
-                        <span class="better-value-label">Base</span>
-                        <span class="better-value-amount">${formatCurrency(apiData.valores.valorBase)}</span>
-                    </div>`;
-                }
-                if (apiData.valores.valorAbertura) {
-                    valuesHTML += `<div class="better-value-item">
-                        <span class="better-value-label">Abertura</span>
-                        <span class="better-value-amount">${formatCurrency(apiData.valores.valorAbertura)}</span>
-                    </div>`;
-                }
-                if (apiData.valores.lanceAtual) {
-                    valuesHTML += `<div class="better-value-item">
-                        <span class="better-value-label">Lance Atual</span>
-                        <span class="better-value-amount">${formatCurrency(apiData.valores.lanceAtual)}</span>
-                    </div>`;
-                }
-                if (apiData.valores.valorMinimo) {
-                    valuesHTML += `<div class="better-value-item">
-                        <span class="better-value-label">Mínimo</span>
-                        <span class="better-value-amount">${formatCurrency(apiData.valores.valorMinimo)}</span>
-                    </div>`;
-                }
-
-                highlight.innerHTML = valuesHTML;
-                valuesSection.appendChild(highlight);
-            }
-        } else {
-            // ====== SEM DADOS DA API - APENAS MELHORIAS VISUAIS ======
-            // Pode adicionar melhorias visuais mesmo sem API
-        }
-    }
 
     // ====================================
     // UTILITÁRIOS
@@ -439,8 +351,271 @@
         }).format(value);
     }
 
+    function calculateTimeRemaining(endDate) {
+        if (!endDate) return null;
+
+        const now = new Date();
+        const end = new Date(endDate);
+        const diff = end - now;
+
+        if (diff <= 0) return { text: 'Terminado', isEnding: false };
+
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+        let text = '';
+        const isEnding = days === 0 && hours < 24;
+
+        if (days > 0) {
+            text = `${days}d ${hours}h`;
+        } else if (hours > 0) {
+            text = `${hours}h ${minutes}m`;
+        } else {
+            text = `${minutes}m`;
+        }
+
+        return { text, isEnding };
+    }
+
     // ====================================
-    // OBSERVADOR PARA NOVOS CARDS
+    // API
+    // ====================================
+
+    async function getEventFromAPI(reference) {
+        if (!CONFIG.ENABLE_API_ENRICHMENT) return null;
+
+        try {
+            const response = await fetch(`${CONFIG.API_BASE}/events/${reference}`);
+            if (response.ok) {
+                return await response.json();
+            }
+        } catch (error) {
+            console.debug(`API not available for ${reference}`);
+        }
+        return null;
+    }
+
+    // ====================================
+    // BOTÃO DASHBOARD
+    // ====================================
+
+    function createDashboardButton() {
+        const btn = document.createElement('button');
+        btn.className = 'better-dashboard-btn';
+        btn.innerHTML = '🏠';
+        btn.title = 'Abrir Dashboard Better E-Leilões';
+        btn.onclick = () => {
+            window.open(CONFIG.DASHBOARD_URL, '_blank');
+        };
+        document.body.appendChild(btn);
+    }
+
+    // ====================================
+    // REDESENHAR CARD
+    // ====================================
+
+    function extractReferenceFromCard(card) {
+        const refElement = card.querySelector('.pi-tag + span');
+        if (refElement) {
+            return refElement.textContent.trim();
+        }
+        return null;
+    }
+
+    async function enhanceCard(card) {
+        if (card.dataset.betterEnhanced) return;
+        card.dataset.betterEnhanced = 'true';
+
+        const reference = extractReferenceFromCard(card);
+        if (!reference) return;
+
+        // Busca dados da API
+        const apiData = await getEventFromAPI(reference);
+        if (!apiData) return;
+
+        // URL do evento
+        const eventUrl = `https://www.e-leiloes.pt/evento/${reference}`;
+
+        // ===== LIMPA CARD E RECONSTRÓI =====
+        card.style.position = 'relative';
+
+        // Remove links nativos que atualizam a página
+        const nativeLinks = card.querySelectorAll('a[href*="/evento/"]');
+        nativeLinks.forEach(link => {
+            link.removeAttribute('href');
+            link.style.cursor = 'default';
+        });
+
+        // ===== ROW 1: HEADER =====
+        let headerHTML = `
+            <div class="better-card-header">
+                <div class="better-ref-badge">${reference}</div>
+                <div class="better-header-actions">
+                    <div class="better-tipo-badge ${apiData.tipoEvento}">
+                        ${apiData.tipoEvento === 'movel' ? '🚗' : '🏠'}
+                        ${apiData.tipoEvento === 'movel' ? 'Móvel' : 'Imóvel'}
+                    </div>
+                    ${apiData.gps && apiData.gps.latitude ? `
+                        <button class="better-btn better-btn-map" data-lat="${apiData.gps.latitude}" data-lon="${apiData.gps.longitude}">
+                            📍 Mapa
+                        </button>
+                    ` : ''}
+                    <button class="better-btn better-btn-primary" data-url="${eventUrl}">
+                        👁️ Ver Mais
+                    </button>
+                </div>
+            </div>
+        `;
+
+        // Insere header no início do card
+        const firstChild = card.firstChild;
+        const headerDiv = document.createElement('div');
+        headerDiv.innerHTML = headerHTML;
+        card.insertBefore(headerDiv.firstChild, firstChild);
+
+        // ===== ROW 2: CAROUSEL (MANTÉM O NATIVO) =====
+        // Adiciona badge de contagem
+        const galleryContainer = card.querySelector('.p-galleria, .p-evento-header');
+        if (galleryContainer && apiData.imagens && apiData.imagens.length > 0) {
+            galleryContainer.style.position = 'relative';
+            const imageBadge = document.createElement('div');
+            imageBadge.className = 'better-image-badge';
+            imageBadge.innerHTML = `📷 ${apiData.imagens.length}`;
+            galleryContainer.appendChild(imageBadge);
+        }
+
+        // ===== ROW 3: DETALHES =====
+        const det = apiData.detalhes || {};
+        const icon = apiData.tipoEvento === 'movel' ? '🚗' : '🏠';
+
+        let detailsHTML = `
+            <div class="better-details-row">
+                <div class="better-icon-box">${icon}</div>
+                <div class="better-details-info">
+                    ${det.tipo ? `
+                        <div class="better-detail-item">
+                            <span class="better-detail-label">Tipo:</span>
+                            <span class="better-detail-value">${det.tipo}</span>
+                            ${det.subtipo ? `<span class="better-detail-value">- ${det.subtipo}</span>` : ''}
+                        </div>
+                    ` : ''}
+                    ${det.matricula ? `<div class="better-matricula-badge">🚙 ${det.matricula}</div>` : ''}
+                    ${det.tipologia ? `<div class="better-tipologia-badge">🏘️ ${det.tipologia}</div>` : ''}
+                    ${det.areaPrivativa ? `
+                        <div class="better-detail-item">
+                            <span class="better-detail-label">📐</span>
+                            <span class="better-detail-value">${det.areaPrivativa}m²</span>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+
+        // ===== ROW 4: VALORES =====
+        let valoresHTML = '';
+        if (apiData.valores) {
+            const v = apiData.valores;
+            valoresHTML = `
+                <div class="better-valores-row">
+                    ${v.valorBase ? `
+                        <div class="better-valor-item">
+                            <div class="better-valor-label">VB</div>
+                            <div class="better-valor-amount">${formatCurrency(v.valorBase)}</div>
+                        </div>
+                    ` : ''}
+                    ${v.valorAbertura ? `
+                        <div class="better-valor-item">
+                            <div class="better-valor-label">VA</div>
+                            <div class="better-valor-amount">${formatCurrency(v.valorAbertura)}</div>
+                        </div>
+                    ` : ''}
+                    ${v.valorMinimo ? `
+                        <div class="better-valor-item">
+                            <div class="better-valor-label">VM</div>
+                            <div class="better-valor-amount">${formatCurrency(v.valorMinimo)}</div>
+                        </div>
+                    ` : ''}
+                    ${v.lanceAtual ? `
+                        <div class="better-valor-item">
+                            <div class="better-valor-label">LA</div>
+                            <div class="better-valor-amount">${formatCurrency(v.lanceAtual)}</div>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        // ===== ROW 5: COUNTDOWN =====
+        let countdownHTML = '';
+        if (apiData.dataFim) {
+            const remaining = calculateTimeRemaining(apiData.dataFim);
+            if (remaining) {
+                countdownHTML = `
+                    <div class="better-countdown-row">
+                        <div class="better-countdown">
+                            <span class="better-countdown-icon">⏱️</span>
+                            <span class="better-countdown-text">Termina em:</span>
+                            <span class="better-countdown-time ${remaining.isEnding ? 'ending-soon' : ''}">
+                                ${remaining.text}
+                            </span>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // ===== LOCALIZAÇÃO (OPCIONAL) =====
+        let locationHTML = '';
+        if (det.distrito || det.concelho || det.freguesia || (apiData.gps && apiData.gps.latitude)) {
+            locationHTML = `<div class="better-location-row">`;
+            if (det.distrito) locationHTML += `<span class="better-location-tag">📍 ${det.distrito}</span>`;
+            if (det.concelho) locationHTML += `<span class="better-location-tag">${det.concelho}</span>`;
+            if (det.freguesia) locationHTML += `<span class="better-location-tag">${det.freguesia}</span>`;
+            if (apiData.gps && apiData.gps.latitude) {
+                locationHTML += `<span class="better-gps-badge">🗺️ GPS: ${apiData.gps.latitude.toFixed(4)}, ${apiData.gps.longitude.toFixed(4)}</span>`;
+            }
+            locationHTML += `</div>`;
+        }
+
+        // Insere rows no card
+        const cardBody = card.querySelector('.p-evento-body');
+        if (cardBody) {
+            cardBody.innerHTML = detailsHTML + valoresHTML + countdownHTML + locationHTML;
+        }
+
+        // ===== EVENT HANDLERS =====
+        // Botão "Ver Mais"
+        const verMaisBtn = card.querySelector('.better-btn-primary');
+        if (verMaisBtn) {
+            verMaisBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                window.open(eventUrl, '_blank');
+            });
+        }
+
+        // Botão "Mapa"
+        const mapaBtn = card.querySelector('.better-btn-map');
+        if (mapaBtn) {
+            mapaBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const lat = mapaBtn.dataset.lat;
+                const lon = mapaBtn.dataset.lon;
+                window.open(`https://www.google.com/maps?q=${lat},${lon}`, '_blank');
+            });
+        }
+
+        // Click no card inteiro abre em nova aba
+        card.style.cursor = 'pointer';
+        card.addEventListener('click', (e) => {
+            // Ignora se clicou num botão
+            if (e.target.closest('.better-btn')) return;
+            window.open(eventUrl, '_blank');
+        });
+    }
+
+    // ====================================
+    // OBSERVADOR
     // ====================================
 
     function enhanceAllCards() {
@@ -448,7 +623,6 @@
         cards.forEach(card => enhanceCard(card));
     }
 
-    // Observa mudanças no DOM para cards novos (SPA)
     const observer = new MutationObserver(() => {
         enhanceAllCards();
     });
@@ -458,24 +632,19 @@
     // ====================================
 
     function init() {
-        console.log('🚀 Better E-Leilões Card Enhancer v2.0');
+        console.log('🚀 Better E-Leilões Card Enhancer v3.0');
 
-        // Cria botão flutuante
         createDashboardButton();
-
-        // Melhora cards existentes
         enhanceAllCards();
 
-        // Observa novos cards
         observer.observe(document.body, {
             childList: true,
             subtree: true
         });
 
-        console.log('✅ Card enhancer v2.0 ativo - Mostrando GPS, localização, matrícula, tipologia e muito mais!');
+        console.log('✅ Card enhancer v3.0 ativo - Design moderno e organizado!');
     }
 
-    // Aguarda DOM estar pronto
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
     } else {
