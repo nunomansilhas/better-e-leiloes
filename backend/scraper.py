@@ -1336,8 +1336,11 @@ class EventScraper:
         return images_map
 
     async def _scrape_images_only(self, reference: str) -> List[str]:
-        """Scrape apenas as imagens de um evento"""
+        """Scrape apenas as imagens de um evento usando interceptação de requests"""
         url = f"https://www.e-leiloes.pt/evento/{reference}"
+
+        # Lista para coletar URLs de imagens interceptadas
+        intercepted_images = []
 
         context = await self.browser.new_context(
             user_agent=self.user_agent,
@@ -1346,11 +1349,58 @@ class EventScraper:
 
         page = await context.new_page()
 
+        # 🔥 INTERCEPTA requests de imagens da API
+        async def handle_route(route):
+            request = route.request
+            url = request.url
+
+            # Intercepta chamadas para Verbas_Fotos/verba_X/
+            if 'Verbas_Fotos/verba_' in url and url.endswith(('.jpg', '.jpeg', '.png', '.webp')):
+                if url not in intercepted_images:
+                    intercepted_images.append(url)
+                    print(f"    📸 Intercepted: {url.split('/')[-1]}")
+
+            # Continua com o request normal
+            await route.continue_()
+
+        # Ativa a interceptação
+        await page.route("**/*", handle_route)
+
         try:
             await page.goto(url, wait_until="networkidle", timeout=15000)
-            await asyncio.sleep(1.5)
 
-            # Extrai apenas galeria
+            # ===== AGUARDA dinamicamente baseado no contador de imagens =====
+            try:
+                footer_selector = '.custom-galleria-footer, .p-galleria-footer, .better-image-badge'
+                await page.wait_for_selector(footer_selector, timeout=2000)
+
+                footer = await page.query_selector(footer_selector)
+                if footer:
+                    footer_text = await footer.inner_text()
+                    print(f"    📊 Contador: {footer_text}")
+
+                    # Parse "X/Y" ou "📷 Y"
+                    match = re.search(r'(\d+)/(\d+)|📷\s*(\d+)', footer_text)
+                    if match:
+                        total_images = int(match.group(2) if match.group(2) else match.group(3))
+                        wait_time = (total_images * 2.5) + 1
+                        print(f"    ⏳ Aguardando {wait_time:.1f}s para {total_images} imagens...")
+                        await asyncio.sleep(wait_time)
+                    else:
+                        await asyncio.sleep(3)
+                else:
+                    await asyncio.sleep(2)
+            except Exception as e:
+                print(f"    ⚠️ Erro ao detectar contador: {e}")
+                await asyncio.sleep(2)
+
+            # Se interceptamos imagens, retorna essas
+            if intercepted_images:
+                print(f"    ✅ {len(intercepted_images)} imagens via interceptação")
+                return intercepted_images
+
+            # Fallback: usa método DOM (caso a interceptação falhe)
+            print(f"    ⚠️ Nenhuma imagem interceptada, tentando fallback DOM...")
             images = await self._extract_gallery(page)
             return images
 

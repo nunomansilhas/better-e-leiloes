@@ -1337,117 +1337,104 @@
 
             <div id="dashboard-content">
                 <!-- Scraper Control Card -->
+                <!-- Independent Scrapers -->
                 <div class="scraper-control-card">
                     <div class="scraper-control-header">
-                        <h3>🤖 Controlo de Scraping</h3>
-                        <div class="scraper-status stopped" id="scraper-status">
-                            <div class="scraper-status-dot"></div>
-                            <span id="scraper-status-text">Parado</span>
-                        </div>
+                        <h3>🛠️ Scrapers Independentes</h3>
+                        <span style="font-size: 12px; color: #64748b;">Execute cada scraper separadamente</span>
                     </div>
 
-                    <div class="scraper-controls">
-                        <div class="control-group">
-                            <label for="scrape-interval">Intervalo Automático</label>
-                            <select id="scrape-interval">
-                                <option value="manual">Manual (apenas quando iniciar)</option>
-                                <option value="1">A cada 1 hora</option>
-                                <option value="3">A cada 3 horas</option>
-                                <option value="6">A cada 6 horas</option>
-                                <option value="12">A cada 12 horas</option>
-                                <option value="24">A cada 24 horas</option>
-                            </select>
-                        </div>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 16px;">
+                        <button class="scraper-btn start" onclick="runIndependentScraper('ids')" style="display: flex; align-items: center; gap: 8px; justify-content: center;">
+                            <span style="font-size: 20px;">🔍</span>
+                            <div style="text-align: left;">
+                                <div style="font-weight: 600;">Scrape IDs</div>
+                                <div style="font-size: 11px; opacity: 0.8;">Obter referências</div>
+                            </div>
+                        </button>
 
-                        <div class="scraper-buttons">
-                            <button class="scraper-btn start" id="btn-start-scraper">
-                                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 18px; height: 18px;">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                </svg>
-                                Iniciar
-                            </button>
-                            <button class="scraper-btn stop" id="btn-stop-scraper" disabled>
-                                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 18px; height: 18px;">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"/>
-                                </svg>
-                                Parar
-                            </button>
-                        </div>
+                        <button class="scraper-btn start" onclick="runIndependentScraper('recheck')" style="display: flex; align-items: center; gap: 8px; justify-content: center;">
+                            <span style="font-size: 20px;">🔄</span>
+                            <div style="text-align: left;">
+                                <div style="font-weight: 600;">Recheck New</div>
+                                <div style="font-size: 11px; opacity: 0.8;">Verificar novos eventos</div>
+                            </div>
+                        </button>
+
+                        <button class="scraper-btn start" onclick="runIndependentScraper('content')" style="display: flex; align-items: center; gap: 8px; justify-content: center;">
+                            <span style="font-size: 20px;">📋</span>
+                            <div style="text-align: left;">
+                                <div style="font-weight: 600;">Scrape Content</div>
+                                <div style="font-size: 11px; opacity: 0.8;">Extrair detalhes</div>
+                            </div>
+                        </button>
+
+                        <button class="scraper-btn start" onclick="runIndependentScraper('images')" style="display: flex; align-items: center; gap: 8px; justify-content: center;">
+                            <span style="font-size: 20px;">🖼️</span>
+                            <div style="text-align: left;">
+                                <div style="font-weight: 600;">Scrape Images</div>
+                                <div style="font-size: 11px; opacity: 0.8;">Download imagens</div>
+                            </div>
+                        </button>
                     </div>
 
-                    <div class="scraper-progress" id="scraper-progress">
-                        <div class="progress-info">
-                            <span id="progress-text">A processar eventos...</span>
-                            <span id="progress-count">0 / 0</span>
-                        </div>
-                        <div class="progress-bar">
-                            <div class="progress-bar-fill" id="progress-bar-fill"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Pipeline Visual Card -->
-                <div class="scraper-control-card" style="margin-top: 24px;">
-                    <div class="scraper-control-header">
-                        <h3>🚀 Pipeline de Scraping</h3>
-                        <span style="font-size: 12px; color: #64748b;">Scraping automático multi-stage</span>
-                    </div>
-
-                    <!-- Pipeline Controls (Inline) -->
-                    <div style="display: flex; gap: 12px; margin-bottom: 24px; align-items: center;">
-                        <select class="filter-select" id="pipeline-tipo" style="flex: 1;">
+                    <!-- Scraper Options -->
+                    <div style="display: flex; gap: 12px; padding: 12px; background: #f8fafc; border-radius: 8px;">
+                        <select class="filter-select" id="independent-tipo" style="flex: 1;">
                             <option value="">📦 Ambos (Imóveis + Móveis)</option>
                             <option value="1">🏠 Apenas Imóveis</option>
                             <option value="2">🚗 Apenas Móveis</option>
                         </select>
-                        <input type="number" class="filter-input" id="pipeline-pages" placeholder="Nº Páginas (vazio=todas)" style="width: 200px;">
-                        <button class="scraper-btn start" id="btn-pipeline" onclick="runPipeline()" style="min-width: 180px;">
-                            🚀 Executar Pipeline
+                        <input type="number" class="filter-input" id="independent-pages" placeholder="Nº Páginas (vazio=todas)" style="width: 160px;">
+                    </div>
+                </div>
+
+                <!-- Compact Pipeline -->
+                <div class="scraper-control-card" style="margin-top: 16px;">
+                    <div class="scraper-control-header">
+                        <h3>🚀 Pipeline Completo</h3>
+                        <button class="scraper-btn start" id="btn-pipeline" onclick="runPipeline()" style="padding: 8px 16px; font-size: 13px;">
+                            ▶ Executar Pipeline
                         </button>
                     </div>
 
-                    <!-- Pipeline Visualization -->
-                    <div style="padding: 32px 24px; background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%); border-radius: 12px; margin-bottom: 24px;">
+                    <!-- Compact Pipeline Visualization -->
+                    <div style="padding: 16px; background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%); border-radius: 8px;">
                         <div style="display: flex; justify-content: space-between; align-items: center; position: relative;">
                             <!-- Connection Lines -->
-                            <div style="position: absolute; top: 50%; left: 0; right: 0; height: 4px; background: #cbd5e1; z-index: 1; border-radius: 2px;"></div>
-                            <div id="pipeline-progress-line" style="position: absolute; top: 50%; left: 0; height: 4px; width: 0%; background: linear-gradient(90deg, #3b82f6, #8b5cf6); z-index: 2; border-radius: 2px; transition: width 0.5s ease;"></div>
+                            <div style="position: absolute; top: 50%; left: 0; right: 0; height: 3px; background: #cbd5e1; z-index: 1; border-radius: 2px;"></div>
+                            <div id="pipeline-progress-line" style="position: absolute; top: 50%; left: 0; height: 3px; width: 0%; background: linear-gradient(90deg, #3b82f6, #8b5cf6); z-index: 2; border-radius: 2px; transition: width 0.5s ease;"></div>
 
                             <!-- Stage 1 -->
                             <div style="z-index: 3; text-align: center; flex: 1;">
-                                <div id="stage1-circle" class="pipeline-stage" style="width: 80px; height: 80px; border-radius: 50%; background: white; border: 4px solid #cbd5e1; display: flex; align-items: center; justify-content: center; margin: 0 auto; font-size: 32px; transition: all 0.3s ease;">
+                                <div id="stage1-circle" class="pipeline-stage" style="width: 50px; height: 50px; border-radius: 50%; background: white; border: 3px solid #cbd5e1; display: flex; align-items: center; justify-content: center; margin: 0 auto; font-size: 20px; transition: all 0.3s ease;">
                                     🔍
                                 </div>
-                                <div style="margin-top: 12px;">
-                                    <div style="font-weight: 600; color: #1e293b; font-size: 14px;">Stage 1</div>
-                                    <div style="font-size: 12px; color: #64748b; margin-top: 4px;">Descobrir IDs</div>
-                                    <div id="stage1-count" style="font-size: 11px; color: #94a3b8; margin-top: 4px; font-weight: 600;">-</div>
+                                <div style="margin-top: 8px;">
+                                    <div style="font-weight: 600; color: #1e293b; font-size: 12px;">IDs</div>
+                                    <div id="stage1-count" style="font-size: 10px; color: #94a3b8; margin-top: 2px; font-weight: 600;">-</div>
                                 </div>
                             </div>
 
                             <!-- Stage 2 -->
                             <div style="z-index: 3; text-align: center; flex: 1;">
-                                <div id="stage2-circle" class="pipeline-stage" style="width: 80px; height: 80px; border-radius: 50%; background: white; border: 4px solid #cbd5e1; display: flex; align-items: center; justify-content: center; margin: 0 auto; font-size: 32px; transition: all 0.3s ease;">
+                                <div id="stage2-circle" class="pipeline-stage" style="width: 50px; height: 50px; border-radius: 50%; background: white; border: 3px solid #cbd5e1; display: flex; align-items: center; justify-content: center; margin: 0 auto; font-size: 20px; transition: all 0.3s ease;">
                                     📋
                                 </div>
-                                <div style="margin-top: 12px;">
-                                    <div style="font-weight: 600; color: #1e293b; font-size: 14px;">Stage 2</div>
-                                    <div style="font-size: 12px; color: #64748b; margin-top: 4px;">Extrair Detalhes</div>
-                                    <div id="stage2-count" style="font-size: 11px; color: #94a3b8; margin-top: 4px; font-weight: 600;">-</div>
+                                <div style="margin-top: 8px;">
+                                    <div style="font-weight: 600; color: #1e293b; font-size: 12px;">Detalhes</div>
+                                    <div id="stage2-count" style="font-size: 10px; color: #94a3b8; margin-top: 2px; font-weight: 600;">-</div>
                                 </div>
                             </div>
 
                             <!-- Stage 3 -->
                             <div style="z-index: 3; text-align: center; flex: 1;">
-                                <div id="stage3-circle" class="pipeline-stage" style="width: 80px; height: 80px; border-radius: 50%; background: white; border: 4px solid #cbd5e1; display: flex; align-items: center; justify-content: center; margin: 0 auto; font-size: 32px; transition: all 0.3s ease;">
+                                <div id="stage3-circle" class="pipeline-stage" style="width: 50px; height: 50px; border-radius: 50%; background: white; border: 3px solid #cbd5e1; display: flex; align-items: center; justify-content: center; margin: 0 auto; font-size: 20px; transition: all 0.3s ease;">
                                     🖼️
                                 </div>
-                                <div style="margin-top: 12px;">
-                                    <div style="font-weight: 600; color: #1e293b; font-size: 14px;">Stage 3</div>
-                                    <div style="font-size: 12px; color: #64748b; margin-top: 4px;">Download Imagens</div>
-                                    <div id="stage3-count" style="font-size: 11px; color: #94a3b8; margin-top: 4px; font-weight: 600;">-</div>
+                                <div style="margin-top: 8px;">
+                                    <div style="font-weight: 600; color: #1e293b; font-size: 12px;">Imagens</div>
+                                    <div id="stage3-count" style="font-size: 10px; color: #94a3b8; margin-top: 2px; font-weight: 600;">-</div>
                                 </div>
                             </div>
                         </div>
@@ -1736,9 +1723,13 @@
                 document.querySelector('.nav-item[onclick*="dashboard"]').classList.add('active');
                 loadDashboard();
             } else if (pageId === 'imoveis') {
+                // Mark parent "Eventos" nav-item as active
+                document.querySelector('.nav-item[onclick*="toggleDropdown"]').classList.add('active');
                 document.querySelector('.nav-dropdown-item[onclick*="imoveis"]').classList.add('active');
                 loadEvents('imoveis');
             } else if (pageId === 'moveis') {
+                // Mark parent "Eventos" nav-item as active
+                document.querySelector('.nav-item[onclick*="toggleDropdown"]').classList.add('active');
                 document.querySelector('.nav-dropdown-item[onclick*="moveis"]').classList.add('active');
                 loadEvents('moveis');
             }
@@ -2903,14 +2894,92 @@
         }
 
         // Run Full Pipeline
+        async function runIndependentScraper(type) {
+            const tipo = document.getElementById('independent-tipo').value;
+            const pages = document.getElementById('independent-pages').value;
+
+            try {
+                addConsoleLog(`▶ Executando scraper: ${type}`, 'info');
+
+                let url, message;
+
+                switch(type) {
+                    case 'ids':
+                        url = `${API_BASE}/api/scrape/stage1/ids?`;
+                        if (tipo) url += `tipo=${tipo}&`;
+                        if (pages) url += `max_pages=${pages}`;
+                        message = 'A obter IDs...';
+                        break;
+
+                    case 'recheck':
+                        url = `${API_BASE}/api/scrape/smart/new-events?`;
+                        if (tipo) url += `tipo=${tipo}&`;
+                        if (pages) url += `max_pages=${pages}`;
+                        message = 'A verificar novos eventos...';
+                        break;
+
+                    case 'content':
+                        // Get all references from DB first
+                        const refsResponse = await fetch(`${API_BASE}/api/events?limit=1000`);
+                        const refsData = await refsResponse.json();
+                        const references = refsData.events.map(e => e.reference);
+
+                        if (references.length === 0) {
+                            alert('⚠️ Nenhum evento na BD. Execute "Scrape IDs" primeiro.');
+                            return;
+                        }
+
+                        url = `${API_BASE}/api/scrape/stage2/details?save_to_db=true&` + references.map(ref => `references=${encodeURIComponent(ref)}`).join('&');
+                        message = `A extrair detalhes de ${references.length} eventos...`;
+                        break;
+
+                    case 'images':
+                        // Get all references from DB first
+                        const imgRefsResponse = await fetch(`${API_BASE}/api/events?limit=1000`);
+                        const imgRefsData = await imgRefsResponse.json();
+                        const imgReferences = imgRefsData.events.map(e => e.reference);
+
+                        if (imgReferences.length === 0) {
+                            alert('⚠️ Nenhum evento na BD. Execute "Scrape IDs" primeiro.');
+                            return;
+                        }
+
+                        url = `${API_BASE}/api/scrape/stage3/images?` + imgReferences.map(ref => `references=${encodeURIComponent(ref)}`).join('&');
+                        message = `A fazer download de imagens de ${imgReferences.length} eventos...`;
+                        break;
+
+                    default:
+                        throw new Error('Tipo de scraper desconhecido');
+                }
+
+                addConsoleLog(message, 'info');
+
+                const response = await fetch(url, { method: 'POST' });
+                const data = await response.json();
+
+                if (response.ok) {
+                    addConsoleLog(`✅ ${type.toUpperCase()}: ${data.message || 'Concluído!'}`, 'success');
+
+                    // Reload dashboard after scraping
+                    setTimeout(() => loadDashboard(), 1000);
+                } else {
+                    throw new Error(data.detail || 'Erro desconhecido');
+                }
+
+            } catch (error) {
+                addConsoleLog(`❌ Erro no scraper ${type}: ${error.message}`, 'error');
+                alert(`❌ Erro:\n${error.message}`);
+            }
+        }
+
         async function runPipeline() {
             const btn = document.getElementById('btn-pipeline');
-            const tipo = document.getElementById('pipeline-tipo').value;
-            const pages = document.getElementById('pipeline-pages').value;
+            const tipo = document.getElementById('independent-tipo').value;
+            const pages = document.getElementById('independent-pages').value;
 
             try {
                 btn.disabled = true;
-                btn.textContent = '⏳ A executar pipeline...';
+                btn.textContent = '⏳ A executar...';
 
                 // Reset pipeline visualization
                 updatePipelineStage(1, 'active', 0);
@@ -2966,7 +3035,7 @@
                 document.getElementById('pipeline-feedback').style.display = 'none';
             } finally {
                 btn.disabled = false;
-                btn.textContent = '🚀 Executar Pipeline';
+                btn.textContent = '▶ Executar Pipeline';
             }
         }
 
