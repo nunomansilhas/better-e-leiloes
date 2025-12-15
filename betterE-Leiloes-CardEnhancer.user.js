@@ -448,43 +448,44 @@
         if (card.dataset.betterEnhanced) return;
         card.dataset.betterEnhanced = 'true';
 
-        const reference = extractReferenceFromCard(card);
-        console.log(`🎯 Enhancing card for reference: ${reference}`);
-        if (!reference) {
-            console.warn('⚠️ No reference found in card');
-            return;
-        }
+        try {
+            const reference = extractReferenceFromCard(card);
+            console.log(`🎯 Enhancing card for reference: ${reference}`);
+            if (!reference) {
+                console.warn('⚠️ No reference found in card');
+                return;
+            }
 
-        // Busca dados da API
-        const apiData = await getEventFromAPI(reference);
-        if (!apiData) {
-            console.warn(`⚠️ No API data returned for ${reference} - card will not be enhanced`);
-            return;
-        }
-        console.log(`🎨 Starting card enhancement for ${reference}`);
+            // Busca dados da API
+            const apiData = await getEventFromAPI(reference);
+            if (!apiData) {
+                console.warn(`⚠️ No API data returned for ${reference} - card will not be enhanced`);
+                return;
+            }
+            console.log(`🎨 Starting card enhancement for ${reference}`);
 
-        // URL do evento
-        const eventUrl = `https://www.e-leiloes.pt/evento/${reference}`;
+            // URL do evento
+            const eventUrl = `https://www.e-leiloes.pt/evento/${reference}`;
 
-        // ===== LIMPA CARD E RECONSTRÓI =====
-        card.style.position = 'relative';
+            // ===== LIMPA CARD E RECONSTRÓI =====
+            card.style.position = 'relative';
 
-        // Remove COMPLETAMENTE os links nativos
-        const nativeLinks = card.querySelectorAll('a[href*="/evento/"]');
-        nativeLinks.forEach(link => {
-            link.removeAttribute('href');
-            link.style.cursor = 'default';
-            link.style.pointerEvents = 'none';
-            // Previne navegação
-            link.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                return false;
+            // Remove COMPLETAMENTE os links nativos
+            const nativeLinks = card.querySelectorAll('a[href*="/evento/"]');
+            nativeLinks.forEach(link => {
+                link.removeAttribute('href');
+                link.style.cursor = 'default';
+                link.style.pointerEvents = 'none';
+                // Previne navegação
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return false;
+                });
             });
-        });
 
-        // ===== ROW 1: HEADER =====
-        let headerHTML = `
+            // ===== ROW 1: HEADER =====
+            let headerHTML = `
             <div class="better-card-header">
                 <div class="better-ref-badge">${reference}</div>
                 <div class="better-header-actions">
@@ -506,9 +507,12 @@
 
         // Insere header no início do card
         const firstChild = card.firstChild;
+        console.log('🔧 First child:', firstChild);
         const headerDiv = document.createElement('div');
         headerDiv.innerHTML = headerHTML;
+        console.log('🔧 Header HTML created:', headerDiv.innerHTML.length, 'chars');
         card.insertBefore(headerDiv.firstChild, firstChild);
+        console.log('✅ Header inserted');
 
         // ===== ROW 2: CAROUSEL (MANTÉM O NATIVO) =====
         // Adiciona badge de contagem
@@ -616,8 +620,14 @@
 
         // Insere rows no card
         const cardBody = card.querySelector('.p-evento-body');
+        console.log('🔧 Card body found:', cardBody);
         if (cardBody) {
-            cardBody.innerHTML = detailsHTML + valoresHTML + countdownHTML + locationHTML;
+            const newContent = detailsHTML + valoresHTML + countdownHTML + locationHTML;
+            console.log('🔧 New content length:', newContent.length, 'chars');
+            cardBody.innerHTML = newContent;
+            console.log('✅ Card body updated');
+        } else {
+            console.error('❌ Card body (.p-evento-body) not found!');
         }
 
         // ===== EVENT HANDLERS =====
@@ -655,6 +665,13 @@
             window.open(eventUrl, '_blank');
             return false;
         }, true); // useCapture = true para capturar antes
+
+        console.log(`✨ Card enhancement complete for ${reference}`);
+
+        } catch (error) {
+            console.error(`❌ Error enhancing card for ${reference}:`, error);
+            console.error('Error stack:', error.stack);
+        }
     }
 
     // ====================================
