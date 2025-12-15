@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      4.5
+// @version      4.6
 // @description  Design moderno com carousel de imagens e distinção visual de tipos de leilão
 // @author       Nuno Mansilhas
 // @match        https://www.e-leiloes.pt/*
@@ -955,38 +955,45 @@
 
         // Click no card inteiro abre em nova aba (SEM atualizar atual)
         card.style.cursor = 'pointer';
+
+        // Handler para click normal (left-click)
         card.addEventListener('click', (e) => {
-            // Permite middle-click (botão do meio) para abrir em nova aba
-            if (e.button === 1 || e.which === 2) {
-                console.log('🖱️ Middle click detected - allowing default behavior');
-                return; // Deixa o navegador lidar com middle-click
-            }
+            console.log('🖱️ Card click detected, target:', e.target.className);
 
             // PRIMEIRO verifica se clicou em algo que deve ignorar
-            // GPS icon tem seu próprio handler, star e botões são ignorados
-            if (e.target.closest('.pi-map')) return; // GPS tem seu próprio handler
-            if (e.target.closest('.pi-star')) return;
-            if (e.target.closest('.better-btn')) return;
+            if (e.target.closest('.pi-map')) {
+                console.log('🗺️ GPS click - ignoring card handler');
+                return;
+            }
+            if (e.target.closest('.pi-star')) {
+                console.log('⭐ Star click - ignoring card handler');
+                return;
+            }
+            if (e.target.closest('.better-btn')) {
+                console.log('🔘 Button click - ignoring card handler');
+                return;
+            }
 
-            // APENAS previne default se NÃO clicou nos elementos acima
+            // Previne comportamento padrão
             e.preventDefault();
             e.stopPropagation();
 
-            // Abre APENAS em nova aba, não atualiza a atual
-            window.open(eventUrl, '_blank', 'noopener,noreferrer');
-            console.log('🔗 Card clicked - opening event in new tab');
+            // Abre em nova aba
+            const newWindow = window.open(eventUrl, '_blank', 'noopener,noreferrer');
+            console.log('🔗 Opening event in new tab:', eventUrl, 'Window:', newWindow);
             return false;
-        });
+        }, true); // USE CAPTURE PHASE para interceptar antes
 
-        // Adiciona handler para mousedown para capturar middle-click
-        card.addEventListener('mousedown', (e) => {
+        // Handler para middle-click e auxiliary button
+        card.addEventListener('auxclick', (e) => {
             if (e.button === 1) { // Middle button
+                console.log('🖱️ Middle click detected');
                 e.preventDefault();
                 e.stopPropagation();
                 window.open(eventUrl, '_blank', 'noopener,noreferrer');
-                console.log('🖱️ Middle click - opening event in new tab');
+                return false;
             }
-        });
+        }, true);
 
         console.log(`✨ Card enhancement complete for ${reference}`);
 
@@ -1014,7 +1021,7 @@
     // ====================================
 
     function init() {
-        console.log('🚀 Better E-Leilões Card Enhancer v4.5');
+        console.log('🚀 Better E-Leilões Card Enhancer v4.6');
 
         createDashboardButton();
         enhanceAllCards();
@@ -1024,7 +1031,7 @@
             subtree: true
         });
 
-        console.log('✅ Card enhancer v4.5 ativo - Current window stays put!');
+        console.log('✅ Card enhancer v4.6 ativo - Capture phase + auxclick!');
     }
 
     if (document.readyState === 'loading') {
