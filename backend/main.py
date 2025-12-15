@@ -453,20 +453,25 @@ async def scrape_stage2_details(
     """
     STAGE 2: Scrape detalhes completos (SEM imagens) para lista de IDs.
 
+    INSERÇÃO EM TEMPO REAL: Cada evento é guardado na BD assim que é scraped.
+
     - **references**: Lista de referências (ex: ["LO-2024-001", "NP-2024-002"])
-    - **save_to_db**: Se True, guarda eventos na BD
+    - **save_to_db**: Se True, guarda eventos na BD em tempo real
 
     Retorna eventos com todos os detalhes exceto imagens.
     """
     try:
-        events = await scraper.scrape_details_by_ids(references)
-
-        # Guarda na BD se solicitado
-        if save_to_db:
+        # Callback para inserir cada evento assim que é scraped (TEMPO REAL)
+        async def save_event_callback(event: EventData):
+            """Salva evento na BD em tempo real"""
             async with get_db() as db:
-                for event in events:
-                    await db.save_event(event)
-                    await cache_manager.set(event.reference, event)
+                await db.save_event(event)
+                await cache_manager.set(event.reference, event)
+                print(f"  💾 {event.reference} guardado em tempo real")
+
+        # Se save_to_db=True, passa callback; senão, None
+        callback = save_event_callback if save_to_db else None
+        events = await scraper.scrape_details_by_ids(references, on_event_scraped=callback)
 
         return {
             "stage": 2,
@@ -474,7 +479,7 @@ async def scrape_stage2_details(
             "total_scraped": len(events),
             "events": [event.model_dump() for event in events],
             "saved_to_db": save_to_db,
-            "message": f"Stage 2 completo: {len(events)} eventos processados"
+            "message": f"Stage 2 completo: {len(events)} eventos processados {'e guardados em tempo real' if save_to_db else ''}"
         }
 
     except Exception as e:

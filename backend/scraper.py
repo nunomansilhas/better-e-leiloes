@@ -352,6 +352,39 @@ class EventScraper:
                 print("⚠️ Galeria não encontrada")
                 return []
 
+            # ===== NOVO: Aguarda pelo contador de imagens e calcula tempo de espera =====
+            try:
+                # Tenta encontrar o contador de imagens (ex: "1/7")
+                footer_selector = '.custom-galleria-footer, .p-galleria-footer, .better-image-badge'
+                await page.wait_for_selector(footer_selector, timeout=2000)
+
+                footer = await page.query_selector(footer_selector)
+                if footer:
+                    footer_text = await footer.inner_text()
+                    print(f"📊 Contador de imagens: {footer_text}")
+
+                    # Parse "X/Y" ou "📷 Y" para obter total de imagens
+                    match = re.search(r'(\d+)/(\d+)|📷\s*(\d+)', footer_text)
+                    if match:
+                        total_images = int(match.group(2) if match.group(2) else match.group(3))
+                        print(f"🖼️ Total de imagens detectadas: {total_images}")
+
+                        # Calcula tempo de espera: 2.5s por imagem + 1s buffer
+                        wait_time = (total_images * 2.5) + 1
+                        print(f"⏳ Aguardando {wait_time:.1f}s para todas as imagens carregarem...")
+                        await asyncio.sleep(wait_time)
+                    else:
+                        # Fallback: se não conseguiu parsear, espera 3s
+                        print("⚠️ Não conseguiu parsear contador, aguardando 3s...")
+                        await asyncio.sleep(3)
+                else:
+                    # Se não encontrou footer, espera tempo padrão
+                    print("⚠️ Footer não encontrado, aguardando 2s...")
+                    await asyncio.sleep(2)
+            except Exception as e:
+                print(f"⚠️ Erro ao detectar contador: {e}, aguardando 2s...")
+                await asyncio.sleep(2)
+
             images = []
 
             # Método 1: Itera pelos items da galeria (pv_id_X_item_0, item_1, item_2...)
