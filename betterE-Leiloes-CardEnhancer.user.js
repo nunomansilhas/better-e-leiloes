@@ -221,26 +221,26 @@
 
         /* Valores - Row 4 */
         .better-valores-row {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
-            gap: 8px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
             padding: 12px 16px;
             background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
             border-bottom: 1px solid #bae6fd;
+            justify-content: center;
+            align-items: center;
         }
 
         .better-valor-item {
             display: flex;
-            flex-direction: column;
-            gap: 2px;
+            align-items: center;
+            gap: 6px;
         }
 
         .better-valor-label {
-            font-size: 9px;
-            font-weight: 700;
-            text-transform: uppercase;
+            font-size: 11px;
+            font-weight: 600;
             color: #0369a1;
-            letter-spacing: 0.5px;
         }
 
         .better-valor-amount {
@@ -524,34 +524,24 @@
             galleryContainer.appendChild(imageBadge);
         }
 
-        // ===== ROW 3: DETALHES =====
+        // ===== ROW 3: DETALHES (APENAS MATRÍCULA PARA MÓVEIS) =====
         const det = apiData.detalhes || {};
         const icon = apiData.tipoEvento === 'movel' ? '🚗' : '🏠';
 
-        let detailsHTML = `
-            <div class="better-details-row">
-                <div class="better-icon-box">${icon}</div>
-                <div class="better-details-info">
-                    ${det.tipo ? `
-                        <div class="better-detail-item">
-                            <span class="better-detail-label">Tipo:</span>
-                            <span class="better-detail-value">${det.tipo}</span>
-                            ${det.subtipo ? `<span class="better-detail-value">- ${det.subtipo}</span>` : ''}
-                        </div>
-                    ` : ''}
-                    ${det.matricula ? `<div class="better-matricula-badge">🚙 ${det.matricula}</div>` : ''}
-                    ${det.tipologia ? `<div class="better-tipologia-badge">🏘️ ${det.tipologia}</div>` : ''}
-                    ${det.areaPrivativa ? `
-                        <div class="better-detail-item">
-                            <span class="better-detail-label">📐</span>
-                            <span class="better-detail-value">${det.areaPrivativa}m²</span>
-                        </div>
-                    ` : ''}
+        let detailsHTML = '';
+        // Só mostra detalhes para móveis (matrícula)
+        if (apiData.tipoEvento === 'movel' && det.matricula) {
+            detailsHTML = `
+                <div class="better-details-row">
+                    <div class="better-icon-box">${icon}</div>
+                    <div class="better-details-info">
+                        <div class="better-matricula-badge">🚙 ${det.matricula}</div>
+                    </div>
                 </div>
-            </div>
-        `;
+            `;
+        }
 
-        // ===== ROW 4: VALORES =====
+        // ===== ROW 4: VALORES (COM LEGENDAS) =====
         let valoresHTML = '';
         if (apiData.valores) {
             const v = apiData.valores;
@@ -559,25 +549,25 @@
                 <div class="better-valores-row">
                     ${v.valorBase ? `
                         <div class="better-valor-item">
-                            <div class="better-valor-label">VB</div>
+                            <div class="better-valor-label">Valor Base:</div>
                             <div class="better-valor-amount">${formatCurrency(v.valorBase)}</div>
                         </div>
                     ` : ''}
                     ${v.valorAbertura ? `
                         <div class="better-valor-item">
-                            <div class="better-valor-label">VA</div>
+                            <div class="better-valor-label">Valor Abertura:</div>
                             <div class="better-valor-amount">${formatCurrency(v.valorAbertura)}</div>
                         </div>
                     ` : ''}
                     ${v.valorMinimo ? `
                         <div class="better-valor-item">
-                            <div class="better-valor-label">VM</div>
+                            <div class="better-valor-label">Valor Mínimo:</div>
                             <div class="better-valor-amount">${formatCurrency(v.valorMinimo)}</div>
                         </div>
                     ` : ''}
                     ${v.lanceAtual ? `
                         <div class="better-valor-item">
-                            <div class="better-valor-label">LA</div>
+                            <div class="better-valor-label">Lance Atual:</div>
                             <div class="better-valor-amount">${formatCurrency(v.lanceAtual)}</div>
                         </div>
                     ` : ''}
@@ -585,43 +575,63 @@
             `;
         }
 
-        // ===== ROW 5: COUNTDOWN =====
+        // ===== ROW 5: COUNTDOWN OU DATAS =====
         let countdownHTML = '';
         if (apiData.dataFim) {
             const remaining = calculateTimeRemaining(apiData.dataFim);
             if (remaining) {
-                countdownHTML = `
-                    <div class="better-countdown-row">
-                        <div class="better-countdown">
-                            <span class="better-countdown-icon">⏱️</span>
-                            <span class="better-countdown-text">Termina em:</span>
-                            <span class="better-countdown-time ${remaining.isEnding ? 'ending-soon' : ''}">
-                                ${remaining.text}
-                            </span>
+                const now = new Date();
+                const end = new Date(apiData.dataFim);
+                const start = apiData.dataInicio ? new Date(apiData.dataInicio) : null;
+                const diffDays = Math.floor((end - now) / (1000 * 60 * 60 * 24));
+
+                // Se mais de 1 dia, mostra as datas
+                if (diffDays > 1 && start) {
+                    const formatDate = (date) => {
+                        return new Intl.DateTimeFormat('pt-PT', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        }).format(date);
+                    };
+
+                    countdownHTML = `
+                        <div class="better-countdown-row">
+                            <div class="better-countdown">
+                                <span class="better-countdown-icon">📅</span>
+                                <span class="better-countdown-text">De:</span>
+                                <span class="better-countdown-time">${formatDate(start)}</span>
+                                <span class="better-countdown-text">até:</span>
+                                <span class="better-countdown-time">${formatDate(end)}</span>
+                            </div>
                         </div>
-                    </div>
-                `;
+                    `;
+                } else {
+                    // Menos de 1 dia, mostra countdown
+                    countdownHTML = `
+                        <div class="better-countdown-row">
+                            <div class="better-countdown">
+                                <span class="better-countdown-icon">⏱️</span>
+                                <span class="better-countdown-text">Termina em:</span>
+                                <span class="better-countdown-time ${remaining.isEnding ? 'ending-soon' : ''}">
+                                    ${remaining.text}
+                                </span>
+                            </div>
+                        </div>
+                    `;
+                }
             }
         }
 
-        // ===== LOCALIZAÇÃO (OPCIONAL) =====
-        let locationHTML = '';
-        if (det.distrito || det.concelho || det.freguesia || (apiData.gps && apiData.gps.latitude)) {
-            locationHTML = `<div class="better-location-row">`;
-            if (det.distrito) locationHTML += `<span class="better-location-tag">📍 ${det.distrito}</span>`;
-            if (det.concelho) locationHTML += `<span class="better-location-tag">${det.concelho}</span>`;
-            if (det.freguesia) locationHTML += `<span class="better-location-tag">${det.freguesia}</span>`;
-            if (apiData.gps && apiData.gps.latitude) {
-                locationHTML += `<span class="better-gps-badge">🗺️ GPS: ${apiData.gps.latitude.toFixed(4)}, ${apiData.gps.longitude.toFixed(4)}</span>`;
-            }
-            locationHTML += `</div>`;
-        }
+        // Não adiciona localização - usa a nativa
 
         // Insere rows no card - usa o primeiro div filho
         const cardBody = card.querySelector('.w-full.border-1.surface-border.border-round');
         console.log('🔧 Card body found:', cardBody);
         if (cardBody) {
-            const newContent = detailsHTML + valoresHTML + countdownHTML + locationHTML;
+            const newContent = detailsHTML + valoresHTML + countdownHTML;
             console.log('🔧 New content length:', newContent.length, 'chars');
 
             // Adiciona o conteúdo DEPOIS do conteúdo nativo (não substitui)
