@@ -129,18 +129,30 @@
             border-radius: 8px;
             font-size: 11px;
             font-weight: 600;
-            cursor: pointer;
+            cursor: pointer !important;
             transition: all 0.2s ease;
-            display: flex;
+            display: inline-flex !important;
             align-items: center;
             gap: 4px;
             color: #374151;
+            text-decoration: none;
+            white-space: nowrap;
         }
 
         .better-btn:hover {
             background: #f9fafb;
             border-color: #d1d5db;
             transform: translateY(-1px);
+        }
+
+        .better-btn-map {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
+            color: white !important;
+            border: none !important;
+        }
+
+        .better-btn-map:hover {
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%) !important;
         }
 
         .better-btn-primary {
