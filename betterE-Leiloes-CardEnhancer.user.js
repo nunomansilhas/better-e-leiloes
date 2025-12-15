@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      4.1
+// @version      4.2
 // @description  Design moderno com carousel de imagens e distinção visual de tipos de leilão
 // @author       Nuno Mansilhas
 // @match        https://www.e-leiloes.pt/*
@@ -96,8 +96,14 @@
             pointer-events: none !important;
         }
 
-        .p-evento a {
+        .p-evento a:not(.pi-map-marker) {
             cursor: default !important;
+        }
+
+        /* GPS icon - permitir clique */
+        .p-evento a.pi-map-marker {
+            pointer-events: auto !important;
+            cursor: pointer !important;
         }
 
         /* Header do card - Row 1 */
@@ -699,7 +705,7 @@
                         gpsIcon.rel = 'noopener noreferrer';
                         gpsIcon.className = 'pi pi-map-marker text-primary-800 text-xl cursor-pointer';
                         gpsIcon.title = 'Ver no Google Maps';
-                        gpsIcon.onclick = (e) => e.stopPropagation();
+                        // Let the link work naturally - stopPropagation happens in card click handler
 
                         // Insere o ícone GPS ANTES da estrela de favoritos
                         const starIcon = rightContainer.querySelector('.pi-star');
@@ -938,12 +944,14 @@
         // Click no card inteiro abre em nova aba (SEM atualizar atual)
         card.style.cursor = 'pointer';
         card.addEventListener('click', (e) => {
+            // Ignora se clicou num botão ou no ícone GPS
+            if (e.target.closest('.better-btn')) return;
+            if (e.target.closest('.pi-map-marker')) return;
+            if (e.target.closest('.pi-star')) return; // Também ignora favoritos
+
             // Previne navegação padrão
             e.preventDefault();
             e.stopPropagation();
-
-            // Ignora se clicou num botão
-            if (e.target.closest('.better-btn')) return;
 
             // Abre APENAS em nova aba, não atualiza a atual
             window.open(eventUrl, '_blank');
@@ -976,7 +984,7 @@
     // ====================================
 
     function init() {
-        console.log('🚀 Better E-Leilões Card Enhancer v4.1');
+        console.log('🚀 Better E-Leilões Card Enhancer v4.2');
 
         createDashboardButton();
         enhanceAllCards();
@@ -986,7 +994,7 @@
             subtree: true
         });
 
-        console.log('✅ Card enhancer v4.1 ativo - GPS icon only!');
+        console.log('✅ Card enhancer v4.2 ativo - GPS icon clickable!');
     }
 
     if (document.readyState === 'loading') {
