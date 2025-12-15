@@ -42,6 +42,26 @@
             transform: translateY(-2px) !important;
         }
 
+        /* Esconde o body nativo para sobrepor com nosso conteúdo */
+        .p-evento[data-better-enhanced="true"] .p-evento-body {
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Esconde footer nativo */
+        .p-evento[data-better-enhanced="true"] .p-evento-footer {
+            display: none !important;
+        }
+
+        /* Fix para links abrirem em nova aba */
+        .p-evento a[href*="/evento/"] {
+            pointer-events: none !important;
+        }
+
+        .p-evento a {
+            cursor: default !important;
+        }
+
         /* Header do card - Row 1 */
         .better-card-header {
             display: flex;
@@ -329,11 +349,6 @@
             transform: scale(1.1);
             box-shadow: 0 6px 16px rgba(16, 185, 129, 0.6);
         }
-
-        /* Fix para links abrirem em nova aba */
-        .p-evento a[href*="/evento/"] {
-            pointer-events: none;
-        }
     `;
     document.head.appendChild(styles);
 
@@ -440,11 +455,18 @@
         // ===== LIMPA CARD E RECONSTRÓI =====
         card.style.position = 'relative';
 
-        // Remove links nativos que atualizam a página
+        // Remove COMPLETAMENTE os links nativos
         const nativeLinks = card.querySelectorAll('a[href*="/evento/"]');
         nativeLinks.forEach(link => {
             link.removeAttribute('href');
             link.style.cursor = 'default';
+            link.style.pointerEvents = 'none';
+            // Previne navegação
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            });
         });
 
         // ===== ROW 1: HEADER =====
@@ -605,13 +627,20 @@
             });
         }
 
-        // Click no card inteiro abre em nova aba
+        // Click no card inteiro abre em nova aba (SEM atualizar atual)
         card.style.cursor = 'pointer';
         card.addEventListener('click', (e) => {
+            // Previne navegação padrão
+            e.preventDefault();
+            e.stopPropagation();
+
             // Ignora se clicou num botão
             if (e.target.closest('.better-btn')) return;
+
+            // Abre APENAS em nova aba, não atualiza a atual
             window.open(eventUrl, '_blank');
-        });
+            return false;
+        }, true); // useCapture = true para capturar antes
     }
 
     // ====================================
