@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      1.0
-// @description  Melhora visualmente os cards nativos do e-leiloes.pt com dados da nossa API (SEM scraping)
+// @version      2.0
+// @description  Enriquece os cards com dados detalhados: GPS, localização, matrícula, tipologia, áreas, valores e imagens
 // @author       Nuno Mansilhas
 // @match        https://www.e-leiloes.pt/*
 // @icon         https://www.e-leiloes.pt/favicon.ico
@@ -43,15 +43,90 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
 
-        /* Indicador de GPS */
-        .better-gps-indicator {
+        /* Badge tipo de evento */
+        .better-tipo-badge {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 700;
+            z-index: 10;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .better-tipo-badge.movel {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        }
+
+        /* Painel de informações detalhadas */
+        .better-info-panel {
+            background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 10px;
+            border-left: 3px solid #10b981;
+            font-size: 11px;
+            line-height: 1.6;
+        }
+
+        .better-info-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 4px;
+        }
+
+        .better-info-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .better-info-icon {
+            font-size: 14px;
+            min-width: 18px;
+        }
+
+        .better-info-label {
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .better-info-value {
+            color: #1f2937;
+        }
+
+        /* Localização compacta */
+        .better-location {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-top: 6px;
+            font-size: 10px;
+        }
+
+        .better-location-item {
+            background: #e0f2fe;
+            color: #0369a1;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        /* GPS Coordenadas */
+        .better-gps-coords {
             display: inline-flex;
             align-items: center;
             gap: 4px;
-            color: #3b82f6;
-            font-size: 11px;
+            background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+            color: #1e40af;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 10px;
             font-weight: 600;
-            margin-top: 4px;
+            margin-top: 6px;
         }
 
         /* Botão flutuante para dashboard */
@@ -83,16 +158,33 @@
         /* Valores destacados */
         .better-value-highlight {
             background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-            padding: 6px 10px;
+            padding: 8px 10px;
             border-radius: 6px;
             border-left: 3px solid #3b82f6;
             margin-top: 8px;
-            font-size: 12px;
+            font-size: 11px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 6px;
         }
 
-        .better-value-highlight strong {
+        .better-value-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .better-value-label {
+            color: #64748b;
+            font-size: 9px;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 2px;
+        }
+
+        .better-value-amount {
             color: #1e40af;
             font-weight: 700;
+            font-size: 12px;
         }
 
         /* Contador de imagens */
@@ -100,13 +192,41 @@
             position: absolute;
             bottom: 8px;
             right: 8px;
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(0, 0, 0, 0.75);
             color: white;
             padding: 4px 8px;
             border-radius: 12px;
             font-size: 11px;
             font-weight: 600;
             z-index: 10;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* Matrícula destaque */
+        .better-matricula {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            color: #92400e;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 11px;
+            display: inline-block;
+            margin-top: 6px;
+            border: 1px solid #fbbf24;
+        }
+
+        /* Tipologia imóvel */
+        .better-tipologia {
+            background: linear-gradient(135deg, #ddd6fe 0%, #c4b5fd 100%);
+            color: #5b21b6;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 11px;
+            display: inline-block;
+            margin-top: 6px;
         }
     `;
     document.head.appendChild(styles);
@@ -178,56 +298,130 @@
             // Badge verde = dados disponíveis na nossa BD
             const badge = document.createElement('div');
             badge.className = 'better-badge';
-            badge.textContent = '✓ Dados';
-            badge.title = 'Evento está na nossa base de dados';
+            badge.textContent = '✓ BD';
+            badge.title = 'Evento na nossa base de dados';
             card.appendChild(badge);
 
-            // Se tem GPS, adiciona indicador
-            if (apiData.gps && apiData.gps.latitude && apiData.gps.longitude) {
-                const gpsIndicator = document.createElement('div');
-                gpsIndicator.className = 'better-gps-indicator';
-                gpsIndicator.innerHTML = `📍 GPS Disponível`;
-                gpsIndicator.title = `Lat: ${apiData.gps.latitude}, Lon: ${apiData.gps.longitude}`;
-
-                // Insere no card (procura um bom lugar)
-                const cardBody = card.querySelector('.p-evento-body') || card;
-                cardBody.appendChild(gpsIndicator);
-            }
+            // Badge do tipo de evento (móvel/imóvel)
+            const tipoBadge = document.createElement('div');
+            tipoBadge.className = `better-tipo-badge ${apiData.tipoEvento}`;
+            tipoBadge.textContent = apiData.tipoEvento === 'movel' ? '🚗 Móvel' : '🏠 Imóvel';
+            tipoBadge.title = `Tipo: ${apiData.tipoEvento}`;
+            card.appendChild(tipoBadge);
 
             // Se tem imagens, mostra contador
             if (apiData.imagens && apiData.imagens.length > 0) {
                 const imageCount = document.createElement('div');
                 imageCount.className = 'better-image-count';
-                imageCount.textContent = `📷 ${apiData.imagens.length}`;
+                imageCount.innerHTML = `📷 ${apiData.imagens.length}`;
                 imageCount.title = `${apiData.imagens.length} imagens disponíveis`;
                 card.appendChild(imageCount);
             }
 
-            // Destaca valores se disponíveis
-            if (apiData.valores && apiData.valores.valorBase) {
-                const valuesSection = card.querySelector('.p-evento-footer, .p-evento-body');
-                if (valuesSection) {
-                    const highlight = document.createElement('div');
-                    highlight.className = 'better-value-highlight';
+            // Procura local para inserir o painel
+            const cardBody = card.querySelector('.p-evento-body') || card;
 
-                    let html = '';
-                    if (apiData.valores.valorBase) {
-                        html += `<strong>Base:</strong> ${formatCurrency(apiData.valores.valorBase)} `;
-                    }
-                    if (apiData.valores.lanceAtual) {
-                        html += `<strong>Atual:</strong> ${formatCurrency(apiData.valores.lanceAtual)}`;
-                    }
+            // ===== PAINEL DE INFORMAÇÕES =====
+            const infoPanel = document.createElement('div');
+            infoPanel.className = 'better-info-panel';
 
-                    highlight.innerHTML = html;
-                    valuesSection.appendChild(highlight);
+            let panelHTML = '';
+
+            // DETALHES (Tipo, Subtipo, etc.)
+            if (apiData.detalhes) {
+                const det = apiData.detalhes;
+
+                // Tipo e Subtipo
+                if (det.tipo || det.subtipo) {
+                    panelHTML += `<div class="better-info-row">`;
+                    panelHTML += `<span class="better-info-icon">🏷️</span>`;
+                    panelHTML += `<span class="better-info-label">Tipo:</span>`;
+                    panelHTML += `<span class="better-info-value">${det.tipo || 'N/A'}`;
+                    if (det.subtipo) panelHTML += ` - ${det.subtipo}`;
+                    panelHTML += `</span></div>`;
                 }
+
+                // Matrícula (Móveis)
+                if (det.matricula) {
+                    panelHTML += `<div class="better-matricula">🚙 ${det.matricula}</div>`;
+                }
+
+                // Tipologia (Imóveis)
+                if (det.tipologia) {
+                    panelHTML += `<div class="better-tipologia">🏘️ ${det.tipologia}</div>`;
+                }
+
+                // Áreas (Imóveis)
+                if (det.areaPrivativa || det.areaTotal) {
+                    panelHTML += `<div class="better-info-row">`;
+                    panelHTML += `<span class="better-info-icon">📐</span>`;
+                    panelHTML += `<span class="better-info-label">Área:</span>`;
+                    panelHTML += `<span class="better-info-value">`;
+                    if (det.areaPrivativa) panelHTML += `${det.areaPrivativa}m²`;
+                    if (det.areaTotal && det.areaTotal !== det.areaPrivativa) {
+                        panelHTML += ` (Total: ${det.areaTotal}m²)`;
+                    }
+                    panelHTML += `</span></div>`;
+                }
+
+                // Localização (Distrito/Concelho/Freguesia)
+                if (det.distrito || det.concelho || det.freguesia) {
+                    panelHTML += `<div class="better-location">`;
+                    if (det.distrito) panelHTML += `<span class="better-location-item">${det.distrito}</span>`;
+                    if (det.concelho) panelHTML += `<span class="better-location-item">${det.concelho}</span>`;
+                    if (det.freguesia) panelHTML += `<span class="better-location-item">${det.freguesia}</span>`;
+                    panelHTML += `</div>`;
+                }
+            }
+
+            // GPS
+            if (apiData.gps && apiData.gps.latitude && apiData.gps.longitude) {
+                panelHTML += `<div class="better-gps-coords">`;
+                panelHTML += `📍 GPS: ${apiData.gps.latitude.toFixed(5)}, ${apiData.gps.longitude.toFixed(5)}`;
+                panelHTML += `</div>`;
+            }
+
+            infoPanel.innerHTML = panelHTML;
+            cardBody.appendChild(infoPanel);
+
+            // ===== VALORES =====
+            if (apiData.valores) {
+                const valuesSection = card.querySelector('.p-evento-footer') || cardBody;
+                const highlight = document.createElement('div');
+                highlight.className = 'better-value-highlight';
+
+                let valuesHTML = '';
+                if (apiData.valores.valorBase) {
+                    valuesHTML += `<div class="better-value-item">
+                        <span class="better-value-label">Base</span>
+                        <span class="better-value-amount">${formatCurrency(apiData.valores.valorBase)}</span>
+                    </div>`;
+                }
+                if (apiData.valores.valorAbertura) {
+                    valuesHTML += `<div class="better-value-item">
+                        <span class="better-value-label">Abertura</span>
+                        <span class="better-value-amount">${formatCurrency(apiData.valores.valorAbertura)}</span>
+                    </div>`;
+                }
+                if (apiData.valores.lanceAtual) {
+                    valuesHTML += `<div class="better-value-item">
+                        <span class="better-value-label">Lance Atual</span>
+                        <span class="better-value-amount">${formatCurrency(apiData.valores.lanceAtual)}</span>
+                    </div>`;
+                }
+                if (apiData.valores.valorMinimo) {
+                    valuesHTML += `<div class="better-value-item">
+                        <span class="better-value-label">Mínimo</span>
+                        <span class="better-value-amount">${formatCurrency(apiData.valores.valorMinimo)}</span>
+                    </div>`;
+                }
+
+                highlight.innerHTML = valuesHTML;
+                valuesSection.appendChild(highlight);
             }
         } else {
             // ====== SEM DADOS DA API - APENAS MELHORIAS VISUAIS ======
-
             // Pode adicionar melhorias visuais mesmo sem API
-            // Por exemplo, formatar melhor os valores que já existem no card nativo
-            // (Implementar conforme necessário)
         }
     }
 
@@ -264,7 +458,7 @@
     // ====================================
 
     function init() {
-        console.log('🚀 Better E-Leilões Card Enhancer v1.0');
+        console.log('🚀 Better E-Leilões Card Enhancer v2.0');
 
         // Cria botão flutuante
         createDashboardButton();
@@ -278,7 +472,7 @@
             subtree: true
         });
 
-        console.log('✅ Card enhancer ativo');
+        console.log('✅ Card enhancer v2.0 ativo - Mostrando GPS, localização, matrícula, tipologia e muito mais!');
     }
 
     // Aguarda DOM estar pronto
