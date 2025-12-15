@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      3.4
+// @version      3.5
 // @description  Design moderno com carousel de imagens e distinção visual de tipos de leilão
 // @author       Nuno Mansilhas
 // @match        https://www.e-leiloes.pt/*
@@ -50,9 +50,9 @@
             border-radius: 0 !important;
         }
 
-        /* Padroniza todas as fontes dentro do card */
+        /* Padroniza todas as fontes dentro do card, EXCETO ícones */
         .p-evento[data-better-enhanced="true"],
-        .p-evento[data-better-enhanced="true"] * {
+        .p-evento[data-better-enhanced="true"] *:not([class*="pi-"]):not(i) {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
         }
 
@@ -693,14 +693,7 @@
                         ${apiData.tipoEvento === 'movel' ? '🚗' : '🏠'}
                         ${apiData.tipoEvento === 'movel' ? 'Móvel' : 'Imóvel'}
                     </div>
-                    ${hasGPS ? `
-                        <button class="better-btn better-btn-map"
-                                data-lat="${apiData.gps.latitude}"
-                                data-lon="${apiData.gps.longitude}"
-                                style="display: inline-flex !important; visibility: visible !important; opacity: 1 !important; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important; color: white !important; border: none !important; padding: 6px 12px; border-radius: 8px; font-size: 11px; font-weight: 600; cursor: pointer; align-items: center; gap: 4px; white-space: nowrap; position: relative; z-index: 999;">
-                            📍 Mapa
-                        </button>
-                    ` : ''}
+                    ${hasGPS ? `<button class="better-btn better-btn-map" data-lat="${apiData.gps.latitude}" data-lon="${apiData.gps.longitude}" style="display: inline-flex !important; visibility: visible !important; opacity: 1 !important; background: #ef4444 !important; color: white !important; border: none !important; padding: 6px 12px !important; border-radius: 8px !important; font-size: 11px !important; font-weight: 600 !important; cursor: pointer !important; align-items: center !important; gap: 4px !important; white-space: nowrap !important; min-width: 60px !important; height: auto !important;">📍 Mapa</button>` : ''}
                     <button class="better-btn better-btn-primary" data-url="${eventUrl}">
                         👁️ Ver Mais
                     </button>
@@ -1004,7 +997,7 @@
     // ====================================
 
     function init() {
-        console.log('🚀 Better E-Leilões Card Enhancer v3.4');
+        console.log('🚀 Better E-Leilões Card Enhancer v3.5');
 
         createDashboardButton();
         enhanceAllCards();
@@ -1014,7 +1007,7 @@
             subtree: true
         });
 
-        console.log('✅ Card enhancer v3.4 ativo - GPS button with inline styles, unified fonts!');
+        console.log('✅ Card enhancer v3.5 ativo - Icon fonts fixed, GPS button simplified!');
     }
 
     if (document.readyState === 'loading') {
