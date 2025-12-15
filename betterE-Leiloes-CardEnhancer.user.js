@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      3.2
+// @version      3.3
 // @description  Design moderno com carousel de imagens e distinção visual de tipos de leilão
 // @author       Nuno Mansilhas
 // @match        https://www.e-leiloes.pt/*
@@ -115,9 +115,11 @@
         }
 
         .better-header-actions {
-            display: flex;
+            display: flex !important;
             gap: 8px;
             align-items: center;
+            flex-wrap: nowrap;
+            visibility: visible !important;
         }
 
         .better-tipo-badge {
@@ -151,6 +153,10 @@
             color: #374151;
             text-decoration: none;
             white-space: nowrap;
+            visibility: visible !important;
+            opacity: 1 !important;
+            z-index: 2 !important;
+            position: relative !important;
         }
 
         .better-btn:hover {
@@ -163,6 +169,9 @@
             background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
             color: white !important;
             border: none !important;
+            display: inline-flex !important;
+            visibility: visible !important;
+            opacity: 1 !important;
         }
 
         .better-btn-map:hover {
@@ -640,6 +649,13 @@
                 console.log(`🎨 Native reference colored: ${prefix} (${prefixClass})`);
             }
 
+            // ===== REMOVE CLASSES DE BORDA DO DIV NATIVO =====
+            const nativeCardBody = card.querySelector('.w-full.border-1.surface-border.border-round');
+            if (nativeCardBody) {
+                nativeCardBody.classList.remove('border-1', 'surface-border', 'border-round');
+                console.log('🔧 Border classes removed from native div');
+            }
+
             // ===== ROW 1: HEADER =====
             const refPrefix = reference.substring(0, 2);
             const refRest = reference.substring(2);
@@ -647,6 +663,10 @@
             console.log('🗺️ GPS data:', apiData.gps);
             const hasGPS = apiData.gps && apiData.gps.latitude && apiData.gps.latitude !== 0;
             console.log('🗺️ Has valid GPS:', hasGPS);
+
+            if (hasGPS) {
+                console.log(`🗺️ Creating GPS button with coords: ${apiData.gps.latitude}, ${apiData.gps.longitude}`);
+            }
 
             let headerHTML = `
             <div class="better-card-header">
@@ -676,6 +696,22 @@
         console.log('🔧 Header HTML created:', headerDiv.innerHTML.length, 'chars');
         card.insertBefore(headerDiv.firstChild, firstChild);
         console.log('✅ Header inserted');
+
+        // Verifica se o botão GPS está presente no DOM
+        if (hasGPS) {
+            const mapBtnCheck = card.querySelector('.better-btn-map');
+            console.log('🔍 GPS button in DOM:', mapBtnCheck);
+            if (mapBtnCheck) {
+                const styles = window.getComputedStyle(mapBtnCheck);
+                console.log('🎨 GPS button styles:', {
+                    display: styles.display,
+                    visibility: styles.visibility,
+                    opacity: styles.opacity,
+                    width: styles.width,
+                    height: styles.height
+                });
+            }
+        }
 
         // ===== ROW 2: CAROUSEL DE IMAGENS =====
         const galleryContainer = card.querySelector('.p-galleria, .p-evento-header');
@@ -948,7 +984,7 @@
     // ====================================
 
     function init() {
-        console.log('🚀 Better E-Leilões Card Enhancer v3.2');
+        console.log('🚀 Better E-Leilões Card Enhancer v3.3');
 
         createDashboardButton();
         enhanceAllCards();
@@ -958,7 +994,7 @@
             subtree: true
         });
 
-        console.log('✅ Card enhancer v3.2 ativo - Com carousel e tipos de leilão coloridos!');
+        console.log('✅ Card enhancer v3.3 ativo - Com GPS maps, carousel e tipos de leilão coloridos!');
     }
 
     if (document.readyState === 'loading') {
