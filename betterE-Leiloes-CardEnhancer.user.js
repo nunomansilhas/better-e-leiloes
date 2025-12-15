@@ -42,14 +42,13 @@
             transform: translateY(-2px) !important;
         }
 
-        /* Esconde o body nativo para sobrepor com nosso conteúdo */
-        .p-evento[data-better-enhanced="true"] .p-evento-body {
-            position: relative;
-            z-index: 1;
+        /* Esconde os elementos nativos que vamos substituir */
+        .p-evento[data-better-enhanced="true"] .flex.align-items-center.justify-content-between.mt-2 {
+            display: none !important;
         }
 
-        /* Esconde footer nativo */
-        .p-evento[data-better-enhanced="true"] .p-evento-footer {
+        /* Esconde os valores nativos na parte inferior */
+        .p-evento[data-better-enhanced="true"] .surface-100.border-round-bottom {
             display: none !important;
         }
 
@@ -618,16 +617,21 @@
             locationHTML += `</div>`;
         }
 
-        // Insere rows no card
-        const cardBody = card.querySelector('.p-evento-body');
+        // Insere rows no card - usa o primeiro div filho
+        const cardBody = card.querySelector('.w-full.border-1.surface-border.border-round');
         console.log('🔧 Card body found:', cardBody);
         if (cardBody) {
             const newContent = detailsHTML + valoresHTML + countdownHTML + locationHTML;
             console.log('🔧 New content length:', newContent.length, 'chars');
-            cardBody.innerHTML = newContent;
+
+            // Adiciona o conteúdo DEPOIS do conteúdo nativo (não substitui)
+            const contentWrapper = document.createElement('div');
+            contentWrapper.className = 'better-card-content';
+            contentWrapper.innerHTML = newContent;
+            cardBody.appendChild(contentWrapper);
             console.log('✅ Card body updated');
         } else {
-            console.error('❌ Card body (.p-evento-body) not found!');
+            console.error('❌ Card body (.w-full.border-1) not found!');
         }
 
         // ===== EVENT HANDLERS =====
