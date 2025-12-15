@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      4.2
+// @version      4.3
 // @description  Design moderno com carousel de imagens e distinção visual de tipos de leilão
 // @author       Nuno Mansilhas
 // @match        https://www.e-leiloes.pt/*
@@ -96,14 +96,19 @@
             pointer-events: none !important;
         }
 
-        .p-evento a:not(.pi-map-marker) {
+        .p-evento a:not(.pi-map) {
             cursor: default !important;
         }
 
         /* GPS icon - permitir clique */
-        .p-evento a.pi-map-marker {
+        .p-evento a.pi-map {
             pointer-events: auto !important;
             cursor: pointer !important;
+            transition: transform 0.2s ease;
+        }
+
+        .p-evento a.pi-map:hover {
+            transform: scale(1.2);
         }
 
         /* Header do card - Row 1 */
@@ -703,8 +708,9 @@
                         gpsIcon.href = mapsUrl;
                         gpsIcon.target = '_blank';
                         gpsIcon.rel = 'noopener noreferrer';
-                        gpsIcon.className = 'pi pi-map-marker text-primary-800 text-xl cursor-pointer';
+                        gpsIcon.className = 'pi pi-map text-primary-800 text-xl cursor-pointer';
                         gpsIcon.title = 'Ver no Google Maps';
+                        gpsIcon.style.textDecoration = 'none';
                         // Let the link work naturally - stopPropagation happens in card click handler
 
                         // Insere o ícone GPS ANTES da estrela de favoritos
@@ -944,19 +950,23 @@
         // Click no card inteiro abre em nova aba (SEM atualizar atual)
         card.style.cursor = 'pointer';
         card.addEventListener('click', (e) => {
-            // Ignora se clicou num botão ou no ícone GPS
+            // PRIMEIRO verifica se clicou em algo que deve ignorar
+            // Se clicou no GPS, star ou botão - NÃO faz nada (deixa o comportamento nativo)
+            if (e.target.closest('.pi-map')) {
+                console.log('🗺️ GPS icon clicked - letting default behavior work');
+                return; // Return early, don't preventDefault
+            }
+            if (e.target.closest('.pi-star')) return;
             if (e.target.closest('.better-btn')) return;
-            if (e.target.closest('.pi-map-marker')) return;
-            if (e.target.closest('.pi-star')) return; // Também ignora favoritos
 
-            // Previne navegação padrão
+            // APENAS previne default se NÃO clicou nos elementos acima
             e.preventDefault();
             e.stopPropagation();
 
             // Abre APENAS em nova aba, não atualiza a atual
             window.open(eventUrl, '_blank');
             return false;
-        }, true); // useCapture = true para capturar antes
+        });
 
         console.log(`✨ Card enhancement complete for ${reference}`);
 
@@ -984,7 +994,7 @@
     // ====================================
 
     function init() {
-        console.log('🚀 Better E-Leilões Card Enhancer v4.2');
+        console.log('🚀 Better E-Leilões Card Enhancer v4.3');
 
         createDashboardButton();
         enhanceAllCards();
@@ -994,7 +1004,7 @@
             subtree: true
         });
 
-        console.log('✅ Card enhancer v4.2 ativo - GPS icon clickable!');
+        console.log('✅ Card enhancer v4.3 ativo - Better GPS icon with hover!');
     }
 
     if (document.readyState === 'loading') {
