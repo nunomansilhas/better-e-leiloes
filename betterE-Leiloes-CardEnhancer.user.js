@@ -1,12 +1,14 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      3.0
+// @version      3.1
 // @description  Design moderno e organizado para os cards com layout melhorado e navegação otimizada
 // @author       Nuno Mansilhas
 // @match        https://www.e-leiloes.pt/*
 // @icon         https://www.e-leiloes.pt/favicon.ico
 // @grant        none
+// @updateURL    https://raw.githubusercontent.com/nunomansilhas/better-e-leiloes/main/betterE-Leiloes-CardEnhancer.user.js
+// @downloadURL  https://raw.githubusercontent.com/nunomansilhas/better-e-leiloes/main/betterE-Leiloes-CardEnhancer.user.js
 // ==/UserScript==
 
 (function() {
@@ -52,6 +54,17 @@
             display: none !important;
         }
 
+        /* Centraliza o título do evento */
+        .p-evento[data-better-enhanced="true"] .flex.align-items-start.px-3.pt-1 {
+            text-align: center;
+            justify-content: center;
+        }
+
+        .p-evento[data-better-enhanced="true"] .text-sm.font-semibold {
+            text-align: center;
+            width: 100%;
+        }
+
         /* Fix para links abrirem em nova aba */
         .p-evento a[href*="/evento/"] {
             pointer-events: none !important;
@@ -80,6 +93,11 @@
             font-size: 12px;
             letter-spacing: 0.5px;
             box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+        }
+
+        .better-ref-badge .ref-prefix {
+            color: #fbbf24;
+            font-weight: 800;
         }
 
         .better-header-actions {
@@ -221,20 +239,35 @@
 
         /* Valores - Row 4 */
         .better-valores-row {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 16px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
             padding: 12px 16px;
-            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-            border-bottom: 1px solid #bae6fd;
-            justify-content: center;
-            align-items: center;
+            background: white;
         }
 
         .better-valor-item {
             display: flex;
             align-items: center;
+            justify-content: center;
             gap: 6px;
+            padding: 8px 12px;
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            border-radius: 8px;
+            border: 1px solid #bae6fd;
+        }
+
+        .better-valor-item.lance-atual {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border-color: #fbbf24;
+        }
+
+        .better-valor-item.lance-atual .better-valor-label {
+            color: #92400e;
+        }
+
+        .better-valor-item.lance-atual .better-valor-amount {
+            color: #78350f;
         }
 
         .better-valor-label {
@@ -255,7 +288,7 @@
             background: white;
             display: flex;
             align-items: center;
-            justify-content: space-between;
+            justify-content: center;
         }
 
         .better-countdown {
@@ -484,9 +517,11 @@
             });
 
             // ===== ROW 1: HEADER =====
+            const refPrefix = reference.substring(0, 2);
+            const refRest = reference.substring(2);
             let headerHTML = `
             <div class="better-card-header">
-                <div class="better-ref-badge">${reference}</div>
+                <div class="better-ref-badge"><span class="ref-prefix">${refPrefix}</span>${refRest}</div>
                 <div class="better-header-actions">
                     <div class="better-tipo-badge ${apiData.tipoEvento}">
                         ${apiData.tipoEvento === 'movel' ? '🚗' : '🏠'}
@@ -524,16 +559,14 @@
             galleryContainer.appendChild(imageBadge);
         }
 
-        // ===== ROW 3: DETALHES (APENAS MATRÍCULA PARA MÓVEIS) =====
+        // ===== ROW 3: DETALHES (APENAS MATRÍCULA PARA MÓVEIS, SEM ÍCONE) =====
         const det = apiData.detalhes || {};
-        const icon = apiData.tipoEvento === 'movel' ? '🚗' : '🏠';
 
         let detailsHTML = '';
         // Só mostra detalhes para móveis (matrícula)
         if (apiData.tipoEvento === 'movel' && det.matricula) {
             detailsHTML = `
                 <div class="better-details-row">
-                    <div class="better-icon-box">${icon}</div>
                     <div class="better-details-info">
                         <div class="better-matricula-badge">🚙 ${det.matricula}</div>
                     </div>
@@ -541,7 +574,7 @@
             `;
         }
 
-        // ===== ROW 4: VALORES (COM LEGENDAS) =====
+        // ===== ROW 4: VALORES (COM LEGENDAS, 2x2 GRID) =====
         let valoresHTML = '';
         if (apiData.valores) {
             const v = apiData.valores;
@@ -565,12 +598,10 @@
                             <div class="better-valor-amount">${formatCurrency(v.valorMinimo)}</div>
                         </div>
                     ` : ''}
-                    ${v.lanceAtual ? `
-                        <div class="better-valor-item">
-                            <div class="better-valor-label">Lance Atual:</div>
-                            <div class="better-valor-amount">${formatCurrency(v.lanceAtual)}</div>
-                        </div>
-                    ` : ''}
+                    <div class="better-valor-item lance-atual">
+                        <div class="better-valor-label">Lance Atual:</div>
+                        <div class="better-valor-amount">${v.lanceAtual ? formatCurrency(v.lanceAtual) : '0,00 €'}</div>
+                    </div>
                 </div>
             `;
         }
