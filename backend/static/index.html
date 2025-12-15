@@ -1913,9 +1913,12 @@
 
         async function updateScraperStatus() {
             try {
-                const response = await fetch(`${API_BASE}/scrape/status`);
+                const response = await fetch(`${API_BASE}/api/scrape/status`);
+                if (!response.ok) return; // Silently fail if endpoint doesn't exist
+
                 const status = await response.json();
 
+                // These elements were removed - skip if not present
                 const statusDiv = document.getElementById('scraper-status');
                 const statusText = document.getElementById('scraper-status-text');
                 const progressDiv = document.getElementById('scraper-progress');
@@ -1925,24 +1928,24 @@
                 const btnStart = document.getElementById('btn-start-scraper');
                 const btnStop = document.getElementById('btn-stop-scraper');
 
+                if (!statusDiv) return; // Elements don't exist, skip update
+
                 if (status.is_running) {
                     // Scraper is running
                     statusDiv.className = 'scraper-status running';
-                    statusText.textContent = 'A correr';
-                    progressDiv.classList.add('active');
-                    btnStart.disabled = true;
-                    btnStop.disabled = false;
-                    btnStart.innerHTML = '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 18px; height: 18px;"><path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Iniciar';
-                    btnStop.innerHTML = '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 18px; height: 18px;"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"/></svg>Parar';
+                    if (statusText) statusText.textContent = 'A correr';
+                    if (progressDiv) progressDiv.classList.add('active');
+                    if (btnStart) btnStart.disabled = true;
+                    if (btnStop) btnStop.disabled = false;
 
                     // Update progress
                     const processed = status.events_processed || 0;
                     const failed = status.events_failed || 0;
                     const currentPage = status.current_page || 0;
 
-                    progressText.textContent = `Página ${currentPage} • ${failed} falhas`;
-                    progressCount.textContent = `${processed} eventos processados`;
-                    progressFill.style.width = '100%'; // Indeterminate progress
+                    if (progressText) progressText.textContent = `Página ${currentPage} • ${failed} falhas`;
+                    if (progressCount) progressCount.textContent = `${processed} eventos processados`;
+                    if (progressFill) progressFill.style.width = '100%'; // Indeterminate progress
 
                     // Continue polling
                     if (!scraperPollInterval) {
@@ -1951,12 +1954,10 @@
                 } else {
                     // Scraper is stopped
                     statusDiv.className = 'scraper-status stopped';
-                    statusText.textContent = 'Parado';
-                    progressDiv.classList.remove('active');
-                    btnStart.disabled = false;
-                    btnStop.disabled = true;
-                    btnStart.innerHTML = '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 18px; height: 18px;"><path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Iniciar';
-                    btnStop.innerHTML = '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 18px; height: 18px;"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"/></svg>Parar';
+                    if (statusText) statusText.textContent = 'Parado';
+                    if (progressDiv) progressDiv.classList.remove('active');
+                    if (btnStart) btnStart.disabled = false;
+                    if (btnStop) btnStop.disabled = true;
 
                     // Stop polling
                     stopStatusPolling();
@@ -2899,7 +2900,7 @@
             const pages = document.getElementById('independent-pages').value;
 
             try {
-                addConsoleLog(`▶ Executando scraper: ${type}`, 'info');
+                addLog(`▶ Executando scraper: ${type.toUpperCase()}`, 'info');
 
                 let url, message;
 
@@ -2908,14 +2909,14 @@
                         url = `${API_BASE}/api/scrape/stage1/ids?`;
                         if (tipo) url += `tipo=${tipo}&`;
                         if (pages) url += `max_pages=${pages}`;
-                        message = 'A obter IDs...';
+                        message = '🔍 Stage 1: A obter IDs...';
                         break;
 
                     case 'recheck':
                         url = `${API_BASE}/api/scrape/smart/new-events?`;
                         if (tipo) url += `tipo=${tipo}&`;
                         if (pages) url += `max_pages=${pages}`;
-                        message = 'A verificar novos eventos...';
+                        message = '🔄 Smart Scraping: A verificar novos eventos...';
                         break;
 
                     case 'content':
@@ -2925,12 +2926,12 @@
                         const references = refsData.events.map(e => e.reference);
 
                         if (references.length === 0) {
-                            alert('⚠️ Nenhum evento na BD. Execute "Scrape IDs" primeiro.');
+                            showModal('⚠️ Aviso', 'Nenhum evento na BD. Execute "Scrape IDs" primeiro.');
                             return;
                         }
 
                         url = `${API_BASE}/api/scrape/stage2/details?save_to_db=true&` + references.map(ref => `references=${encodeURIComponent(ref)}`).join('&');
-                        message = `A extrair detalhes de ${references.length} eventos...`;
+                        message = `📋 Stage 2: A extrair detalhes de ${references.length} eventos...`;
                         break;
 
                     case 'images':
@@ -2940,25 +2941,26 @@
                         const imgReferences = imgRefsData.events.map(e => e.reference);
 
                         if (imgReferences.length === 0) {
-                            alert('⚠️ Nenhum evento na BD. Execute "Scrape IDs" primeiro.');
+                            showModal('⚠️ Aviso', 'Nenhum evento na BD. Execute "Scrape IDs" primeiro.');
                             return;
                         }
 
                         url = `${API_BASE}/api/scrape/stage3/images?` + imgReferences.map(ref => `references=${encodeURIComponent(ref)}`).join('&');
-                        message = `A fazer download de imagens de ${imgReferences.length} eventos...`;
+                        message = `🖼️ Stage 3: A fazer download de imagens de ${imgReferences.length} eventos...`;
                         break;
 
                     default:
                         throw new Error('Tipo de scraper desconhecido');
                 }
 
-                addConsoleLog(message, 'info');
+                addLog(message, 'info');
 
                 const response = await fetch(url, { method: 'POST' });
                 const data = await response.json();
 
                 if (response.ok) {
-                    addConsoleLog(`✅ ${type.toUpperCase()}: ${data.message || 'Concluído!'}`, 'success');
+                    addLog(`✅ ${type.toUpperCase()}: ${data.message || 'Concluído!'}`, 'success');
+                    addLog(`📊 Total: ${data.total_scraped || data.new_events || 0} eventos`, 'info');
 
                     // Reload dashboard after scraping
                     setTimeout(() => loadDashboard(), 1000);
@@ -2967,8 +2969,8 @@
                 }
 
             } catch (error) {
-                addConsoleLog(`❌ Erro no scraper ${type}: ${error.message}`, 'error');
-                alert(`❌ Erro:\n${error.message}`);
+                addLog(`❌ Erro no scraper ${type}: ${error.message}`, 'error');
+                showModal('❌ Erro', error.message);
             }
         }
 
@@ -2981,6 +2983,8 @@
                 btn.disabled = true;
                 btn.textContent = '⏳ A executar...';
 
+                addLog('🚀 Pipeline: Iniciando pipeline completo...', 'info');
+
                 // Reset pipeline visualization
                 updatePipelineStage(1, 'active', 0);
                 updatePipelineStage(2, 'pending', 0);
@@ -2989,8 +2993,10 @@
 
                 // Show feedback box
                 const feedbackBox = document.getElementById('pipeline-feedback');
-                feedbackBox.style.display = 'block';
-                updateFeedback('Stage 1: Descobrindo IDs...', 0, 0);
+                if (feedbackBox) {
+                    feedbackBox.style.display = 'block';
+                    updateFeedback('Stage 1: Descobrindo IDs...', 0, 0);
+                }
 
                 let url = `${API_BASE}/api/scrape/pipeline?`;
                 if (tipo) url += `tipo=${tipo}&`;
@@ -3000,39 +3006,45 @@
                 const data = await response.json();
 
                 if (response.ok) {
-                    // Simulate pipeline stages (you can replace with real-time updates)
-                    setTimeout(() => {
-                        updatePipelineStage(1, 'completed', data.message.includes('401') ? 401 : 0);
-                        updatePipelineProgress(33);
-                        updatePipelineStage(2, 'active', 0);
-                        updateFeedback('Stage 2: Extraindo detalhes...', 0, 401);
-                    }, 2000);
+                    addLog(`🔍 Stage 1: ${data.stage1?.total || 0} IDs descobertos`, 'success');
+
+                    // Update Stage 1 with real data
+                    updatePipelineStage(1, 'completed', data.stage1?.total || 0);
+                    updatePipelineProgress(33);
+                    updatePipelineStage(2, 'active', 0);
+                    if (feedbackBox) updateFeedback('Stage 2: Extraindo detalhes...', 0, data.stage1?.total || 0);
 
                     setTimeout(() => {
-                        updatePipelineStage(2, 'completed', 401);
+                        addLog(`📋 Stage 2: ${data.stage2?.total || 0} eventos processados`, 'success');
+                        updatePipelineStage(2, 'completed', data.stage2?.total || 0);
                         updatePipelineProgress(66);
                         updatePipelineStage(3, 'active', 0);
-                        updateFeedback('Stage 3: Download de imagens...', 0, 401);
-                    }, 4000);
+                        if (feedbackBox) updateFeedback('Stage 3: Download de imagens...', 0, data.stage2?.total || 0);
+                    }, 1000);
 
                     setTimeout(() => {
-                        updatePipelineStage(3, 'completed', 401);
+                        addLog(`🖼️ Stage 3: ${data.stage3?.total || 0} conjuntos de imagens`, 'success');
+                        updatePipelineStage(3, 'completed', data.stage3?.total || 0);
                         updatePipelineProgress(100);
-                        updateFeedback('✅ Pipeline concluído!', 401, 401);
+                        if (feedbackBox) updateFeedback('✅ Pipeline concluído!', data.stage3?.total || 0, data.stage3?.total || 0);
 
                         setTimeout(() => {
-                            feedbackBox.style.display = 'none';
+                            if (feedbackBox) feedbackBox.style.display = 'none';
                             loadDashboard();
+                            addLog('✅ Pipeline: Concluído com sucesso!', 'success');
+                            showModal('✅ Sucesso', data.message || 'Pipeline executado com sucesso!');
                         }, 2000);
-                    }, 6000);
+                    }, 2000);
 
                 } else {
                     throw new Error(data.detail || 'Erro desconhecido');
                 }
 
             } catch (error) {
-                alert(`❌ Erro:\n${error.message}`);
-                document.getElementById('pipeline-feedback').style.display = 'none';
+                addLog(`❌ Pipeline: ${error.message}`, 'error');
+                showModal('❌ Erro', error.message);
+                const feedbackBox = document.getElementById('pipeline-feedback');
+                if (feedbackBox) feedbackBox.style.display = 'none';
             } finally {
                 btn.disabled = false;
                 btn.textContent = '▶ Executar Pipeline';
@@ -3163,6 +3175,37 @@
             }
         }
 
+        // Generic Modal Functions
+        function showModal(title, message) {
+            const modal = document.getElementById('generic-modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalMessage = document.getElementById('modal-message');
+            const modalIcon = document.getElementById('modal-icon');
+
+            // Set content
+            modalTitle.textContent = title;
+            modalMessage.textContent = message;
+
+            // Set icon based on title
+            if (title.includes('❌') || title.includes('Erro')) {
+                modalIcon.textContent = '❌';
+            } else if (title.includes('⚠️') || title.includes('Aviso')) {
+                modalIcon.textContent = '⚠️';
+            } else if (title.includes('✅') || title.includes('Sucesso')) {
+                modalIcon.textContent = '✅';
+            } else {
+                modalIcon.textContent = 'ℹ️';
+            }
+
+            // Show modal
+            modal.style.display = 'flex';
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('generic-modal');
+            modal.style.display = 'none';
+        }
+
         // Clear Database with Confirmation Modal + Timer
         function confirmClearDatabase() {
             const modal = document.getElementById('delete-confirm-modal');
@@ -3172,8 +3215,8 @@
             // Show modal
             modal.style.display = 'flex';
 
-            // Reset timer
-            let timeLeft = 5;
+            // Reset timer - REDUCED TO 3 SECONDS
+            let timeLeft = 3;
             timerDisplay.textContent = timeLeft;
             confirmBtn.disabled = true;
             confirmBtn.style.background = '#cbd5e1';
@@ -3251,6 +3294,22 @@
         }
     </script>
 
+    <!-- Generic Alert Modal -->
+    <div id="generic-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.7); z-index: 9999; align-items: center; justify-content: center;">
+        <div style="background: white; border-radius: 16px; padding: 32px; max-width: 500px; width: 90%; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); position: relative;">
+            <div style="text-align: center; margin-bottom: 24px;">
+                <div style="font-size: 64px; margin-bottom: 16px;" id="modal-icon">ℹ️</div>
+                <h2 style="color: #1e293b; margin: 0 0 8px 0; font-size: 24px;" id="modal-title">Aviso</h2>
+            </div>
+            <div style="background: #f8fafc; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+                <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0;" id="modal-message">Mensagem</p>
+            </div>
+            <button onclick="closeModal()" style="width: 100%; padding: 14px; background: #3b82f6; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; color: white; transition: all 0.2s;">
+                OK
+            </button>
+        </div>
+    </div>
+
     <!-- Modal de Confirmação de Limpeza de BD -->
     <div id="delete-confirm-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.7); z-index: 9999; align-items: center; justify-content: center;">
         <div style="background: white; border-radius: 16px; padding: 32px; max-width: 500px; width: 90%; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); position: relative;">
@@ -3271,7 +3330,7 @@
 
             <!-- Timer Display -->
             <div style="text-align: center; margin-bottom: 24px;">
-                <div style="font-size: 48px; font-weight: 700; color: #3b82f6;" id="delete-timer">5</div>
+                <div style="font-size: 48px; font-weight: 700; color: #3b82f6;" id="delete-timer">3</div>
                 <div style="font-size: 12px; color: #64748b; margin-top: 8px;">segundos restantes</div>
             </div>
 
