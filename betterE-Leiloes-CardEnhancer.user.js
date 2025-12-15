@@ -519,6 +519,11 @@
             // ===== ROW 1: HEADER =====
             const refPrefix = reference.substring(0, 2);
             const refRest = reference.substring(2);
+
+            console.log('🗺️ GPS data:', apiData.gps);
+            const hasGPS = apiData.gps && apiData.gps.latitude && apiData.gps.latitude !== 0;
+            console.log('🗺️ Has valid GPS:', hasGPS);
+
             let headerHTML = `
             <div class="better-card-header">
                 <div class="better-ref-badge"><span class="ref-prefix">${refPrefix}</span>${refRest}</div>
@@ -527,7 +532,7 @@
                         ${apiData.tipoEvento === 'movel' ? '🚗' : '🏠'}
                         ${apiData.tipoEvento === 'movel' ? 'Móvel' : 'Imóvel'}
                     </div>
-                    ${apiData.gps && apiData.gps.latitude ? `
+                    ${hasGPS ? `
                         <button class="better-btn better-btn-map" data-lat="${apiData.gps.latitude}" data-lon="${apiData.gps.longitude}">
                             📍 Mapa
                         </button>
@@ -615,6 +620,15 @@
                 const end = new Date(apiData.dataFim);
                 const start = apiData.dataInicio ? new Date(apiData.dataInicio) : null;
                 const diffDays = Math.floor((end - now) / (1000 * 60 * 60 * 24));
+
+                console.log('📅 Date info:', {
+                    dataFim: apiData.dataFim,
+                    dataInicio: apiData.dataInicio,
+                    diffDays,
+                    now: now.toISOString(),
+                    end: end.toISOString(),
+                    start: start ? start.toISOString() : 'null'
+                });
 
                 // Se mais de 1 dia, mostra as datas
                 if (diffDays > 1 && start) {
