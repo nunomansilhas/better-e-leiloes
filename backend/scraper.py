@@ -119,9 +119,12 @@ class EventScraper:
             # Extrai datas do evento
             data_inicio, data_fim = await self._extract_dates(page)
 
+            # Extrai localização UMA VEZ (GPS + Distrito/Concelho/Freguesia)
+            gps, distrito, concelho, freguesia = await self._extract_localizacao(page)
+
             # Detalhes - extrai AMBOS os tipos para deteção automática
-            detalhes_imovel = await self._extract_imovel_details(page)
-            detalhes_movel = await self._extract_movel_details(page)
+            detalhes_imovel = await self._extract_imovel_details(page, distrito, concelho, freguesia)
+            detalhes_movel = await self._extract_movel_details(page, distrito, concelho, freguesia)
 
             # DETECÇÃO AUTOMÁTICA: Se tem matrícula, marca, modelo, etc → é móvel
             is_movel = (
@@ -137,11 +140,11 @@ class EventScraper:
             if is_movel:
                 tipo_evento = "movel"
                 detalhes = detalhes_movel
-                gps = None  # Móveis não têm GPS
+                gps = None  # Móveis não têm GPS (só têm distrito/concelho/freguesia)
             else:
                 tipo_evento = "imovel"
                 detalhes = detalhes_imovel
-                gps = await self._extract_gps(page)
+                # GPS já foi extraído acima
 
             # Confirma/atualiza valores na página individual (podem ser mais precisos)
             valores_pagina = await self._extract_valores_from_page(page)
@@ -244,11 +247,20 @@ class EventScraper:
             print(f"⚠️ Erro ao extrair datas: {e}")
             return None, None
 
-    async def _extract_gps(self, page: Page) -> GPSCoordinates:
-        """Extrai coordenadas GPS do DOM da página (apenas da seção Localização)"""
+    async def _extract_localizacao(self, page: Page) -> tuple[GPSCoordinates, Optional[str], Optional[str], Optional[str]]:
+        """
+        Extrai dados da secção Localização: GPS, Distrito, Concelho, Freguesia.
+        Funciona para móveis e imóveis.
+
+        Returns:
+            (gps, distrito, concelho, freguesia)
+        """
         try:
             latitude = None
             longitude = None
+            distrito = None
+            concelho = None
+            freguesia = None
 
             # Primeiro, encontra a div com título "Localização"
             localizacao_section = None
@@ -265,9 +277,9 @@ class EventScraper:
 
             if not localizacao_section:
                 print("⚠️ Seção 'Localização' não encontrada")
-                return GPSCoordinates(latitude=None, longitude=None)
+                return GPSCoordinates(latitude=None, longitude=None), None, None, None
 
-            # Agora procura GPS apenas dentro desta seção
+            # Agora procura todos os campos dentro desta seção
             spans = await localizacao_section.query_selector_all('.font-semibold')
 
             for span in spans:
@@ -277,8 +289,8 @@ class EventScraper:
 
                 text = text.strip()
 
+                # GPS
                 if text == 'GPS Latitude:':
-                    # Pega próximo elemento (o valor)
                     next_el = await span.evaluate_handle('el => el.nextElementSibling')
                     if next_el:
                         value = await next_el.text_content()
@@ -298,17 +310,45 @@ class EventScraper:
                             except ValueError:
                                 pass
 
-            return GPSCoordinates(latitude=latitude, longitude=longitude)
+                # Distrito / Concelho / Freguesia
+                elif text == 'Distrito:':
+                    next_el = await span.evaluate_handle('el => el.nextElementSibling')
+                    if next_el:
+                        value = await next_el.text_content()
+                        if value:
+                            distrito = value.strip()
+
+                elif text == 'Concelho:':
+                    next_el = await span.evaluate_handle('el => el.nextElementSibling')
+                    if next_el:
+                        value = await next_el.text_content()
+                        if value:
+                            concelho = value.strip()
+
+                elif text == 'Freguesia:':
+                    next_el = await span.evaluate_handle('el => el.nextElementSibling')
+                    if next_el:
+                        value = await next_el.text_content()
+                        if value:
+                            freguesia = value.strip()
+
+            gps = GPSCoordinates(latitude=latitude, longitude=longitude)
+            return gps, distrito, concelho, freguesia
 
         except Exception as e:
-            print(f"⚠️ Erro ao extrair GPS: {e}")
-            return GPSCoordinates(latitude=None, longitude=None)
+            print(f"⚠️ Erro ao extrair Localização: {e}")
+            return GPSCoordinates(latitude=None, longitude=None), None, None, None
+
+    async def _extract_gps(self, page: Page) -> GPSCoordinates:
+        """Extrai coordenadas GPS (wrapper para compatibilidade)"""
+        gps, _, _, _ = await self._extract_localizacao(page)
+        return gps
 
     async def _extract_gallery(self, page: Page) -> List[str]:
-        """Extrai todas as URLs das imagens da galeria"""
+        """Extrai apenas as imagens do evento atual (filtra por verba ID)"""
         try:
-            images = []
             import re
+            from collections import Counter
 
             # Aguarda a galeria carregar
             try:
@@ -316,72 +356,76 @@ class EventScraper:
             except:
                 print("⚠️ Galeria não encontrada")
 
-            # Método PRINCIPAL: Extrai TODAS as imagens do HTML source
-            # Este método é mais robusto e encontra todas as imagens, mesmo as não renderizadas
+            all_images = []
+
+            # Extrai TODAS as imagens da galeria (dentro de .p-galleria)
             try:
-                page_content = await page.content()
+                # Procura apenas dentro da secção .p-galleria
+                gallery_section = await page.query_selector('.p-galleria')
+                if gallery_section:
+                    gallery_html = await gallery_section.evaluate('el => el.innerHTML')
 
-                # Procura por URLs de imagens no formato /api/files/Verbas_Fotos/
-                api_matches = re.findall(r'/api/files/Verbas_Fotos/[^"\'<>\s\)]+', page_content)
-                for url in api_matches:
-                    # Limpa entidades HTML e caracteres indesejados
-                    url = url.replace('&quot;', '').replace('&amp;', '&').rstrip('&"\';')
+                    # Procura por URLs de imagens no formato /api/files/Verbas_Fotos/verba_XXXXXX/
+                    api_matches = re.findall(
+                        r'/api/files/Verbas_Fotos/verba_(\d+)/[^"\'<>\s\)]+',
+                        gallery_html
+                    )
 
-                    # Garante URL completo
-                    if not url.startswith('http'):
-                        full_url = f"https://www.e-leiloes.pt{url}"
-                    else:
-                        full_url = url
-
-                    if full_url not in images:
-                        images.append(full_url)
-
-                if len(images) > 0:
-                    print(f"✅ Método HTML: {len(images)} imagens encontradas")
+                    # Reconstrói URLs completas
+                    for match in api_matches:
+                        # Procura URL completa com este verba ID
+                        full_match = re.search(
+                            rf'/api/files/Verbas_Fotos/verba_{match}/[^"\'<>\s\)]+',
+                            gallery_html
+                        )
+                        if full_match:
+                            url = full_match.group(0)
+                            url = url.replace('&quot;', '').replace('&amp;', '&').rstrip('&"\';')
+                            full_url = f"https://www.e-leiloes.pt{url}"
+                            all_images.append((match, full_url))
             except Exception as e:
-                print(f"⚠️ Erro no método HTML: {e}")
+                print(f"⚠️ Erro ao extrair da galeria: {e}")
 
-            # Método 2: Procura por items da galeria renderizados (complementar)
+            # Fallback: Procura por items da galeria renderizados
             try:
-                first_item = await page.query_selector('.p-galleria-item[id]')
-                if first_item:
-                    first_id = await first_item.get_attribute('id')
-                    if first_id:
-                        id_match = re.match(r'(pv_id_\d+)_item_\d+', first_id)
-                        if id_match:
-                            id_prefix = id_match.group(1)
-
-                            # Procura TODOS os items (não para após misses)
-                            for i in range(100):
-                                item_id = f"{id_prefix}_item_{i}"
-                                item = await page.query_selector(f'#{item_id} .p-evento-image')
-                                if item:
-                                    style = await item.get_attribute('style')
-                                    if style and 'background-image: url(' in style:
-                                        match = re.search(r'url\(["\']?([^"\']+)["\']?\)', style)
-                                        if match:
-                                            url = match.group(1).replace('&quot;', '')
-                                            if url and url not in images:
-                                                images.append(url)
-            except Exception as e:
-                print(f"⚠️ Erro no método DOM: {e}")
-
-            # Método 3: Fallback - procura por todas as imagens visíveis
-            try:
-                gallery_items = await page.query_selector_all('.p-galleria-item .p-evento-image, .p-evento-image')
+                gallery_items = await page.query_selector_all('.p-galleria-item .p-evento-image')
                 for item in gallery_items:
                     style = await item.get_attribute('style')
                     if style and 'background-image: url(' in style:
                         match = re.search(r'url\(["\']?([^"\']+)["\']?\)', style)
                         if match:
                             url = match.group(1).replace('&quot;', '')
-                            if url and url not in images:
-                                images.append(url)
+                            # Extrai verba ID
+                            verba_match = re.search(r'verba_(\d+)', url)
+                            if verba_match:
+                                verba_id = verba_match.group(1)
+                                all_images.append((verba_id, url))
             except Exception as e:
-                print(f"⚠️ Erro no método fallback: {e}")
+                print(f"⚠️ Erro no fallback: {e}")
 
-            print(f"📷 Total de imagens únicas: {len(images)}")
-            return images
+            if not all_images:
+                print("⚠️ Nenhuma imagem encontrada")
+                return []
+
+            # Identifica o verba ID mais comum (o evento atual)
+            verba_ids = [verba_id for verba_id, _ in all_images]
+            verba_counter = Counter(verba_ids)
+            main_verba_id = verba_counter.most_common(1)[0][0]
+
+            # Filtra apenas imagens do evento atual
+            event_images = [
+                url for verba_id, url in all_images
+                if verba_id == main_verba_id
+            ]
+
+            # Remove duplicados mantendo ordem
+            unique_images = []
+            for img in event_images:
+                if img not in unique_images:
+                    unique_images.append(img)
+
+            print(f"📷 Verba ID: {main_verba_id} | {len(unique_images)} imagens (filtradas de {len(all_images)} totais)")
+            return unique_images
 
         except Exception as e:
             print(f"⚠️ Erro ao extrair galeria: {e}")
@@ -544,7 +588,13 @@ class EventScraper:
         
         return valores
     
-    async def _extract_imovel_details(self, page: Page) -> EventDetails:
+    async def _extract_imovel_details(
+        self,
+        page: Page,
+        distrito: Optional[str] = None,
+        concelho: Optional[str] = None,
+        freguesia: Optional[str] = None
+    ) -> EventDetails:
         """Extrai detalhes COMPLETOS do IMÓVEL via DOM"""
 
         async def extract_detail(label: str) -> Optional[str]:
@@ -565,12 +615,12 @@ class EventScraper:
                 return None
             except:
                 return None
-        
+
         async def extract_area(label: str) -> Optional[float]:
             """Extrai área em m²"""
             try:
                 spans = await page.query_selector_all('.flex.w-full .font-semibold')
-                
+
                 for span in spans:
                     text = await span.text_content()
                     if text and text.strip() == label:
@@ -582,23 +632,20 @@ class EventScraper:
                                 value = await number_span.text_content()
                                 # Remove espaços e converte para float
                                 return float(value.replace(',', '.').strip())
-                
+
                 return None
             except:
                 return None
-        
-        # Extrai todos os campos
+
+        # Extrai campos básicos
         tipo = await extract_detail('Tipo:')
         subtipo = await extract_detail('Subtipo:')
         tipologia = await extract_detail('Tipologia:')
-        distrito = await extract_detail('Distrito:')
-        concelho = await extract_detail('Concelho:')
-        freguesia = await extract_detail('Freguesia:')
-        
+
         area_priv = await extract_area('Área Privativa:')
         area_dep = await extract_area('Área Dependente:')
         area_total = await extract_area('Área Total:')
-        
+
         return EventDetails(
             tipo=tipo,
             subtipo=subtipo,
@@ -611,8 +658,14 @@ class EventScraper:
             freguesia=freguesia
         )
     
-    async def _extract_movel_details(self, page: Page) -> EventDetails:
-        """Extrai detalhes SIMPLIFICADOS do MÓVEL (automóvel) via DOM"""
+    async def _extract_movel_details(
+        self,
+        page: Page,
+        distrito: Optional[str] = None,
+        concelho: Optional[str] = None,
+        freguesia: Optional[str] = None
+    ) -> EventDetails:
+        """Extrai detalhes do MÓVEL (automóvel) via DOM"""
 
         async def extract_detail(label: str) -> Optional[str]:
             """Extrai valor de um campo específico"""
@@ -631,7 +684,7 @@ class EventScraper:
             except:
                 return None
 
-        # Extrai apenas os 3 campos necessários para móveis
+        # Extrai campos básicos
         tipo = await extract_detail('Tipo:')
         subtipo = await extract_detail('Subtipo:')
         matricula = await extract_detail('Matrícula:')
@@ -639,7 +692,10 @@ class EventScraper:
         return EventDetails(
             tipo=tipo,
             subtipo=subtipo,
-            matricula=matricula
+            matricula=matricula,
+            distrito=distrito,
+            concelho=concelho,
+            freguesia=freguesia
         )
     
     async def scrape_all_events(self, max_pages: Optional[int] = None) -> List[EventData]:
@@ -1135,9 +1191,12 @@ class EventScraper:
             # Extrai datas
             data_inicio, data_fim = await self._extract_dates(page)
 
+            # Extrai localização UMA VEZ (GPS + Distrito/Concelho/Freguesia)
+            gps, distrito, concelho, freguesia = await self._extract_localizacao(page)
+
             # Detalhes - extrai AMBOS os tipos para detetar automaticamente
-            detalhes_imovel = await self._extract_imovel_details(page)
-            detalhes_movel = await self._extract_movel_details(page)
+            detalhes_imovel = await self._extract_imovel_details(page, distrito, concelho, freguesia)
+            detalhes_movel = await self._extract_movel_details(page, distrito, concelho, freguesia)
 
             # DETECÇÃO AUTOMÁTICA: Se tem matrícula, marca, modelo, etc → é móvel
             # Se tem tipologia, área, distrito, etc → é imóvel
@@ -1154,11 +1213,11 @@ class EventScraper:
             if is_movel:
                 tipo_evento = "movel"
                 detalhes = detalhes_movel
-                gps = None  # Móveis não têm GPS
+                gps = None  # Móveis não têm GPS (só têm distrito/concelho/freguesia)
             else:
                 tipo_evento = "imovel"
                 detalhes = detalhes_imovel
-                gps = await self._extract_gps(page)
+                # GPS já foi extraído acima
 
             # Valores
             valores_pagina = await self._extract_valores_from_page(page)
