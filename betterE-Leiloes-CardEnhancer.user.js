@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      3.6
+// @version      3.7
 // @description  Design moderno com carousel de imagens e distinção visual de tipos de leilão
 // @author       Nuno Mansilhas
 // @match        https://www.e-leiloes.pt/*
@@ -696,7 +696,6 @@
                         ${apiData.tipoEvento === 'movel' ? '🚗' : '🏠'}
                         ${apiData.tipoEvento === 'movel' ? 'Móvel' : 'Imóvel'}
                     </div>
-                    ${mapsUrl ? `<a href="${mapsUrl}" target="_blank" rel="noopener noreferrer" class="better-btn better-btn-map" onclick="event.stopPropagation()" style="display: inline-flex !important; visibility: visible !important; opacity: 1 !important; background: #ef4444 !important; color: white !important; border: none !important; padding: 6px 12px !important; border-radius: 8px !important; font-size: 11px !important; font-weight: 600 !important; cursor: pointer !important; align-items: center !important; gap: 4px !important; white-space: nowrap !important; text-decoration: none !important;">📍 Mapa</a>` : ''}
                     <button class="better-btn better-btn-primary" data-url="${eventUrl}">
                         👁️ Ver Mais
                     </button>
@@ -709,9 +708,28 @@
         console.log('🔧 First child:', firstChild);
         const headerDiv = document.createElement('div');
         headerDiv.innerHTML = headerHTML;
-        console.log('🔧 Header HTML created:', headerDiv.innerHTML.length, 'chars');
-        card.insertBefore(headerDiv.firstChild, firstChild);
+        const headerElement = headerDiv.firstChild;
+        card.insertBefore(headerElement, firstChild);
         console.log('✅ Header inserted');
+
+        // Adiciona o botão GPS DEPOIS usando createElement (não innerHTML)
+        if (mapsUrl) {
+            const actionsContainer = headerElement.querySelector('.better-header-actions');
+            const tipoBadge = actionsContainer.querySelector('.better-tipo-badge');
+
+            // Cria o botão GPS programaticamente
+            const gpsButton = document.createElement('a');
+            gpsButton.href = mapsUrl;
+            gpsButton.target = '_blank';
+            gpsButton.rel = 'noopener noreferrer';
+            gpsButton.className = 'better-btn better-btn-map';
+            gpsButton.textContent = '📍 Mapa';
+            gpsButton.onclick = (e) => e.stopPropagation();
+
+            // Insere DEPOIS do tipo badge e ANTES do botão Ver Mais
+            actionsContainer.insertBefore(gpsButton, tipoBadge.nextSibling);
+            console.log('✅ GPS button added programmatically');
+        }
 
         // Verifica se o botão GPS está presente no DOM
         if (hasGPS) {
@@ -991,7 +1009,7 @@
     // ====================================
 
     function init() {
-        console.log('🚀 Better E-Leilões Card Enhancer v3.6');
+        console.log('🚀 Better E-Leilões Card Enhancer v3.7');
 
         createDashboardButton();
         enhanceAllCards();
@@ -1001,7 +1019,7 @@
             subtree: true
         });
 
-        console.log('✅ Card enhancer v3.6 ativo - GPS as anchor tag, matching v12.6 approach!');
+        console.log('✅ Card enhancer v3.7 ativo - GPS button created programmatically!');
     }
 
     if (document.readyState === 'loading') {
