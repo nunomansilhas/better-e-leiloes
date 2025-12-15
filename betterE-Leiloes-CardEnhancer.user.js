@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      3.5
+// @version      3.6
 // @description  Design moderno com carousel de imagens e distinção visual de tipos de leilão
 // @author       Nuno Mansilhas
 // @match        https://www.e-leiloes.pt/*
@@ -678,11 +678,14 @@
             const refRest = reference.substring(2);
 
             console.log('🗺️ GPS data:', apiData.gps);
-            const hasGPS = apiData.gps && apiData.gps.latitude && apiData.gps.latitude !== 0;
+            const hasGPS = apiData.gps && apiData.gps.latitude;
             console.log('🗺️ Has valid GPS:', hasGPS);
 
+            let mapsUrl = '';
             if (hasGPS) {
+                mapsUrl = `https://www.google.com/maps?q=${apiData.gps.latitude},${apiData.gps.longitude}`;
                 console.log(`🗺️ Creating GPS button with coords: ${apiData.gps.latitude}, ${apiData.gps.longitude}`);
+                console.log(`🗺️ Maps URL: ${mapsUrl}`);
             }
 
             let headerHTML = `
@@ -693,7 +696,7 @@
                         ${apiData.tipoEvento === 'movel' ? '🚗' : '🏠'}
                         ${apiData.tipoEvento === 'movel' ? 'Móvel' : 'Imóvel'}
                     </div>
-                    ${hasGPS ? `<button class="better-btn better-btn-map" data-lat="${apiData.gps.latitude}" data-lon="${apiData.gps.longitude}" style="display: inline-flex !important; visibility: visible !important; opacity: 1 !important; background: #ef4444 !important; color: white !important; border: none !important; padding: 6px 12px !important; border-radius: 8px !important; font-size: 11px !important; font-weight: 600 !important; cursor: pointer !important; align-items: center !important; gap: 4px !important; white-space: nowrap !important; min-width: 60px !important; height: auto !important;">📍 Mapa</button>` : ''}
+                    ${mapsUrl ? `<a href="${mapsUrl}" target="_blank" rel="noopener noreferrer" class="better-btn better-btn-map" onclick="event.stopPropagation()" style="display: inline-flex !important; visibility: visible !important; opacity: 1 !important; background: #ef4444 !important; color: white !important; border: none !important; padding: 6px 12px !important; border-radius: 8px !important; font-size: 11px !important; font-weight: 600 !important; cursor: pointer !important; align-items: center !important; gap: 4px !important; white-space: nowrap !important; text-decoration: none !important;">📍 Mapa</a>` : ''}
                     <button class="better-btn better-btn-primary" data-url="${eventUrl}">
                         👁️ Ver Mais
                     </button>
@@ -945,16 +948,7 @@
             });
         }
 
-        // Botão "Mapa"
-        const mapaBtn = card.querySelector('.better-btn-map');
-        if (mapaBtn) {
-            mapaBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const lat = mapaBtn.dataset.lat;
-                const lon = mapaBtn.dataset.lon;
-                window.open(`https://www.google.com/maps?q=${lat},${lon}`, '_blank');
-            });
-        }
+        // GPS Map link - handled by anchor tag href (no need for event listener)
 
         // Click no card inteiro abre em nova aba (SEM atualizar atual)
         card.style.cursor = 'pointer';
@@ -997,7 +991,7 @@
     // ====================================
 
     function init() {
-        console.log('🚀 Better E-Leilões Card Enhancer v3.5');
+        console.log('🚀 Better E-Leilões Card Enhancer v3.6');
 
         createDashboardButton();
         enhanceAllCards();
@@ -1007,7 +1001,7 @@
             subtree: true
         });
 
-        console.log('✅ Card enhancer v3.5 ativo - Icon fonts fixed, GPS button simplified!');
+        console.log('✅ Card enhancer v3.6 ativo - GPS as anchor tag, matching v12.6 approach!');
     }
 
     if (document.readyState === 'loading') {
