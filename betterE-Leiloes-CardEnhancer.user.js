@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      4.0
+// @version      4.1
 // @description  Design moderno com carousel de imagens e distinção visual de tipos de leilão
 // @author       Nuno Mansilhas
 // @match        https://www.e-leiloes.pt/*
@@ -675,7 +675,7 @@
                 console.log('🔧 Border classes and styles removed from div:', div.className);
             });
 
-            // ===== USAR HEADER NATIVO E ADICIONAR BOTÕES =====
+            // ===== ADICIONAR ÍCONE GPS AO HEADER NATIVO =====
             // Encontra o header nativo existente (linha com tag e referência)
             const nativeHeader = card.querySelector('.flex.w-full.flex-wrap.align-items-center.justify-content-between');
             if (nativeHeader) {
@@ -686,37 +686,31 @@
                 if (rightContainer) {
                     console.log('🔧 Found right container:', rightContainer);
 
-                    // Limpa o conteúdo do lado direito (remove tag badge e star)
-                    rightContainer.innerHTML = '';
-                    rightContainer.className = 'flex align-items-center gap-1';
-
-                    // Adiciona GPS button se tiver coordenadas
+                    // Adiciona APENAS o ícone GPS se tiver coordenadas (mantém tag badge e star)
                     const hasGPS = apiData.gps && apiData.gps.latitude;
                     if (hasGPS) {
                         const mapsUrl = `https://www.google.com/maps?q=${apiData.gps.latitude},${apiData.gps.longitude}`;
-                        console.log(`🗺️ Creating GPS button with coords: ${apiData.gps.latitude}, ${apiData.gps.longitude}`);
+                        console.log(`🗺️ Creating GPS icon with coords: ${apiData.gps.latitude}, ${apiData.gps.longitude}`);
 
-                        const gpsButton = document.createElement('a');
-                        gpsButton.href = mapsUrl;
-                        gpsButton.target = '_blank';
-                        gpsButton.rel = 'noopener noreferrer';
-                        gpsButton.className = 'better-btn better-btn-map';
-                        gpsButton.textContent = '📍 Mapa';
-                        gpsButton.onclick = (e) => e.stopPropagation();
-                        rightContainer.appendChild(gpsButton);
-                        console.log('✅ GPS button added to native header');
+                        // Cria ícone GPS (só o ícone, sem texto)
+                        const gpsIcon = document.createElement('a');
+                        gpsIcon.href = mapsUrl;
+                        gpsIcon.target = '_blank';
+                        gpsIcon.rel = 'noopener noreferrer';
+                        gpsIcon.className = 'pi pi-map-marker text-primary-800 text-xl cursor-pointer';
+                        gpsIcon.title = 'Ver no Google Maps';
+                        gpsIcon.onclick = (e) => e.stopPropagation();
+
+                        // Insere o ícone GPS ANTES da estrela de favoritos
+                        const starIcon = rightContainer.querySelector('.pi-star');
+                        if (starIcon) {
+                            rightContainer.insertBefore(gpsIcon, starIcon);
+                        } else {
+                            // Se não tiver estrela, adiciona no final
+                            rightContainer.appendChild(gpsIcon);
+                        }
+                        console.log('✅ GPS icon added to native header');
                     }
-
-                    // Adiciona botão "Ver Mais"
-                    const verMaisBtn = document.createElement('button');
-                    verMaisBtn.className = 'better-btn better-btn-primary';
-                    verMaisBtn.textContent = '👁️ Ver Mais';
-                    verMaisBtn.onclick = (e) => {
-                        e.stopPropagation();
-                        window.open(eventUrl, '_blank');
-                    };
-                    rightContainer.appendChild(verMaisBtn);
-                    console.log('✅ Ver Mais button added to native header');
                 }
             }
 
@@ -982,7 +976,7 @@
     // ====================================
 
     function init() {
-        console.log('🚀 Better E-Leilões Card Enhancer v4.0');
+        console.log('🚀 Better E-Leilões Card Enhancer v4.1');
 
         createDashboardButton();
         enhanceAllCards();
@@ -992,7 +986,7 @@
             subtree: true
         });
 
-        console.log('✅ Card enhancer v4.0 ativo - usando header nativo!');
+        console.log('✅ Card enhancer v4.1 ativo - GPS icon only!');
     }
 
     if (document.readyState === 'loading') {
