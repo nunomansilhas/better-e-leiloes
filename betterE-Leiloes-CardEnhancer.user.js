@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      3.7
+// @version      3.8
 // @description  Design moderno com carousel de imagens e distinção visual de tipos de leilão
 // @author       Nuno Mansilhas
 // @match        https://www.e-leiloes.pt/*
@@ -614,8 +614,10 @@
         if (card.dataset.betterEnhanced) return;
         card.dataset.betterEnhanced = 'true';
 
+        // Extract reference before try block so it's accessible in catch
+        const reference = extractReferenceFromCard(card);
+
         try {
-            const reference = extractReferenceFromCard(card);
             console.log(`🎯 Enhancing card for reference: ${reference}`);
             if (!reference) {
                 console.warn('⚠️ No reference found in card');
