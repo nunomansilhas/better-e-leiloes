@@ -401,12 +401,18 @@
         if (!CONFIG.ENABLE_API_ENRICHMENT) return null;
 
         try {
+            console.log(`🔍 Fetching data for ${reference} from ${CONFIG.API_BASE}/events/${reference}`);
             const response = await fetch(`${CONFIG.API_BASE}/events/${reference}`);
+            console.log(`📡 Response status: ${response.status}`);
             if (response.ok) {
-                return await response.json();
+                const data = await response.json();
+                console.log(`✅ Data received for ${reference}:`, data);
+                return data;
+            } else {
+                console.warn(`⚠️ API returned ${response.status} for ${reference}`);
             }
         } catch (error) {
-            console.debug(`API not available for ${reference}`);
+            console.error(`❌ API error for ${reference}:`, error);
         }
         return null;
     }
@@ -443,11 +449,19 @@
         card.dataset.betterEnhanced = 'true';
 
         const reference = extractReferenceFromCard(card);
-        if (!reference) return;
+        console.log(`🎯 Enhancing card for reference: ${reference}`);
+        if (!reference) {
+            console.warn('⚠️ No reference found in card');
+            return;
+        }
 
         // Busca dados da API
         const apiData = await getEventFromAPI(reference);
-        if (!apiData) return;
+        if (!apiData) {
+            console.warn(`⚠️ No API data returned for ${reference} - card will not be enhanced`);
+            return;
+        }
+        console.log(`🎨 Starting card enhancement for ${reference}`);
 
         // URL do evento
         const eventUrl = `https://www.e-leiloes.pt/evento/${reference}`;
