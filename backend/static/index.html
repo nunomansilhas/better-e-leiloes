@@ -3688,7 +3688,12 @@
                             statusDiv.style.display = 'block';
                             const statusText = statusDiv.querySelector('.status-text');
                             if (statusText) {
-                                statusText.textContent = `Próxima execução: ${config.next_run || 'Calculando...'}`;
+                                // Special message for Pipeline X (5-second interval)
+                                if (type === 'prices') {
+                                    statusText.textContent = '⚡ Executando a cada 5 segundos';
+                                } else {
+                                    statusText.textContent = `Próxima execução: ${config.next_run || 'Calculando...'}`;
+                                }
                             }
                         }
                     }
@@ -3716,9 +3721,14 @@
                         statusDiv.style.display = 'block';
                         const statusText = statusDiv.querySelector('.status-text');
                         if (statusText) {
-                            statusText.textContent = data.next_run ?
-                                `Próxima execução: ${data.next_run}` :
-                                'Agendamento ativo';
+                            // Special message for Pipeline X (5-second interval)
+                            if (type === 'prices') {
+                                statusText.textContent = '⚡ Executando a cada 5 segundos';
+                            } else {
+                                statusText.textContent = data.next_run ?
+                                    `Próxima execução: ${data.next_run}` :
+                                    'Agendamento ativo';
+                            }
                         }
 
                         showModal('✅ Pipeline Ativada', `Pipeline ${type} foi ativada com sucesso!\n${data.message || ''}`);
