@@ -3805,7 +3805,16 @@
                                 if (type === 'prices') {
                                     startPipelineXCountdown();
                                 } else {
-                                    statusText.textContent = `Próxima execução: ${config.next_run || 'Calculando...'}`;
+                                    // Show "Running..." if is_running, otherwise show next_run
+                                    if (config.is_running) {
+                                        statusText.textContent = '🔄 A executar agora...';
+                                        statusText.style.fontWeight = '600';
+                                        statusText.style.color = '#3b82f6';
+                                    } else {
+                                        statusText.textContent = `Próxima execução: ${config.next_run || 'Calculando...'}`;
+                                        statusText.style.fontWeight = '';
+                                        statusText.style.color = '';
+                                    }
                                 }
                             }
                         }
@@ -3815,6 +3824,9 @@
                 console.error('Erro ao carregar status das pipelines automáticas:', error);
             }
         }
+
+        // Poll pipeline status every 3 seconds to update "is_running" state
+        setInterval(loadAutoPipelinesStatus, 3000);
 
         async function toggleAutoPipeline(type, enabled) {
             try {

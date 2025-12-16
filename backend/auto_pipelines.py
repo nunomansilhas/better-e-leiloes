@@ -22,6 +22,7 @@ class PipelineConfig:
     last_run: Optional[str] = None
     next_run: Optional[str] = None
     runs_count: int = 0
+    is_running: bool = False  # Track if currently executing
 
 
 class AutoPipelinesManager:
@@ -235,6 +236,10 @@ class AutoPipelinesManager:
             from database import get_db
             from cache import CacheManager
 
+            # Mark as running
+            self.pipelines['full'].is_running = True
+            self._save_config()
+
             print(f"🤖 Running Full Auto-Pipeline...")
 
             scraper = EventScraper()
@@ -298,12 +303,18 @@ class AutoPipelinesManager:
             finally:
                 await scraper.close()
                 await cache_manager.close()
+                # Mark as not running
+                self.pipelines['full'].is_running = False
+                self._save_config()
 
         async def run_prices_pipeline():
             """Pipeline X: Price verification every 5 SECONDS for events < 5 minutes"""
             from scraper import EventScraper
             from database import get_db
             from cache import CacheManager
+
+            # Mark as running
+            self.pipelines['prices'].is_running = True
 
             # Check if cache needs refresh (every 5 minutes)
             now = datetime.now()
@@ -412,12 +423,18 @@ class AutoPipelinesManager:
             finally:
                 await scraper.close()
                 await cache_manager.close()
+                # Mark as not running
+                self.pipelines['prices'].is_running = False
 
         async def run_info_pipeline():
             """Pipeline Y: Quick info verification and update for ALL events"""
             from scraper import EventScraper
             from database import get_db
             from cache import CacheManager
+
+            # Mark as running
+            self.pipelines['info'].is_running = True
+            self._save_config()
 
             print(f"🔄 Running Info Auto-Pipeline...")
 
@@ -493,6 +510,9 @@ class AutoPipelinesManager:
             finally:
                 await scraper.close()
                 await cache_manager.close()
+                # Mark as not running
+                self.pipelines['info'].is_running = False
+                self._save_config()
 
         # Return the appropriate function
         tasks = {
