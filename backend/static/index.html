@@ -3691,7 +3691,11 @@
             const statusDiv = document.getElementById('auto-pipeline-prices-status');
             const statusText = statusDiv?.querySelector('.status-text');
             if (statusText) {
-                statusText.textContent = `⚡ Executando a cada ${pipelineXCountdown} segundo${pipelineXCountdown !== 1 ? 's' : ''} • ${pipelineXCachedEvents} eventos na cache`;
+                if (pipelineXCachedEvents === 0) {
+                    statusText.textContent = '⏸️ Aguardando eventos terminando em < 6 minutos...';
+                } else {
+                    statusText.textContent = `⚡ Executando a cada ${pipelineXCountdown} segundo${pipelineXCountdown !== 1 ? 's' : ''} • ${pipelineXCachedEvents} evento${pipelineXCachedEvents !== 1 ? 's' : ''} na cache`;
+                }
             }
         }
 
@@ -3707,7 +3711,7 @@
                 pipelineXCountdown--;
                 if (pipelineXCountdown < 1) {
                     pipelineXCountdown = 5;
-                    // Refresh cache info every 5 seconds
+                    // Refresh cache info every 5 seconds (to detect new events)
                     updatePipelineXCacheInfo();
                 }
                 updatePipelineXDisplay();
