@@ -46,8 +46,8 @@ class AutoPipelinesManager:
         ),
         "info": PipelineConfig(
             type="info",
-            name="Pipeline de Verificação de Informações",
-            description="Verificação rápida de informações e atualização se necessário",
+            name="Pipeline Y - Verificação de Informações",
+            description="Verifica preços e datas de TODOS os eventos a cada 2 horas",
             enabled=False,
             interval_hours=2.0  # A cada 2 horas
         )
@@ -414,11 +414,10 @@ class AutoPipelinesManager:
                 await cache_manager.close()
 
         async def run_info_pipeline():
-            """Pipeline Y: Quick info verification and update"""
+            """Pipeline Y: Quick info verification and update for ALL events"""
             from scraper import EventScraper
             from database import get_db
             from cache import CacheManager
-            import random
 
             print(f"🔄 Running Info Auto-Pipeline...")
 
@@ -434,16 +433,13 @@ class AutoPipelinesManager:
                     print(f"  ℹ️ No events in database")
                     return
 
-                # Sample 30 random events for quick check (to avoid overload)
-                sample_size = min(30, len(events))
-                sampled_events = random.sample(events, sample_size)
-
-                print(f"  📊 Checking {sample_size} events (sampled from {len(events)} total)...")
+                # Check ALL events (not sampling)
+                print(f"  📊 Checking {len(events)} events...")
 
                 updated_count = 0
                 errors_count = 0
 
-                for event in sampled_events:
+                for event in events:
                     try:
                         # Re-scrape event details
                         new_events = await scraper.scrape_details_by_ids([event.reference])
@@ -452,7 +448,7 @@ class AutoPipelinesManager:
                             new_event = new_events[0]
                             changed_fields = []
 
-                            # Compare valores (prices)
+                            # Compare valores (prices) - ONLY
                             if event.valores.valorBase != new_event.valores.valorBase:
                                 changed_fields.append(f"valorBase: {event.valores.valorBase}€ → {new_event.valores.valorBase}€")
                             if event.valores.valorAbertura != new_event.valores.valorAbertura:
@@ -462,30 +458,16 @@ class AutoPipelinesManager:
                             if event.valores.lanceAtual != new_event.valores.lanceAtual:
                                 changed_fields.append(f"lanceAtual: {event.valores.lanceAtual}€ → {new_event.valores.lanceAtual}€")
 
-                            # Compare dates
+                            # Compare dates - ONLY
                             if event.dataInicio != new_event.dataInicio:
                                 changed_fields.append(f"dataInicio changed")
                             if event.dataFim != new_event.dataFim:
                                 changed_fields.append(f"dataFim changed")
 
-                            # Compare detalhes (for móveis)
-                            if event.tipoEvento == 'movel':
-                                if event.detalhes.matricula != new_event.detalhes.matricula:
-                                    changed_fields.append(f"matrícula: {event.detalhes.matricula} → {new_event.detalhes.matricula}")
-                                if event.detalhes.marca != new_event.detalhes.marca:
-                                    changed_fields.append(f"marca changed")
-
-                            # Compare detalhes (for imóveis)
-                            if event.tipoEvento == 'imovel':
-                                if event.detalhes.tipologia != new_event.detalhes.tipologia:
-                                    changed_fields.append(f"tipologia: {event.detalhes.tipologia} → {new_event.detalhes.tipologia}")
-                                if event.detalhes.areaPrivativa != new_event.detalhes.areaPrivativa:
-                                    changed_fields.append(f"área: {event.detalhes.areaPrivativa}m² → {new_event.detalhes.areaPrivativa}m²")
-
                             # If changes detected, update event
                             if changed_fields:
                                 print(f"    🔄 {event.reference}: {len(changed_fields)} changes detected")
-                                for field in changed_fields[:3]:  # Show first 3 changes
+                                for field in changed_fields:  # Show all changes
                                     print(f"       • {field}")
 
                                 # Update event with new data
@@ -494,8 +476,7 @@ class AutoPipelinesManager:
                                     await cache_manager.set(event.reference, new_event)
 
                                 updated_count += 1
-                            else:
-                                print(f"    ✓ {event.reference}: no changes")
+                            # Silent when no changes (avoid spam)
 
                     except Exception as e:
                         print(f"    ⚠️ Error checking {event.reference}: {e}")
