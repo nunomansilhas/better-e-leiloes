@@ -257,22 +257,198 @@ class AutoPipelinesManager:
                 await cache_manager.close()
 
         async def run_prices_pipeline():
-            """Pipeline X: Price verification"""
+            """Pipeline X: Price verification for events ending soon"""
+            from scraper import EventScraper
+            from database import get_db
+            from cache import CacheManager
+
             print(f"💰 Running Prices Auto-Pipeline...")
-            # TODO: Implement price verification logic
-            pipeline = self.pipelines['prices']
-            pipeline.last_run = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            pipeline.runs_count += 1
-            self._save_config()
+
+            scraper = EventScraper()
+            cache_manager = CacheManager()
+
+            try:
+                # Get all events from database
+                async with get_db() as db:
+                    events = await db.list_events(limit=1000)
+
+                if not events:
+                    print(f"  ℹ️ No events in database")
+                    return
+
+                # Filter events ending within 7 days
+                now = datetime.now()
+                ending_soon = []
+
+                for event in events:
+                    if event.dataFim:
+                        time_until_end = event.dataFim - now
+                        days_until_end = time_until_end.total_seconds() / (24 * 3600)
+
+                        if days_until_end > 0 and days_until_end <= 7:
+                            ending_soon.append({
+                                'event': event,
+                                'days_until_end': days_until_end,
+                                'hours_until_end': time_until_end.total_seconds() / 3600
+                            })
+
+                # Sort by time until end (most urgent first)
+                ending_soon.sort(key=lambda x: x['days_until_end'])
+
+                print(f"  📊 Found {len(ending_soon)} events ending within 7 days")
+
+                if not ending_soon:
+                    print(f"  ℹ️ No events ending soon")
+                    return
+
+                # Limit to first 20 events to avoid overload
+                to_check = ending_soon[:20]
+                print(f"  🔍 Checking prices for {len(to_check)} events...")
+
+                updated_count = 0
+                for item in to_check:
+                    event = item['event']
+                    hours = item['hours_until_end']
+
+                    try:
+                        # Re-scrape event details to get current price
+                        new_events = await scraper.scrape_details_by_ids([event.reference])
+
+                        if new_events and len(new_events) > 0:
+                            new_event = new_events[0]
+                            old_price = event.valores.lanceAtual or 0
+                            new_price = new_event.valores.lanceAtual or 0
+
+                            # Check if price changed
+                            if old_price != new_price:
+                                print(f"    💰 {event.reference}: {old_price}€ → {new_price}€ ({hours:.1f}h remaining)")
+
+                                # Update event in database
+                                event.valores = new_event.valores
+                                event.dataFim = new_event.dataFim  # Also update end date (may change with bids)
+
+                                async with get_db() as db:
+                                    await db.save_event(event)
+                                    await cache_manager.set(event.reference, event)
+
+                                updated_count += 1
+                            else:
+                                print(f"    ✓ {event.reference}: {old_price}€ (unchanged, {hours:.1f}h remaining)")
+
+                    except Exception as e:
+                        print(f"    ⚠️ Error checking {event.reference}: {e}")
+
+                print(f"  ✅ Price check complete: {updated_count} events updated")
+
+                # Update pipeline stats
+                pipeline = self.pipelines['prices']
+                pipeline.last_run = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                pipeline.runs_count += 1
+                self._save_config()
+
+            finally:
+                await scraper.close()
+                await cache_manager.close()
 
         async def run_info_pipeline():
-            """Pipeline Y: Info verification"""
+            """Pipeline Y: Quick info verification and update"""
+            from scraper import EventScraper
+            from database import get_db
+            from cache import CacheManager
+            import random
+
             print(f"🔄 Running Info Auto-Pipeline...")
-            # TODO: Implement info verification logic
-            pipeline = self.pipelines['info']
-            pipeline.last_run = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            pipeline.runs_count += 1
-            self._save_config()
+
+            scraper = EventScraper()
+            cache_manager = CacheManager()
+
+            try:
+                # Get all events from database
+                async with get_db() as db:
+                    events = await db.list_events(limit=1000)
+
+                if not events:
+                    print(f"  ℹ️ No events in database")
+                    return
+
+                # Sample 30 random events for quick check (to avoid overload)
+                sample_size = min(30, len(events))
+                sampled_events = random.sample(events, sample_size)
+
+                print(f"  📊 Checking {sample_size} events (sampled from {len(events)} total)...")
+
+                updated_count = 0
+                errors_count = 0
+
+                for event in sampled_events:
+                    try:
+                        # Re-scrape event details
+                        new_events = await scraper.scrape_details_by_ids([event.reference])
+
+                        if new_events and len(new_events) > 0:
+                            new_event = new_events[0]
+                            changed_fields = []
+
+                            # Compare valores (prices)
+                            if event.valores.valorBase != new_event.valores.valorBase:
+                                changed_fields.append(f"valorBase: {event.valores.valorBase}€ → {new_event.valores.valorBase}€")
+                            if event.valores.valorAbertura != new_event.valores.valorAbertura:
+                                changed_fields.append(f"valorAbertura: {event.valores.valorAbertura}€ → {new_event.valores.valorAbertura}€")
+                            if event.valores.valorMinimo != new_event.valores.valorMinimo:
+                                changed_fields.append(f"valorMinimo: {event.valores.valorMinimo}€ → {new_event.valores.valorMinimo}€")
+                            if event.valores.lanceAtual != new_event.valores.lanceAtual:
+                                changed_fields.append(f"lanceAtual: {event.valores.lanceAtual}€ → {new_event.valores.lanceAtual}€")
+
+                            # Compare dates
+                            if event.dataInicio != new_event.dataInicio:
+                                changed_fields.append(f"dataInicio changed")
+                            if event.dataFim != new_event.dataFim:
+                                changed_fields.append(f"dataFim changed")
+
+                            # Compare detalhes (for móveis)
+                            if event.tipoEvento == 'movel':
+                                if event.detalhes.matricula != new_event.detalhes.matricula:
+                                    changed_fields.append(f"matrícula: {event.detalhes.matricula} → {new_event.detalhes.matricula}")
+                                if event.detalhes.marca != new_event.detalhes.marca:
+                                    changed_fields.append(f"marca changed")
+
+                            # Compare detalhes (for imóveis)
+                            if event.tipoEvento == 'imovel':
+                                if event.detalhes.tipologia != new_event.detalhes.tipologia:
+                                    changed_fields.append(f"tipologia: {event.detalhes.tipologia} → {new_event.detalhes.tipologia}")
+                                if event.detalhes.areaPrivativa != new_event.detalhes.areaPrivativa:
+                                    changed_fields.append(f"área: {event.detalhes.areaPrivativa}m² → {new_event.detalhes.areaPrivativa}m²")
+
+                            # If changes detected, update event
+                            if changed_fields:
+                                print(f"    🔄 {event.reference}: {len(changed_fields)} changes detected")
+                                for field in changed_fields[:3]:  # Show first 3 changes
+                                    print(f"       • {field}")
+
+                                # Update event with new data
+                                async with get_db() as db:
+                                    await db.save_event(new_event)
+                                    await cache_manager.set(event.reference, new_event)
+
+                                updated_count += 1
+                            else:
+                                print(f"    ✓ {event.reference}: no changes")
+
+                    except Exception as e:
+                        print(f"    ⚠️ Error checking {event.reference}: {e}")
+                        errors_count += 1
+
+                print(f"  ✅ Info verification complete: {updated_count} events updated, {errors_count} errors")
+
+                # Update pipeline stats
+                pipeline = self.pipelines['info']
+                pipeline.last_run = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                pipeline.runs_count += 1
+                self._save_config()
+
+            finally:
+                await scraper.close()
+                await cache_manager.close()
 
         # Return the appropriate function
         tasks = {
