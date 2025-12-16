@@ -23,7 +23,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from datetime import datetime
 
-from models import EventData, EventListResponse, ScraperStatus, ValoresLeilao, TipoEvento
+from models import EventData, EventListResponse, ScraperStatus, ValoresLeilao
 from database import init_db, get_db
 from scraper import EventScraper
 from cache import CacheManager
@@ -394,15 +394,19 @@ async def scrape_stage1_ids(
                 for item in ids:
                     try:
                         # Cria evento básico com apenas referência e valores
+                        from models import EventDetails
+
                         event = EventData(
                             reference=item['reference'],
-                            tipo=TipoEvento.IMOVEL if item.get('tipo') == 'imovel' else TipoEvento.MOVEL,
+                            tipoEvento=item.get('tipo', 'imovel'),
                             valores=item.get('valores', ValoresLeilao()),
-                            titulo=item.get('titulo', ''),
+                            detalhes=EventDetails(
+                                tipo=item.get('tipo', 'N/A'),
+                                subtipo='N/A'
+                            ),
                             # Campos vazios serão preenchidos no Stage 2
                             descricao=None,
                             observacoes=None,
-                            localizacao=None,
                             imagens=[]
                         )
 
