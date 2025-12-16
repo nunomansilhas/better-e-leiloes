@@ -28,6 +28,7 @@ from database import init_db, get_db
 from scraper import EventScraper
 from cache import CacheManager
 from pipeline_state import get_pipeline_state
+from auto_pipelines import get_auto_pipelines_manager
 from collections import deque
 import threading
 
@@ -185,6 +186,53 @@ async def test_pipeline_feedback(
         await pipeline_state.add_error(str(e))
         await pipeline_state.stop()
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============== AUTOMATIC PIPELINES ENDPOINTS ==============
+
+@app.get("/api/auto-pipelines/status")
+async def get_auto_pipelines_status():
+    """Get status of all automatic pipelines"""
+    auto_pipelines = get_auto_pipelines_manager()
+    return JSONResponse(auto_pipelines.get_status())
+
+
+@app.post("/api/auto-pipelines/{pipeline_type}/toggle")
+async def toggle_auto_pipeline(
+    pipeline_type: str,
+    enabled: bool = Query(..., description="Enable or disable the pipeline")
+):
+    """
+    Enable or disable an automatic pipeline.
+
+    - **pipeline_type**: Type of pipeline (full, prices, info)
+    - **enabled**: True to enable, False to disable
+
+    Returns pipeline configuration and next run time if enabled.
+    """
+    auto_pipelines = get_auto_pipelines_manager()
+
+    try:
+        result = await auto_pipelines.toggle_pipeline(
+            pipeline_type=pipeline_type,
+            enabled=enabled,
+            scheduler=scheduler
+        )
+
+        add_dashboard_log(
+            f"{'🟢 Ativada' if enabled else '🔴 Desativada'} pipeline automática: {pipeline_type}",
+            "info"
+        )
+
+        return JSONResponse(result)
+
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao alterar pipeline: {str(e)}")
+
+
+# ============== END AUTOMATIC PIPELINES ENDPOINTS ==============
 
 
 @app.get("/api/events/{reference}", response_model=EventData)

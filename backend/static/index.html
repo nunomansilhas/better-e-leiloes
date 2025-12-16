@@ -638,6 +638,98 @@
             width: 0%;
         }
 
+        /* Auto Pipeline Items */
+        .auto-pipeline-item {
+            padding: 16px;
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            transition: all 0.3s ease;
+        }
+
+        .auto-pipeline-item:hover {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e0e7ff 100%);
+            border-color: #c7d2fe;
+            transform: translateX(2px);
+        }
+
+        /* Toggle Switch */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 48px;
+            height: 26px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #cbd5e1;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 26px;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .toggle-switch input:checked + .toggle-slider {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
+        }
+
+        .toggle-switch input:checked + .toggle-slider:before {
+            transform: translateX(22px);
+        }
+
+        .toggle-slider:hover {
+            box-shadow:
+                inset 0 2px 4px rgba(0, 0, 0, 0.1),
+                0 0 8px rgba(99, 102, 241, 0.3);
+        }
+
+        /* Status Indicator */
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #10b981;
+            margin-right: 6px;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.7;
+                transform: scale(1.1);
+            }
+        }
+
         /* Filters */
         .filters-bar {
             background: white;
@@ -1651,6 +1743,85 @@
                             <option value="2">🚗 Apenas Móveis</option>
                         </select>
                         <input type="number" class="filter-input" id="independent-pages" placeholder="Nº Páginas (vazio=todas)" style="width: 160px;">
+                    </div>
+                </div>
+
+                <!-- Pipelines Automáticas -->
+                <div class="scraper-control-card" style="margin-top: 16px;">
+                    <div class="scraper-control-header">
+                        <h3>⚡ Pipelines Automáticas</h3>
+                        <span style="font-size: 12px; color: #64748b;">Agendamento automático de scrapers</span>
+                    </div>
+
+                    <div style="display: grid; gap: 12px;">
+                        <!-- Pipeline Automática -->
+                        <div class="auto-pipeline-item">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div style="flex: 1;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                                        <span style="font-size: 18px;">🤖</span>
+                                        <span style="font-weight: 600; color: #1e293b;">Pipeline Automática</span>
+                                    </div>
+                                    <div style="font-size: 12px; color: #64748b; margin-left: 26px;">
+                                        Recolhe novos IDs, conteúdos e imagens • A cada 8 horas
+                                    </div>
+                                </div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="auto-pipeline-full" onchange="toggleAutoPipeline('full', this.checked)">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div id="auto-pipeline-full-status" style="font-size: 11px; color: #94a3b8; margin-left: 26px; margin-top: 6px; display: none;">
+                                <span class="status-indicator"></span>
+                                <span class="status-text"></span>
+                            </div>
+                        </div>
+
+                        <!-- Pipeline X - Verificação de Preços -->
+                        <div class="auto-pipeline-item">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div style="flex: 1;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                                        <span style="font-size: 18px;">💰</span>
+                                        <span style="font-weight: 600; color: #1e293b;">Pipeline X - Preços</span>
+                                    </div>
+                                    <div style="font-size: 12px; color: #64748b; margin-left: 26px;">
+                                        Verifica alterações de preços • Eventos próximos de terminar mais frequentes
+                                    </div>
+                                </div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="auto-pipeline-prices" onchange="toggleAutoPipeline('prices', this.checked)">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div id="auto-pipeline-prices-status" style="font-size: 11px; color: #94a3b8; margin-left: 26px; margin-top: 6px; display: none;">
+                                <span class="status-indicator"></span>
+                                <span class="status-text"></span>
+                            </div>
+                        </div>
+
+                        <!-- Pipeline Y - Verificação de Informações -->
+                        <div class="auto-pipeline-item">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div style="flex: 1;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                                        <span style="font-size: 18px;">🔄</span>
+                                        <span style="font-weight: 600; color: #1e293b;">Pipeline Y - Info</span>
+                                    </div>
+                                    <div style="font-size: 12px; color: #64748b; margin-left: 26px;">
+                                        Verificação rápida de informações • Atualiza se necessário
+                                    </div>
+                                </div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="auto-pipeline-info" onchange="toggleAutoPipeline('info', this.checked)">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div id="auto-pipeline-info-status" style="font-size: 11px; color: #94a3b8; margin-left: 26px; margin-top: 6px; display: none;">
+                                <span class="status-indicator"></span>
+                                <span class="status-text"></span>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -2931,6 +3102,7 @@
         loadDashboard();
         startConsolePolling();
         checkPipelineStatusOnLoad(); // Retomar pipeline se ativa
+        loadAutoPipelinesStatus(); // Carregar status das pipelines automáticas
 
         // ============== MULTI-STAGE SCRAPING FUNCTIONS ==============
 
@@ -3477,6 +3649,86 @@
         }
 
         // ============== END PIPELINE REAL-TIME FEEDBACK SYSTEM ==============
+
+        // ============== AUTOMATIC PIPELINES SYSTEM ==============
+
+        // Load pipeline states on page load
+        async function loadAutoPipelinesStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/api/auto-pipelines/status`);
+                if (response.ok) {
+                    const data = await response.json();
+
+                    // Update UI with current status
+                    for (const [type, config] of Object.entries(data.pipelines || {})) {
+                        const checkbox = document.getElementById(`auto-pipeline-${type}`);
+                        const statusDiv = document.getElementById(`auto-pipeline-${type}-status`);
+
+                        if (checkbox) {
+                            checkbox.checked = config.enabled;
+                        }
+
+                        if (statusDiv && config.enabled) {
+                            statusDiv.style.display = 'block';
+                            const statusText = statusDiv.querySelector('.status-text');
+                            if (statusText) {
+                                statusText.textContent = `Próxima execução: ${config.next_run || 'Calculando...'}`;
+                            }
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Erro ao carregar status das pipelines automáticas:', error);
+            }
+        }
+
+        async function toggleAutoPipeline(type, enabled) {
+            try {
+                addLog(`${enabled ? '🟢' : '🔴'} Auto-Pipeline ${type}: ${enabled ? 'Ativada' : 'Desativada'}`, 'info');
+
+                const response = await fetch(`${API_BASE}/api/auto-pipelines/${type}/toggle`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({enabled})
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    const statusDiv = document.getElementById(`auto-pipeline-${type}-status`);
+
+                    if (enabled) {
+                        statusDiv.style.display = 'block';
+                        const statusText = statusDiv.querySelector('.status-text');
+                        if (statusText) {
+                            statusText.textContent = data.next_run ?
+                                `Próxima execução: ${data.next_run}` :
+                                'Agendamento ativo';
+                        }
+
+                        showModal('✅ Pipeline Ativada', `Pipeline ${type} foi ativada com sucesso!\n${data.message || ''}`);
+                    } else {
+                        statusDiv.style.display = 'none';
+                        showModal('⏸️ Pipeline Desativada', `Pipeline ${type} foi desativada.`);
+                    }
+
+                    addLog(`✅ Auto-Pipeline ${type}: ${data.message}`, 'success');
+                } else {
+                    throw new Error(data.detail || 'Erro ao alterar estado da pipeline');
+                }
+            } catch (error) {
+                addLog(`❌ Erro ao alterar pipeline ${type}: ${error.message}`, 'error');
+                showModal('❌ Erro', error.message);
+
+                // Revert checkbox
+                const checkbox = document.getElementById(`auto-pipeline-${type}`);
+                if (checkbox) {
+                    checkbox.checked = !enabled;
+                }
+            }
+        }
+
+        // ============== END AUTOMATIC PIPELINES SYSTEM ==============
 
         // Console Functions
         function toggleAutoScroll() {
