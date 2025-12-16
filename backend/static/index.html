@@ -3701,10 +3701,9 @@
             try {
                 addLog(`${enabled ? '🟢' : '🔴'} Auto-Pipeline ${type}: ${enabled ? 'Ativada' : 'Desativada'}`, 'info');
 
-                const response = await fetch(`${API_BASE}/api/auto-pipelines/${type}/toggle`, {
+                const response = await fetch(`${API_BASE}/api/auto-pipelines/${type}/toggle?enabled=${enabled}`, {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({enabled})
+                    headers: {'Content-Type': 'application/json'}
                 });
 
                 const data = await response.json();
