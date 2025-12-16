@@ -2930,6 +2930,7 @@
         restoreSidebarState();
         loadDashboard();
         startConsolePolling();
+        checkPipelineStatusOnLoad(); // Retomar pipeline se ativa
 
         // ============== MULTI-STAGE SCRAPING FUNCTIONS ==============
 
@@ -3167,6 +3168,9 @@
             try {
                 addLog(`▶ Executando scraper: ${type.toUpperCase()}`, 'info');
 
+                // Iniciar polling de feedback em tempo real
+                startPipelinePolling();
+
                 let url, message;
 
                 switch(type) {
@@ -3249,6 +3253,9 @@
                 btn.textContent = '⏳ A executar...';
 
                 addLog('🚀 Pipeline: Iniciando pipeline completo...', 'info');
+
+                // Iniciar polling de feedback em tempo real
+                startPipelinePolling();
 
                 // Reset pipeline visualization
                 updatePipelineStage(1, 'active', 0);
@@ -3353,6 +3360,123 @@
             document.getElementById('feedback-count').textContent = `${current} / ${total}`;
             document.getElementById('feedback-progress-bar').style.width = total > 0 ? `${(current / total) * 100}%` : '0%';
         }
+
+        // ============== PIPELINE REAL-TIME FEEDBACK SYSTEM ==============
+        let pipelinePollingInterval = null;
+
+        // Verificar estado da pipeline ao carregar a página
+        async function checkPipelineStatusOnLoad() {
+            try {
+                const response = await fetch(`${API_BASE}/api/pipeline/status`);
+                if (response.ok) {
+                    const state = await response.json();
+                    if (state.active) {
+                        // Pipeline está ativa, retomar monitoring
+                        console.log('🔄 Pipeline ativa detectada, retomando monitoring...');
+                        addLog('🔄 Pipeline ativa detectada, retomando monitoring...', 'info');
+                        startPipelinePolling();
+                    }
+                }
+            } catch (error) {
+                console.error('Erro ao verificar estado da pipeline:', error);
+            }
+        }
+
+        async function startPipelinePolling() {
+            // Limpar polling anterior se existir
+            if (pipelinePollingInterval) {
+                clearInterval(pipelinePollingInterval);
+            }
+
+            // Mostrar feedback box
+            const feedbackBox = document.getElementById('pipeline-feedback');
+            if (feedbackBox) {
+                feedbackBox.style.display = 'block';
+            }
+
+            // Fazer polling a cada 500ms
+            pipelinePollingInterval = setInterval(async () => {
+                try {
+                    const response = await fetch(`${API_BASE}/api/pipeline/status`);
+                    if (response.ok) {
+                        const state = await response.json();
+                        updatePipelineFromState(state);
+
+                        // Parar polling se pipeline não está ativa
+                        if (!state.active) {
+                            stopPipelinePolling();
+                        }
+                    }
+                } catch (error) {
+                    console.error('Erro ao fazer polling do estado da pipeline:', error);
+                }
+            }, 500);
+
+            addLog('🔄 Monitoring pipeline em tempo real...', 'info');
+        }
+
+        function stopPipelinePolling() {
+            if (pipelinePollingInterval) {
+                clearInterval(pipelinePollingInterval);
+                pipelinePollingInterval = null;
+            }
+
+            // Esconder feedback box após 2 segundos
+            setTimeout(() => {
+                const feedbackBox = document.getElementById('pipeline-feedback');
+                if (feedbackBox) {
+                    feedbackBox.style.display = 'none';
+                }
+            }, 2000);
+        }
+
+        function updatePipelineFromState(state) {
+            if (!state || !state.active) {
+                return;
+            }
+
+            const { stage, stage_name, current, total, message, errors } = state;
+
+            // Atualizar feedback box
+            const feedbackStatus = document.getElementById('feedback-status');
+            if (feedbackStatus) {
+                feedbackStatus.textContent = stage_name || 'A processar...';
+            }
+
+            updateFeedback(message || 'Aguarde...', current, total);
+
+            // Atualizar visualização da pipeline
+            if (stage === 1) {
+                updatePipelineStage(1, 'active', current);
+                updatePipelineStage(2, 'pending', 0);
+                updatePipelineStage(3, 'pending', 0);
+                updatePipelineProgress(Math.min((current / total) * 33, 33));
+            } else if (stage === 2) {
+                updatePipelineStage(1, 'completed', total);
+                updatePipelineStage(2, 'active', current);
+                updatePipelineStage(3, 'pending', 0);
+                updatePipelineProgress(33 + Math.min((current / total) * 33, 33));
+            } else if (stage === 3) {
+                updatePipelineStage(1, 'completed', total);
+                updatePipelineStage(2, 'completed', total);
+                updatePipelineStage(3, 'active', current);
+                updatePipelineProgress(66 + Math.min((current / total) * 34, 34));
+            }
+
+            // Mostrar erros se existirem
+            if (errors && errors.length > 0) {
+                errors.forEach(err => {
+                    addLog(`⚠️ Erro: ${err.error}`, 'error');
+                });
+            }
+
+            // Log de progresso detalhado
+            if (current > 0 && total > 0) {
+                console.log(`📊 Pipeline: Stage ${stage} - ${current}/${total} - ${message}`);
+            }
+        }
+
+        // ============== END PIPELINE REAL-TIME FEEDBACK SYSTEM ==============
 
         // Console Functions
         function toggleAutoScroll() {

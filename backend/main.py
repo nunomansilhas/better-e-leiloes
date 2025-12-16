@@ -27,6 +27,7 @@ from models import EventData, EventListResponse, ScraperStatus, ValoresLeilao
 from database import init_db, get_db
 from scraper import EventScraper
 from cache import CacheManager
+from pipeline_state import get_pipeline_state
 from collections import deque
 import threading
 
@@ -119,6 +120,14 @@ async def health():
         "service": "E-Leiloes Data API",
         "version": "1.0.0"
     }
+
+
+@app.get("/api/pipeline/status")
+async def get_pipeline_status():
+    """Get current pipeline state for real-time feedback"""
+    pipeline_state = get_pipeline_state()
+    state = await pipeline_state.get_state()
+    return JSONResponse(state)
 
 
 @app.get("/api/events/{reference}", response_model=EventData)
@@ -382,16 +391,32 @@ async def scrape_stage1_ids(
     Retorna lista de IDs com valores básicos.
     Ideal para descobrir rapidamente o que existe e popular a BD.
     """
+    pipeline_state = get_pipeline_state()
+
     try:
         add_dashboard_log("🔍 STAGE 1: A obter IDs...", "info")
 
+        # Iniciar pipeline state
+        tipo_str = "Imóveis" if tipo == 1 else "Móveis" if tipo == 2 else "Todos"
+        await pipeline_state.start(
+            stage=1,
+            stage_name=f"Stage 1 - IDs ({tipo_str})",
+            total=0,  # Será atualizado conforme scraping
+            details={"tipo": tipo, "max_pages": max_pages}
+        )
+
         ids = await scraper.scrape_ids_only(tipo=tipo, max_pages=max_pages)
+
+        # Atualizar total após scraping
+        await pipeline_state.update(total=len(ids), message=f"{len(ids)} IDs recolhidos")
 
         # Guardar na BD se solicitado
         saved_count = 0
         if save_to_db:
+            await pipeline_state.update(message=f"Guardando {len(ids)} eventos na BD...")
+
             async with get_db() as db:
-                for item in ids:
+                for idx, item in enumerate(ids, 1):
                     try:
                         # Cria evento básico com apenas referência e valores
                         from models import EventDetails
@@ -414,13 +439,29 @@ async def scrape_stage1_ids(
                         await cache_manager.set(event.reference, event)
                         saved_count += 1
 
+                        # Atualizar progresso
+                        await pipeline_state.update(
+                            current=idx,
+                            message=f"Guardando {idx}/{len(ids)} - {item['reference']}"
+                        )
+
                     except Exception as e:
                         print(f"  ⚠️ Erro ao guardar {item['reference']}: {e}")
+                        await pipeline_state.add_error(f"Erro ao guardar {item['reference']}: {e}")
                         continue
 
             add_dashboard_log(f"💾 {saved_count} eventos guardados na BD", "success")
 
         add_dashboard_log(f"✅ Stage 1 completo: {len(ids)} IDs recolhidos", "success")
+
+        # Marcar como completo
+        await pipeline_state.complete(
+            message=f"✅ {len(ids)} IDs recolhidos{', ' + str(saved_count) + ' guardados' if save_to_db else ''}"
+        )
+
+        # Parar pipeline após pequeno delay para UI mostrar
+        await asyncio.sleep(2)
+        await pipeline_state.stop()
 
         return {
             "stage": 1,
@@ -433,6 +474,8 @@ async def scrape_stage1_ids(
     except Exception as e:
         msg = f"❌ Erro no Stage 1: {str(e)}"
         add_dashboard_log(msg, "error")
+        await pipeline_state.add_error(msg)
+        await pipeline_state.stop()
         raise HTTPException(status_code=500, detail=msg)
 
 
@@ -504,18 +547,47 @@ async def scrape_stage2_details(
 
     Retorna eventos com todos os detalhes exceto imagens.
     """
+    pipeline_state = get_pipeline_state()
+    scraped_count = 0
+
     try:
+        # Iniciar pipeline state
+        await pipeline_state.start(
+            stage=2,
+            stage_name="Stage 2 - Detalhes",
+            total=len(references),
+            details={"save_to_db": save_to_db}
+        )
+
         # Callback para inserir cada evento assim que é scraped (TEMPO REAL)
         async def save_event_callback(event: EventData):
             """Salva evento na BD em tempo real"""
+            nonlocal scraped_count
+            scraped_count += 1
+
             async with get_db() as db:
                 await db.save_event(event)
                 await cache_manager.set(event.reference, event)
                 print(f"  💾 {event.reference} guardado em tempo real")
 
+            # Atualizar progresso da pipeline
+            await pipeline_state.update(
+                current=scraped_count,
+                message=f"Scraping {scraped_count}/{len(references)} - {event.reference}"
+            )
+
         # Se save_to_db=True, passa callback; senão, None
         callback = save_event_callback if save_to_db else None
         events = await scraper.scrape_details_by_ids(references, on_event_scraped=callback)
+
+        # Marcar como completo
+        await pipeline_state.complete(
+            message=f"✅ {len(events)} eventos processados{' e guardados' if save_to_db else ''}"
+        )
+
+        # Parar pipeline após pequeno delay para UI mostrar
+        await asyncio.sleep(2)
+        await pipeline_state.stop()
 
         return {
             "stage": 2,
@@ -527,7 +599,10 @@ async def scrape_stage2_details(
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro no Stage 2: {str(e)}")
+        msg = f"Erro no Stage 2: {str(e)}"
+        await pipeline_state.add_error(msg)
+        await pipeline_state.stop()
+        raise HTTPException(status_code=500, detail=msg)
 
 
 @app.post("/api/scrape/stage3/images")
@@ -543,13 +618,26 @@ async def scrape_stage3_images(
 
     Retorna mapa {reference: [image_urls]}.
     """
+    pipeline_state = get_pipeline_state()
+
     try:
+        # Iniciar pipeline state
+        await pipeline_state.start(
+            stage=3,
+            stage_name="Stage 3 - Imagens",
+            total=len(references),
+            details={"update_db": update_db}
+        )
+
         images_map = await scraper.scrape_images_by_ids(references)
 
         # Atualiza eventos na BD se solicitado
+        updated_count = 0
         if update_db:
+            await pipeline_state.update(message=f"Atualizando {len(images_map)} eventos na BD...")
+
             async with get_db() as db:
-                for ref, images in images_map.items():
+                for idx, (ref, images) in enumerate(images_map.items(), 1):
                     # Busca evento existente
                     event = await db.get_event(ref)
                     if event:
@@ -558,6 +646,22 @@ async def scrape_stage3_images(
                         event.updated_at = datetime.utcnow()
                         await db.save_event(event)
                         await cache_manager.set(ref, event)
+                        updated_count += 1
+
+                        # Atualizar progresso
+                        await pipeline_state.update(
+                            current=idx,
+                            message=f"Atualizando {idx}/{len(images_map)} - {ref} ({len(images)} imagens)"
+                        )
+
+        # Marcar como completo
+        await pipeline_state.complete(
+            message=f"✅ {len(images_map)} eventos processados{', ' + str(updated_count) + ' atualizados' if update_db else ''}"
+        )
+
+        # Parar pipeline após pequeno delay para UI mostrar
+        await asyncio.sleep(2)
+        await pipeline_state.stop()
 
         return {
             "stage": 3,
@@ -569,7 +673,10 @@ async def scrape_stage3_images(
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro no Stage 3: {str(e)}")
+        msg = f"Erro no Stage 3: {str(e)}"
+        await pipeline_state.add_error(msg)
+        await pipeline_state.stop()
+        raise HTTPException(status_code=500, detail=msg)
 
 
 @app.post("/api/scrape/pipeline")
