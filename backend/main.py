@@ -232,6 +232,20 @@ async def toggle_auto_pipeline(
         raise HTTPException(status_code=500, detail=f"Erro ao alterar pipeline: {str(e)}")
 
 
+@app.get("/api/auto-pipelines/prices/cache-info")
+async def get_prices_cache_info():
+    """Get Pipeline X cache information (number of cached events)"""
+    auto_pipelines = get_auto_pipelines_manager()
+
+    cache_count = len(auto_pipelines._critical_events_cache)
+    last_refresh = auto_pipelines._cache_last_refresh
+
+    return JSONResponse({
+        "cached_events": cache_count,
+        "last_refresh": last_refresh.strftime("%Y-%m-%d %H:%M:%S") if last_refresh else None
+    })
+
+
 # ============== END AUTOMATIC PIPELINES ENDPOINTS ==============
 
 

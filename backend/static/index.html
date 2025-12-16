@@ -2107,6 +2107,11 @@
         // Global variables for console and modals
         let consolePollingInterval = null;
         let autoScroll = true;
+
+        // Pipeline X countdown variables
+        let pipelineXCountdown = 5;
+        let pipelineXCountdownInterval = null;
+        let pipelineXCachedEvents = 0;
         let deleteTimerInterval = null;
 
         // Sidebar Lock
@@ -3669,6 +3674,53 @@
         // ============== AUTOMATIC PIPELINES SYSTEM ==============
 
         // Load pipeline states on page load
+        // Pipeline X Countdown Functions
+        async function updatePipelineXCacheInfo() {
+            try {
+                const response = await fetch(`${API_BASE}/api/auto-pipelines/prices/cache-info`);
+                if (response.ok) {
+                    const data = await response.json();
+                    pipelineXCachedEvents = data.cached_events || 0;
+                }
+            } catch (error) {
+                console.error('Erro ao buscar info do cache Pipeline X:', error);
+            }
+        }
+
+        function updatePipelineXDisplay() {
+            const statusDiv = document.getElementById('auto-pipeline-prices-status');
+            const statusText = statusDiv?.querySelector('.status-text');
+            if (statusText) {
+                statusText.textContent = `⚡ Executando a cada ${pipelineXCountdown} segundo${pipelineXCountdown !== 1 ? 's' : ''} • ${pipelineXCachedEvents} eventos na cache`;
+            }
+        }
+
+        function startPipelineXCountdown() {
+            stopPipelineXCountdown(); // Clear any existing interval
+            pipelineXCountdown = 5;
+
+            // Update cache info immediately
+            updatePipelineXCacheInfo();
+            updatePipelineXDisplay();
+
+            pipelineXCountdownInterval = setInterval(() => {
+                pipelineXCountdown--;
+                if (pipelineXCountdown < 1) {
+                    pipelineXCountdown = 5;
+                    // Refresh cache info every 5 seconds
+                    updatePipelineXCacheInfo();
+                }
+                updatePipelineXDisplay();
+            }, 1000);
+        }
+
+        function stopPipelineXCountdown() {
+            if (pipelineXCountdownInterval) {
+                clearInterval(pipelineXCountdownInterval);
+                pipelineXCountdownInterval = null;
+            }
+        }
+
         async function loadAutoPipelinesStatus() {
             try {
                 const response = await fetch(`${API_BASE}/api/auto-pipelines/status`);
@@ -3688,9 +3740,9 @@
                             statusDiv.style.display = 'block';
                             const statusText = statusDiv.querySelector('.status-text');
                             if (statusText) {
-                                // Special message for Pipeline X (5-second interval)
+                                // Special message for Pipeline X (5-second interval with countdown)
                                 if (type === 'prices') {
-                                    statusText.textContent = '⚡ Executando a cada 5 segundos';
+                                    startPipelineXCountdown();
                                 } else {
                                     statusText.textContent = `Próxima execução: ${config.next_run || 'Calculando...'}`;
                                 }
@@ -3721,9 +3773,9 @@
                         statusDiv.style.display = 'block';
                         const statusText = statusDiv.querySelector('.status-text');
                         if (statusText) {
-                            // Special message for Pipeline X (5-second interval)
+                            // Special message for Pipeline X (5-second interval with countdown)
                             if (type === 'prices') {
-                                statusText.textContent = '⚡ Executando a cada 5 segundos';
+                                startPipelineXCountdown();
                             } else {
                                 statusText.textContent = data.next_run ?
                                     `Próxima execução: ${data.next_run}` :
@@ -3734,6 +3786,10 @@
                         showModal('✅ Pipeline Ativada', `Pipeline ${type} foi ativada com sucesso!\n${data.message || ''}`);
                     } else {
                         statusDiv.style.display = 'none';
+                        // Stop countdown if Pipeline X is disabled
+                        if (type === 'prices') {
+                            stopPipelineXCountdown();
+                        }
                         showModal('⏸️ Pipeline Desativada', `Pipeline ${type} foi desativada.`);
                     }
 
