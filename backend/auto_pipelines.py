@@ -39,10 +39,10 @@ class AutoPipelinesManager:
         ),
         "prices": PipelineConfig(
             type="prices",
-            name="Pipeline de Verificação de Preços",
-            description="Verifica alterações de preços, eventos próximos de terminar com mais frequência",
+            name="Pipeline X - Verificação de Preços (< 5 min)",
+            description="Verifica alterações de preços a cada 5 SEGUNDOS para eventos terminando em menos de 5 minutos",
             enabled=False,
-            interval_hours=0.5  # A cada 30 minutos
+            interval_hours=5/3600  # A cada 5 segundos
         ),
         "info": PipelineConfig(
             type="info",
@@ -56,6 +56,12 @@ class AutoPipelinesManager:
     def __init__(self):
         self.pipelines: Dict[str, PipelineConfig] = {}
         self.job_ids: Dict[str, str] = {}  # pipeline_type -> scheduler_job_id
+
+        # Cache for critical events (< 6 min) - refreshed every 5 minutes
+        self._critical_events_cache = []
+        self._cache_last_refresh = None
+        self._cache_refresh_interval = timedelta(minutes=5)
+
         self._load_config()
 
     def _load_config(self):
@@ -93,6 +99,43 @@ class AutoPipelinesManager:
             print(f"💾 Auto-pipelines config saved")
         except Exception as e:
             print(f"⚠️ Error saving auto-pipelines config: {e}")
+
+    async def refresh_critical_events_cache(self):
+        """Refresh cache of events ending in < 6 minutes (called every 5 minutes)"""
+        from database import get_db
+
+        try:
+            # Get all events from database
+            async with get_db() as db:
+                events = await db.list_events(limit=1000)
+
+            if not events:
+                self._critical_events_cache = []
+                self._cache_last_refresh = datetime.now()
+                return
+
+            # Filter events ending in LESS THAN 6 MINUTES (360 seconds)
+            # This catches events that just got reset to 5:00
+            now = datetime.now()
+            critical_events = []
+
+            for event in events:
+                if event.dataFim:
+                    time_until_end = event.dataFim - now
+                    seconds_until_end = time_until_end.total_seconds()
+
+                    # Cache events ending in < 6 minutes (1-minute buffer)
+                    if 0 < seconds_until_end <= 360:
+                        critical_events.append(event)
+
+            self._critical_events_cache = critical_events
+            self._cache_last_refresh = datetime.now()
+
+            if critical_events:
+                print(f"🔄 Critical events cache refreshed: {len(critical_events)} events (< 6 min)")
+
+        except Exception as e:
+            print(f"⚠️ Error refreshing critical events cache: {e}")
 
     def get_status(self) -> Dict[str, Any]:
         """Get status of all pipelines"""
@@ -257,88 +300,108 @@ class AutoPipelinesManager:
                 await cache_manager.close()
 
         async def run_prices_pipeline():
-            """Pipeline X: Price verification for events ending soon"""
+            """Pipeline X: Price verification every 5 SECONDS for events < 5 minutes"""
             from scraper import EventScraper
             from database import get_db
             from cache import CacheManager
 
-            print(f"💰 Running Prices Auto-Pipeline...")
+            # Check if cache needs refresh (every 5 minutes)
+            now = datetime.now()
+            needs_refresh = (
+                self._cache_last_refresh is None or
+                now - self._cache_last_refresh >= self._cache_refresh_interval
+            )
+
+            if needs_refresh:
+                await self.refresh_critical_events_cache()
+
+            # Use cached events list (no database query!)
+            if not self._critical_events_cache:
+                # No critical events - run silently
+                return
+
+            print(f"💰 Pipeline X: Checking {len(self._critical_events_cache)} events (< 6 min cache)")
 
             scraper = EventScraper()
             cache_manager = CacheManager()
 
             try:
-                # Get all events from database
-                async with get_db() as db:
-                    events = await db.list_events(limit=1000)
-
-                if not events:
-                    print(f"  ℹ️ No events in database")
-                    return
-
-                # Filter events ending within 7 days
+                # Process cached critical events
+                critical_events = []
                 now = datetime.now()
-                ending_soon = []
 
-                for event in events:
+                for event in self._critical_events_cache:
                     if event.dataFim:
                         time_until_end = event.dataFim - now
-                        days_until_end = time_until_end.total_seconds() / (24 * 3600)
+                        seconds_until_end = time_until_end.total_seconds()
 
-                        if days_until_end > 0 and days_until_end <= 7:
-                            ending_soon.append({
+                        # Only scrape events < 5 minutes (300 seconds)
+                        if 0 < seconds_until_end <= 300:
+                            critical_events.append({
                                 'event': event,
-                                'days_until_end': days_until_end,
-                                'hours_until_end': time_until_end.total_seconds() / 3600
+                                'seconds_until_end': seconds_until_end
                             })
 
-                # Sort by time until end (most urgent first)
-                ending_soon.sort(key=lambda x: x['days_until_end'])
+                # Sort by urgency (most urgent first)
+                critical_events.sort(key=lambda x: x['seconds_until_end'])
 
-                print(f"  📊 Found {len(ending_soon)} events ending within 7 days")
-
-                if not ending_soon:
-                    print(f"  ℹ️ No events ending soon")
+                if not critical_events:
                     return
 
-                # Limit to first 20 events to avoid overload
-                to_check = ending_soon[:20]
-                print(f"  🔍 Checking prices for {len(to_check)} events...")
+                print(f"  🚨 Scraping {len(critical_events)} events (< 5 min)")
 
                 updated_count = 0
-                for item in to_check:
+                time_extended_count = 0
+
+                for item in critical_events:
                     event = item['event']
-                    hours = item['hours_until_end']
+                    seconds = item['seconds_until_end']
+                    minutes = int(seconds / 60)
+                    secs = int(seconds % 60)
 
                     try:
-                        # Re-scrape event details to get current price
+                        # Re-scrape event details to get current price and end time
                         new_events = await scraper.scrape_details_by_ids([event.reference])
 
                         if new_events and len(new_events) > 0:
                             new_event = new_events[0]
                             old_price = event.valores.lanceAtual or 0
                             new_price = new_event.valores.lanceAtual or 0
+                            old_end = event.dataFim
+                            new_end = new_event.dataFim
 
-                            # Check if price changed
-                            if old_price != new_price:
-                                print(f"    💰 {event.reference}: {old_price}€ → {new_price}€ ({hours:.1f}h remaining)")
+                            # Check if price or time changed
+                            price_changed = old_price != new_price
+                            time_extended = new_end > old_end if (old_end and new_end) else False
 
-                                # Update event in database
+                            if price_changed or time_extended:
+                                msg_parts = []
+
+                                if price_changed:
+                                    msg_parts.append(f"{old_price}€ → {new_price}€")
+
+                                if time_extended:
+                                    time_diff = (new_end - old_end).total_seconds()
+                                    msg_parts.append(f"timer reset (+{int(time_diff/60)}min)")
+                                    time_extended_count += 1
+
+                                print(f"    💰 {event.reference}: {' | '.join(msg_parts)} ({minutes}m{secs}s remaining)")
+
+                                # Update event in database with new price AND new end time
                                 event.valores = new_event.valores
-                                event.dataFim = new_event.dataFim  # Also update end date (may change with bids)
+                                event.dataFim = new_event.dataFim  # Update reset timer
 
                                 async with get_db() as db:
                                     await db.save_event(event)
                                     await cache_manager.set(event.reference, event)
 
                                 updated_count += 1
-                            else:
-                                print(f"    ✓ {event.reference}: {old_price}€ (unchanged, {hours:.1f}h remaining)")
 
                     except Exception as e:
                         print(f"    ⚠️ Error checking {event.reference}: {e}")
 
-                print(f"  ✅ Price check complete: {updated_count} events updated")
+                if updated_count > 0:
+                    print(f"  ✅ {updated_count} events updated, {time_extended_count} timer resets")
 
                 # Update pipeline stats
                 pipeline = self.pipelines['prices']

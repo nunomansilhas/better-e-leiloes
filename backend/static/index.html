@@ -1777,16 +1777,17 @@
                             </div>
                         </div>
 
-                        <!-- Pipeline X - Verificação de Preços -->
-                        <div class="auto-pipeline-item">
+                        <!-- Pipeline X - Verificação de Preços (< 5 min) -->
+                        <div class="auto-pipeline-item" style="background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border: 2px solid #fca5a5;">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
                                 <div style="flex: 1;">
                                     <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
                                         <span style="font-size: 18px;">💰</span>
-                                        <span style="font-weight: 600; color: #1e293b;">Pipeline X - Preços</span>
+                                        <span style="font-weight: 600; color: #dc2626;">Pipeline X - Preços</span>
+                                        <span style="font-size: 10px; background: #dc2626; color: white; padding: 2px 6px; border-radius: 4px; font-weight: 700;">< 5 MIN</span>
                                     </div>
-                                    <div style="font-size: 12px; color: #64748b; margin-left: 26px;">
-                                        Verifica alterações de preços • Eventos próximos de terminar mais frequentes
+                                    <div style="font-size: 12px; color: #991b1b; margin-left: 26px; font-weight: 500;">
+                                        Verificação a cada 5 SEGUNDOS • Apenas eventos terminando em menos de 5 minutos
                                     </div>
                                 </div>
                                 <label class="toggle-switch">
@@ -1794,7 +1795,7 @@
                                     <span class="toggle-slider"></span>
                                 </label>
                             </div>
-                            <div id="auto-pipeline-prices-status" style="font-size: 11px; color: #94a3b8; margin-left: 26px; margin-top: 6px; display: none;">
+                            <div id="auto-pipeline-prices-status" style="font-size: 11px; color: #dc2626; margin-left: 26px; margin-top: 6px; display: none; font-weight: 500;">
                                 <span class="status-indicator"></span>
                                 <span class="status-text"></span>
                             </div>
