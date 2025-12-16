@@ -1830,7 +1830,7 @@
                 <div class="scraper-control-card" style="margin-top: 16px;">
                     <div class="scraper-control-header">
                         <h3>🚀 Pipeline Completo</h3>
-                        <button class="scraper-btn start" id="btn-pipeline" onclick="runPipeline()" style="padding: 8px 16px; font-size: 13px;">
+                        <button class="scraper-btn start" id="btn-pipeline" onclick="togglePipeline()" style="padding: 8px 16px; font-size: 13px;">
                             ▶ Executar Pipeline
                         </button>
                     </div>
@@ -2113,6 +2113,10 @@
         let pipelineXCountdownInterval = null;
         let pipelineXCachedEvents = 0;
         let deleteTimerInterval = null;
+
+        // Manual Pipeline control variables
+        let pipelineRunning = false;
+        let pipelineAbortController = null;
 
         // Sidebar Lock
         function toggleSidebarLock() {
@@ -3436,14 +3440,52 @@
             }
         }
 
+        // Toggle between run and stop pipeline
+        function togglePipeline() {
+            if (pipelineRunning) {
+                stopPipeline();
+            } else {
+                runPipeline();
+            }
+        }
+
+        // Stop pipeline execution
+        function stopPipeline() {
+            if (pipelineAbortController) {
+                pipelineAbortController.abort();
+                pipelineAbortController = null;
+            }
+
+            pipelineRunning = false;
+            const btn = document.getElementById('btn-pipeline');
+            btn.textContent = '▶ Executar Pipeline';
+            btn.className = 'scraper-btn start';
+            btn.disabled = false;
+
+            // Hide feedback box
+            const feedbackBox = document.getElementById('pipeline-feedback');
+            if (feedbackBox) feedbackBox.style.display = 'none';
+
+            addLog('⏹️ Pipeline: Execução cancelada pelo utilizador', 'warning');
+            showModal('⏹️ Pipeline Cancelado', 'A execução do pipeline foi interrompida.');
+        }
+
         async function runPipeline() {
             const btn = document.getElementById('btn-pipeline');
             const tipo = document.getElementById('independent-tipo').value;
             const pages = document.getElementById('independent-pages').value;
 
             try {
-                btn.disabled = true;
-                btn.textContent = '⏳ A executar...';
+                // Set running state and create abort controller
+                pipelineRunning = true;
+                pipelineAbortController = new AbortController();
+
+                // Update button to show "Stop" option
+                btn.disabled = false;
+                btn.textContent = '⏹️ Parar Execução';
+                btn.className = 'scraper-btn stop';
+                btn.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+                btn.style.color = 'white';
 
                 addLog('🚀 Pipeline: Iniciando pipeline completo...', 'info');
 
@@ -3467,7 +3509,10 @@
                 if (tipo) url += `tipo=${tipo}&`;
                 if (pages) url += `max_pages=${pages}`;
 
-                const response = await fetch(url, { method: 'POST' });
+                const response = await fetch(url, {
+                    method: 'POST',
+                    signal: pipelineAbortController.signal
+                });
                 const data = await response.json();
 
                 if (response.ok) {
@@ -3506,13 +3551,25 @@
                 }
 
             } catch (error) {
+                // Check if it was aborted by user
+                if (error.name === 'AbortError') {
+                    // Already handled by stopPipeline()
+                    return;
+                }
+
                 addLog(`❌ Pipeline: ${error.message}`, 'error');
                 showModal('❌ Erro', error.message);
                 const feedbackBox = document.getElementById('pipeline-feedback');
                 if (feedbackBox) feedbackBox.style.display = 'none';
             } finally {
+                // Reset button and state
+                pipelineRunning = false;
+                pipelineAbortController = null;
                 btn.disabled = false;
                 btn.textContent = '▶ Executar Pipeline';
+                btn.className = 'scraper-btn start';
+                btn.style.background = '';
+                btn.style.color = '';
             }
         }
 
