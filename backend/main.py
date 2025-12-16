@@ -130,6 +130,63 @@ async def get_pipeline_status():
     return JSONResponse(state)
 
 
+@app.post("/api/pipeline/test")
+async def test_pipeline_feedback(
+    items: int = Query(10, description="Número de itens para simular"),
+    stage: int = Query(2, description="Stage para simular (1, 2, ou 3)")
+):
+    """
+    TEST ENDPOINT: Simula uma pipeline em execução para testar o feedback.
+    Útil para testar o sistema sem precisar do Playwright.
+    """
+    pipeline_state = get_pipeline_state()
+
+    stage_names = {
+        1: "Stage 1 - IDs (Test)",
+        2: "Stage 2 - Detalhes (Test)",
+        3: "Stage 3 - Imagens (Test)"
+    }
+
+    try:
+        # Iniciar pipeline
+        await pipeline_state.start(
+            stage=stage,
+            stage_name=stage_names.get(stage, "Test Stage"),
+            total=items,
+            details={"test": True}
+        )
+
+        # Simular processamento
+        for i in range(1, items + 1):
+            await asyncio.sleep(0.5)  # Simular tempo de processamento
+
+            await pipeline_state.update(
+                current=i,
+                message=f"Processando item {i}/{items} - TEST-{i:04d}"
+            )
+
+        # Completar
+        await pipeline_state.complete(
+            message=f"✅ Test concluído! {items} itens processados"
+        )
+
+        # Parar após delay
+        await asyncio.sleep(2)
+        await pipeline_state.stop()
+
+        return {
+            "success": True,
+            "message": f"Test pipeline concluída: {items} itens em stage {stage}",
+            "stage": stage,
+            "items": items
+        }
+
+    except Exception as e:
+        await pipeline_state.add_error(str(e))
+        await pipeline_state.stop()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/events/{reference}", response_model=EventData)
 async def get_event(reference: str):
     """
