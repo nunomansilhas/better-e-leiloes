@@ -23,7 +23,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from datetime import datetime
 
-from models import EventData, EventListResponse, ScraperStatus
+from models import EventData, EventListResponse, ScraperStatus, ValoresLeilao, TipoEvento
 from database import init_db, get_db
 from scraper import EventScraper
 from cache import CacheManager
@@ -367,29 +367,69 @@ async def get_schedule_info():
 @app.post("/api/scrape/stage1/ids")
 async def scrape_stage1_ids(
     tipo: Optional[int] = Query(None, ge=1, le=2, description="1=imoveis, 2=moveis, None=ambos"),
-    max_pages: Optional[int] = Query(None, ge=1, description="Máximo de páginas por tipo")
+    max_pages: Optional[int] = Query(None, ge=1, description="Máximo de páginas por tipo"),
+    save_to_db: bool = Query(True, description="Guardar na base de dados")
 ):
     """
     STAGE 1: Scrape apenas IDs e valores básicos da listagem (rápido).
 
+    AGORA COM INSERÇÃO NA BD: Guarda eventos básicos na BD com referência e valores.
+
     - **tipo**: 1=imóveis, 2=móveis, None=ambos
     - **max_pages**: Máximo de páginas por tipo
+    - **save_to_db**: Se True, guarda eventos na BD (default: True)
 
     Retorna lista de IDs com valores básicos.
-    Ideal para descobrir rapidamente o que existe.
+    Ideal para descobrir rapidamente o que existe e popular a BD.
     """
     try:
+        add_dashboard_log("🔍 STAGE 1: A obter IDs...", "info")
+
         ids = await scraper.scrape_ids_only(tipo=tipo, max_pages=max_pages)
+
+        # Guardar na BD se solicitado
+        saved_count = 0
+        if save_to_db:
+            async with get_db() as db:
+                for item in ids:
+                    try:
+                        # Cria evento básico com apenas referência e valores
+                        event = EventData(
+                            reference=item['reference'],
+                            tipo=TipoEvento.IMOVEL if item.get('tipo') == 'imovel' else TipoEvento.MOVEL,
+                            valores=item.get('valores', ValoresLeilao()),
+                            titulo=item.get('titulo', ''),
+                            # Campos vazios serão preenchidos no Stage 2
+                            descricao=None,
+                            observacoes=None,
+                            localizacao=None,
+                            imagens=[]
+                        )
+
+                        await db.save_event(event)
+                        await cache_manager.set(event.reference, event)
+                        saved_count += 1
+
+                    except Exception as e:
+                        print(f"  ⚠️ Erro ao guardar {item['reference']}: {e}")
+                        continue
+
+            add_dashboard_log(f"💾 {saved_count} eventos guardados na BD", "success")
+
+        add_dashboard_log(f"✅ Stage 1 completo: {len(ids)} IDs recolhidos", "success")
 
         return {
             "stage": 1,
             "total_ids": len(ids),
+            "saved_to_db": saved_count if save_to_db else 0,
             "ids": ids,
-            "message": f"Stage 1 completo: {len(ids)} IDs recolhidos"
+            "message": f"Stage 1 completo: {len(ids)} IDs recolhidos{', ' + str(saved_count) + ' guardados na BD' if save_to_db else ''}"
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro no Stage 1: {str(e)}")
+        msg = f"❌ Erro no Stage 1: {str(e)}"
+        add_dashboard_log(msg, "error")
+        raise HTTPException(status_code=500, detail=msg)
 
 
 @app.post("/api/scrape/smart/new-events")
