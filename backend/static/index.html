@@ -260,17 +260,45 @@
         }
 
         .stat-card {
-            background: white;
-            border-radius: 12px;
+            position: relative;
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 16px;
             padding: 24px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            border: 1px solid #e2e8f0;
-            transition: all 0.2s;
+            box-shadow:
+                0 8px 32px rgba(0, 0, 0, 0.08),
+                inset 0 1px 0 rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg,
+                rgba(99, 102, 241, 0.03) 0%,
+                transparent 100%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .stat-card > * {
+            position: relative;
+            z-index: 1;
         }
 
         .stat-card:hover {
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            transform: translateY(-2px);
+            box-shadow:
+                0 20px 40px rgba(0, 0, 0, 0.12),
+                inset 0 1px 0 rgba(255, 255, 255, 0.9);
+            transform: translateY(-4px) scale(1.01);
+            border-color: rgba(99, 102, 241, 0.2);
         }
 
         .stat-card-header {
@@ -361,11 +389,45 @@
 
         /* Scraper Control Card */
         .scraper-control-card {
-            background: white;
-            border-radius: 12px;
+            position: relative;
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 16px;
             padding: 24px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            box-shadow:
+                0 8px 32px rgba(0, 0, 0, 0.08),
+                inset 0 1px 0 rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.4);
             margin-top: 24px;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .scraper-control-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg,
+                rgba(139, 92, 246, 0.03) 0%,
+                transparent 100%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .scraper-control-card > * {
+            position: relative;
+            z-index: 1;
+        }
+
+        .scraper-control-card:hover {
+            box-shadow:
+                0 12px 36px rgba(0, 0, 0, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.9);
+            border-color: rgba(139, 92, 246, 0.2);
         }
 
         .scraper-control-header {
@@ -459,16 +521,37 @@
         }
 
         .scraper-btn {
+            position: relative;
             padding: 10px 20px;
             border: none;
-            border-radius: 6px;
+            border-radius: 8px;
             font-size: 14px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             display: flex;
             align-items: center;
             gap: 8px;
+            overflow: hidden;
+        }
+
+        /* Ripple effect */
+        .scraper-btn::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.5);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .scraper-btn:active::after {
+            width: 300px;
+            height: 300px;
         }
 
         .scraper-btn:disabled {
@@ -477,21 +560,47 @@
         }
 
         .scraper-btn.start {
-            background: #10b981;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
             color: white;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
         }
 
         .scraper-btn.start:hover:not(:disabled) {
-            background: #059669;
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+            box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .scraper-btn.start:active:not(:disabled) {
+            transform: translateY(0);
         }
 
         .scraper-btn.stop {
-            background: #ef4444;
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
             color: white;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
         }
 
         .scraper-btn.stop:hover:not(:disabled) {
-            background: #dc2626;
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+            box-shadow: 0 6px 16px rgba(239, 68, 68, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .scraper-btn.stop:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        /* Icon bounce animation on hover */
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-4px); }
+        }
+
+        .scraper-btn:hover svg,
+        .scraper-btn:hover .icon,
+        .scraper-btn:hover > span:first-child {
+            animation: bounce 0.6s ease;
         }
 
         .scraper-progress {
@@ -1203,6 +1312,162 @@
             resize: vertical;
             flex: 1;
             min-width: 200px;
+        }
+
+        /* ===== PIPELINE ANIMATIONS ===== */
+
+        /* Animated gradient flow in progress line */
+        @keyframes gradientFlow {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        #pipeline-progress-line {
+            background: linear-gradient(90deg,
+                #3b82f6 0%,
+                #8b5cf6 25%,
+                #ec4899 50%,
+                #8b5cf6 75%,
+                #3b82f6 100%) !important;
+            background-size: 200% 100% !important;
+            animation: gradientFlow 3s ease infinite;
+        }
+
+        /* Pipeline stage pulse effect when active */
+        .pipeline-stage {
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .pipeline-stage.stage-active {
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
+            }
+            50% {
+                box-shadow: 0 0 0 8px rgba(59, 130, 246, 0);
+            }
+        }
+
+        /* Flow particles animation */
+        @keyframes flowParticle {
+            0% {
+                left: 0%;
+                opacity: 0;
+            }
+            25% {
+                opacity: 1;
+            }
+            75% {
+                opacity: 1;
+            }
+            100% {
+                left: 100%;
+                opacity: 0;
+            }
+        }
+
+        /* Shimmer effect for status badges */
+        @keyframes shimmer {
+            0% {
+                left: -100%;
+            }
+            100% {
+                left: 100%;
+            }
+        }
+
+        .status-badge-running {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .status-badge-running::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg,
+                transparent,
+                rgba(255, 255, 255, 0.3),
+                transparent);
+            animation: shimmer 2s infinite;
+        }
+
+        /* Success checkmark bounce */
+        @keyframes successBounce {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+
+        .status-badge-success {
+            animation: successBounce 0.6s ease;
+        }
+
+        /* Error shake animation */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .status-badge-error {
+            animation: shake 0.4s ease;
+        }
+
+        /* Stat icon subtle rotation on hover */
+        .stat-icon {
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .stat-card:hover .stat-icon {
+            transform: rotate(5deg) scale(1.1);
+        }
+
+        /* Fade in up animation for event cards */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .event-card {
+            animation: fadeInUp 0.4s cubic-bezier(0.4, 0, 0.2, 1) backwards;
+        }
+
+        /* Staggered animation delay for cards */
+        .event-card:nth-child(1) { animation-delay: 0.05s; }
+        .event-card:nth-child(2) { animation-delay: 0.1s; }
+        .event-card:nth-child(3) { animation-delay: 0.15s; }
+        .event-card:nth-child(4) { animation-delay: 0.2s; }
+        .event-card:nth-child(5) { animation-delay: 0.25s; }
+        .event-card:nth-child(6) { animation-delay: 0.3s; }
+
+        /* Loading skeleton shimmer */
+        @keyframes loadingSkeleton {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        .skeleton {
+            background: linear-gradient(
+                90deg,
+                #f0f0f0 25%,
+                #e0e0e0 50%,
+                #f0f0f0 75%
+            );
+            background-size: 200% 100%;
+            animation: loadingSkeleton 1.5s infinite;
+            border-radius: 4px;
         }
     </style>
 </head>
