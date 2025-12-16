@@ -2867,20 +2867,29 @@
                     card.style.pointerEvents = 'none';
                 }
 
+                addLog(`🔄 Recarregando evento: ${reference}`, 'info');
+
                 // Force API to re-scrape the event
                 const response = await fetch(`${API_BASE}/api/scrape/event/${reference}`, {
                     method: 'POST'
                 });
 
+                const data = await response.json();
+
                 if (response.ok) {
-                    // Wait a moment for the scraping to complete
-                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    addLog(`✅ Evento ${reference} recarregado com sucesso`, 'success');
+                    showModal('✅ Evento Atualizado', `Evento ${reference} foi atualizado com sucesso!\n\nA página vai recarregar...`);
+
+                    // Wait a moment for the modal to be visible
+                    await new Promise(resolve => setTimeout(resolve, 1500));
 
                     // Reload the current page
                     const activePage = document.querySelector('.page.active').id;
                     loadEvents(activePage);
                 } else {
-                    alert('Erro ao recarregar o evento. Por favor, tente novamente.');
+                    addLog(`❌ Erro ao recarregar ${reference}: ${data.detail || 'Erro desconhecido'}`, 'error');
+                    showModal('❌ Erro ao Recarregar', data.detail || 'Erro ao recarregar o evento. Por favor, tente novamente.');
+
                     if (card) {
                         card.style.opacity = '1';
                         card.style.pointerEvents = 'auto';
@@ -2888,7 +2897,13 @@
                 }
             } catch (error) {
                 console.error('Erro ao recarregar evento:', error);
-                alert('Erro ao recarregar o evento. Por favor, tente novamente.');
+                addLog(`❌ Erro ao recarregar ${reference}: ${error.message}`, 'error');
+                showModal('❌ Erro', `Erro ao recarregar o evento:\n${error.message}`);
+
+                if (card) {
+                    card.style.opacity = '1';
+                    card.style.pointerEvents = 'auto';
+                }
             }
         }
 
