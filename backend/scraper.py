@@ -1341,6 +1341,7 @@ class EventScraper:
 
         # Lista para coletar URLs de imagens interceptadas
         intercepted_images = []
+        verba_folder = None  # 🔥 Vamos determinar o folder correto
 
         context = await self.browser.new_context(
             user_agent=self.user_agent,
@@ -1351,14 +1352,31 @@ class EventScraper:
 
         # 🔥 INTERCEPTA requests de imagens da API
         async def handle_route(route):
+            nonlocal verba_folder
             request = route.request
-            url = request.url
+            img_url = request.url
 
             # Intercepta chamadas para Verbas_Fotos/verba_X/
-            if 'Verbas_Fotos/verba_' in url and url.endswith(('.jpg', '.jpeg', '.png', '.webp')):
-                if url not in intercepted_images:
-                    intercepted_images.append(url)
-                    print(f"    📸 Intercepted: {url.split('/')[-1]}")
+            if 'Verbas_Fotos/verba_' in img_url and img_url.endswith(('.jpg', '.jpeg', '.png', '.webp')):
+
+                # Extrai o folder verba (ex: "verba_121561")
+                match = re.search(r'(verba_\d+)', img_url)
+                if match:
+                    folder = match.group(1)
+
+                    # 🎯 Se ainda não determinamos o folder, usa o primeiro
+                    if verba_folder is None:
+                        verba_folder = folder
+                        print(f"    🎯 Folder detectado: {verba_folder}")
+
+                    # ✅ SÓ adiciona imagens do folder CORRETO
+                    if folder == verba_folder:
+                        if img_url not in intercepted_images:
+                            intercepted_images.append(img_url)
+                            print(f"    📸 {len(intercepted_images)}: {img_url.split('/')[-1]}")
+                    else:
+                        # ❌ Ignora imagens de outros folders
+                        print(f"    ⏭️  Ignorado (folder diferente): {folder}")
 
             # Continua com o request normal
             await route.continue_()
@@ -1396,7 +1414,7 @@ class EventScraper:
 
             # Se interceptamos imagens, retorna essas
             if intercepted_images:
-                print(f"    ✅ {len(intercepted_images)} imagens via interceptação")
+                print(f"    ✅ {len(intercepted_images)} imagens de {verba_folder}")
                 return intercepted_images
 
             # Fallback: usa método DOM (caso a interceptação falhe)
