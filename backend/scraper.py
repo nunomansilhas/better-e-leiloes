@@ -1425,3 +1425,89 @@ class EventScraper:
         finally:
             await page.close()
             await context.close()
+
+    # =========================================================================
+    # PIPELINE X: Métodos otimizados para scrape de valores voláteis
+    # =========================================================================
+
+    async def scrape_volatile_only(
+        self,
+        references: List[str]
+    ) -> List[dict]:
+        """
+        PIPELINE X: Scrape APENAS valores voláteis (dataFim, lanceAtual).
+        Muito mais rápido que scrape_details_by_ids - não extrai GPS, detalhes, textos, etc.
+
+        Args:
+            references: Lista de referências (ex: ["LO-2024-001", "NP-2024-002"])
+
+        Returns:
+            Lista de dicts: [{"reference": "XX", "data_fim": datetime, "lance_atual": float}, ...]
+        """
+        await self.init_browser()
+
+        results = []
+        failed = []
+
+        print(f"⚡ Pipeline X: Scraping voláteis de {len(references)} eventos...")
+
+        # Processa em batches paralelos
+        for i in range(0, len(references), self.concurrent):
+            batch = references[i:i + self.concurrent]
+
+            tasks = [self._scrape_volatile_single(ref) for ref in batch]
+            batch_results = await asyncio.gather(*tasks, return_exceptions=True)
+
+            for idx, result in enumerate(batch_results):
+                if isinstance(result, dict) and "reference" in result:
+                    results.append(result)
+                else:
+                    failed.append(batch[idx])
+                    print(f"  ✗ {batch[idx]}: {str(result)[:50]}")
+
+            # Delay menor para scrape leve
+            await asyncio.sleep(self.delay * 0.5)
+
+        print(f"✅ Pipeline X completo: {len(results)} OK / {len(failed)} falhas")
+        return results
+
+    async def _scrape_volatile_single(self, reference: str) -> dict:
+        """
+        Scrape APENAS dataFim e lanceAtual de um único evento.
+        Versão ultra-leve - não carrega imagens, detalhes, GPS, etc.
+        """
+        url = f"https://www.e-leiloes.pt/evento/{reference}"
+
+        context = await self.browser.new_context(
+            user_agent=self.user_agent,
+            viewport={'width': 1920, 'height': 1080}
+        )
+
+        page = await context.new_page()
+
+        try:
+            # Navegação mais rápida - não espera por networkidle
+            await page.goto(url, wait_until="domcontentloaded", timeout=10000)
+            await asyncio.sleep(0.8)  # Breve espera para JS renderizar
+
+            # Extrai APENAS datas e valores
+            data_inicio, data_fim = await self._extract_dates(page)
+            valores = await self._extract_valores_from_page(page)
+
+            return {
+                "reference": reference,
+                "data_fim": data_fim,
+                "data_inicio": data_inicio,
+                "lance_atual": valores.lanceAtual,
+                "valor_base": valores.valorBase,
+                "valor_abertura": valores.valorAbertura,
+                "valor_minimo": valores.valorMinimo
+            }
+
+        except Exception as e:
+            print(f"  ⚠️ Erro scrape volátil {reference}: {e}")
+            return {"reference": reference, "error": str(e)}
+
+        finally:
+            await page.close()
+            await context.close()

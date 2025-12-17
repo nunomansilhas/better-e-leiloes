@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sess
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy import select, func, String, Float, DateTime, Text
 from typing import List, Tuple, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
 import os
 import json
@@ -309,6 +309,126 @@ class DatabaseManager:
         )
         references = result.scalars().all()
         return list(references)
+
+    async def get_events_ending_within(self, seconds: int) -> List[EventData]:
+        """
+        PIPELINE X: Retorna eventos que terminam dentro de X segundos.
+        Query otimizada direto na BD (sem carregar todos os eventos em memória).
+
+        Args:
+            seconds: Número de segundos até o fim (ex: 300 para 5 min, 3600 para 1h)
+
+        Returns:
+            Lista de EventData ordenada por data_fim (mais urgente primeiro)
+        """
+        now = datetime.utcnow()
+        end_limit = now + timedelta(seconds=seconds)
+
+        result = await self.session.execute(
+            select(EventDB)
+            .where(EventDB.data_fim.isnot(None))
+            .where(EventDB.data_fim > now)
+            .where(EventDB.data_fim <= end_limit)
+            .order_by(EventDB.data_fim.asc())
+        )
+        events_db = result.scalars().all()
+
+        return [event.to_model() for event in events_db]
+
+    async def get_events_refs_ending_within(self, seconds: int) -> List[str]:
+        """
+        PIPELINE X: Retorna apenas REFs de eventos que terminam dentro de X segundos.
+        Versão ainda mais leve - só retorna referencias para scraping.
+
+        Args:
+            seconds: Número de segundos até o fim
+
+        Returns:
+            Lista de referências ordenada por data_fim (mais urgente primeiro)
+        """
+        now = datetime.utcnow()
+        end_limit = now + timedelta(seconds=seconds)
+
+        result = await self.session.execute(
+            select(EventDB.reference, EventDB.data_fim)
+            .where(EventDB.data_fim.isnot(None))
+            .where(EventDB.data_fim > now)
+            .where(EventDB.data_fim <= end_limit)
+            .order_by(EventDB.data_fim.asc())
+        )
+        rows = result.all()
+
+        return [row[0] for row in rows]
+
+    async def update_volatile_fields(
+        self,
+        reference: str,
+        lance_atual: Optional[float] = None,
+        data_fim: Optional[datetime] = None
+    ) -> bool:
+        """
+        PIPELINE X: UPDATE parcial só para campos voláteis (lance_atual, data_fim).
+        Muito mais rápido que save_event completo.
+
+        Args:
+            reference: REF do evento
+            lance_atual: Novo valor do lance atual (opcional)
+            data_fim: Nova data de fim (opcional)
+
+        Returns:
+            True se atualizado, False se evento não encontrado
+        """
+        result = await self.session.execute(
+            select(EventDB).where(EventDB.reference == reference)
+        )
+        existing = result.scalar_one_or_none()
+
+        if not existing:
+            return False
+
+        if lance_atual is not None:
+            existing.lance_atual = lance_atual
+        if data_fim is not None:
+            existing.data_fim = data_fim
+
+        existing.updated_at = datetime.utcnow()
+        await self.session.commit()
+
+        return True
+
+    async def bulk_update_volatile_fields(
+        self,
+        updates: List[dict]
+    ) -> int:
+        """
+        PIPELINE X: UPDATE em batch para múltiplos eventos.
+        Formato: [{"reference": "XX-XXX", "lance_atual": 1000.0, "data_fim": datetime}, ...]
+
+        Returns:
+            Número de eventos atualizados
+        """
+        updated_count = 0
+
+        for update in updates:
+            ref = update.get("reference")
+            if not ref:
+                continue
+
+            result = await self.session.execute(
+                select(EventDB).where(EventDB.reference == ref)
+            )
+            existing = result.scalar_one_or_none()
+
+            if existing:
+                if "lance_atual" in update and update["lance_atual"] is not None:
+                    existing.lance_atual = update["lance_atual"]
+                if "data_fim" in update and update["data_fim"] is not None:
+                    existing.data_fim = update["data_fim"]
+                existing.updated_at = datetime.utcnow()
+                updated_count += 1
+
+        await self.session.commit()
+        return updated_count
 
     async def delete_all_events(self) -> int:
         """

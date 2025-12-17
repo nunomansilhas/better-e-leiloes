@@ -406,135 +406,107 @@ class AutoPipelinesManager:
                 self._save_config()
 
         async def run_prices_pipeline():
-            """Pipeline X: Price verification every 5 SECONDS for events < 5 minutes"""
+            """Pipeline X-Critical: Price verification every 5 SECONDS for events < 5 minutes
+            OTIMIZADO: Usa SELECT direto da BD + scrape_volatile_only + UPDATE parcial
+            """
             from scraper import EventScraper
             from database import get_db
-            from cache import CacheManager
 
             # Mark as running
             self.pipelines['prices'].is_running = True
 
-            # Check if cache needs refresh (every 5 minutes)
-            now = datetime.now()
-            needs_refresh = (
-                self._cache_last_refresh is None or
-                now - self._cache_last_refresh >= self._cache_refresh_interval
-            )
-
-            if needs_refresh:
-                await self.refresh_critical_events_cache()
-
-            # Use cached events list (no database query!)
-            if not self._critical_events_cache:
-                print(f"🔴 Pipeline X-Critical: No critical events in cache, skipping")
-                # Update pipeline stats even when no events
-                pipeline = self.pipelines['prices']
-                now = datetime.now()
-                pipeline.last_run = now.strftime("%Y-%m-%d %H:%M:%S")
-                pipeline.runs_count += 1
-                next_run_time = now + timedelta(hours=pipeline.interval_hours)
-                pipeline.next_run = next_run_time.strftime("%Y-%m-%d %H:%M:%S")
-                self._save_config()
-                return
-
-            print(f"🔴 Pipeline X-Critical: Checking {len(self._critical_events_cache)} events (< 6 min cache)")
-
-            scraper = EventScraper()
-            cache_manager = CacheManager()
-
             try:
-                # Process cached critical events
-                critical_events = []
-                now = datetime.now()
+                # 1. SELECT: Query otimizada - eventos que terminam em < 5 min (300s)
+                async with get_db() as db:
+                    events = await db.get_events_ending_within(300)
 
-                for event in self._critical_events_cache:
-                    if event.dataFim:
-                        time_until_end = event.dataFim - now
-                        seconds_until_end = time_until_end.total_seconds()
-
-                        # Only scrape events < 5 minutes (300 seconds)
-                        if 0 < seconds_until_end <= 300:
-                            critical_events.append({
-                                'event': event,
-                                'seconds_until_end': seconds_until_end
-                            })
-
-                # Sort by urgency (most urgent first)
-                critical_events.sort(key=lambda x: x['seconds_until_end'])
-
-                if not critical_events:
-                    print(f"  🔴 No events ending in < 5 min right now")
+                if not events:
+                    print(f"🔴 Pipeline X-Critical: No events ending in < 5 min")
+                    # Update pipeline stats
+                    pipeline = self.pipelines['prices']
+                    now = datetime.now()
+                    pipeline.last_run = now.strftime("%Y-%m-%d %H:%M:%S")
+                    pipeline.runs_count += 1
+                    next_run_time = now + timedelta(hours=pipeline.interval_hours)
+                    pipeline.next_run = next_run_time.strftime("%Y-%m-%d %H:%M:%S")
+                    self._save_config()
                     return
 
-                print(f"  🚨 Scraping {len(critical_events)} events (< 5 min)")
+                print(f"🔴 Pipeline X-Critical: {len(events)} events (< 5 min)")
 
+                # 2. SCRAPE: Scrape otimizado - só valores voláteis
+                scraper = EventScraper()
+                try:
+                    refs = [e.reference for e in events]
+                    volatile_data = await scraper.scrape_volatile_only(refs)
+                finally:
+                    await scraper.close()
+
+                # 3. UPDATE: Compara e atualiza apenas campos alterados
+                updates = []
                 updated_count = 0
                 time_extended_count = 0
 
-                for item in critical_events:
-                    event = item['event']
-                    seconds = item['seconds_until_end']
-                    minutes = int(seconds / 60)
-                    secs = int(seconds % 60)
+                # Cria mapa de eventos antigos para comparação rápida
+                old_events_map = {e.reference: e for e in events}
 
-                    try:
-                        # Re-scrape event details to get current price and end time
-                        new_events = await scraper.scrape_details_by_ids([event.reference])
+                for new_data in volatile_data:
+                    ref = new_data.get("reference")
+                    if not ref or "error" in new_data:
+                        continue
 
-                        if new_events and len(new_events) > 0:
-                            new_event = new_events[0]
-                            old_price = event.valores.lanceAtual or 0
-                            new_price = new_event.valores.lanceAtual or 0
-                            old_end = event.dataFim
-                            new_end = new_event.dataFim
+                    old_event = old_events_map.get(ref)
+                    if not old_event:
+                        continue
 
-                            # Check if price or time changed
-                            price_changed = old_price != new_price
-                            time_extended = new_end > old_end if (old_end and new_end) else False
+                    old_price = old_event.valores.lanceAtual or 0
+                    new_price = new_data.get("lance_atual") or 0
+                    old_end = old_event.dataFim
+                    new_end = new_data.get("data_fim")
 
-                            if price_changed or time_extended:
-                                msg_parts = []
+                    price_changed = old_price != new_price
+                    time_extended = (new_end and old_end and new_end > old_end)
 
-                                if price_changed:
-                                    msg_parts.append(f"{old_price}€ → {new_price}€")
+                    if price_changed or time_extended:
+                        # Calcula tempo restante
+                        now = datetime.now()
+                        seconds_left = (old_end - now).total_seconds() if old_end else 0
+                        minutes = int(seconds_left / 60)
+                        secs = int(seconds_left % 60)
 
-                                if time_extended:
-                                    time_diff = (new_end - old_end).total_seconds()
-                                    msg_parts.append(f"timer reset (+{int(time_diff/60)}min)")
-                                    time_extended_count += 1
+                        msg_parts = []
+                        if price_changed:
+                            msg_parts.append(f"{old_price}€ → {new_price}€")
+                        if time_extended:
+                            time_diff = (new_end - old_end).total_seconds()
+                            msg_parts.append(f"timer reset (+{int(time_diff/60)}min)")
+                            time_extended_count += 1
 
-                                print(f"    💰 {event.reference}: {' | '.join(msg_parts)} ({minutes}m{secs}s remaining)")
+                        print(f"  💰 {ref}: {' | '.join(msg_parts)} ({minutes}m{secs}s)")
 
-                                # Update event in database with new price AND new end time
-                                event.valores = new_event.valores
-                                event.dataFim = new_event.dataFim  # Update reset timer
+                        updates.append({
+                            "reference": ref,
+                            "lance_atual": new_price if price_changed else None,
+                            "data_fim": new_end if time_extended else None
+                        })
+                        updated_count += 1
 
-                                async with get_db() as db:
-                                    await db.save_event(event)
-                                    await cache_manager.set(event.reference, event)
+                # Batch UPDATE na BD
+                if updates:
+                    async with get_db() as db:
+                        await db.bulk_update_volatile_fields(updates)
+                    print(f"  ✅ {updated_count} updated, {time_extended_count} timer resets")
 
-                                updated_count += 1
-
-                    except Exception as e:
-                        print(f"    ⚠️ Error checking {event.reference}: {e}")
-
-                if updated_count > 0:
-                    print(f"  ✅ {updated_count} events updated, {time_extended_count} timer resets")
-
-                # Update pipeline stats and next run
+                # Update pipeline stats
                 pipeline = self.pipelines['prices']
                 now = datetime.now()
                 pipeline.last_run = now.strftime("%Y-%m-%d %H:%M:%S")
                 pipeline.runs_count += 1
-                # Calculate next run time (5 seconds from now)
                 next_run_time = now + timedelta(hours=pipeline.interval_hours)
                 pipeline.next_run = next_run_time.strftime("%Y-%m-%d %H:%M:%S")
                 self._save_config()
 
             finally:
-                await scraper.close()
-                await cache_manager.close()
-                # Mark as not running
                 self.pipelines['prices'].is_running = False
 
         async def run_info_pipeline():
@@ -638,116 +610,91 @@ class AutoPipelinesManager:
                 self._save_config()
 
         async def run_prices_urgent_pipeline():
-            """Pipeline X-Urgent: Price verification every 1 MINUTE for events < 1 hour"""
+            """Pipeline X-Urgent: Price verification every 1 MINUTE for events < 1 hour
+            OTIMIZADO: Usa SELECT direto da BD + scrape_volatile_only + UPDATE parcial
+            """
             from scraper import EventScraper
             from database import get_db
-            from cache import CacheManager
 
             # Mark as running
             self.pipelines['prices_urgent'].is_running = True
 
-            # Check if cache needs refresh (every 10 minutes)
-            now = datetime.now()
-            needs_refresh = (
-                self._urgent_cache_last_refresh is None or
-                now - self._urgent_cache_last_refresh >= self._urgent_cache_refresh_interval
-            )
-
-            if needs_refresh:
-                await self.refresh_urgent_events_cache()
-
-            # Use cached events list
-            if not self._urgent_events_cache:
-                print(f"🟠 Pipeline X-Urgent: No urgent events in cache, skipping")
-                # Update pipeline stats even when no events
-                pipeline = self.pipelines['prices_urgent']
-                now = datetime.now()
-                pipeline.last_run = now.strftime("%Y-%m-%d %H:%M:%S")
-                pipeline.runs_count += 1
-                next_run_time = now + timedelta(hours=pipeline.interval_hours)
-                pipeline.next_run = next_run_time.strftime("%Y-%m-%d %H:%M:%S")
-                self._save_config()
-                return
-
-            print(f"🟠 Pipeline X-Urgent: Checking {len(self._urgent_events_cache)} events (< 1.5h cache)")
-
-            scraper = EventScraper()
-            cache_manager = CacheManager()
-
             try:
-                # Process cached urgent events
-                urgent_events = []
-                now = datetime.now()
+                # 1. SELECT: Query otimizada - eventos que terminam em < 1h (3600s)
+                async with get_db() as db:
+                    events = await db.get_events_ending_within(3600)
 
-                for event in self._urgent_events_cache:
-                    if event.dataFim:
-                        time_until_end = event.dataFim - now
-                        seconds_until_end = time_until_end.total_seconds()
-
-                        # Only scrape events < 1 hour (3600 seconds)
-                        if 0 < seconds_until_end <= 3600:
-                            urgent_events.append({
-                                'event': event,
-                                'seconds_until_end': seconds_until_end
-                            })
-
-                # Sort by urgency
-                urgent_events.sort(key=lambda x: x['seconds_until_end'])
-
-                if not urgent_events:
-                    print(f"  🟠 No events ending in < 1h right now")
+                if not events:
+                    print(f"🟠 Pipeline X-Urgent: No events ending in < 1h")
+                    pipeline = self.pipelines['prices_urgent']
+                    now = datetime.now()
+                    pipeline.last_run = now.strftime("%Y-%m-%d %H:%M:%S")
+                    pipeline.runs_count += 1
+                    next_run_time = now + timedelta(hours=pipeline.interval_hours)
+                    pipeline.next_run = next_run_time.strftime("%Y-%m-%d %H:%M:%S")
+                    self._save_config()
                     return
 
-                print(f"  🟠 Scraping {len(urgent_events)} events (< 1h)")
+                print(f"🟠 Pipeline X-Urgent: {len(events)} events (< 1h)")
 
+                # 2. SCRAPE: Scrape otimizado - só valores voláteis
+                scraper = EventScraper()
+                try:
+                    refs = [e.reference for e in events]
+                    volatile_data = await scraper.scrape_volatile_only(refs)
+                finally:
+                    await scraper.close()
+
+                # 3. UPDATE: Compara e atualiza apenas campos alterados
+                updates = []
                 updated_count = 0
                 time_extended_count = 0
+                old_events_map = {e.reference: e for e in events}
 
-                for item in urgent_events:
-                    event = item['event']
-                    seconds = item['seconds_until_end']
-                    minutes = int(seconds / 60)
+                for new_data in volatile_data:
+                    ref = new_data.get("reference")
+                    if not ref or "error" in new_data:
+                        continue
 
-                    try:
-                        new_events = await scraper.scrape_details_by_ids([event.reference])
+                    old_event = old_events_map.get(ref)
+                    if not old_event:
+                        continue
 
-                        if new_events and len(new_events) > 0:
-                            new_event = new_events[0]
-                            old_price = event.valores.lanceAtual or 0
-                            new_price = new_event.valores.lanceAtual or 0
-                            old_end = event.dataFim
-                            new_end = new_event.dataFim
+                    old_price = old_event.valores.lanceAtual or 0
+                    new_price = new_data.get("lance_atual") or 0
+                    old_end = old_event.dataFim
+                    new_end = new_data.get("data_fim")
 
-                            price_changed = old_price != new_price
-                            time_extended = new_end > old_end if (old_end and new_end) else False
+                    price_changed = old_price != new_price
+                    time_extended = (new_end and old_end and new_end > old_end)
 
-                            if price_changed or time_extended:
-                                msg_parts = []
-                                if price_changed:
-                                    msg_parts.append(f"{old_price}€ → {new_price}€")
-                                if time_extended:
-                                    time_diff = (new_end - old_end).total_seconds()
-                                    msg_parts.append(f"timer reset (+{int(time_diff/60)}min)")
-                                    time_extended_count += 1
+                    if price_changed or time_extended:
+                        now = datetime.now()
+                        seconds_left = (old_end - now).total_seconds() if old_end else 0
+                        minutes = int(seconds_left / 60)
 
-                                print(f"    🟠 {event.reference}: {' | '.join(msg_parts)} ({minutes}min remaining)")
+                        msg_parts = []
+                        if price_changed:
+                            msg_parts.append(f"{old_price}€ → {new_price}€")
+                        if time_extended:
+                            time_diff = (new_end - old_end).total_seconds()
+                            msg_parts.append(f"timer reset (+{int(time_diff/60)}min)")
+                            time_extended_count += 1
 
-                                event.valores = new_event.valores
-                                event.dataFim = new_event.dataFim
+                        print(f"  🟠 {ref}: {' | '.join(msg_parts)} ({minutes}min)")
 
-                                async with get_db() as db:
-                                    await db.save_event(event)
-                                    await cache_manager.set(event.reference, event)
+                        updates.append({
+                            "reference": ref,
+                            "lance_atual": new_price if price_changed else None,
+                            "data_fim": new_end if time_extended else None
+                        })
+                        updated_count += 1
 
-                                updated_count += 1
+                if updates:
+                    async with get_db() as db:
+                        await db.bulk_update_volatile_fields(updates)
+                    print(f"  ✅ {updated_count} updated, {time_extended_count} timer resets")
 
-                    except Exception as e:
-                        print(f"    ⚠️ Error checking {event.reference}: {e}")
-
-                if updated_count > 0:
-                    print(f"  ✅ {updated_count} events updated, {time_extended_count} timer resets")
-
-                # Update pipeline stats
                 pipeline = self.pipelines['prices_urgent']
                 now = datetime.now()
                 pipeline.last_run = now.strftime("%Y-%m-%d %H:%M:%S")
@@ -757,122 +704,95 @@ class AutoPipelinesManager:
                 self._save_config()
 
             finally:
-                await scraper.close()
-                await cache_manager.close()
                 self.pipelines['prices_urgent'].is_running = False
 
         async def run_prices_soon_pipeline():
-            """Pipeline X-Soon: Price verification every 10 MINUTES for events < 24 hours"""
+            """Pipeline X-Soon: Price verification every 10 MINUTES for events < 24 hours
+            OTIMIZADO: Usa SELECT direto da BD + scrape_volatile_only + UPDATE parcial
+            """
             from scraper import EventScraper
             from database import get_db
-            from cache import CacheManager
 
             # Mark as running
             self.pipelines['prices_soon'].is_running = True
 
-            # Check if cache needs refresh (every 30 minutes)
-            now = datetime.now()
-            needs_refresh = (
-                self._soon_cache_last_refresh is None or
-                now - self._soon_cache_last_refresh >= self._soon_cache_refresh_interval
-            )
-
-            if needs_refresh:
-                await self.refresh_soon_events_cache()
-
-            # Use cached events list
-            if not self._soon_events_cache:
-                print(f"🟡 Pipeline X-Soon: No soon events in cache, skipping")
-                # Update pipeline stats even when no events
-                pipeline = self.pipelines['prices_soon']
-                now = datetime.now()
-                pipeline.last_run = now.strftime("%Y-%m-%d %H:%M:%S")
-                pipeline.runs_count += 1
-                next_run_time = now + timedelta(hours=pipeline.interval_hours)
-                pipeline.next_run = next_run_time.strftime("%Y-%m-%d %H:%M:%S")
-                self._save_config()
-                return
-
-            print(f"🟡 Pipeline X-Soon: Checking {len(self._soon_events_cache)} events (< 25h cache)")
-
-            scraper = EventScraper()
-            cache_manager = CacheManager()
-
             try:
-                # Process cached soon events
-                soon_events = []
-                now = datetime.now()
+                # 1. SELECT: Query otimizada - eventos que terminam em < 24h (86400s)
+                async with get_db() as db:
+                    events = await db.get_events_ending_within(86400)
 
-                for event in self._soon_events_cache:
-                    if event.dataFim:
-                        time_until_end = event.dataFim - now
-                        seconds_until_end = time_until_end.total_seconds()
-
-                        # Only scrape events < 24 hours (86400 seconds)
-                        if 0 < seconds_until_end <= 86400:
-                            soon_events.append({
-                                'event': event,
-                                'seconds_until_end': seconds_until_end
-                            })
-
-                # Sort by urgency
-                soon_events.sort(key=lambda x: x['seconds_until_end'])
-
-                if not soon_events:
-                    print(f"  🟡 No events ending in < 24h right now")
+                if not events:
+                    print(f"🟡 Pipeline X-Soon: No events ending in < 24h")
+                    pipeline = self.pipelines['prices_soon']
+                    now = datetime.now()
+                    pipeline.last_run = now.strftime("%Y-%m-%d %H:%M:%S")
+                    pipeline.runs_count += 1
+                    next_run_time = now + timedelta(hours=pipeline.interval_hours)
+                    pipeline.next_run = next_run_time.strftime("%Y-%m-%d %H:%M:%S")
+                    self._save_config()
                     return
 
-                print(f"  🟡 Scraping {len(soon_events)} events (< 24h)")
+                print(f"🟡 Pipeline X-Soon: {len(events)} events (< 24h)")
 
+                # 2. SCRAPE: Scrape otimizado - só valores voláteis
+                scraper = EventScraper()
+                try:
+                    refs = [e.reference for e in events]
+                    volatile_data = await scraper.scrape_volatile_only(refs)
+                finally:
+                    await scraper.close()
+
+                # 3. UPDATE: Compara e atualiza apenas campos alterados
+                updates = []
                 updated_count = 0
                 time_extended_count = 0
+                old_events_map = {e.reference: e for e in events}
 
-                for item in soon_events:
-                    event = item['event']
-                    seconds = item['seconds_until_end']
-                    hours = int(seconds / 3600)
-                    minutes = int((seconds % 3600) / 60)
+                for new_data in volatile_data:
+                    ref = new_data.get("reference")
+                    if not ref or "error" in new_data:
+                        continue
 
-                    try:
-                        new_events = await scraper.scrape_details_by_ids([event.reference])
+                    old_event = old_events_map.get(ref)
+                    if not old_event:
+                        continue
 
-                        if new_events and len(new_events) > 0:
-                            new_event = new_events[0]
-                            old_price = event.valores.lanceAtual or 0
-                            new_price = new_event.valores.lanceAtual or 0
-                            old_end = event.dataFim
-                            new_end = new_event.dataFim
+                    old_price = old_event.valores.lanceAtual or 0
+                    new_price = new_data.get("lance_atual") or 0
+                    old_end = old_event.dataFim
+                    new_end = new_data.get("data_fim")
 
-                            price_changed = old_price != new_price
-                            time_extended = new_end > old_end if (old_end and new_end) else False
+                    price_changed = old_price != new_price
+                    time_extended = (new_end and old_end and new_end > old_end)
 
-                            if price_changed or time_extended:
-                                msg_parts = []
-                                if price_changed:
-                                    msg_parts.append(f"{old_price}€ → {new_price}€")
-                                if time_extended:
-                                    time_diff = (new_end - old_end).total_seconds()
-                                    msg_parts.append(f"timer reset (+{int(time_diff/60)}min)")
-                                    time_extended_count += 1
+                    if price_changed or time_extended:
+                        now = datetime.now()
+                        seconds_left = (old_end - now).total_seconds() if old_end else 0
+                        hours = int(seconds_left / 3600)
+                        minutes = int((seconds_left % 3600) / 60)
 
-                                print(f"    🟡 {event.reference}: {' | '.join(msg_parts)} ({hours}h{minutes}m remaining)")
+                        msg_parts = []
+                        if price_changed:
+                            msg_parts.append(f"{old_price}€ → {new_price}€")
+                        if time_extended:
+                            time_diff = (new_end - old_end).total_seconds()
+                            msg_parts.append(f"timer reset (+{int(time_diff/60)}min)")
+                            time_extended_count += 1
 
-                                event.valores = new_event.valores
-                                event.dataFim = new_event.dataFim
+                        print(f"  🟡 {ref}: {' | '.join(msg_parts)} ({hours}h{minutes}m)")
 
-                                async with get_db() as db:
-                                    await db.save_event(event)
-                                    await cache_manager.set(event.reference, event)
+                        updates.append({
+                            "reference": ref,
+                            "lance_atual": new_price if price_changed else None,
+                            "data_fim": new_end if time_extended else None
+                        })
+                        updated_count += 1
 
-                                updated_count += 1
+                if updates:
+                    async with get_db() as db:
+                        await db.bulk_update_volatile_fields(updates)
+                    print(f"  ✅ {updated_count} updated, {time_extended_count} timer resets")
 
-                    except Exception as e:
-                        print(f"    ⚠️ Error checking {event.reference}: {e}")
-
-                if updated_count > 0:
-                    print(f"  ✅ {updated_count} events updated, {time_extended_count} timer resets")
-
-                # Update pipeline stats
                 pipeline = self.pipelines['prices_soon']
                 now = datetime.now()
                 pipeline.last_run = now.strftime("%Y-%m-%d %H:%M:%S")
@@ -882,8 +802,6 @@ class AutoPipelinesManager:
                 self._save_config()
 
             finally:
-                await scraper.close()
-                await cache_manager.close()
                 self.pipelines['prices_soon'].is_running = False
 
         # Return the appropriate function
