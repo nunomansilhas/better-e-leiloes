@@ -11,6 +11,10 @@ import asyncio
 if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
+# CRITICAL: Load .env BEFORE importing database!
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
@@ -18,7 +22,6 @@ from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 from typing import List, Optional
 import os
-from dotenv import load_dotenv
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from datetime import datetime
@@ -31,8 +34,6 @@ from pipeline_state import get_pipeline_state
 from auto_pipelines import get_auto_pipelines_manager
 from collections import deque
 import threading
-
-load_dotenv()
 
 # Global instances
 scraper = None
