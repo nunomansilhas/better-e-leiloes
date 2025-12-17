@@ -1,20 +1,32 @@
 """
-Database layer usando SQLAlchemy + SQLite
+Database layer usando SQLAlchemy + MySQL/MariaDB
+APENAS MySQL/MariaDB - SQLite foi removido
 """
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy import select, func, String, Float, DateTime
+from sqlalchemy import select, func, String, Float, DateTime, Text
 from typing import List, Tuple, Optional
 from datetime import datetime
 from contextlib import asynccontextmanager
 import os
 import json
 
-from models import EventData, GPSCoordinates, EventDetails, ValoresLeilao
+from models import (
+    EventData, GPSCoordinates, EventDetails, ValoresLeilao,
+    DescricaoPredial, CerimoniaEncerramento, AgenteExecucao, DadosProcesso
+)
 
-# Database URL
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./eleiloes.db")
+# Database URL - MUST be set in .env file
+# MySQL:  mysql+aiomysql://user:password@localhost:3306/eleiloes
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+if not DATABASE_URL:
+    raise ValueError(
+        "❌ DATABASE_URL not configured!\n"
+        "Create a .env file with:\n"
+        "DATABASE_URL=mysql+aiomysql://user:password@localhost:3306/eleiloes"
+    )
 
 # SQLAlchemy setup
 engine = create_async_engine(DATABASE_URL, echo=False)
@@ -57,13 +69,32 @@ class EventDB(Base):
     
     # Detalhes MOVEIS
     matricula: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    
+
+    # Datas do evento
+    data_inicio: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    data_fim: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+    # Galeria e textos descritivos (HTML)
+    imagens: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON list of URLs
+    descricao: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # HTML
+    observacoes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # HTML
+    onuselimitacoes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # HTML - NOVO
+
+    # Informações adicionais (HTML completo)
+    descricao_predial: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # HTML
+    cerimonia_encerramento: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # HTML
+    agente_execucao: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # HTML
+    dados_processo: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # HTML
+
     # Metadados
     scraped_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     
     def to_model(self) -> EventData:
         """Converte DB model para Pydantic model"""
+        # Deserializa apenas imagens (JSON)
+        imagens_list = json.loads(self.imagens) if self.imagens else []
+
         return EventData(
             reference=self.reference,
             tipoEvento=self.tipo_evento,
@@ -89,6 +120,16 @@ class EventDB(Base):
                 freguesia=self.freguesia,
                 matricula=self.matricula
             ),
+            dataInicio=self.data_inicio,
+            dataFim=self.data_fim,
+            imagens=imagens_list,
+            descricao=self.descricao,  # HTML string
+            observacoes=self.observacoes,  # HTML string
+            onuselimitacoes=self.onuselimitacoes,  # HTML string - NOVO
+            descricaoPredial=self.descricao_predial,  # HTML string
+            cerimoniaEncerramento=self.cerimonia_encerramento,  # HTML string
+            agenteExecucao=self.agente_execucao,  # HTML string
+            dadosProcesso=self.dados_processo,  # HTML string
             scraped_at=self.scraped_at,
             updated_at=self.updated_at
         )
@@ -134,6 +175,19 @@ class DatabaseManager:
             existing.concelho = event.detalhes.concelho
             existing.freguesia = event.detalhes.freguesia
             existing.matricula = event.detalhes.matricula
+            existing.data_inicio = event.dataInicio
+            existing.data_fim = event.dataFim
+
+            # Campos de conteúdo
+            existing.imagens = json.dumps(event.imagens) if event.imagens else None
+            existing.descricao = event.descricao  # HTML string
+            existing.observacoes = event.observacoes  # HTML string
+            existing.onuselimitacoes = event.onuselimitacoes  # HTML string - NOVO
+            existing.descricao_predial = event.descricaoPredial  # HTML string
+            existing.cerimonia_encerramento = event.cerimoniaEncerramento  # HTML string
+            existing.agente_execucao = event.agenteExecucao  # HTML string
+            existing.dados_processo = event.dadosProcesso  # HTML string
+
             existing.updated_at = datetime.utcnow()
         else:
             # Insere novo
@@ -156,6 +210,17 @@ class DatabaseManager:
                 concelho=event.detalhes.concelho,
                 freguesia=event.detalhes.freguesia,
                 matricula=event.detalhes.matricula,
+                data_inicio=event.dataInicio,
+                data_fim=event.dataFim,
+                # Campos de conteúdo
+                imagens=json.dumps(event.imagens) if event.imagens else None,
+                descricao=event.descricao,  # HTML string
+                observacoes=event.observacoes,  # HTML string
+                onuselimitacoes=event.onuselimitacoes,  # HTML string - NOVO
+                descricao_predial=event.descricaoPredial,  # HTML string
+                cerimonia_encerramento=event.cerimoniaEncerramento,  # HTML string
+                agente_execucao=event.agenteExecucao,  # HTML string
+                dados_processo=event.dadosProcesso,  # HTML string
                 scraped_at=event.scraped_at
             )
             self.session.add(new_event)
@@ -231,24 +296,38 @@ class DatabaseManager:
             "by_type": tipos
         }
     
+    async def get_all_references(self) -> List[str]:
+        """
+        Retorna todas as referências de eventos já armazenadas na BD.
+        Útil para comparar com novos scrapes e identificar eventos novos.
+
+        Returns:
+            Lista de referências (e.g., ["NP-2024-12345", "LO-2024-67890"])
+        """
+        result = await self.session.execute(
+            select(EventDB.reference)
+        )
+        references = result.scalars().all()
+        return list(references)
+
     async def delete_all_events(self) -> int:
         """
         Apaga TODOS os eventos da base de dados.
         ATENÇÃO: Esta operação é irreversível!
-        
+
         Returns:
             Número de eventos apagados
         """
         from sqlalchemy import delete
-        
+
         # Conta quantos eventos existem
         count_result = await self.session.execute(select(func.count(EventDB.reference)))
         count = count_result.scalar()
-        
+
         # Apaga todos
         await self.session.execute(delete(EventDB))
         await self.session.commit()
-        
+
         return count
 
 

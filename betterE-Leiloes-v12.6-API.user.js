@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         betterE-Leiloes (API Version)
+// @name         betterE-Leiloes (View Only)
 // @namespace    http://tampermonkey.net/
-// @version      12.9
-// @description  Extensão para E-Leiloes.pt com native card enrichment premium e modal otimizado
+// @version      13.0
+// @description  Extensão para E-Leiloes.pt com native card enrichment e visualização de dados (scraping gerido pelo servidor)
 // @author       Nuno Mansilhas
 // @match        https://www.e-leiloes.pt/*
 // @icon         https://www.e-leiloes.pt/favicon.ico
@@ -189,39 +189,16 @@
 
     async function listEventsFromAPI(page = 1, limit = 50, filters = {}) {
         let url = `${CONFIG.API_BASE_URL}/events?page=${page}&limit=${limit}`;
-        
+
         if (filters.tipoEvento) url += `&tipo_evento=${encodeURIComponent(filters.tipoEvento)}`;
         if (filters.distrito) url += `&distrito=${encodeURIComponent(filters.distrito)}`;
-        
-        return await fetchWithRetry(url);
-    }
 
-    async function triggerFullScrape(maxPages = null) {
-        let url = `${CONFIG.API_BASE_URL}/scrape/all`;
-        if (maxPages) url += `?max_pages=${maxPages}`;
-        
-        return await fetchWithRetry(url, { method: 'POST' });
-    }
-
-    async function getScrapeStatus() {
-        const url = `${CONFIG.API_BASE_URL}/scrape/status`;
         return await fetchWithRetry(url);
     }
 
     async function getAPIStats() {
         const url = `${CONFIG.API_BASE_URL}/stats`;
         return await fetchWithRetry(url);
-    }
-
-    async function clearAPICache() {
-        const url = `${CONFIG.API_BASE_URL}/cache`;
-        return await fetchWithRetry(url, { method: 'DELETE' });
-    }
-
-    async function clearDatabase() {
-        const url = `${CONFIG.API_BASE_URL}/database`;
-        console.log('🔗 Chamando DELETE:', url);
-        return await fetchWithRetry(url, { method: 'DELETE' });
     }
 
     // ====================================
@@ -989,12 +966,13 @@
         
         panel.innerHTML = `
             <div style="font-weight: bold; margin-bottom: 10px; font-size: 14px;">
-                🚀 betterE-Leiloes v12.9
+                🚀 betterE-Leiloes v13.0
             </div>
             <div style="display: flex; flex-direction: column; gap: 8px;">
-                <button id="btn-scrape-all" style="${getButtonStyle('#10b981')}">
-                    📥 Recolher Tudo (API)
+                <button id="btn-open-dashboard" style="${getButtonStyle('#10b981')}; font-size: 14px; padding: 12px 16px;">
+                    🏠 Abrir Dashboard
                 </button>
+                <div style="border-top: 1px solid #e5e7eb; margin: 4px 0;"></div>
                 <button id="btn-view-data" style="${getButtonStyle('#3b82f6')}">
                     👁️ Ver Dados
                 </button>
@@ -1004,20 +982,18 @@
                 <button id="btn-clear-storage" style="${getButtonStyle('#f59e0b')}">
                     🧹 Limpar Storage Site
                 </button>
-                <button id="btn-clear-cache" style="${getButtonStyle('#ef4444')}">
-                    🗑️ Limpar Base de Dados
-                </button>
             </div>
         `;
-        
+
         document.body.appendChild(panel);
-        
+
         // Event listeners
-        document.getElementById('btn-scrape-all').addEventListener('click', handleScrapeAll);
+        document.getElementById('btn-open-dashboard').addEventListener('click', () => {
+            window.open('http://localhost:8000/', '_blank');
+        });
         document.getElementById('btn-view-data').addEventListener('click', handleViewData);
         document.getElementById('btn-stats').addEventListener('click', handleViewStats);
         document.getElementById('btn-clear-storage').addEventListener('click', handleClearBrowserStorage);
-        document.getElementById('btn-clear-cache').addEventListener('click', handleClearCache);
     }
 
     function getButtonStyle(color) {
@@ -1039,65 +1015,6 @@
     // ====================================
     // HANDLERS DOS BOTÕES
     // ====================================
-
-    async function handleScrapeAll() {
-        const confirmed = confirm(
-            '🚨 Isto vai iniciar a recolha de TODOS os eventos no servidor.\n\n' +
-            'Pode demorar várias horas dependendo do número de eventos.\n\n' +
-            'O processo corre em background no servidor.\n\n' +
-            'Continuar?'
-        );
-        
-        if (!confirmed) return;
-        
-        try {
-            const btn = document.getElementById('btn-scrape-all');
-            btn.disabled = true;
-            btn.textContent = '⏳ A iniciar...';
-            
-            await triggerFullScrape();
-            
-            alert('✅ Scraping iniciado no servidor!\n\nUsa o botão "📊 Estatísticas" para ver o progresso.');
-            
-            // Inicia polling de status
-            pollScrapeStatus();
-            
-        } catch (error) {
-            alert(`❌ Erro ao iniciar scraping:\n${error.message}`);
-            console.error(error);
-        } finally {
-            const btn = document.getElementById('btn-scrape-all');
-            btn.disabled = false;
-            btn.textContent = '📥 Recolher Tudo (API)';
-        }
-    }
-
-    let pollInterval = null;
-
-    async function pollScrapeStatus() {
-        if (pollInterval) clearInterval(pollInterval);
-        
-        pollInterval = setInterval(async () => {
-            try {
-                const status = await getScrapeStatus();
-                
-                if (status.is_running) {
-                    const btn = document.getElementById('btn-scrape-all');
-                    btn.textContent = `⏳ ${status.events_processed} eventos`;
-                } else {
-                    clearInterval(pollInterval);
-                    const btn = document.getElementById('btn-scrape-all');
-                    btn.textContent = '📥 Recolher Tudo (API)';
-                    
-                    if (status.events_processed > 0) {
-                        alert(`✅ Scraping concluído!\n\n${status.events_processed} eventos recolhidos\n${status.events_failed} falhas`);
-                    }
-                }
-            } catch (error) {
-                console.error('Erro ao verificar status:', error);
-            }
-        }, CONFIG.POLL_INTERVAL);
-    }
 
     async function handleViewData() {
         try {
@@ -1125,65 +1042,27 @@
     async function handleViewStats() {
         try {
             const stats = await getAPIStats();
-            const status = await getScrapeStatus();
-            
-            let message = `📊 ESTATÍSTICAS DO SERVIDOR\n\n`;
+
+            let message = `📊 ESTATÍSTICAS DA BASE DE DADOS\n\n`;
             message += `Total de eventos: ${stats.total_events}\n`;
             message += `Com GPS: ${stats.with_gps}\n`;
             message += `Sem GPS: ${stats.total_events - stats.with_gps}\n\n`;
-            
+
             if (stats.by_type && Object.keys(stats.by_type).length > 0) {
                 message += `Por tipo:\n`;
                 Object.entries(stats.by_type).forEach(([tipo, count]) => {
                     message += `  • ${tipo}: ${count}\n`;
                 });
             }
-            
-            message += `\n📡 STATUS DO SCRAPER\n\n`;
-            message += `Estado: ${status.is_running ? '🟢 A correr' : '⚪ Parado'}\n`;
-            
-            if (status.is_running) {
-                message += `Eventos processados: ${status.events_processed}\n`;
-                message += `Falhas: ${status.events_failed}\n`;
-                message += `Página atual: ${status.current_page || 'N/A'}\n`;
-            }
-            
+
             alert(message);
-            
+
         } catch (error) {
             alert(`❌ Erro ao carregar estatísticas:\n${error.message}`);
             console.error(error);
         }
     }
 
-    async function handleClearCache() {
-        const confirmed1 = confirm(
-            '⚠️ ATENÇÃO: Isto vai APAGAR TODOS os eventos da base de dados!\n\n' +
-            'Esta operação é IRREVERSÍVEL!\n\n' +
-            'Continuar?'
-        );
-        if (!confirmed1) return;
-        
-        const confirmed2 = confirm(
-            '🚨 ÚLTIMA CONFIRMAÇÃO\n\n' +
-            'Tens a CERTEZA que queres apagar TODOS os dados?\n\n' +
-            'Vais perder TODOS os eventos recolhidos!'
-        );
-        if (!confirmed2) return;
-        
-        try {
-            console.log('🗑️ Chamando clearDatabase()...');
-            const result = await clearDatabase();
-            console.log('✅ Resultado:', result);
-            alert(`✅ Base de dados limpa com sucesso!\n\n${result.deleted_events} eventos apagados.`);
-            
-            // Recarrega a página para limpar o UI
-            location.reload();
-        } catch (error) {
-            alert(`❌ Erro ao limpar base de dados:\n${error.message}`);
-            console.error(error);
-        }
-    }
 
     function handleClearBrowserStorage() {
         const confirmed = confirm(

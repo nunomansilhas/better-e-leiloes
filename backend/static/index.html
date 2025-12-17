@@ -1,0 +1,4194 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E-Leilões Dashboard</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #f8fafc;
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 70px;
+            background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+            color: white;
+            padding: 24px 0;
+            position: fixed;
+            height: 100vh;
+            overflow-x: hidden;
+            overflow-y: auto;
+            box-shadow: 4px 0 12px rgba(0,0,0,0.1);
+            z-index: 1000;
+            transition: width 0.3s ease;
+        }
+
+        .sidebar:hover:not(.locked),
+        .sidebar.locked {
+            width: 260px;
+        }
+
+        .sidebar-lock {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 30px;
+            height: 30px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .sidebar-lock:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .sidebar-lock svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .sidebar-header {
+            padding: 0 24px 24px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .sidebar-header h1 {
+            font-size: 20px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            white-space: nowrap;
+        }
+
+        .sidebar-header h1 svg {
+            width: 24px !important;
+            height: 24px !important;
+            flex-shrink: 0;
+        }
+
+        .sidebar-header h1 span {
+            opacity: 0;
+            width: 0;
+            overflow: hidden;
+            transition: opacity 0.3s ease, width 0.3s ease;
+        }
+
+        .sidebar:hover .sidebar-header h1 span,
+        .sidebar.locked .sidebar-header h1 span {
+            opacity: 1;
+            width: auto;
+        }
+
+        .sidebar-header p {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-top: 4px;
+            white-space: nowrap;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .sidebar:hover .sidebar-header p,
+        .sidebar.locked .sidebar-header p {
+            opacity: 1;
+        }
+
+        .sidebar-nav {
+            margin-top: 24px;
+        }
+
+        .nav-item {
+            padding: 12px 24px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #cbd5e1;
+            font-size: 14px;
+            font-weight: 500;
+            border-left: 3px solid transparent;
+            white-space: nowrap;
+        }
+
+        .nav-item:hover {
+            background: rgba(255,255,255,0.05);
+            color: white;
+        }
+
+        .nav-item.active {
+            background: rgba(99, 102, 241, 0.15);
+            border-left-color: #6366f1;
+            color: white;
+        }
+
+        .nav-item svg {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+        }
+
+        .nav-item span {
+            opacity: 0;
+            width: 0;
+            overflow: hidden;
+            transition: opacity 0.3s ease, width 0.3s ease;
+        }
+
+        .sidebar:hover .nav-item span,
+        .sidebar.locked .nav-item span {
+            opacity: 1;
+            width: auto;
+        }
+
+        .nav-dropdown {
+            margin-top: 4px;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .nav-item.dropdown-open + .nav-dropdown {
+            max-height: 200px;
+        }
+
+        .nav-dropdown-item {
+            padding: 10px 24px 10px 56px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #94a3b8;
+            font-size: 13px;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .nav-dropdown-item:hover {
+            background: rgba(255,255,255,0.05);
+            color: white;
+        }
+
+        .nav-dropdown-item.active {
+            background: rgba(99, 102, 241, 0.1);
+            color: #818cf8;
+        }
+
+        .nav-dropdown-item svg {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+        }
+
+        .nav-dropdown-item span {
+            opacity: 0;
+            width: 0;
+            overflow: hidden;
+            transition: opacity 0.3s ease, width 0.3s ease;
+        }
+
+        .sidebar:hover .nav-dropdown-item span,
+        .sidebar.locked .nav-dropdown-item span {
+            opacity: 1;
+            width: auto;
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-left: 70px;
+            flex: 1;
+            padding: 32px;
+            width: calc(100% - 70px);
+            transition: margin-left 0.3s ease, width 0.3s ease;
+        }
+
+        .sidebar:hover:not(.locked) ~ .main-content,
+        .sidebar.locked ~ .main-content {
+            margin-left: 260px;
+            width: calc(100% - 260px);
+        }
+
+        .page {
+            display: none;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        .page-header {
+            margin-bottom: 32px;
+        }
+
+        .page-header h2 {
+            font-size: 28px;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 8px;
+        }
+
+        .page-header p {
+            color: #64748b;
+            font-size: 14px;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 32px;
+        }
+
+        .stat-card {
+            position: relative;
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow:
+                0 8px 32px rgba(0, 0, 0, 0.08),
+                inset 0 1px 0 rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg,
+                rgba(99, 102, 241, 0.03) 0%,
+                transparent 100%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .stat-card > * {
+            position: relative;
+            z-index: 1;
+        }
+
+        .stat-card:hover {
+            box-shadow:
+                0 20px 40px rgba(0, 0, 0, 0.12),
+                inset 0 1px 0 rgba(255, 255, 255, 0.9);
+            transform: translateY(-4px) scale(1.01);
+            border-color: rgba(99, 102, 241, 0.2);
+        }
+
+        .stat-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .stat-card-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .stat-icon.blue {
+            background: #eff6ff;
+            color: #2563eb;
+        }
+
+        .stat-icon.purple {
+            background: #f5f3ff;
+            color: #7c3aed;
+        }
+
+        .stat-icon.green {
+            background: #f0fdf4;
+            color: #16a34a;
+        }
+
+        .stat-icon svg {
+            width: 22px;
+            height: 22px;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .stat-breakdown {
+            display: flex;
+            gap: 12px;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .stat-breakdown-item {
+            flex: 1;
+            text-align: center;
+        }
+
+        .stat-breakdown-label {
+            font-size: 10px;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .stat-breakdown-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .stat-breakdown-value.lo {
+            color: #2563eb;
+        }
+
+        .stat-breakdown-value.np {
+            color: #e11d48;
+        }
+
+        /* Scraper Control Card */
+        .scraper-control-card {
+            position: relative;
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow:
+                0 8px 32px rgba(0, 0, 0, 0.08),
+                inset 0 1px 0 rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            margin-top: 24px;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .scraper-control-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg,
+                rgba(139, 92, 246, 0.03) 0%,
+                transparent 100%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .scraper-control-card > * {
+            position: relative;
+            z-index: 1;
+        }
+
+        .scraper-control-card:hover {
+            box-shadow:
+                0 12px 36px rgba(0, 0, 0, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.9);
+            border-color: rgba(139, 92, 246, 0.2);
+        }
+
+        .scraper-control-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .scraper-control-header h3 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .scraper-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .scraper-status.running {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+
+        .scraper-status.stopped {
+            background: #f1f5f9;
+            color: #64748b;
+        }
+
+        .scraper-status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .scraper-status.running .scraper-status-dot {
+            background: #16a34a;
+        }
+
+        .scraper-status.stopped .scraper-status-dot {
+            background: #94a3b8;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .scraper-controls {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            align-items: end;
+        }
+
+        .control-group {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .control-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #64748b;
+            margin-bottom: 6px;
+        }
+
+        .control-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 14px;
+            color: #0f172a;
+            background: white;
+            cursor: pointer;
+        }
+
+        .scraper-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .scraper-btn {
+            position: relative;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            overflow: hidden;
+        }
+
+        /* Ripple effect */
+        .scraper-btn::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.5);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .scraper-btn:active::after {
+            width: 300px;
+            height: 300px;
+        }
+
+        .scraper-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .scraper-btn.start {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        .scraper-btn.start:hover:not(:disabled) {
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+            box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .scraper-btn.start:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .scraper-btn.stop {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+        }
+
+        .scraper-btn.stop:hover:not(:disabled) {
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+            box-shadow: 0 6px 16px rgba(239, 68, 68, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .scraper-btn.stop:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        /* Icon bounce animation on hover */
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-4px); }
+        }
+
+        .scraper-btn:hover svg,
+        .scraper-btn:hover .icon,
+        .scraper-btn:hover > span:first-child {
+            animation: bounce 0.6s ease;
+        }
+
+        .scraper-progress {
+            margin-top: 16px;
+            padding: 12px;
+            background: #f8fafc;
+            border-radius: 6px;
+            display: none;
+        }
+
+        .scraper-progress.active {
+            display: block;
+        }
+
+        .progress-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+            color: #64748b;
+            margin-bottom: 8px;
+        }
+
+        .progress-bar {
+            height: 6px;
+            background: #e2e8f0;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        /* Auto Pipeline Items */
+        .auto-pipeline-item {
+            padding: 16px;
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            transition: all 0.3s ease;
+        }
+
+        .auto-pipeline-item:hover {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e0e7ff 100%);
+            border-color: #c7d2fe;
+            transform: translateX(2px);
+        }
+
+        /* Toggle Switch */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 48px;
+            height: 26px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #cbd5e1;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 26px;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .toggle-switch input:checked + .toggle-slider {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
+        }
+
+        .toggle-switch input:checked + .toggle-slider:before {
+            transform: translateX(22px);
+        }
+
+        .toggle-slider:hover {
+            box-shadow:
+                inset 0 2px 4px rgba(0, 0, 0, 0.1),
+                0 0 8px rgba(99, 102, 241, 0.3);
+        }
+
+        /* Status Indicator */
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #10b981;
+            margin-right: 6px;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.7;
+                transform: scale(1.1);
+            }
+        }
+
+        /* Filters */
+        .filters-bar {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border: 1px solid #e2e8f0;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .filter-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .filter-input, .filter-select {
+            padding: 10px 14px;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: all 0.2s;
+            background: white;
+        }
+
+        .filter-input:focus, .filter-select:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .filter-buttons {
+            display: flex;
+            gap: 8px;
+            margin-top: auto;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-family: inherit;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #64748b;
+            border: 1.5px solid #e2e8f0;
+        }
+
+        .btn-secondary:hover {
+            background: #f8fafc;
+            border-color: #cbd5e1;
+        }
+
+        .btn svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        /* Type Badges */
+        .type-badges {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+
+        .type-badge {
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .type-badge.lo {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .type-badge.lo.active {
+            background: #2563eb;
+            color: white;
+            border-color: #1e40af;
+        }
+
+        .type-badge.np {
+            background: #fce7f3;
+            color: #9f1239;
+        }
+
+        .type-badge.np.active {
+            background: #e11d48;
+            color: white;
+            border-color: #9f1239;
+        }
+
+        .type-badge:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        /* Events Grid */
+        .events-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 18px;
+            margin-bottom: 32px;
+        }
+
+        /* Event Card */
+        .event-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border: 1px solid #e2e8f0;
+            overflow: hidden;
+            transition: all 0.2s;
+        }
+
+        .event-card:hover {
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+            transform: translateY(-4px);
+        }
+
+        .event-carousel {
+            position: relative;
+            width: 100%;
+            height: 200px;
+            background: #f1f5f9;
+            overflow: hidden;
+        }
+
+        .event-carousel-images {
+            display: flex;
+            height: 100%;
+            transition: transform 0.3s ease;
+        }
+
+        .event-carousel-image {
+            min-width: 100%;
+            height: 100%;
+            object-fit: cover;
+            background-position: center;
+            background-size: cover;
+            background-repeat: no-repeat;
+        }
+
+        .event-carousel-nav {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            z-index: 10;
+        }
+
+        .event-carousel-nav:hover {
+            background: rgba(0, 0, 0, 0.8);
+        }
+
+        .event-carousel-nav.prev {
+            left: 8px;
+        }
+
+        .event-carousel-nav.next {
+            right: 8px;
+        }
+
+        .event-carousel-nav svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .event-carousel-indicators {
+            position: absolute;
+            bottom: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 6px;
+            z-index: 10;
+        }
+
+        .event-carousel-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.5);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .event-carousel-indicator.active {
+            background: white;
+            width: 24px;
+            border-radius: 4px;
+        }
+
+        .event-carousel-placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #94a3b8;
+            font-size: 14px;
+        }
+
+        .event-card-header {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            padding: 10px 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .event-ref-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex: 1;
+        }
+
+        .event-type-prefix {
+            font-size: 13px;
+            font-weight: 800;
+            padding: 6px 10px;
+            border-radius: 6px;
+            letter-spacing: 0.8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .event-type-prefix.lo {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            color: white;
+        }
+
+        .event-type-prefix.np {
+            background: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
+            color: white;
+        }
+
+        .event-ref-text {
+            font-size: 14px;
+            font-weight: 700;
+            color: #e2e8f0;
+        }
+
+        .event-type-badge {
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .event-type-badge.imovel {
+            background: rgba(16, 185, 129, 0.15);
+            color: #10b981;
+        }
+
+        .event-type-badge.movel {
+            background: rgba(139, 92, 246, 0.15);
+            color: #8b5cf6;
+        }
+
+        .event-type-badge svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        .event-card-body {
+            padding: 10px;
+        }
+
+        .event-section {
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .card-actions {
+            display: flex;
+            gap: 6px;
+            padding: 8px 10px;
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .card-action-btn {
+            flex: 1;
+            padding: 8px;
+            border: 1.5px solid #e2e8f0;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #64748b;
+        }
+
+        .card-action-btn:hover {
+            background: #6366f1;
+            border-color: #6366f1;
+            color: white;
+            transform: translateY(-1px);
+        }
+
+        .card-action-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            background: #f1f5f9;
+        }
+
+        .card-action-btn:disabled:hover {
+            background: #f1f5f9;
+            border-color: #e2e8f0;
+            color: #94a3b8;
+            transform: none;
+        }
+
+        .card-action-btn svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        .event-section:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+
+        .section-title {
+            font-size: 10px;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .section-title svg {
+            width: 12px;
+            height: 12px;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            padding: 4px 0;
+            gap: 8px;
+        }
+
+        .detail-label {
+            color: #64748b;
+            font-size: 11px;
+            font-weight: 500;
+            flex-shrink: 0;
+        }
+
+        .detail-value {
+            color: #0f172a;
+            font-size: 11px;
+            font-weight: 600;
+            text-align: right;
+            word-break: break-word;
+        }
+
+        .detail-value.empty {
+            color: #cbd5e1;
+            font-style: italic;
+        }
+
+        .detail-value.price {
+            color: #16a34a;
+            font-size: 15px;
+            font-weight: 700;
+        }
+
+        .detail-value.date {
+            color: #ea580c;
+            font-weight: 600;
+        }
+
+        /* Loading & Empty States */
+        .loading {
+            text-align: center;
+            padding: 60px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .loading-spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid #e2e8f0;
+            border-top-color: #6366f1;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            color: #64748b;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 60px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .no-data-icon {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 16px;
+            color: #cbd5e1;
+        }
+
+        .no-data-text {
+            color: #64748b;
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        /* Pagination */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            margin-top: 32px;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border: 1px solid #e2e8f0;
+        }
+
+        .pagination button {
+            padding: 10px 20px;
+            border: 1.5px solid #e2e8f0;
+            background: white;
+            color: #475569;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .pagination button:hover:not(:disabled) {
+            background: #f8fafc;
+            border-color: #6366f1;
+            color: #6366f1;
+        }
+
+        .pagination button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .pagination button svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .page-info {
+            padding: 0 16px;
+            font-weight: 600;
+            color: #0f172a;
+            font-size: 14px;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .sidebar {
+                width: 220px;
+            }
+
+            .main-content {
+                margin-left: 220px;
+                width: calc(100% - 220px);
+            }
+
+            .events-grid {
+                grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s;
+            }
+
+            .sidebar.mobile-open {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+                width: 100%;
+                padding: 20px;
+            }
+
+            .events-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .filters-bar {
+                flex-direction: column;
+            }
+
+            .filter-group {
+                width: 100%;
+                min-width: 0;
+            }
+        }
+
+        /* Multi-Stage Controls */
+        .stage-control {
+            margin-bottom: 16px;
+            padding: 16px;
+            background: #f8fafc;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .stage-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .stage-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .stage-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: white;
+        }
+
+        .stage-badge.stage-1 {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .stage-badge.stage-2 {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .stage-badge.stage-3 {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+
+        .stage-result {
+            font-size: 14px;
+            font-weight: 600;
+            color: #64748b;
+            padding: 4px 12px;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .stage-result.success {
+            color: #16a34a;
+            border-color: #86efac;
+            background: #dcfce7;
+        }
+
+        .stage-result.loading {
+            color: #0284c7;
+            border-color: #7dd3fc;
+            background: #e0f2fe;
+        }
+
+        .stage-controls {
+            display: flex;
+            gap: 8px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+        }
+
+        .stage-controls textarea {
+            resize: vertical;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        /* ===== PIPELINE ANIMATIONS ===== */
+
+        /* Animated gradient flow in progress line */
+        @keyframes gradientFlow {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        #pipeline-progress-line {
+            background: linear-gradient(90deg,
+                #3b82f6 0%,
+                #8b5cf6 25%,
+                #ec4899 50%,
+                #8b5cf6 75%,
+                #3b82f6 100%) !important;
+            background-size: 200% 100% !important;
+            animation: gradientFlow 3s ease infinite;
+        }
+
+        /* Pipeline stage pulse effect when active */
+        .pipeline-stage {
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .pipeline-stage.stage-active {
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
+            }
+            50% {
+                box-shadow: 0 0 0 8px rgba(59, 130, 246, 0);
+            }
+        }
+
+        /* Flow particles animation */
+        @keyframes flowParticle {
+            0% {
+                left: 0%;
+                opacity: 0;
+            }
+            25% {
+                opacity: 1;
+            }
+            75% {
+                opacity: 1;
+            }
+            100% {
+                left: 100%;
+                opacity: 0;
+            }
+        }
+
+        /* Shimmer effect for status badges */
+        @keyframes shimmer {
+            0% {
+                left: -100%;
+            }
+            100% {
+                left: 100%;
+            }
+        }
+
+        .status-badge-running {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .status-badge-running::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg,
+                transparent,
+                rgba(255, 255, 255, 0.3),
+                transparent);
+            animation: shimmer 2s infinite;
+        }
+
+        /* Success checkmark bounce */
+        @keyframes successBounce {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+
+        .status-badge-success {
+            animation: successBounce 0.6s ease;
+        }
+
+        /* Error shake animation */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .status-badge-error {
+            animation: shake 0.4s ease;
+        }
+
+        /* Stat icon subtle rotation on hover */
+        .stat-icon {
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .stat-card:hover .stat-icon {
+            transform: rotate(5deg) scale(1.1);
+        }
+
+        /* Fade in up animation for event cards */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .event-card {
+            animation: fadeInUp 0.4s cubic-bezier(0.4, 0, 0.2, 1) backwards;
+        }
+
+        /* Staggered animation delay for cards */
+        .event-card:nth-child(1) { animation-delay: 0.05s; }
+        .event-card:nth-child(2) { animation-delay: 0.1s; }
+        .event-card:nth-child(3) { animation-delay: 0.15s; }
+        .event-card:nth-child(4) { animation-delay: 0.2s; }
+        .event-card:nth-child(5) { animation-delay: 0.25s; }
+        .event-card:nth-child(6) { animation-delay: 0.3s; }
+
+        /* Loading skeleton shimmer */
+        @keyframes loadingSkeleton {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        .skeleton {
+            background: linear-gradient(
+                90deg,
+                #f0f0f0 25%,
+                #e0e0e0 50%,
+                #f0f0f0 75%
+            );
+            background-size: 200% 100%;
+            animation: loadingSkeleton 1.5s infinite;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h1>
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 24px; height: 24px;">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/>
+                </svg>
+                <span>E-Leilões</span>
+            </h1>
+            <p>Sistema de Gestão</p>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="nav-item active" onclick="showPage('dashboard')">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                </svg>
+                <span>Dashboard</span>
+            </div>
+
+            <div class="nav-item" onclick="toggleDropdown(this)">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                </svg>
+                <span>Eventos</span>
+            </div>
+            <div class="nav-dropdown">
+                <div class="nav-dropdown-item" onclick="showPage('imoveis')">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                    </svg>
+                    <span>Imóveis</span>
+                </div>
+                <div class="nav-dropdown-item" onclick="showPage('moveis')">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 17c0 1.1.9 2 2 2s2-.9 2-2-2-2-2-2-2 .9-2 2zM15 17c0 1.1.9 2 2 2s2-.9 2-2-2-2-2-2-2 .9-2 2zM2.5 12.5L5 13l1.5-3 4-1 1 4h5l1-4 4 1 1.5 3 2.5-.5"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M2 12h20M7 4l1.5 4M17 4l-1.5 4"/>
+                    </svg>
+                    <span>Móveis</span>
+                </div>
+            </div>
+        </nav>
+
+        <div class="sidebar-lock" onclick="toggleSidebarLock()" id="sidebarLock" title="Travar/Destravar sidebar">
+            <svg id="lockIcon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"/>
+            </svg>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content" id="mainContent">
+        <!-- Dashboard Page -->
+        <div id="dashboard" class="page active">
+            <div class="page-header">
+                <h2>Dashboard</h2>
+                <p>Visão geral de todos os eventos e leilões</p>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-card-header">
+                        <span class="stat-card-title">Total de Eventos</span>
+                        <div class="stat-icon blue">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="stat-value" id="stat-total">-</div>
+                    <div class="stat-breakdown">
+                        <div class="stat-breakdown-item">
+                            <div class="stat-breakdown-label">LO · Leilão Online</div>
+                            <div class="stat-breakdown-value lo" id="stat-total-lo">-</div>
+                        </div>
+                        <div class="stat-breakdown-item">
+                            <div class="stat-breakdown-label">NP · Negociação Particular</div>
+                            <div class="stat-breakdown-value np" id="stat-total-np">-</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-card-header">
+                        <span class="stat-card-title">Imóveis</span>
+                        <div class="stat-icon green">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="stat-value" id="stat-imoveis">-</div>
+                    <div class="stat-breakdown">
+                        <div class="stat-breakdown-item">
+                            <div class="stat-breakdown-label">LO · Leilão Online</div>
+                            <div class="stat-breakdown-value lo" id="stat-imoveis-lo">-</div>
+                        </div>
+                        <div class="stat-breakdown-item">
+                            <div class="stat-breakdown-label">NP · Negociação Particular</div>
+                            <div class="stat-breakdown-value np" id="stat-imoveis-np">-</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-card-header">
+                        <span class="stat-card-title">Móveis</span>
+                        <div class="stat-icon purple">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 17c0 1.1.9 2 2 2s2-.9 2-2-2-2-2-2-2 .9-2 2zM15 17c0 1.1.9 2 2 2s2-.9 2-2-2-2-2-2-2 .9-2 2zM2.5 12.5L5 13l1.5-3 4-1 1 4h5l1-4 4 1 1.5 3 2.5-.5"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M2 12h20M7 4l1.5 4M17 4l-1.5 4"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="stat-value" id="stat-moveis">-</div>
+                    <div class="stat-breakdown">
+                        <div class="stat-breakdown-item">
+                            <div class="stat-breakdown-label">LO · Leilão Online</div>
+                            <div class="stat-breakdown-value lo" id="stat-moveis-lo">-</div>
+                        </div>
+                        <div class="stat-breakdown-item">
+                            <div class="stat-breakdown-label">NP · Negociação Particular</div>
+                            <div class="stat-breakdown-value np" id="stat-moveis-np">-</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="dashboard-content">
+                <!-- Scraper Control Card -->
+                <!-- Independent Scrapers -->
+                <div class="scraper-control-card">
+                    <div class="scraper-control-header">
+                        <h3>🛠️ Scrapers Independentes</h3>
+                        <span style="font-size: 12px; color: #64748b;">Execute cada scraper separadamente</span>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 16px;">
+                        <button class="scraper-btn start" onclick="runIndependentScraper('ids')" style="display: flex; align-items: center; gap: 8px; justify-content: center;">
+                            <span style="font-size: 20px;">🔍</span>
+                            <div style="text-align: left;">
+                                <div style="font-weight: 600;">Scrape IDs</div>
+                                <div style="font-size: 11px; opacity: 0.8;">Obter referências</div>
+                            </div>
+                        </button>
+
+                        <button class="scraper-btn start" onclick="runIndependentScraper('recheck')" style="display: flex; align-items: center; gap: 8px; justify-content: center;">
+                            <span style="font-size: 20px;">🔄</span>
+                            <div style="text-align: left;">
+                                <div style="font-weight: 600;">Recheck New</div>
+                                <div style="font-size: 11px; opacity: 0.8;">Verificar novos eventos</div>
+                            </div>
+                        </button>
+
+                        <button class="scraper-btn start" onclick="runIndependentScraper('content')" style="display: flex; align-items: center; gap: 8px; justify-content: center;">
+                            <span style="font-size: 20px;">📋</span>
+                            <div style="text-align: left;">
+                                <div style="font-weight: 600;">Scrape Content</div>
+                                <div style="font-size: 11px; opacity: 0.8;">Extrair detalhes</div>
+                            </div>
+                        </button>
+
+                        <button class="scraper-btn start" onclick="runIndependentScraper('images')" style="display: flex; align-items: center; gap: 8px; justify-content: center;">
+                            <span style="font-size: 20px;">🖼️</span>
+                            <div style="text-align: left;">
+                                <div style="font-weight: 600;">Scrape Images</div>
+                                <div style="font-size: 11px; opacity: 0.8;">Download imagens</div>
+                            </div>
+                        </button>
+                    </div>
+
+                    <!-- Scraper Options -->
+                    <div style="display: flex; gap: 12px; padding: 12px; background: #f8fafc; border-radius: 8px;">
+                        <select class="filter-select" id="independent-tipo" style="flex: 1;">
+                            <option value="">📦 Ambos (Imóveis + Móveis)</option>
+                            <option value="1">🏠 Apenas Imóveis</option>
+                            <option value="2">🚗 Apenas Móveis</option>
+                        </select>
+                        <input type="number" class="filter-input" id="independent-pages" placeholder="Nº Páginas (vazio=todas)" style="width: 160px;">
+                    </div>
+                </div>
+
+                <!-- Pipelines Automáticas -->
+                <div class="scraper-control-card" style="margin-top: 16px;">
+                    <div class="scraper-control-header">
+                        <h3>⚡ Pipelines Automáticas</h3>
+                        <span style="font-size: 12px; color: #64748b;">Agendamento automático de scrapers</span>
+                    </div>
+
+                    <div style="display: grid; gap: 12px;">
+                        <!-- Pipeline Automática -->
+                        <div class="auto-pipeline-item">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div style="flex: 1;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                                        <span style="font-size: 18px;">🤖</span>
+                                        <span style="font-weight: 600; color: #1e293b;">Pipeline Automática</span>
+                                    </div>
+                                    <div style="font-size: 12px; color: #64748b; margin-left: 26px;">
+                                        Recolhe novos IDs, conteúdos e imagens • A cada 8 horas
+                                    </div>
+                                </div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="auto-pipeline-full" onchange="toggleAutoPipeline('full', this.checked)">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div id="auto-pipeline-full-status" style="font-size: 11px; color: #94a3b8; margin-left: 26px; margin-top: 6px; display: none;">
+                                <span class="status-indicator"></span>
+                                <span class="status-text"></span>
+                            </div>
+                        </div>
+
+                        <!-- Pipeline X-Critical - Verificação de Preços (< 5 min) -->
+                        <div class="auto-pipeline-item" style="background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border: 2px solid #fca5a5;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div style="flex: 1;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                                        <span style="font-size: 18px;">🔴</span>
+                                        <span style="font-weight: 600; color: #dc2626;">Pipeline X-Critical</span>
+                                        <span style="font-size: 10px; background: #dc2626; color: white; padding: 2px 6px; border-radius: 4px; font-weight: 700;">< 5 MIN</span>
+                                    </div>
+                                    <div style="font-size: 12px; color: #991b1b; margin-left: 26px; font-weight: 500;">
+                                        A cada 5 SEGUNDOS • Eventos < 5 minutos
+                                    </div>
+                                </div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="auto-pipeline-prices" onchange="toggleAutoPipeline('prices', this.checked)">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div id="auto-pipeline-prices-status" style="font-size: 11px; color: #dc2626; margin-left: 26px; margin-top: 6px; display: none; font-weight: 500;">
+                                <span class="status-indicator"></span>
+                                <span class="status-text"></span>
+                            </div>
+                        </div>
+
+                        <!-- Pipeline X-Urgent - Verificação de Preços (< 1 hora) -->
+                        <div class="auto-pipeline-item" style="background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%); border: 2px solid #fdba74;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div style="flex: 1;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                                        <span style="font-size: 18px;">🟠</span>
+                                        <span style="font-weight: 600; color: #ea580c;">Pipeline X-Urgent</span>
+                                        <span style="font-size: 10px; background: #ea580c; color: white; padding: 2px 6px; border-radius: 4px; font-weight: 700;">< 1 HORA</span>
+                                    </div>
+                                    <div style="font-size: 12px; color: #9a3412; margin-left: 26px; font-weight: 500;">
+                                        A cada 1 MINUTO • Eventos < 1 hora
+                                    </div>
+                                </div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="auto-pipeline-prices_urgent" onchange="toggleAutoPipeline('prices_urgent', this.checked)">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div id="auto-pipeline-prices_urgent-status" style="font-size: 11px; color: #ea580c; margin-left: 26px; margin-top: 6px; display: none; font-weight: 500;">
+                                <span class="status-indicator"></span>
+                                <span class="status-text"></span>
+                            </div>
+                        </div>
+
+                        <!-- Pipeline X-Soon - Verificação de Preços (< 24 horas) -->
+                        <div class="auto-pipeline-item" style="background: linear-gradient(135deg, #fefce8 0%, #fef9c3 100%); border: 2px solid #facc15;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div style="flex: 1;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                                        <span style="font-size: 18px;">🟡</span>
+                                        <span style="font-weight: 600; color: #ca8a04;">Pipeline X-Soon</span>
+                                        <span style="font-size: 10px; background: #ca8a04; color: white; padding: 2px 6px; border-radius: 4px; font-weight: 700;">< 24H</span>
+                                    </div>
+                                    <div style="font-size: 12px; color: #854d0e; margin-left: 26px; font-weight: 500;">
+                                        A cada 10 MINUTOS • Eventos < 24 horas
+                                    </div>
+                                </div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="auto-pipeline-prices_soon" onchange="toggleAutoPipeline('prices_soon', this.checked)">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div id="auto-pipeline-prices_soon-status" style="font-size: 11px; color: #ca8a04; margin-left: 26px; margin-top: 6px; display: none; font-weight: 500;">
+                                <span class="status-indicator"></span>
+                                <span class="status-text"></span>
+                            </div>
+                        </div>
+
+                        <!-- Pipeline Y - Verificação de Informações -->
+                        <div class="auto-pipeline-item">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div style="flex: 1;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                                        <span style="font-size: 18px;">🔄</span>
+                                        <span style="font-weight: 600; color: #1e293b;">Pipeline Y - Info</span>
+                                    </div>
+                                    <div style="font-size: 12px; color: #64748b; margin-left: 26px;">
+                                        Verifica preços e datas de TODOS os eventos • A cada 2 horas
+                                    </div>
+                                </div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="auto-pipeline-info" onchange="toggleAutoPipeline('info', this.checked)">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div id="auto-pipeline-info-status" style="font-size: 11px; color: #94a3b8; margin-left: 26px; margin-top: 6px; display: none;">
+                                <span class="status-indicator"></span>
+                                <span class="status-text"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Compact Pipeline -->
+                <div class="scraper-control-card" style="margin-top: 16px;">
+                    <div class="scraper-control-header">
+                        <h3>🚀 Pipeline Completo</h3>
+                        <button class="scraper-btn start" id="btn-pipeline" onclick="togglePipeline()" style="padding: 8px 16px; font-size: 13px;">
+                            ▶ Executar Pipeline
+                        </button>
+                    </div>
+
+                    <!-- Compact Pipeline Visualization -->
+                    <div style="padding: 16px; background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%); border-radius: 8px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; position: relative;">
+                            <!-- Connection Lines -->
+                            <div style="position: absolute; top: 50%; left: 0; right: 0; height: 3px; background: #cbd5e1; z-index: 1; border-radius: 2px;"></div>
+                            <div id="pipeline-progress-line" style="position: absolute; top: 50%; left: 0; height: 3px; width: 0%; background: linear-gradient(90deg, #3b82f6, #8b5cf6); z-index: 2; border-radius: 2px; transition: width 0.5s ease;"></div>
+
+                            <!-- Stage 1 -->
+                            <div style="z-index: 3; text-align: center; flex: 1;">
+                                <div id="stage1-circle" class="pipeline-stage" style="width: 50px; height: 50px; border-radius: 50%; background: white; border: 3px solid #cbd5e1; display: flex; align-items: center; justify-content: center; margin: 0 auto; font-size: 20px; transition: all 0.3s ease;">
+                                    🔍
+                                </div>
+                                <div style="margin-top: 8px;">
+                                    <div style="font-weight: 600; color: #1e293b; font-size: 12px;">IDs</div>
+                                    <div id="stage1-count" style="font-size: 10px; color: #94a3b8; margin-top: 2px; font-weight: 600;">-</div>
+                                </div>
+                            </div>
+
+                            <!-- Stage 2 -->
+                            <div style="z-index: 3; text-align: center; flex: 1;">
+                                <div id="stage2-circle" class="pipeline-stage" style="width: 50px; height: 50px; border-radius: 50%; background: white; border: 3px solid #cbd5e1; display: flex; align-items: center; justify-content: center; margin: 0 auto; font-size: 20px; transition: all 0.3s ease;">
+                                    📋
+                                </div>
+                                <div style="margin-top: 8px;">
+                                    <div style="font-weight: 600; color: #1e293b; font-size: 12px;">Detalhes</div>
+                                    <div id="stage2-count" style="font-size: 10px; color: #94a3b8; margin-top: 2px; font-weight: 600;">-</div>
+                                </div>
+                            </div>
+
+                            <!-- Stage 3 -->
+                            <div style="z-index: 3; text-align: center; flex: 1;">
+                                <div id="stage3-circle" class="pipeline-stage" style="width: 50px; height: 50px; border-radius: 50%; background: white; border: 3px solid #cbd5e1; display: flex; align-items: center; justify-content: center; margin: 0 auto; font-size: 20px; transition: all 0.3s ease;">
+                                    🖼️
+                                </div>
+                                <div style="margin-top: 8px;">
+                                    <div style="font-weight: 600; color: #1e293b; font-size: 12px;">Imagens</div>
+                                    <div id="stage3-count" style="font-size: 10px; color: #94a3b8; margin-top: 2px; font-weight: 600;">-</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Progress Feedback Box -->
+                    <div id="pipeline-feedback" style="display: none; background: white; border: 2px solid #3b82f6; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                            <div>
+                                <div style="font-weight: 600; color: #1e293b; font-size: 16px; margin-bottom: 4px;">
+                                    <span id="feedback-status">A processar...</span>
+                                </div>
+                                <div style="font-size: 14px; color: #64748b;" id="feedback-action">
+                                    Aguarde enquanto processamos os eventos
+                                </div>
+                            </div>
+                            <div style="font-size: 24px; font-weight: 700; color: #3b82f6;" id="feedback-count">
+                                0 / 0
+                            </div>
+                        </div>
+                        <div style="background: #f1f5f9; border-radius: 8px; height: 8px; overflow: hidden;">
+                            <div id="feedback-progress-bar" style="height: 100%; background: linear-gradient(90deg, #3b82f6, #8b5cf6); width: 0%; transition: width 0.3s ease;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Console + Danger Zone (Side by Side) -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 24px;">
+                    <!-- Console Card -->
+                    <div class="scraper-control-card">
+                        <div class="scraper-control-header">
+                            <h3>📟 Console de Logs</h3>
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <button class="scraper-btn" onclick="toggleAutoScroll()" style="padding: 6px 12px; font-size: 12px;" id="btn-autoscroll">
+                                    📌 Auto-scroll: ON
+                                </button>
+                                <button class="scraper-btn" onclick="clearConsole()" style="padding: 6px 12px; font-size: 12px;">
+                                    🧹 Limpar
+                                </button>
+                            </div>
+                        </div>
+
+                        <div style="background: #1e1e1e; border-radius: 8px; padding: 16px; font-family: 'Courier New', monospace; font-size: 12px; color: #d4d4d4; min-height: 300px; max-height: 400px; overflow-y: auto; line-height: 1.6;" id="console-output">
+                            <div style="color: #6b7280;">
+                                🟢 Console iniciado. A aguardar logs...
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Danger Zone Card -->
+                    <div class="scraper-control-card" style="border: 2px solid #ef4444; background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);">
+                        <div class="scraper-control-header">
+                            <h3 style="color: #dc2626;">⚠️ Zona de Perigo</h3>
+                        </div>
+
+                        <div class="scraper-controls">
+                            <div style="padding: 16px; background: white; border-radius: 8px; border: 1px solid #fecaca; margin-bottom: 16px;">
+                                <p style="color: #991b1b; font-size: 14px; font-weight: 600; margin-bottom: 8px;">
+                                    🗑️ Limpar Base de Dados
+                                </p>
+                                <p style="color: #7f1d1d; font-size: 12px; line-height: 1.5; margin-bottom: 12px;">
+                                    Esta ação irá <strong>apagar permanentemente TODOS os eventos</strong> da base de dados. Esta operação é <strong>irreversível</strong>!
+                                </p>
+                                <button class="scraper-btn stop" onclick="confirmClearDatabase()" style="width: auto;">
+                                    💣 Limpar Base de Dados
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Imóveis Page -->
+        <div id="imoveis" class="page">
+            <div class="page-header">
+                <h2>Imóveis</h2>
+                <p>Todos os imóveis disponíveis em leilão</p>
+            </div>
+
+            <div class="type-badges">
+                <div class="type-badge lo" onclick="toggleTypeFilter('LO', this)">
+                    <span>LO</span>
+                    <span>Leilão Online</span>
+                </div>
+                <div class="type-badge np" onclick="toggleTypeFilter('NP', this)">
+                    <span>NP</span>
+                    <span>Negociação Particular</span>
+                </div>
+            </div>
+
+            <div class="filters-bar">
+                <div class="filter-group">
+                    <label class="filter-label">Pesquisar</label>
+                    <input type="text" class="filter-input" id="search-imoveis" placeholder="🔍 Referência do evento...">
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">Ordenar por</label>
+                    <select class="filter-select" id="sort-imoveis">
+                        <option value="">Selecione...</option>
+                        <option value="dataFim_asc">Data fim: mais próxima</option>
+                        <option value="dataFim_desc">Data fim: mais distante</option>
+                        <option value="dataInicio_asc">Data início: mais antiga</option>
+                        <option value="dataInicio_desc">Data início: mais recente</option>
+                        <option value="valorBase_asc">Valor base: mais baixo</option>
+                        <option value="valorBase_desc">Valor base: mais alto</option>
+                        <option value="valorMinimo_asc">Valor mínimo: mais baixo</option>
+                        <option value="valorMinimo_desc">Valor mínimo: mais alto</option>
+                        <option value="lanceAtual_asc">Lance atual: mais baixo</option>
+                        <option value="lanceAtual_desc">Lance atual: mais alto</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">Distrito</label>
+                    <select class="filter-select" id="distrito-imoveis" onchange="updateConcelhoFilter('imoveis')">
+                        <option value="">Todos os distritos</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">Concelho</label>
+                    <select class="filter-select" id="concelho-imoveis" onchange="updateFreguesiaFilter('imoveis')" disabled>
+                        <option value="">Todos os concelhos</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">Freguesia</label>
+                    <select class="filter-select" id="freguesia-imoveis" disabled>
+                        <option value="">Todas as freguesias</option>
+                    </select>
+                </div>
+                <div class="filter-buttons">
+                    <button class="btn btn-primary" onclick="reloadAllData('imoveis')">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                        Atualizar
+                    </button>
+                    <button class="btn btn-secondary" onclick="clearFilters('imoveis')">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                        Limpar
+                    </button>
+                </div>
+            </div>
+
+            <div id="imoveis-content">
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                    <div class="loading-text">A carregar imóveis...</div>
+                </div>
+            </div>
+
+            <div id="pagination-imoveis" class="pagination" style="display: none;"></div>
+        </div>
+
+        <!-- Móveis Page -->
+        <div id="moveis" class="page">
+            <div class="page-header">
+                <h2>Móveis</h2>
+                <p>Todos os móveis disponíveis em leilão</p>
+            </div>
+
+            <div class="type-badges">
+                <div class="type-badge lo" onclick="toggleTypeFilter('LO', this)">
+                    <span>LO</span>
+                    <span>Leilão Online</span>
+                </div>
+                <div class="type-badge np" onclick="toggleTypeFilter('NP', this)">
+                    <span>NP</span>
+                    <span>Negociação Particular</span>
+                </div>
+            </div>
+
+            <div class="filters-bar">
+                <div class="filter-group">
+                    <label class="filter-label">Pesquisar</label>
+                    <input type="text" class="filter-input" id="search-moveis" placeholder="🔍 Referência do evento...">
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">Ordenar por</label>
+                    <select class="filter-select" id="sort-moveis">
+                        <option value="">Selecione...</option>
+                        <option value="dataFim_asc">Data fim: mais próxima</option>
+                        <option value="dataFim_desc">Data fim: mais distante</option>
+                        <option value="dataInicio_asc">Data início: mais antiga</option>
+                        <option value="dataInicio_desc">Data início: mais recente</option>
+                        <option value="valorBase_asc">Valor base: mais baixo</option>
+                        <option value="valorBase_desc">Valor base: mais alto</option>
+                        <option value="valorMinimo_asc">Valor mínimo: mais baixo</option>
+                        <option value="valorMinimo_desc">Valor mínimo: mais alto</option>
+                        <option value="lanceAtual_asc">Lance atual: mais baixo</option>
+                        <option value="lanceAtual_desc">Lance atual: mais alto</option>
+                    </select>
+                </div>
+                <div class="filter-buttons">
+                    <button class="btn btn-primary" onclick="reloadAllData('moveis')">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                        Atualizar
+                    </button>
+                    <button class="btn btn-secondary" onclick="clearFilters('moveis')">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                        Limpar
+                    </button>
+                </div>
+            </div>
+
+            <div id="moveis-content">
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                    <div class="loading-text">A carregar móveis...</div>
+                </div>
+            </div>
+
+            <div id="pagination-moveis" class="pagination" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000';
+        let currentPageData = { imoveis: 1, moveis: 1 };
+        let totalPagesData = { imoveis: 1, moveis: 1 };
+        let allDistritos = new Set();
+        let activeTypeFilter = null;
+        let allLoadedEvents = { imoveis: [], moveis: [] }; // Store all loaded events
+        let filteredEvents = { imoveis: [], moveis: [] }; // Store filtered events
+        const ITEMS_PER_PAGE = 50;
+
+        // Global variables for console and modals
+        let consolePollingInterval = null;
+        let autoScroll = true;
+
+        // Pipeline X countdown variables
+        let pipelineXCountdown = 5;
+        let pipelineXCountdownInterval = null;
+        let pipelineXCachedEvents = 0;
+        let deleteTimerInterval = null;
+
+        // Manual Pipeline control variables
+        let pipelineRunning = false;
+        let pipelineAbortController = null;
+
+        // Sidebar Lock
+        function toggleSidebarLock() {
+            const sidebar = document.getElementById('sidebar');
+            const lockIcon = document.getElementById('lockIcon');
+            const isLocked = sidebar.classList.contains('locked');
+
+            if (isLocked) {
+                sidebar.classList.remove('locked');
+                lockIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"/>';
+                localStorage.setItem('sidebarLocked', 'false');
+            } else {
+                sidebar.classList.add('locked');
+                lockIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>';
+                localStorage.setItem('sidebarLocked', 'true');
+            }
+        }
+
+        // Restore sidebar state on load
+        function restoreSidebarState() {
+            const isLocked = localStorage.getItem('sidebarLocked') === 'true';
+            if (isLocked) {
+                document.getElementById('sidebar').classList.add('locked');
+                document.getElementById('lockIcon').innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>';
+            }
+        }
+
+        // Close dropdown when sidebar collapses
+        document.getElementById('sidebar').addEventListener('mouseleave', function() {
+            if (!this.classList.contains('locked')) {
+                document.querySelectorAll('.nav-item.dropdown-open').forEach(item => {
+                    item.classList.remove('dropdown-open');
+                });
+            }
+        });
+
+        // Navigation
+        function showPage(pageId) {
+            // Hide all pages
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+
+            // Show selected page
+            document.getElementById(pageId).classList.add('active');
+
+            // Update nav items
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+            document.querySelectorAll('.nav-dropdown-item').forEach(item => item.classList.remove('active'));
+
+            if (pageId === 'dashboard') {
+                document.querySelector('.nav-item[onclick*="dashboard"]').classList.add('active');
+                loadDashboard();
+            } else if (pageId === 'imoveis') {
+                // Mark parent "Eventos" nav-item as active
+                document.querySelector('.nav-item[onclick*="toggleDropdown"]').classList.add('active');
+                document.querySelector('.nav-dropdown-item[onclick*="imoveis"]').classList.add('active');
+                loadEvents('imoveis');
+            } else if (pageId === 'moveis') {
+                // Mark parent "Eventos" nav-item as active
+                document.querySelector('.nav-item[onclick*="toggleDropdown"]').classList.add('active');
+                document.querySelector('.nav-dropdown-item[onclick*="moveis"]').classList.add('active');
+                loadEvents('moveis');
+            }
+
+            // Reset type filter when changing page
+            activeTypeFilter = null;
+            document.querySelectorAll('.type-badge').forEach(b => b.classList.remove('active'));
+        }
+
+        function toggleDropdown(item) {
+            item.classList.toggle('dropdown-open');
+        }
+
+        function toggleTypeFilter(type, element) {
+            if (activeTypeFilter === type) {
+                activeTypeFilter = null;
+                element.classList.remove('active');
+            } else {
+                activeTypeFilter = type;
+                document.querySelectorAll('.type-badge').forEach(b => b.classList.remove('active'));
+                element.classList.add('active');
+            }
+
+            // Reload current page
+            const activePage = document.querySelector('.page.active').id;
+            loadEvents(activePage);
+        }
+
+        // Load Dashboard
+        async function loadDashboard() {
+            try {
+                // Load ALL events to calculate accurate totals
+                const eventsResponse = await fetch(`${API_BASE}/api/events?limit=5000`);
+                const eventsData = await eventsResponse.json();
+
+                const total = eventsData.events.length;
+                const imoveis = eventsData.events.filter(e => e.tipoEvento === 'imovel');
+                const moveis = eventsData.events.filter(e => e.tipoEvento === 'movel');
+
+                const totalLO = eventsData.events.filter(e => e.reference.startsWith('LO')).length;
+                const totalNP = eventsData.events.filter(e => e.reference.startsWith('NP')).length;
+
+                const imoveisLO = imoveis.filter(e => e.reference.startsWith('LO')).length;
+                const imoveisNP = imoveis.filter(e => e.reference.startsWith('NP')).length;
+
+                const moveisLO = moveis.filter(e => e.reference.startsWith('LO')).length;
+                const moveisNP = moveis.filter(e => e.reference.startsWith('NP')).length;
+
+                document.getElementById('stat-total').textContent = total;
+                document.getElementById('stat-total-lo').textContent = totalLO;
+                document.getElementById('stat-total-np').textContent = totalNP;
+
+                document.getElementById('stat-imoveis').textContent = imoveis.length;
+                document.getElementById('stat-imoveis-lo').textContent = imoveisLO;
+                document.getElementById('stat-imoveis-np').textContent = imoveisNP;
+
+                document.getElementById('stat-moveis').textContent = moveis.length;
+                document.getElementById('stat-moveis-lo').textContent = moveisLO;
+                document.getElementById('stat-moveis-np').textContent = moveisNP;
+
+                // Initialize scraper controls
+                initScraperControls();
+                // Check scraper status
+                updateScraperStatus();
+            } catch (error) {
+                console.error('Erro ao carregar dashboard:', error);
+            }
+        }
+
+        // Scraper Control Functions
+        let scraperPollInterval = null;
+
+        function initScraperControls() {
+            const btnStart = document.getElementById('btn-start-scraper');
+            const btnStop = document.getElementById('btn-stop-scraper');
+            const intervalSelect = document.getElementById('scrape-interval');
+
+            btnStart?.addEventListener('click', startScraper);
+            btnStop?.addEventListener('click', stopScraper);
+            intervalSelect?.addEventListener('change', updateSchedule);
+        }
+
+        async function startScraper() {
+            try {
+                const btnStart = document.getElementById('btn-start-scraper');
+                btnStart.disabled = true;
+                btnStart.textContent = '⏳ A iniciar...';
+
+                const interval = document.getElementById('scrape-interval').value;
+                const maxPages = null; // Scrape all pages
+
+                const response = await fetch(`${API_BASE}/scrape/all${maxPages ? '?max_pages=' + maxPages : ''}`, {
+                    method: 'POST'
+                });
+
+                if (!response.ok) throw new Error('Erro ao iniciar scraper');
+
+                // Update schedule if not manual
+                if (interval !== 'manual') {
+                    await updateSchedule();
+                }
+
+                // Start polling status
+                startStatusPolling();
+
+            } catch (error) {
+                alert('❌ Erro ao iniciar scraper: ' + error.message);
+                console.error(error);
+                const btnStart = document.getElementById('btn-start-scraper');
+                btnStart.disabled = false;
+                btnStart.textContent = 'Iniciar';
+            }
+        }
+
+        async function stopScraper() {
+            try {
+                const btnStop = document.getElementById('btn-stop-scraper');
+                btnStop.disabled = true;
+                btnStop.textContent = '⏳ A parar...';
+
+                const response = await fetch(`${API_BASE}/scrape/stop`, {
+                    method: 'POST'
+                });
+
+                if (!response.ok) throw new Error('Erro ao parar scraper');
+
+                stopStatusPolling();
+                updateScraperStatus();
+
+            } catch (error) {
+                alert('❌ Erro ao parar scraper: ' + error.message);
+                console.error(error);
+                const btnStop = document.getElementById('btn-stop-scraper');
+                btnStop.disabled = false;
+                btnStop.textContent = 'Parar';
+            }
+        }
+
+        async function updateSchedule() {
+            try {
+                const interval = document.getElementById('scrape-interval').value;
+
+                if (interval === 'manual') {
+                    // Disable schedule
+                    const response = await fetch(`${API_BASE}/scrape/schedule`, {
+                        method: 'DELETE'
+                    });
+
+                    if (!response.ok && response.status !== 404) {
+                        console.warn('Erro ao cancelar agendamento');
+                    }
+                } else {
+                    // Set schedule (use query parameter)
+                    const response = await fetch(`${API_BASE}/scrape/schedule?hours=${interval}`, {
+                        method: 'POST'
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        console.log('Agendamento criado:', data);
+                    }
+                }
+            } catch (error) {
+                console.error('Erro ao atualizar schedule:', error);
+            }
+        }
+
+        function startStatusPolling() {
+            if (scraperPollInterval) clearInterval(scraperPollInterval);
+
+            scraperPollInterval = setInterval(updateScraperStatus, 2000);
+            updateScraperStatus(); // Update immediately
+        }
+
+        function stopStatusPolling() {
+            if (scraperPollInterval) {
+                clearInterval(scraperPollInterval);
+                scraperPollInterval = null;
+            }
+        }
+
+        async function updateScraperStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/api/scrape/status`);
+                if (!response.ok) return; // Silently fail if endpoint doesn't exist
+
+                const status = await response.json();
+
+                // These elements were removed - skip if not present
+                const statusDiv = document.getElementById('scraper-status');
+                const statusText = document.getElementById('scraper-status-text');
+                const progressDiv = document.getElementById('scraper-progress');
+                const progressText = document.getElementById('progress-text');
+                const progressCount = document.getElementById('progress-count');
+                const progressFill = document.getElementById('progress-bar-fill');
+                const btnStart = document.getElementById('btn-start-scraper');
+                const btnStop = document.getElementById('btn-stop-scraper');
+
+                if (!statusDiv) return; // Elements don't exist, skip update
+
+                if (status.is_running) {
+                    // Scraper is running
+                    statusDiv.className = 'scraper-status running';
+                    if (statusText) statusText.textContent = 'A correr';
+                    if (progressDiv) progressDiv.classList.add('active');
+                    if (btnStart) btnStart.disabled = true;
+                    if (btnStop) btnStop.disabled = false;
+
+                    // Update progress
+                    const processed = status.events_processed || 0;
+                    const failed = status.events_failed || 0;
+                    const currentPage = status.current_page || 0;
+
+                    if (progressText) progressText.textContent = `Página ${currentPage} • ${failed} falhas`;
+                    if (progressCount) progressCount.textContent = `${processed} eventos processados`;
+                    if (progressFill) progressFill.style.width = '100%'; // Indeterminate progress
+
+                    // Continue polling
+                    if (!scraperPollInterval) {
+                        startStatusPolling();
+                    }
+                } else {
+                    // Scraper is stopped
+                    statusDiv.className = 'scraper-status stopped';
+                    if (statusText) statusText.textContent = 'Parado';
+                    if (progressDiv) progressDiv.classList.remove('active');
+                    if (btnStart) btnStart.disabled = false;
+                    if (btnStop) btnStop.disabled = true;
+
+                    // Stop polling
+                    stopStatusPolling();
+
+                    // Reload stats if scraper just finished
+                    if (status.events_processed > 0) {
+                        loadDashboard();
+                    }
+                }
+            } catch (error) {
+                console.error('Erro ao verificar status:', error);
+                stopStatusPolling();
+            }
+        }
+
+        // Load Events
+        async function loadEvents(type, page = 1) {
+            const contentId = `${type}-content`;
+            const content = document.getElementById(contentId);
+
+            // Only show loading on first load
+            if (allLoadedEvents[type].length === 0) {
+                content.innerHTML = `
+                    <div class="loading">
+                        <div class="loading-spinner"></div>
+                        <div class="loading-text">A carregar ${type}...</div>
+                    </div>
+                `;
+            }
+
+            try {
+                // Load ALL events if not already loaded
+                if (allLoadedEvents[type].length === 0) {
+                    let url = `${API_BASE}/api/events?limit=5000`;
+                    url += `&tipo_evento=${type === 'imoveis' ? 'imovel' : 'movel'}`;
+
+                    const response = await fetch(url);
+                    const data = await response.json();
+
+                    allLoadedEvents[type] = data.events;
+
+                    // Collect distritos
+                    if (type === 'imoveis') {
+                        data.events.forEach(event => {
+                            if (event.detalhes.distrito) {
+                                allDistritos.add(event.detalhes.distrito);
+                            }
+                        });
+                        updateDistritoFilter();
+                    }
+                }
+
+                // Get filter values
+                const searchInput = document.getElementById(`search-${type}`);
+                const distritoSelect = document.getElementById(`distrito-${type}`);
+                const concelhoSelect = document.getElementById(`concelho-${type}`);
+                const freguesiaSelect = document.getElementById(`freguesia-${type}`);
+                const sortSelect = document.getElementById(`sort-${type}`);
+
+                const search = searchInput ? searchInput.value : '';
+                const distrito = distritoSelect ? distritoSelect.value : '';
+                const concelho = concelhoSelect ? concelhoSelect.value : '';
+                const freguesia = freguesiaSelect ? freguesiaSelect.value : '';
+                const sortBy = sortSelect ? sortSelect.value : '';
+
+                // Apply ALL filters to create filtered list
+                let events = [...allLoadedEvents[type]];
+
+                if (search) {
+                    events = events.filter(e =>
+                        e.reference.toLowerCase().includes(search.toLowerCase())
+                    );
+                }
+                if (activeTypeFilter) {
+                    events = events.filter(e => e.reference.startsWith(activeTypeFilter));
+                }
+                if (distrito) {
+                    events = events.filter(e => e.detalhes.distrito === distrito);
+                }
+                if (concelho) {
+                    events = events.filter(e => e.detalhes.concelho === concelho);
+                }
+                if (freguesia) {
+                    events = events.filter(e => e.detalhes.freguesia === freguesia);
+                }
+
+                // Apply sorting
+                if (sortBy) {
+                    const [field, order] = sortBy.split('_');
+                    events.sort((a, b) => {
+                        let valueA, valueB;
+
+                        switch(field) {
+                            case 'dataInicio':
+                                valueA = a.dataInicio ? new Date(a.dataInicio) : new Date(0);
+                                valueB = b.dataInicio ? new Date(b.dataInicio) : new Date(0);
+                                break;
+                            case 'dataFim':
+                                valueA = a.dataFim ? new Date(a.dataFim) : new Date(0);
+                                valueB = b.dataFim ? new Date(b.dataFim) : new Date(0);
+                                break;
+                            case 'valorBase':
+                                valueA = a.valores?.valorBase || 0;
+                                valueB = b.valores?.valorBase || 0;
+                                break;
+                            case 'valorMinimo':
+                                valueA = a.valores?.valorMinimo || 0;
+                                valueB = b.valores?.valorMinimo || 0;
+                                break;
+                            case 'lanceAtual':
+                                valueA = a.valores?.lanceAtual || 0;
+                                valueB = b.valores?.lanceAtual || 0;
+                                break;
+                            default:
+                                return 0;
+                        }
+
+                        if (order === 'asc') {
+                            return valueA > valueB ? 1 : valueA < valueB ? -1 : 0;
+                        } else {
+                            return valueA < valueB ? 1 : valueA > valueB ? -1 : 0;
+                        }
+                    });
+                }
+
+                // Store filtered events
+                filteredEvents[type] = events;
+
+                // Calculate pagination
+                const totalItems = events.length;
+                const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+                currentPageData[type] = page;
+                totalPagesData[type] = totalPages;
+
+                // Get items for current page
+                const startIdx = (page - 1) * ITEMS_PER_PAGE;
+                const endIdx = startIdx + ITEMS_PER_PAGE;
+                const pageEvents = events.slice(startIdx, endIdx);
+
+                if (pageEvents.length === 0) {
+                    content.innerHTML = `
+                        <div class="no-data">
+                            <svg class="no-data-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <div class="no-data-text">Nenhum evento encontrado</div>
+                        </div>
+                    `;
+                    document.getElementById(`pagination-${type}`).style.display = 'none';
+                    return;
+                }
+
+                const grid = document.createElement('div');
+                grid.className = 'events-grid';
+
+                pageEvents.forEach(event => {
+                    const card = createEventCard(event);
+                    grid.appendChild(card);
+                });
+
+                content.innerHTML = '';
+                content.appendChild(grid);
+
+                updatePagination(type);
+
+            } catch (error) {
+                console.error('Erro ao carregar eventos:', error);
+                content.innerHTML = `
+                    <div class="no-data">
+                        <div class="no-data-text">Erro ao carregar eventos</div>
+                    </div>
+                `;
+            }
+        }
+
+        function createEventCard(event) {
+            const card = document.createElement('div');
+            card.className = 'event-card';
+
+            const typePrefix = event.reference.substring(0, 2);
+            const typePrefixClass = typePrefix === 'LO' ? 'lo' : 'np';
+            const eventType = event.tipoEvento === 'imovel' ? 'imovel' : 'movel';
+
+            const formatDate = (dateStr) => {
+                if (!dateStr) return 'N/A';
+                const date = new Date(dateStr);
+                return date.toLocaleString('pt-PT', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            };
+
+            const formatPrice = (price) => {
+                if (!price) return 'N/A';
+                return new Intl.NumberFormat('pt-PT', {
+                    style: 'currency',
+                    currency: 'EUR'
+                }).format(price);
+            };
+
+            const getValue = (val) => val || 'N/A';
+
+            // Remove prefix LO/NP from reference text
+            const referenceWithoutPrefix = event.reference.substring(2);
+
+            // Build carousel HTML
+            let carouselHTML = '';
+            if (event.imagens && event.imagens.length > 0) {
+                const imagesHTML = event.imagens.map((img, idx) =>
+                    `<div class="event-carousel-image" style="background-image: url('${img}')"></div>`
+                ).join('');
+
+                const indicatorsHTML = event.imagens.map((_, idx) =>
+                    `<div class="event-carousel-indicator ${idx === 0 ? 'active' : ''}" data-index="${idx}"></div>`
+                ).join('');
+
+                carouselHTML = `
+                    <div class="event-carousel" data-reference="${event.reference}">
+                        <div class="event-carousel-images">
+                            ${imagesHTML}
+                        </div>
+                        ${event.imagens.length > 1 ? `
+                            <button class="event-carousel-nav prev">
+                                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+                                </svg>
+                            </button>
+                            <button class="event-carousel-nav next">
+                                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+                                </svg>
+                            </button>
+                            <div class="event-carousel-indicators">
+                                ${indicatorsHTML}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            } else {
+                carouselHTML = `
+                    <div class="event-carousel">
+                        <div class="event-carousel-placeholder">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 48px; height: 48px;">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
+                        </div>
+                    </div>
+                `;
+            }
+
+            card.innerHTML = `
+                <div class="event-card-header">
+                    <div class="event-ref-badge">
+                        <span class="event-type-prefix ${typePrefixClass}">${typePrefix}</span>
+                        <span class="event-ref-text">${referenceWithoutPrefix}</span>
+                    </div>
+                    <div class="event-type-badge ${eventType}">
+                        ${eventType === 'imovel' ? `
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                            </svg>
+                            Imóvel
+                        ` : `
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                            </svg>
+                            Móvel
+                        `}
+                    </div>
+                </div>
+
+                ${carouselHTML}
+
+                <div class="event-card-body">
+                    <!-- Informações Básicas -->
+                    <div class="event-section">
+                        <div class="section-title">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            Informações Básicas
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Tipo:</span>
+                            <span class="detail-value ${!event.detalhes.tipo || event.detalhes.tipo === 'N/A' ? 'empty' : ''}">${getValue(event.detalhes.tipo)}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Subtipo:</span>
+                            <span class="detail-value ${!event.detalhes.subtipo || event.detalhes.subtipo === 'N/A' ? 'empty' : ''}">${getValue(event.detalhes.subtipo)}</span>
+                        </div>
+                        ${event.tipoEvento === 'imovel' ? `
+                            <div class="detail-row">
+                                <span class="detail-label">Tipologia:</span>
+                                <span class="detail-value ${!event.detalhes.tipologia ? 'empty' : ''}">${getValue(event.detalhes.tipologia)}</span>
+                            </div>
+                        ` : ''}
+                        ${event.tipoEvento === 'movel' ? `
+                            <div class="detail-row">
+                                <span class="detail-label">Matrícula:</span>
+                                <span class="detail-value ${!event.detalhes.matricula ? 'empty' : ''}">${getValue(event.detalhes.matricula)}</span>
+                            </div>
+                        ` : ''}
+                    </div>
+
+                    <!-- Valores -->
+                    <div class="event-section">
+                        <div class="section-title">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            Valores
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Valor Base:</span>
+                            <span class="detail-value ${!event.valores.valorBase ? 'empty' : 'price'}">${formatPrice(event.valores.valorBase)}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Valor Abertura:</span>
+                            <span class="detail-value ${!event.valores.valorAbertura ? 'empty' : 'price'}">${formatPrice(event.valores.valorAbertura)}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Valor Mínimo:</span>
+                            <span class="detail-value ${!event.valores.valorMinimo ? 'empty' : 'price'}">${formatPrice(event.valores.valorMinimo)}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Lance Atual:</span>
+                            <span class="detail-value ${!event.valores.lanceAtual ? 'empty' : 'price'}">${formatPrice(event.valores.lanceAtual)}</span>
+                        </div>
+                    </div>
+
+                    <!-- Datas -->
+                    <div class="event-section">
+                        <div class="section-title">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
+                            Datas do Evento
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Início:</span>
+                            <span class="detail-value ${!event.dataInicio ? 'empty' : 'date'}">${formatDate(event.dataInicio)}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Fim:</span>
+                            <span class="detail-value ${!event.dataFim ? 'empty' : 'date'}">${formatDate(event.dataFim)}</span>
+                        </div>
+                    </div>
+
+                    ${event.tipoEvento === 'imovel' ? `
+                        <!-- Localização -->
+                        <div class="event-section">
+                            <div class="section-title">
+                                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                </svg>
+                                Localização
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Distrito:</span>
+                                <span class="detail-value ${!event.detalhes.distrito ? 'empty' : ''}">${getValue(event.detalhes.distrito)}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Concelho:</span>
+                                <span class="detail-value ${!event.detalhes.concelho ? 'empty' : ''}">${getValue(event.detalhes.concelho)}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Freguesia:</span>
+                                <span class="detail-value ${!event.detalhes.freguesia ? 'empty' : ''}">${getValue(event.detalhes.freguesia)}</span>
+                            </div>
+                        </div>
+
+                        <!-- Áreas -->
+                        <div class="event-section">
+                            <div class="section-title">
+                                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+                                </svg>
+                                Áreas
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Área Privativa:</span>
+                                <span class="detail-value ${!event.detalhes.areaPrivativa ? 'empty' : ''}">${event.detalhes.areaPrivativa ? event.detalhes.areaPrivativa + ' m²' : 'N/A'}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Área Dependente:</span>
+                                <span class="detail-value ${!event.detalhes.areaDependente ? 'empty' : ''}">${event.detalhes.areaDependente ? event.detalhes.areaDependente + ' m²' : 'N/A'}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Área Total:</span>
+                                <span class="detail-value ${!event.detalhes.areaTotal ? 'empty' : ''}">${event.detalhes.areaTotal ? event.detalhes.areaTotal + ' m²' : 'N/A'}</span>
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+
+                <div class="card-actions">
+                    <button class="card-action-btn" onclick="viewEvent('${event.reference}')" title="Ver evento no e-leiloes.pt">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                        </svg>
+                        Ver
+                    </button>
+                    <button class="card-action-btn" onclick="reloadEvent('${event.reference}')" title="Recarregar dados do evento">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                        Reload
+                    </button>
+                    <button class="card-action-btn" onclick="openLocation(${event.gps?.latitude}, ${event.gps?.longitude})" ${!event.gps?.latitude ? 'disabled' : ''} title="Abrir localização no mapa">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                        Mapa
+                    </button>
+                </div>
+            `;
+
+            // Add carousel navigation
+            if (event.imagens && event.imagens.length > 1) {
+                const carousel = card.querySelector('.event-carousel');
+                const imagesContainer = carousel.querySelector('.event-carousel-images');
+                const prevBtn = carousel.querySelector('.prev');
+                const nextBtn = carousel.querySelector('.next');
+                const indicators = carousel.querySelectorAll('.event-carousel-indicator');
+                let currentIndex = 0;
+
+                const updateCarousel = (index) => {
+                    currentIndex = index;
+                    imagesContainer.style.transform = `translateX(-${index * 100}%)`;
+                    indicators.forEach((ind, idx) => {
+                        ind.classList.toggle('active', idx === index);
+                    });
+                };
+
+                prevBtn?.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const newIndex = currentIndex > 0 ? currentIndex - 1 : event.imagens.length - 1;
+                    updateCarousel(newIndex);
+                });
+
+                nextBtn?.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const newIndex = currentIndex < event.imagens.length - 1 ? currentIndex + 1 : 0;
+                    updateCarousel(newIndex);
+                });
+
+                indicators.forEach((indicator, idx) => {
+                    indicator.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        updateCarousel(idx);
+                    });
+                });
+            }
+
+            return card;
+        }
+
+        // Card Actions
+        async function reloadEvent(reference) {
+            try {
+                // Show loading indicator
+                const card = event.target.closest('.event-card');
+                if (card) {
+                    card.style.opacity = '0.5';
+                    card.style.pointerEvents = 'none';
+                }
+
+                addLog(`🔄 Recarregando evento: ${reference}`, 'info');
+
+                // Force API to re-scrape the event
+                const response = await fetch(`${API_BASE}/api/scrape/event/${reference}`, {
+                    method: 'POST'
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    addLog(`✅ Evento ${reference} recarregado com sucesso`, 'success');
+                    showModal('✅ Evento Atualizado', `Evento ${reference} foi atualizado com sucesso!\n\nA página vai recarregar...`);
+
+                    // Wait a moment for the modal to be visible
+                    await new Promise(resolve => setTimeout(resolve, 1500));
+
+                    // Reload the current page
+                    const activePage = document.querySelector('.page.active').id;
+                    loadEvents(activePage);
+                } else {
+                    addLog(`❌ Erro ao recarregar ${reference}: ${data.detail || 'Erro desconhecido'}`, 'error');
+                    showModal('❌ Erro ao Recarregar', data.detail || 'Erro ao recarregar o evento. Por favor, tente novamente.');
+
+                    if (card) {
+                        card.style.opacity = '1';
+                        card.style.pointerEvents = 'auto';
+                    }
+                }
+            } catch (error) {
+                console.error('Erro ao recarregar evento:', error);
+                addLog(`❌ Erro ao recarregar ${reference}: ${error.message}`, 'error');
+                showModal('❌ Erro', `Erro ao recarregar o evento:\n${error.message}`);
+
+                if (card) {
+                    card.style.opacity = '1';
+                    card.style.pointerEvents = 'auto';
+                }
+            }
+        }
+
+        function openLocation(lat, lng) {
+            if (lat && lng) {
+                window.open(`https://www.google.com/maps?q=${lat},${lng}`, '_blank');
+            }
+        }
+
+        function viewEvent(reference) {
+            window.open(`https://www.e-leiloes.pt/evento/${reference}`, '_blank');
+        }
+
+        // Cascade Filters
+        let allEventsCache = [];
+
+        async function updateConcelhoFilter(type) {
+            const distritoSelect = document.getElementById(`distrito-${type}`);
+            const concelhoSelect = document.getElementById(`concelho-${type}`);
+            const freguesiaSelect = document.getElementById(`freguesia-${type}`);
+
+            if (!distritoSelect || !concelhoSelect) return;
+
+            const selectedDistrito = distritoSelect.value;
+
+            // Reset concelho and freguesia
+            concelhoSelect.innerHTML = '<option value="">Todos os concelhos</option>';
+            freguesiaSelect.innerHTML = '<option value="">Todas as freguesias</option>';
+            freguesiaSelect.disabled = true;
+
+            if (!selectedDistrito) {
+                concelhoSelect.disabled = true;
+                return;
+            }
+
+            // Fetch all events if not cached
+            if (allEventsCache.length === 0) {
+                try {
+                    const response = await fetch(`${API_BASE}/api/events?limit=1000&tipo_evento=imovel`);
+                    const data = await response.json();
+                    allEventsCache = data.events;
+                } catch (error) {
+                    console.error('Erro ao carregar eventos para filtros:', error);
+                    return;
+                }
+            }
+
+            // Filter events by distrito and collect unique concelhos
+            const concelhos = new Set();
+            allEventsCache.forEach(event => {
+                if (event.detalhes.distrito === selectedDistrito && event.detalhes.concelho) {
+                    concelhos.add(event.detalhes.concelho);
+                }
+            });
+
+            // Populate concelho dropdown
+            Array.from(concelhos).sort().forEach(concelho => {
+                const option = document.createElement('option');
+                option.value = concelho;
+                option.textContent = concelho;
+                concelhoSelect.appendChild(option);
+            });
+
+            concelhoSelect.disabled = false;
+        }
+
+        async function updateFreguesiaFilter(type) {
+            const distritoSelect = document.getElementById(`distrito-${type}`);
+            const concelhoSelect = document.getElementById(`concelho-${type}`);
+            const freguesiaSelect = document.getElementById(`freguesia-${type}`);
+
+            if (!distritoSelect || !concelhoSelect || !freguesiaSelect) return;
+
+            const selectedDistrito = distritoSelect.value;
+            const selectedConcelho = concelhoSelect.value;
+
+            // Reset freguesia
+            freguesiaSelect.innerHTML = '<option value="">Todas as freguesias</option>';
+
+            if (!selectedDistrito || !selectedConcelho) {
+                freguesiaSelect.disabled = true;
+                return;
+            }
+
+            // Fetch all events if not cached
+            if (allEventsCache.length === 0) {
+                try {
+                    const response = await fetch(`${API_BASE}/api/events?limit=1000&tipo_evento=imovel`);
+                    const data = await response.json();
+                    allEventsCache = data.events;
+                } catch (error) {
+                    console.error('Erro ao carregar eventos para filtros:', error);
+                    return;
+                }
+            }
+
+            // Filter events by distrito and concelho, collect unique freguesias
+            const freguesias = new Set();
+            allEventsCache.forEach(event => {
+                if (event.detalhes.distrito === selectedDistrito &&
+                    event.detalhes.concelho === selectedConcelho &&
+                    event.detalhes.freguesia) {
+                    freguesias.add(event.detalhes.freguesia);
+                }
+            });
+
+            // Populate freguesia dropdown
+            Array.from(freguesias).sort().forEach(freguesia => {
+                const option = document.createElement('option');
+                option.value = freguesia;
+                option.textContent = freguesia;
+                freguesiaSelect.appendChild(option);
+            });
+
+            freguesiaSelect.disabled = false;
+        }
+
+        function updateDistritoFilter() {
+            const select = document.getElementById('distrito-imoveis');
+            if (!select) return;
+
+            const currentValue = select.value;
+            select.innerHTML = '<option value="">Todos os distritos</option>';
+
+            Array.from(allDistritos).sort().forEach(distrito => {
+                const option = document.createElement('option');
+                option.value = distrito;
+                option.textContent = distrito;
+                select.appendChild(option);
+            });
+
+            select.value = currentValue;
+        }
+
+        function updatePagination(type) {
+            const pagination = document.getElementById(`pagination-${type}`);
+            if (!pagination) return;
+
+            const totalFiltered = filteredEvents[type].length;
+
+            if (totalPagesData[type] <= 1) {
+                pagination.style.display = 'none';
+                return;
+            }
+
+            pagination.style.display = 'flex';
+            pagination.innerHTML = `
+                <button ${currentPageData[type] === 1 ? 'disabled' : ''} onclick="loadEvents('${type}', ${currentPageData[type] - 1})">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+                    </svg>
+                    Anterior
+                </button>
+                <span class="page-info">Página ${currentPageData[type]} de ${totalPagesData[type]} (${totalFiltered} eventos)</span>
+                <button ${currentPageData[type] === totalPagesData[type] ? 'disabled' : ''} onclick="loadEvents('${type}', ${currentPageData[type] + 1})">
+                    Próxima
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+                    </svg>
+                </button>
+            `;
+        }
+
+        function clearFilters(type) {
+            const searchInput = document.getElementById(`search-${type}`);
+            const distritoSelect = document.getElementById(`distrito-${type}`);
+            const concelhoSelect = document.getElementById(`concelho-${type}`);
+            const freguesiaSelect = document.getElementById(`freguesia-${type}`);
+            const sortSelect = document.getElementById(`sort-${type}`);
+
+            if (searchInput) searchInput.value = '';
+            if (distritoSelect) distritoSelect.value = '';
+            if (sortSelect) sortSelect.value = '';
+
+            if (concelhoSelect) {
+                concelhoSelect.innerHTML = '<option value="">Todos os concelhos</option>';
+                concelhoSelect.disabled = true;
+            }
+            if (freguesiaSelect) {
+                freguesiaSelect.innerHTML = '<option value="">Todas as freguesias</option>';
+                freguesiaSelect.disabled = true;
+            }
+
+            activeTypeFilter = null;
+            document.querySelectorAll('.type-badge').forEach(b => b.classList.remove('active'));
+
+            currentPageData[type] = 1;
+            loadEvents(type, 1);
+        }
+
+        function reloadAllData(type) {
+            // Clear cache to force fresh load
+            allLoadedEvents[type] = [];
+            filteredEvents[type] = [];
+            currentPageData[type] = 1;
+            loadEvents(type, 1);
+        }
+
+        // Event Listeners
+        document.addEventListener('keyup', (e) => {
+            if (e.key === 'Enter') {
+                const activePage = document.querySelector('.page.active').id;
+                if (activePage !== 'dashboard') {
+                    loadEvents(activePage);
+                }
+            }
+        });
+
+        // Initial load
+        restoreSidebarState();
+        loadDashboard();
+        startConsolePolling();
+        checkPipelineStatusOnLoad(); // Retomar pipeline se ativa
+        loadAutoPipelinesStatus(); // Carregar status das pipelines automáticas
+
+        // ============== MULTI-STAGE SCRAPING FUNCTIONS ==============
+
+        // Global storage for stage results
+        let stage1Results = [];
+        let stage2Results = [];
+
+        // Toggle modes for Stage 2
+        function toggleStage2Mode() {
+            const source = document.getElementById('stage2-source').value;
+            const idsTextarea = document.getElementById('stage2-ids');
+            const btn = document.getElementById('btn-stage2');
+
+            if (source === 'manual') {
+                idsTextarea.style.display = 'block';
+                btn.disabled = false;
+            } else if (source === 'stage1') {
+                idsTextarea.style.display = 'none';
+                btn.disabled = stage1Results.length === 0;
+            } else if (source === 'new') {
+                idsTextarea.style.display = 'none';
+                btn.disabled = false;
+            }
+        }
+
+        // Toggle modes for Stage 3
+        function toggleStage3Mode() {
+            const source = document.getElementById('stage3-source').value;
+            const idsTextarea = document.getElementById('stage3-ids');
+            const btn = document.getElementById('btn-stage3');
+
+            if (source === 'manual') {
+                idsTextarea.style.display = 'block';
+                btn.disabled = false;
+            } else if (source === 'stage1') {
+                idsTextarea.style.display = 'none';
+                btn.disabled = stage1Results.length === 0;
+            } else if (source === 'stage2') {
+                idsTextarea.style.display = 'none';
+                btn.disabled = stage2Results.length === 0;
+            } else if (source === 'missing') {
+                idsTextarea.style.display = 'none';
+                btn.disabled = false;
+            }
+        }
+
+        // Stage 1: Discover IDs
+        async function runStage1() {
+            const btn = document.getElementById('btn-stage1');
+            const result = document.getElementById('stage1-result');
+            const tipo = document.getElementById('stage1-tipo').value;
+            const pages = document.getElementById('stage1-pages').value;
+
+            try {
+                btn.disabled = true;
+                btn.textContent = '⏳ A descobrir...';
+                result.className = 'stage-result loading';
+                result.textContent = 'A processar...';
+
+                let url = `${API_BASE}/api/scrape/stage1/ids?`;
+                if (tipo) url += `tipo=${tipo}&`;
+                if (pages) url += `max_pages=${pages}`;
+
+                const response = await fetch(url, { method: 'POST' });
+                const data = await response.json();
+
+                if (response.ok) {
+                    stage1Results = data.ids || [];
+                    result.className = 'stage-result success';
+                    result.textContent = `${stage1Results.length} IDs`;
+
+                    // Enable stage 2 and 3
+                    document.getElementById('btn-stage2').disabled = false;
+                    toggleStage3Mode();
+
+                    alert(`✅ Stage 1 completo!\n\n${stage1Results.length} eventos descobertos`);
+                } else {
+                    throw new Error(data.detail || 'Erro desconhecido');
+                }
+
+            } catch (error) {
+                result.className = 'stage-result';
+                result.textContent = 'Erro';
+                alert(`❌ Erro no Stage 1:\n${error.message}`);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🔍 Descobrir IDs';
+            }
+        }
+
+        // Stage 2: Extract Details
+        async function runStage2() {
+            const btn = document.getElementById('btn-stage2');
+            const result = document.getElementById('stage2-result');
+            const source = document.getElementById('stage2-source').value;
+
+            try {
+                btn.disabled = true;
+                btn.textContent = '⏳ A extrair...';
+                result.className = 'stage-result loading';
+                result.textContent = 'A processar...';
+
+                let references = [];
+
+                if (source === 'stage1') {
+                    references = stage1Results.map(item => item.reference);
+                } else if (source === 'manual') {
+                    const idsText = document.getElementById('stage2-ids').value;
+                    references = idsText.split(',').map(s => s.trim()).filter(s => s);
+                } else if (source === 'new') {
+                    // SMART SCRAPING: Identifica automaticamente eventos novos
+                    btn.textContent = '🧠 A identificar novos...';
+
+                    // Chama endpoint de smart scraping
+                    const smartUrl = `${API_BASE}/api/scrape/smart/new-events`;
+                    const smartResponse = await fetch(smartUrl, { method: 'POST' });
+                    const smartData = await smartResponse.json();
+
+                    if (!smartResponse.ok) {
+                        throw new Error(smartData.detail || 'Erro no scrape inteligente');
+                    }
+
+                    if (smartData.new_events === 0) {
+                        alert(`ℹ️ Scrape Inteligente\n\n✅ Nenhum evento novo!\n\nTotal scraped: ${smartData.total_scraped}\nJá na BD: ${smartData.already_in_db}`);
+                        result.className = 'stage-result success';
+                        result.textContent = '0 novos';
+                        return;
+                    }
+
+                    // Usa os IDs novos
+                    references = smartData.new_ids.map(item => item.reference);
+                    alert(`🧠 Scrape Inteligente\n\n✨ ${smartData.new_events} eventos novos identificados!\n\nTotal scraped: ${smartData.total_scraped}\nJá na BD: ${smartData.already_in_db}`);
+                }
+
+                if (references.length === 0) {
+                    alert('Nenhum ID para processar!');
+                    return;
+                }
+
+                btn.textContent = '⏳ A extrair detalhes...';
+                const url = `${API_BASE}/api/scrape/stage2/details?` + references.map(ref => `references=${encodeURIComponent(ref)}`).join('&');
+
+                const response = await fetch(url, { method: 'POST' });
+                const data = await response.json();
+
+                if (response.ok) {
+                    stage2Results = data.events || [];
+                    result.className = 'stage-result success';
+                    result.textContent = `${stage2Results.length} eventos`;
+
+                    // Enable stage 3
+                    toggleStage3Mode();
+
+                    alert(`✅ Stage 2 completo!\n\n${stage2Results.length} eventos processados`);
+                    loadDashboard();
+                } else {
+                    throw new Error(data.detail || 'Erro desconhecido');
+                }
+
+            } catch (error) {
+                result.className = 'stage-result';
+                result.textContent = 'Erro';
+                alert(`❌ Erro no Stage 2:\n${error.message}`);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '📋 Extrair Detalhes';
+            }
+        }
+
+        // Stage 3: Download Images
+        async function runStage3() {
+            const btn = document.getElementById('btn-stage3');
+            const result = document.getElementById('stage3-result');
+            const source = document.getElementById('stage3-source').value;
+
+            try {
+                btn.disabled = true;
+                btn.textContent = '⏳ A transferir...';
+                result.className = 'stage-result loading';
+                result.textContent = 'A processar...';
+
+                let references = [];
+
+                if (source === 'stage2') {
+                    references = stage2Results.map(event => event.reference);
+                } else if (source === 'stage1') {
+                    references = stage1Results.map(item => item.reference);
+                } else if (source === 'manual') {
+                    const idsText = document.getElementById('stage3-ids').value;
+                    references = idsText.split(',').map(s => s.trim()).filter(s => s);
+                } else if (source === 'missing') {
+                    const eventsResponse = await fetch(`${API_BASE}/api/events?limit=5000`);
+                    const eventsData = await eventsResponse.json();
+                    references = eventsData.events.filter(e => !e.imagens || e.imagens.length === 0).map(e => e.reference);
+                }
+
+                if (references.length === 0) {
+                    alert('Nenhum ID para processar!');
+                    return;
+                }
+
+                const url = `${API_BASE}/api/scrape/stage3/images?` + references.map(ref => `references=${encodeURIComponent(ref)}`).join('&');
+
+                const response = await fetch(url, { method: 'POST' });
+                const data = await response.json();
+
+                if (response.ok) {
+                    const imagesMap = data.images_map || {};
+                    const totalImages = Object.values(imagesMap).reduce((sum, imgs) => sum + imgs.length, 0);
+
+                    result.className = 'stage-result success';
+                    result.textContent = `${totalImages} imagens`;
+
+                    alert(`✅ Stage 3 completo!\n\n${Object.keys(imagesMap).length} eventos\n${totalImages} imagens`);
+                    loadDashboard();
+                } else {
+                    throw new Error(data.detail || 'Erro desconhecido');
+                }
+
+            } catch (error) {
+                result.className = 'stage-result';
+                result.textContent = 'Erro';
+                alert(`❌ Erro no Stage 3:\n${error.message}`);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🖼️ Download Imagens';
+            }
+        }
+
+        // Run Full Pipeline
+        async function runIndependentScraper(type) {
+            const tipo = document.getElementById('independent-tipo').value;
+            const pages = document.getElementById('independent-pages').value;
+
+            try {
+                addLog(`▶ Executando scraper: ${type.toUpperCase()}`, 'info');
+
+                // Iniciar polling de feedback em tempo real
+                startPipelinePolling();
+
+                let url, message;
+
+                switch(type) {
+                    case 'ids':
+                        url = `${API_BASE}/api/scrape/stage1/ids?`;
+                        if (tipo) url += `tipo=${tipo}&`;
+                        if (pages) url += `max_pages=${pages}`;
+                        message = '🔍 Stage 1: A obter IDs...';
+                        break;
+
+                    case 'recheck':
+                        url = `${API_BASE}/api/scrape/smart/new-events?`;
+                        if (tipo) url += `tipo=${tipo}&`;
+                        if (pages) url += `max_pages=${pages}`;
+                        message = '🔄 Smart Scraping: A verificar novos eventos...';
+                        break;
+
+                    case 'content':
+                        // Get all references from DB first
+                        const refsResponse = await fetch(`${API_BASE}/api/events?limit=1000`);
+                        const refsData = await refsResponse.json();
+                        const references = refsData.events.map(e => e.reference);
+
+                        if (references.length === 0) {
+                            showModal('⚠️ Aviso', 'Nenhum evento na BD. Execute "Scrape IDs" primeiro.');
+                            return;
+                        }
+
+                        url = `${API_BASE}/api/scrape/stage2/details?save_to_db=true&` + references.map(ref => `references=${encodeURIComponent(ref)}`).join('&');
+                        message = `📋 Stage 2: A extrair detalhes de ${references.length} eventos...`;
+                        break;
+
+                    case 'images':
+                        // Get all references from DB first
+                        const imgRefsResponse = await fetch(`${API_BASE}/api/events?limit=1000`);
+                        const imgRefsData = await imgRefsResponse.json();
+                        const imgReferences = imgRefsData.events.map(e => e.reference);
+
+                        if (imgReferences.length === 0) {
+                            showModal('⚠️ Aviso', 'Nenhum evento na BD. Execute "Scrape IDs" primeiro.');
+                            return;
+                        }
+
+                        url = `${API_BASE}/api/scrape/stage3/images?` + imgReferences.map(ref => `references=${encodeURIComponent(ref)}`).join('&');
+                        message = `🖼️ Stage 3: A fazer download de imagens de ${imgReferences.length} eventos...`;
+                        break;
+
+                    default:
+                        throw new Error('Tipo de scraper desconhecido');
+                }
+
+                addLog(message, 'info');
+
+                const response = await fetch(url, { method: 'POST' });
+                const data = await response.json();
+
+                if (response.ok) {
+                    addLog(`✅ ${type.toUpperCase()}: ${data.message || 'Concluído!'}`, 'success');
+                    addLog(`📊 Total: ${data.total_scraped || data.new_events || 0} eventos`, 'info');
+
+                    // Reload dashboard after scraping
+                    setTimeout(() => loadDashboard(), 1000);
+                } else {
+                    throw new Error(data.detail || 'Erro desconhecido');
+                }
+
+            } catch (error) {
+                addLog(`❌ Erro no scraper ${type}: ${error.message}`, 'error');
+                showModal('❌ Erro', error.message);
+            }
+        }
+
+        // Toggle between run and stop pipeline
+        function togglePipeline() {
+            if (pipelineRunning) {
+                stopPipeline();
+            } else {
+                runPipeline();
+            }
+        }
+
+        // Stop pipeline execution
+        function stopPipeline() {
+            if (pipelineAbortController) {
+                pipelineAbortController.abort();
+                pipelineAbortController = null;
+            }
+
+            pipelineRunning = false;
+            const btn = document.getElementById('btn-pipeline');
+            btn.textContent = '▶ Executar Pipeline';
+            btn.className = 'scraper-btn start';
+            btn.disabled = false;
+
+            // Hide feedback box
+            const feedbackBox = document.getElementById('pipeline-feedback');
+            if (feedbackBox) feedbackBox.style.display = 'none';
+
+            addLog('⏹️ Pipeline: Execução cancelada pelo utilizador', 'warning');
+            showModal('⏹️ Pipeline Cancelado', 'A execução do pipeline foi interrompida.');
+        }
+
+        async function runPipeline() {
+            const btn = document.getElementById('btn-pipeline');
+            const tipo = document.getElementById('independent-tipo').value;
+            const pages = document.getElementById('independent-pages').value;
+
+            try {
+                // Set running state and create abort controller
+                pipelineRunning = true;
+                pipelineAbortController = new AbortController();
+
+                // Update button to show "Stop" option
+                btn.disabled = false;
+                btn.textContent = '⏹️ Parar Execução';
+                btn.className = 'scraper-btn stop';
+                btn.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+                btn.style.color = 'white';
+
+                addLog('🚀 Pipeline: Iniciando pipeline completo...', 'info');
+
+                // Iniciar polling de feedback em tempo real
+                startPipelinePolling();
+
+                // Reset pipeline visualization
+                updatePipelineStage(1, 'active', 0);
+                updatePipelineStage(2, 'pending', 0);
+                updatePipelineStage(3, 'pending', 0);
+                updatePipelineProgress(0);
+
+                // Show feedback box
+                const feedbackBox = document.getElementById('pipeline-feedback');
+                if (feedbackBox) {
+                    feedbackBox.style.display = 'block';
+                    updateFeedback('Stage 1: Descobrindo IDs...', 0, 0);
+                }
+
+                let url = `${API_BASE}/api/scrape/pipeline?`;
+                if (tipo) url += `tipo=${tipo}&`;
+                if (pages) url += `max_pages=${pages}`;
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    signal: pipelineAbortController.signal
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                    addLog(`🔍 Stage 1: ${data.stage1?.total || 0} IDs descobertos`, 'success');
+
+                    // Update Stage 1 with real data
+                    updatePipelineStage(1, 'completed', data.stage1?.total || 0);
+                    updatePipelineProgress(33);
+                    updatePipelineStage(2, 'active', 0);
+                    if (feedbackBox) updateFeedback('Stage 2: Extraindo detalhes...', 0, data.stage1?.total || 0);
+
+                    setTimeout(() => {
+                        addLog(`📋 Stage 2: ${data.stage2?.total || 0} eventos processados`, 'success');
+                        updatePipelineStage(2, 'completed', data.stage2?.total || 0);
+                        updatePipelineProgress(66);
+                        updatePipelineStage(3, 'active', 0);
+                        if (feedbackBox) updateFeedback('Stage 3: Download de imagens...', 0, data.stage2?.total || 0);
+                    }, 1000);
+
+                    setTimeout(() => {
+                        addLog(`🖼️ Stage 3: ${data.stage3?.total || 0} conjuntos de imagens`, 'success');
+                        updatePipelineStage(3, 'completed', data.stage3?.total || 0);
+                        updatePipelineProgress(100);
+                        if (feedbackBox) updateFeedback('✅ Pipeline concluído!', data.stage3?.total || 0, data.stage3?.total || 0);
+
+                        setTimeout(() => {
+                            if (feedbackBox) feedbackBox.style.display = 'none';
+                            loadDashboard();
+                            addLog('✅ Pipeline: Concluído com sucesso!', 'success');
+                            showModal('✅ Sucesso', data.message || 'Pipeline executado com sucesso!');
+                        }, 2000);
+                    }, 2000);
+
+                } else {
+                    throw new Error(data.detail || 'Erro desconhecido');
+                }
+
+            } catch (error) {
+                // Check if it was aborted by user
+                if (error.name === 'AbortError') {
+                    // Already handled by stopPipeline()
+                    return;
+                }
+
+                addLog(`❌ Pipeline: ${error.message}`, 'error');
+                showModal('❌ Erro', error.message);
+                const feedbackBox = document.getElementById('pipeline-feedback');
+                if (feedbackBox) feedbackBox.style.display = 'none';
+            } finally {
+                // Reset button and state
+                pipelineRunning = false;
+                pipelineAbortController = null;
+                btn.disabled = false;
+                btn.textContent = '▶ Executar Pipeline';
+                btn.className = 'scraper-btn start';
+                btn.style.background = '';
+                btn.style.color = '';
+            }
+        }
+
+        // Helper functions for pipeline visualization
+        function updatePipelineStage(stageNum, status, count) {
+            const circle = document.getElementById(`stage${stageNum}-circle`);
+            const countEl = document.getElementById(`stage${stageNum}-count`);
+
+            // Update count
+            if (count > 0) {
+                countEl.textContent = `${count} eventos`;
+                countEl.style.color = '#10b981';
+            }
+
+            // Update circle style based on status
+            if (status === 'active') {
+                circle.style.borderColor = '#3b82f6';
+                circle.style.background = '#eff6ff';
+                circle.style.transform = 'scale(1.1)';
+            } else if (status === 'completed') {
+                circle.style.borderColor = '#10b981';
+                circle.style.background = '#f0fdf4';
+                circle.style.transform = 'scale(1)';
+            } else {
+                circle.style.borderColor = '#cbd5e1';
+                circle.style.background = 'white';
+                circle.style.transform = 'scale(1)';
+            }
+        }
+
+        function updatePipelineProgress(percent) {
+            const progressLine = document.getElementById('pipeline-progress-line');
+            progressLine.style.width = `${percent}%`;
+        }
+
+        function updateFeedback(action, current, total) {
+            document.getElementById('feedback-action').textContent = action;
+            document.getElementById('feedback-count').textContent = `${current} / ${total}`;
+            document.getElementById('feedback-progress-bar').style.width = total > 0 ? `${(current / total) * 100}%` : '0%';
+        }
+
+        // ============== PIPELINE REAL-TIME FEEDBACK SYSTEM ==============
+        let pipelinePollingInterval = null;
+
+        // Verificar estado da pipeline ao carregar a página
+        async function checkPipelineStatusOnLoad() {
+            try {
+                const response = await fetch(`${API_BASE}/api/pipeline/status`);
+                if (response.ok) {
+                    const state = await response.json();
+                    if (state.active) {
+                        // Pipeline está ativa, retomar monitoring
+                        console.log('🔄 Pipeline ativa detectada, retomando monitoring...');
+                        addLog('🔄 Pipeline ativa detectada, retomando monitoring...', 'info');
+                        startPipelinePolling();
+                    }
+                }
+            } catch (error) {
+                console.error('Erro ao verificar estado da pipeline:', error);
+            }
+        }
+
+        async function startPipelinePolling() {
+            // Limpar polling anterior se existir
+            if (pipelinePollingInterval) {
+                clearInterval(pipelinePollingInterval);
+            }
+
+            // Mostrar feedback box
+            const feedbackBox = document.getElementById('pipeline-feedback');
+            if (feedbackBox) {
+                feedbackBox.style.display = 'block';
+            }
+
+            // Fazer polling a cada 500ms
+            pipelinePollingInterval = setInterval(async () => {
+                try {
+                    const response = await fetch(`${API_BASE}/api/pipeline/status`);
+                    if (response.ok) {
+                        const state = await response.json();
+                        updatePipelineFromState(state);
+
+                        // Parar polling se pipeline não está ativa
+                        if (!state.active) {
+                            stopPipelinePolling();
+                        }
+                    }
+                } catch (error) {
+                    console.error('Erro ao fazer polling do estado da pipeline:', error);
+                }
+            }, 500);
+
+            addLog('🔄 Monitoring pipeline em tempo real...', 'info');
+        }
+
+        function stopPipelinePolling() {
+            if (pipelinePollingInterval) {
+                clearInterval(pipelinePollingInterval);
+                pipelinePollingInterval = null;
+            }
+
+            // Esconder feedback box após 2 segundos
+            setTimeout(() => {
+                const feedbackBox = document.getElementById('pipeline-feedback');
+                if (feedbackBox) {
+                    feedbackBox.style.display = 'none';
+                }
+            }, 2000);
+        }
+
+        function updatePipelineFromState(state) {
+            if (!state || !state.active) {
+                return;
+            }
+
+            const { stage, stage_name, current, total, message, errors } = state;
+
+            // Atualizar feedback box
+            const feedbackStatus = document.getElementById('feedback-status');
+            if (feedbackStatus) {
+                feedbackStatus.textContent = stage_name || 'A processar...';
+            }
+
+            updateFeedback(message || 'Aguarde...', current, total);
+
+            // Atualizar visualização da pipeline
+            if (stage === 1) {
+                updatePipelineStage(1, 'active', current);
+                updatePipelineStage(2, 'pending', 0);
+                updatePipelineStage(3, 'pending', 0);
+                updatePipelineProgress(Math.min((current / total) * 33, 33));
+            } else if (stage === 2) {
+                updatePipelineStage(1, 'completed', total);
+                updatePipelineStage(2, 'active', current);
+                updatePipelineStage(3, 'pending', 0);
+                updatePipelineProgress(33 + Math.min((current / total) * 33, 33));
+            } else if (stage === 3) {
+                updatePipelineStage(1, 'completed', total);
+                updatePipelineStage(2, 'completed', total);
+                updatePipelineStage(3, 'active', current);
+                updatePipelineProgress(66 + Math.min((current / total) * 34, 34));
+            }
+
+            // Mostrar erros se existirem
+            if (errors && errors.length > 0) {
+                errors.forEach(err => {
+                    addLog(`⚠️ Erro: ${err.error}`, 'error');
+                });
+            }
+
+            // Log de progresso detalhado
+            if (current > 0 && total > 0) {
+                console.log(`📊 Pipeline: Stage ${stage} - ${current}/${total} - ${message}`);
+            }
+        }
+
+        // ============== END PIPELINE REAL-TIME FEEDBACK SYSTEM ==============
+
+        // ============== AUTOMATIC PIPELINES SYSTEM ==============
+
+        // Load pipeline states on page load
+        // Pipeline X Countdown Functions
+        async function updatePipelineXCacheInfo() {
+            try {
+                const response = await fetch(`${API_BASE}/api/auto-pipelines/prices/cache-info`);
+                if (response.ok) {
+                    const data = await response.json();
+                    pipelineXCachedEvents = data.cached_events || 0;
+                }
+            } catch (error) {
+                console.error('Erro ao buscar info do cache Pipeline X:', error);
+            }
+        }
+
+        function updatePipelineXDisplay() {
+            const statusDiv = document.getElementById('auto-pipeline-prices-status');
+            const statusText = statusDiv?.querySelector('.status-text');
+            if (statusText) {
+                if (pipelineXCachedEvents === 0) {
+                    statusText.textContent = '⏸️ Aguardando eventos terminando em < 6 minutos...';
+                } else {
+                    statusText.textContent = `⚡ Executando a cada ${pipelineXCountdown} segundo${pipelineXCountdown !== 1 ? 's' : ''} • ${pipelineXCachedEvents} evento${pipelineXCachedEvents !== 1 ? 's' : ''} na cache`;
+                }
+            }
+        }
+
+        function startPipelineXCountdown() {
+            stopPipelineXCountdown(); // Clear any existing interval
+            pipelineXCountdown = 5;
+
+            // Update cache info immediately
+            updatePipelineXCacheInfo();
+            updatePipelineXDisplay();
+
+            pipelineXCountdownInterval = setInterval(() => {
+                pipelineXCountdown--;
+                if (pipelineXCountdown < 1) {
+                    pipelineXCountdown = 5;
+                    // Refresh cache info every 5 seconds (to detect new events)
+                    updatePipelineXCacheInfo();
+                }
+                updatePipelineXDisplay();
+            }, 1000);
+        }
+
+        function stopPipelineXCountdown() {
+            if (pipelineXCountdownInterval) {
+                clearInterval(pipelineXCountdownInterval);
+                pipelineXCountdownInterval = null;
+            }
+        }
+
+        async function loadAutoPipelinesStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/api/auto-pipelines/status`);
+                if (response.ok) {
+                    const data = await response.json();
+
+                    // Update UI with current status
+                    for (const [type, config] of Object.entries(data.pipelines || {})) {
+                        const checkbox = document.getElementById(`auto-pipeline-${type}`);
+                        const statusDiv = document.getElementById(`auto-pipeline-${type}-status`);
+
+                        if (checkbox) {
+                            checkbox.checked = config.enabled;
+                        }
+
+                        if (statusDiv && config.enabled) {
+                            statusDiv.style.display = 'block';
+                            const statusText = statusDiv.querySelector('.status-text');
+                            if (statusText) {
+                                // Special message for Pipeline X (5-second interval with countdown)
+                                if (type === 'prices') {
+                                    startPipelineXCountdown();
+                                } else {
+                                    // Show "Running..." if is_running, otherwise show next_run
+                                    if (config.is_running) {
+                                        statusText.textContent = '🔄 A executar agora...';
+                                        statusText.style.fontWeight = '600';
+                                        statusText.style.color = '#3b82f6';
+                                    } else {
+                                        statusText.textContent = `Próxima execução: ${config.next_run || 'Calculando...'}`;
+                                        statusText.style.fontWeight = '';
+                                        statusText.style.color = '';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Erro ao carregar status das pipelines automáticas:', error);
+            }
+        }
+
+        // Poll pipeline status every 3 seconds to update "is_running" state
+        setInterval(loadAutoPipelinesStatus, 3000);
+
+        async function toggleAutoPipeline(type, enabled) {
+            try {
+                addLog(`${enabled ? '🟢' : '🔴'} Auto-Pipeline ${type}: ${enabled ? 'Ativada' : 'Desativada'}`, 'info');
+
+                const response = await fetch(`${API_BASE}/api/auto-pipelines/${type}/toggle?enabled=${enabled}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'}
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    const statusDiv = document.getElementById(`auto-pipeline-${type}-status`);
+
+                    if (enabled) {
+                        statusDiv.style.display = 'block';
+                        const statusText = statusDiv.querySelector('.status-text');
+                        if (statusText) {
+                            // Special message for Pipeline X (5-second interval with countdown)
+                            if (type === 'prices') {
+                                startPipelineXCountdown();
+                            } else {
+                                statusText.textContent = data.next_run ?
+                                    `Próxima execução: ${data.next_run}` :
+                                    'Agendamento ativo';
+                            }
+                        }
+
+                        showModal('✅ Pipeline Ativada', `Pipeline ${type} foi ativada com sucesso!\n${data.message || ''}`);
+                    } else {
+                        statusDiv.style.display = 'none';
+                        // Stop countdown if Pipeline X is disabled
+                        if (type === 'prices') {
+                            stopPipelineXCountdown();
+                        }
+                        showModal('⏸️ Pipeline Desativada', `Pipeline ${type} foi desativada.`);
+                    }
+
+                    addLog(`✅ Auto-Pipeline ${type}: ${data.message}`, 'success');
+                } else {
+                    throw new Error(data.detail || 'Erro ao alterar estado da pipeline');
+                }
+            } catch (error) {
+                addLog(`❌ Erro ao alterar pipeline ${type}: ${error.message}`, 'error');
+                showModal('❌ Erro', error.message);
+
+                // Revert checkbox
+                const checkbox = document.getElementById(`auto-pipeline-${type}`);
+                if (checkbox) {
+                    checkbox.checked = !enabled;
+                }
+            }
+        }
+
+        // ============== END AUTOMATIC PIPELINES SYSTEM ==============
+
+        // Console Functions
+        function toggleAutoScroll() {
+            autoScroll = !autoScroll;
+            const btn = document.getElementById('btn-autoscroll');
+            btn.textContent = autoScroll ? '📌 Auto-scroll: ON' : '📌 Auto-scroll: OFF';
+        }
+
+        function clearConsole() {
+            const console = document.getElementById('console-output');
+            console.innerHTML = '<div style="color: #6b7280;">🟢 Console limpo. A aguardar logs...</div>';
+        }
+
+        function addLog(message, level = 'info') {
+            const consoleOutput = document.getElementById('console-output');
+            const timestamp = new Date().toLocaleTimeString('pt-PT');
+
+            let color = '#d4d4d4';  // default
+            let icon = 'ℹ️';
+
+            if (level === 'success') {
+                color = '#10b981';
+                icon = '✅';
+            } else if (level === 'error') {
+                color = '#ef4444';
+                icon = '❌';
+            } else if (level === 'warning') {
+                color = '#f59e0b';
+                icon = '⚠️';
+            } else if (level === 'info') {
+                color = '#3b82f6';
+                icon = 'ℹ️';
+            }
+
+            const logEntry = document.createElement('div');
+            logEntry.style.color = color;
+            logEntry.innerHTML = `<span style="color: #6b7280;">[${timestamp}]</span> ${icon} ${message}`;
+
+            consoleOutput.appendChild(logEntry);
+
+            // Auto-scroll if enabled
+            if (autoScroll) {
+                consoleOutput.scrollTop = consoleOutput.scrollHeight;
+            }
+
+            // Limit to 100 log entries
+            while (consoleOutput.children.length > 100) {
+                consoleOutput.removeChild(consoleOutput.firstChild);
+            }
+        }
+
+        // Start console polling (check for new logs every 2 seconds)
+        function startConsolePolling() {
+            if (consolePollingInterval) {
+                clearInterval(consolePollingInterval);
+            }
+
+            // Initial log
+            addLog('Console iniciado. Monitorização ativa.', 'success');
+
+            // Poll every 2 seconds (can be adjusted)
+            consolePollingInterval = setInterval(async () => {
+                try {
+                    // Fetch logs from backend (we'll create this endpoint)
+                    const response = await fetch(`${API_BASE}/api/logs`, { method: 'GET' });
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.logs && data.logs.length > 0) {
+                            data.logs.forEach(log => {
+                                addLog(log.message, log.level);
+                            });
+                        }
+                    }
+                } catch (error) {
+                    // Silently fail - don't spam console with errors
+                }
+            }, 2000);
+        }
+
+        // Stop console polling
+        function stopConsolePolling() {
+            if (consolePollingInterval) {
+                clearInterval(consolePollingInterval);
+                consolePollingInterval = null;
+            }
+        }
+
+        // Generic Modal Functions
+        function showModal(title, message) {
+            const modal = document.getElementById('generic-modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalMessage = document.getElementById('modal-message');
+            const modalIcon = document.getElementById('modal-icon');
+
+            // Set content
+            modalTitle.textContent = title;
+            modalMessage.textContent = message;
+
+            // Set icon based on title
+            if (title.includes('❌') || title.includes('Erro')) {
+                modalIcon.textContent = '❌';
+            } else if (title.includes('⚠️') || title.includes('Aviso')) {
+                modalIcon.textContent = '⚠️';
+            } else if (title.includes('✅') || title.includes('Sucesso')) {
+                modalIcon.textContent = '✅';
+            } else {
+                modalIcon.textContent = 'ℹ️';
+            }
+
+            // Show modal
+            modal.style.display = 'flex';
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('generic-modal');
+            modal.style.display = 'none';
+        }
+
+        // Clear Database with Confirmation Modal + Timer
+        function confirmClearDatabase() {
+            const modal = document.getElementById('delete-confirm-modal');
+            const timerDisplay = document.getElementById('delete-timer');
+            const confirmBtn = document.getElementById('confirm-delete-btn');
+
+            // Show modal
+            modal.style.display = 'flex';
+
+            // Reset timer - REDUCED TO 3 SECONDS
+            let timeLeft = 3;
+            timerDisplay.textContent = timeLeft;
+            confirmBtn.disabled = true;
+            confirmBtn.style.background = '#cbd5e1';
+            confirmBtn.style.borderColor = '#cbd5e1';
+            confirmBtn.style.color = '#94a3b8';
+            confirmBtn.style.cursor = 'not-allowed';
+
+            // Start countdown
+            deleteTimerInterval = setInterval(() => {
+                timeLeft--;
+                timerDisplay.textContent = timeLeft;
+
+                if (timeLeft <= 0) {
+                    clearInterval(deleteTimerInterval);
+                    // Enable confirm button
+                    confirmBtn.disabled = false;
+                    confirmBtn.style.background = '#dc2626';
+                    confirmBtn.style.borderColor = '#dc2626';
+                    confirmBtn.style.color = 'white';
+                    confirmBtn.style.cursor = 'pointer';
+                    timerDisplay.textContent = '✓';
+                    timerDisplay.style.color = '#10b981';
+                }
+            }, 1000);
+        }
+
+        function cancelDeleteDatabase() {
+            const modal = document.getElementById('delete-confirm-modal');
+            modal.style.display = 'none';
+
+            if (deleteTimerInterval) {
+                clearInterval(deleteTimerInterval);
+                deleteTimerInterval = null;
+            }
+        }
+
+        async function executeDeleteDatabase() {
+            const modal = document.getElementById('delete-confirm-modal');
+            const confirmBtn = document.getElementById('confirm-delete-btn');
+
+            // Disable button during execution
+            confirmBtn.disabled = true;
+            confirmBtn.textContent = '⏳ A processar...';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/database`, {
+                    method: 'DELETE'
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    confirmBtn.textContent = '✓ Concluído!';
+                    confirmBtn.style.background = '#10b981';
+
+                    setTimeout(() => {
+                        modal.style.display = 'none';
+                        showModal(
+                            '✅ Base de dados limpa com sucesso!',
+                            `${data.deleted_events} eventos foram apagados.\n\nA página vai recarregar...`
+                        );
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 2000);
+                    }, 1000);
+                } else {
+                    throw new Error(data.detail || 'Erro desconhecido');
+                }
+
+            } catch (error) {
+                showModal('❌ Erro ao limpar base de dados', error.message);
+                console.error(error);
+                modal.style.display = 'none';
+                cancelDeleteDatabase();
+            }
+        }
+    </script>
+
+    <!-- Generic Alert Modal -->
+    <div id="generic-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.7); z-index: 9999; align-items: center; justify-content: center;">
+        <div style="background: white; border-radius: 16px; padding: 32px; max-width: 500px; width: 90%; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); position: relative;">
+            <div style="text-align: center; margin-bottom: 24px;">
+                <div style="font-size: 64px; margin-bottom: 16px;" id="modal-icon">ℹ️</div>
+                <h2 style="color: #1e293b; margin: 0 0 8px 0; font-size: 24px;" id="modal-title">Aviso</h2>
+            </div>
+            <div style="background: #f8fafc; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+                <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0;" id="modal-message">Mensagem</p>
+            </div>
+            <button onclick="closeModal()" style="width: 100%; padding: 14px; background: #3b82f6; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; color: white; transition: all 0.2s;">
+                OK
+            </button>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmação de Limpeza de BD -->
+    <div id="delete-confirm-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.7); z-index: 9999; align-items: center; justify-content: center;">
+        <div style="background: white; border-radius: 16px; padding: 32px; max-width: 500px; width: 90%; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); position: relative;">
+            <!-- Header -->
+            <div style="text-align: center; margin-bottom: 24px;">
+                <div style="font-size: 64px; margin-bottom: 16px;">⚠️</div>
+                <h2 style="color: #dc2626; margin: 0 0 8px 0; font-size: 24px;">Limpar Base de Dados</h2>
+                <p style="color: #64748b; font-size: 14px; margin: 0;">Esta ação é irreversível!</p>
+            </div>
+
+            <!-- Warning Message -->
+            <div style="background: #fef2f2; border: 2px solid #fecaca; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+                <p style="color: #991b1b; font-size: 14px; line-height: 1.6; margin: 0;">
+                    <strong>Todos os eventos serão apagados permanentemente!</strong><br>
+                    Esta operação não pode ser revertida.
+                </p>
+            </div>
+
+            <!-- Timer Display -->
+            <div style="text-align: center; margin-bottom: 24px;">
+                <div style="font-size: 48px; font-weight: 700; color: #3b82f6;" id="delete-timer">3</div>
+                <div style="font-size: 12px; color: #64748b; margin-top: 8px;">segundos restantes</div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div style="display: flex; gap: 12px;">
+                <button onclick="cancelDeleteDatabase()" style="flex: 1; padding: 14px; background: #f1f5f9; border: 2px solid #cbd5e1; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.2s; color: #475569;">
+                    ✗ Cancelar
+                </button>
+                <button id="confirm-delete-btn" onclick="executeDeleteDatabase()" disabled style="flex: 1; padding: 14px; background: #cbd5e1; border: 2px solid #cbd5e1; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: not-allowed; transition: all 0.2s; color: #94a3b8;">
+                    ✓ Confirmar
+                </button>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
