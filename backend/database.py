@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sess
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy import select, func, String, Float, DateTime, Text
 from typing import List, Tuple, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
 import os
 import json
@@ -329,6 +329,65 @@ class DatabaseManager:
         await self.session.commit()
 
         return count
+
+    async def get_events_ending_within(self, minutes: int) -> List[EventData]:
+        """
+        Busca eventos que terminam dentro de X minutos.
+        Usa SQL direto para filtrar por data_fim.
+
+        Args:
+            minutes: Número de minutos (ex: 5, 60, 1440)
+
+        Returns:
+            Lista de eventos ordenados por data_fim (mais urgentes primeiro)
+        """
+        from sqlalchemy import and_
+
+        now = datetime.now()
+        deadline = now + timedelta(minutes=minutes)
+
+        # SQL: WHERE data_fim > NOW() AND data_fim <= NOW() + X minutes
+        # Ordena por data_fim ASC (mais urgentes primeiro)
+        query = (
+            select(EventDB)
+            .where(
+                and_(
+                    EventDB.data_fim.isnot(None),
+                    EventDB.data_fim > now,
+                    EventDB.data_fim <= deadline
+                )
+            )
+            .order_by(EventDB.data_fim.asc())
+        )
+
+        result = await self.session.execute(query)
+        events_db = result.scalars().all()
+
+        return [event.to_model() for event in events_db]
+
+    async def count_events_ending_within(self, minutes: int) -> int:
+        """
+        Conta eventos que terminam dentro de X minutos (sem carregar os dados).
+        Mais eficiente para verificações rápidas.
+        """
+        from sqlalchemy import and_
+
+        now = datetime.now()
+        deadline = now + timedelta(minutes=minutes)
+
+        query = (
+            select(func.count(EventDB.reference))
+            .where(
+                and_(
+                    EventDB.data_fim.isnot(None),
+                    EventDB.data_fim > now,
+                    EventDB.data_fim <= deadline
+                )
+            )
+        )
+
+        result = await self.session.execute(query)
+        return result.scalar()
 
 
 @asynccontextmanager

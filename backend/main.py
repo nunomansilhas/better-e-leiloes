@@ -243,17 +243,102 @@ async def toggle_auto_pipeline(
         raise HTTPException(status_code=500, detail=f"Erro ao alterar pipeline: {str(e)}")
 
 
-@app.get("/api/auto-pipelines/prices/cache-info")
-async def get_prices_cache_info():
-    """Get Pipeline X cache information (number of cached events)"""
-    auto_pipelines = get_auto_pipelines_manager()
+# ============== EVENTS ENDING SOON ENDPOINTS ==============
 
-    cache_count = len(auto_pipelines._critical_events_cache)
-    last_refresh = auto_pipelines._cache_last_refresh
+@app.get("/api/events/ending/critical")
+async def get_events_ending_critical():
+    """
+    Pipeline X-Critical: Eventos terminando em < 5 minutos.
+    Usa SQL direto para filtrar por data_fim.
+    """
+    async with get_db() as db:
+        events = await db.get_events_ending_within(minutes=5)
+        count = len(events)
 
     return JSONResponse({
-        "cached_events": cache_count,
-        "last_refresh": last_refresh.strftime("%Y-%m-%d %H:%M:%S") if last_refresh else None
+        "pipeline": "critical",
+        "threshold_minutes": 5,
+        "count": count,
+        "events": [
+            {
+                "reference": e.reference,
+                "lance_atual": e.valores.lanceAtual,
+                "data_fim": e.dataFim.isoformat() if e.dataFim else None,
+                "seconds_remaining": (e.dataFim - datetime.now()).total_seconds() if e.dataFim else None
+            }
+            for e in events
+        ]
+    })
+
+
+@app.get("/api/events/ending/urgent")
+async def get_events_ending_urgent():
+    """
+    Pipeline X-Urgent: Eventos terminando em < 1 hora.
+    Usa SQL direto para filtrar por data_fim.
+    """
+    async with get_db() as db:
+        events = await db.get_events_ending_within(minutes=60)
+        count = len(events)
+
+    return JSONResponse({
+        "pipeline": "urgent",
+        "threshold_minutes": 60,
+        "count": count,
+        "events": [
+            {
+                "reference": e.reference,
+                "lance_atual": e.valores.lanceAtual,
+                "data_fim": e.dataFim.isoformat() if e.dataFim else None,
+                "minutes_remaining": int((e.dataFim - datetime.now()).total_seconds() / 60) if e.dataFim else None
+            }
+            for e in events
+        ]
+    })
+
+
+@app.get("/api/events/ending/soon")
+async def get_events_ending_soon():
+    """
+    Pipeline X-Soon: Eventos terminando em < 24 horas.
+    Usa SQL direto para filtrar por data_fim.
+    """
+    async with get_db() as db:
+        events = await db.get_events_ending_within(minutes=1440)  # 24 * 60
+        count = len(events)
+
+    return JSONResponse({
+        "pipeline": "soon",
+        "threshold_minutes": 1440,
+        "count": count,
+        "events": [
+            {
+                "reference": e.reference,
+                "lance_atual": e.valores.lanceAtual,
+                "data_fim": e.dataFim.isoformat() if e.dataFim else None,
+                "hours_remaining": round((e.dataFim - datetime.now()).total_seconds() / 3600, 1) if e.dataFim else None
+            }
+            for e in events
+        ]
+    })
+
+
+@app.get("/api/events/ending/summary")
+async def get_events_ending_summary():
+    """
+    Resumo rápido: conta eventos em cada nível de urgência.
+    Usa COUNT SQL (não carrega dados).
+    """
+    async with get_db() as db:
+        critical = await db.count_events_ending_within(minutes=5)
+        urgent = await db.count_events_ending_within(minutes=60)
+        soon = await db.count_events_ending_within(minutes=1440)
+
+    return JSONResponse({
+        "critical": {"minutes": 5, "count": critical},
+        "urgent": {"minutes": 60, "count": urgent},
+        "soon": {"minutes": 1440, "count": soon},
+        "timestamp": datetime.now().isoformat()
     })
 
 
