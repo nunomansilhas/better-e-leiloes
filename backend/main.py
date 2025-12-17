@@ -75,6 +75,12 @@ async def lifespan(app: FastAPI):
     scheduler.start()
     print("⏰ Scheduler iniciado")
 
+    # Initialize enabled auto-pipelines at startup
+    auto_pipelines = get_auto_pipelines_manager()
+    scheduled = await auto_pipelines.initialize_enabled_pipelines(scheduler)
+    if scheduled > 0:
+        print(f"🤖 {scheduled} auto-pipeline(s) ativadas automaticamente")
+
     print("✅ API pronta!")
 
     yield

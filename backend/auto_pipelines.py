@@ -240,6 +240,33 @@ class AutoPipelinesManager:
             "enabled": sum(1 for p in self.pipelines.values() if p.enabled)
         }
 
+    async def initialize_enabled_pipelines(self, scheduler) -> int:
+        """
+        Initialize and schedule all pipelines that are enabled at startup.
+        This should be called after the scheduler is started.
+        Returns the number of pipelines scheduled.
+        """
+        scheduled_count = 0
+        now = datetime.now()
+
+        for pipeline_type, pipeline in self.pipelines.items():
+            if pipeline.enabled:
+                # Recalculate next_run from now (old next_run is probably in the past)
+                next_run = now + timedelta(hours=pipeline.interval_hours)
+                pipeline.next_run = next_run.strftime("%Y-%m-%d %H:%M:%S")
+
+                # Schedule the job
+                await self._schedule_pipeline(pipeline_type, scheduler)
+                scheduled_count += 1
+
+                print(f"🔄 Re-scheduled enabled pipeline: {pipeline.name} → next: {pipeline.next_run}")
+
+        if scheduled_count > 0:
+            self._save_config()
+            print(f"✅ {scheduled_count} enabled pipeline(s) re-scheduled at startup")
+
+        return scheduled_count
+
     async def toggle_pipeline(self, pipeline_type: str, enabled: bool, scheduler=None) -> Dict[str, Any]:
         """Enable or disable a pipeline"""
         if pipeline_type not in self.pipelines:
