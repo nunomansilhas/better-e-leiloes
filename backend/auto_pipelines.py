@@ -132,7 +132,7 @@ class AutoPipelinesManager:
         try:
             # Get all events from database
             async with get_db() as db:
-                events = await db.list_events(limit=1000)
+                events, total = await db.list_events(limit=1000)
 
             if not events:
                 self._critical_events_cache = []
@@ -168,7 +168,7 @@ class AutoPipelinesManager:
 
         try:
             async with get_db() as db:
-                events = await db.list_events(limit=1000)
+                events, total = await db.list_events(limit=1000)
 
             if not events:
                 self._urgent_events_cache = []
@@ -203,7 +203,7 @@ class AutoPipelinesManager:
 
         try:
             async with get_db() as db:
-                events = await db.list_events(limit=1000)
+                events, total = await db.list_events(limit=1000)
 
             if not events:
                 self._soon_events_cache = []
