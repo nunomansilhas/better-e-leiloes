@@ -4,10 +4,14 @@ Copies all events from SQLite database to MySQL database
 """
 import asyncio
 import os
+from dotenv import load_dotenv
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy import select
 from database import EventDB, Base, DatabaseManager
 from datetime import datetime
+
+# Load .env file
+load_dotenv()
 
 # Source: SQLite
 SQLITE_URL = "sqlite+aiosqlite:///./eleiloes.db"
