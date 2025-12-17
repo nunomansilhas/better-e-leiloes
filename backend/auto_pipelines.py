@@ -426,10 +426,18 @@ class AutoPipelinesManager:
 
             # Use cached events list (no database query!)
             if not self._critical_events_cache:
-                # No critical events - run silently
+                print(f"🔴 Pipeline X-Critical: No critical events in cache, skipping")
+                # Update pipeline stats even when no events
+                pipeline = self.pipelines['prices']
+                now = datetime.now()
+                pipeline.last_run = now.strftime("%Y-%m-%d %H:%M:%S")
+                pipeline.runs_count += 1
+                next_run_time = now + timedelta(hours=pipeline.interval_hours)
+                pipeline.next_run = next_run_time.strftime("%Y-%m-%d %H:%M:%S")
+                self._save_config()
                 return
 
-            print(f"💰 Pipeline X: Checking {len(self._critical_events_cache)} events (< 6 min cache)")
+            print(f"🔴 Pipeline X-Critical: Checking {len(self._critical_events_cache)} events (< 6 min cache)")
 
             scraper = EventScraper()
             cache_manager = CacheManager()
@@ -455,6 +463,7 @@ class AutoPipelinesManager:
                 critical_events.sort(key=lambda x: x['seconds_until_end'])
 
                 if not critical_events:
+                    print(f"  🔴 No events ending in < 5 min right now")
                     return
 
                 print(f"  🚨 Scraping {len(critical_events)} events (< 5 min)")
@@ -538,7 +547,7 @@ class AutoPipelinesManager:
             self.pipelines['info'].is_running = True
             self._save_config()
 
-            print(f"🔄 Running Info Auto-Pipeline...")
+            print(f"🔄 Pipeline Y-Info: Starting verification...")
 
             scraper = EventScraper()
             cache_manager = CacheManager()
@@ -546,10 +555,18 @@ class AutoPipelinesManager:
             try:
                 # Get all events from database
                 async with get_db() as db:
-                    events = await db.list_events(limit=1000)
+                    events, total = await db.list_events(limit=1000)
 
                 if not events:
-                    print(f"  ℹ️ No events in database")
+                    print(f"  ℹ️ Pipeline Y-Info: No events in database, skipping")
+                    # Update pipeline stats even when no events
+                    pipeline = self.pipelines['info']
+                    now = datetime.now()
+                    pipeline.last_run = now.strftime("%Y-%m-%d %H:%M:%S")
+                    pipeline.runs_count += 1
+                    next_run_time = now + timedelta(hours=pipeline.interval_hours)
+                    pipeline.next_run = next_run_time.strftime("%Y-%m-%d %H:%M:%S")
+                    self._save_config()
                     return
 
                 # Check ALL events (not sampling)
@@ -641,6 +658,15 @@ class AutoPipelinesManager:
 
             # Use cached events list
             if not self._urgent_events_cache:
+                print(f"🟠 Pipeline X-Urgent: No urgent events in cache, skipping")
+                # Update pipeline stats even when no events
+                pipeline = self.pipelines['prices_urgent']
+                now = datetime.now()
+                pipeline.last_run = now.strftime("%Y-%m-%d %H:%M:%S")
+                pipeline.runs_count += 1
+                next_run_time = now + timedelta(hours=pipeline.interval_hours)
+                pipeline.next_run = next_run_time.strftime("%Y-%m-%d %H:%M:%S")
+                self._save_config()
                 return
 
             print(f"🟠 Pipeline X-Urgent: Checking {len(self._urgent_events_cache)} events (< 1.5h cache)")
@@ -669,6 +695,7 @@ class AutoPipelinesManager:
                 urgent_events.sort(key=lambda x: x['seconds_until_end'])
 
                 if not urgent_events:
+                    print(f"  🟠 No events ending in < 1h right now")
                     return
 
                 print(f"  🟠 Scraping {len(urgent_events)} events (< 1h)")
@@ -755,6 +782,15 @@ class AutoPipelinesManager:
 
             # Use cached events list
             if not self._soon_events_cache:
+                print(f"🟡 Pipeline X-Soon: No soon events in cache, skipping")
+                # Update pipeline stats even when no events
+                pipeline = self.pipelines['prices_soon']
+                now = datetime.now()
+                pipeline.last_run = now.strftime("%Y-%m-%d %H:%M:%S")
+                pipeline.runs_count += 1
+                next_run_time = now + timedelta(hours=pipeline.interval_hours)
+                pipeline.next_run = next_run_time.strftime("%Y-%m-%d %H:%M:%S")
+                self._save_config()
                 return
 
             print(f"🟡 Pipeline X-Soon: Checking {len(self._soon_events_cache)} events (< 25h cache)")
@@ -783,6 +819,7 @@ class AutoPipelinesManager:
                 soon_events.sort(key=lambda x: x['seconds_until_end'])
 
                 if not soon_events:
+                    print(f"  🟡 No events ending in < 24h right now")
                     return
 
                 print(f"  🟡 Scraping {len(soon_events)} events (< 24h)")

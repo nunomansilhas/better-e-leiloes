@@ -936,15 +936,33 @@ async def run_full_pipeline(tipo: Optional[int], max_pages: Optional[int]):
 
     Stage 1: Scrape IDs → Stage 2: Scrape Detalhes → Stage 3: Scrape Imagens
     """
+    pipeline_state = get_pipeline_state()
+
     try:
+        # CRITICAL: Clean pipeline state at start
+        await pipeline_state.stop()
+
         msg = f"🚀 Iniciando pipeline completo (tipo={tipo}, max_pages={max_pages})..."
         print(msg)
         add_dashboard_log(msg, "info")
 
-        # Stage 1: Scrape IDs
+        # ===== STAGE 1: Scrape IDs =====
+        tipo_str = "Imóveis" if tipo == 1 else "Móveis" if tipo == 2 else "Todos"
+        await pipeline_state.start(
+            stage=1,
+            stage_name=f"Stage 1 - IDs ({tipo_str})",
+            total=0,  # Will be updated after scraping
+            details={"tipo": tipo, "max_pages": max_pages}
+        )
+
         add_dashboard_log("STAGE 1: SCRAPING IDs", "info")
         ids_data = await scraper.scrape_ids_only(tipo=tipo, max_pages=max_pages)
         references = [item['reference'] for item in ids_data]
+
+        # Update total after scraping
+        await pipeline_state.update(total=len(references), message=f"{len(references)} IDs recolhidos")
+        await pipeline_state.complete(message=f"✅ Stage 1: {len(references)} IDs recolhidos")
+
         msg = f"✅ Stage 1: {len(references)} IDs recolhidos"
         print(msg)
         add_dashboard_log(msg, "success")
@@ -953,29 +971,66 @@ async def run_full_pipeline(tipo: Optional[int], max_pages: Optional[int]):
             msg = "⚠️ Nenhum ID encontrado. Pipeline terminado."
             print(msg)
             add_dashboard_log(msg, "warning")
+            await asyncio.sleep(2)
+            await pipeline_state.stop()
             return
 
-        # Stage 2: Scrape Detalhes (sem imagens) - COM INSERÇÃO EM TEMPO REAL
+        # ===== STAGE 2: Scrape Detalhes =====
+        await pipeline_state.start(
+            stage=2,
+            stage_name="Stage 2 - Detalhes",
+            total=len(references),
+            details={"save_to_db": True}
+        )
+
         add_dashboard_log("STAGE 2: SCRAPING DETALHES", "info")
+
+        # Counter for tracking progress
+        scraped_count = 0
 
         # Callback para inserir cada evento assim que é scraped
         async def save_event_callback(event: EventData):
             """Salva evento na BD em tempo real"""
+            nonlocal scraped_count
+            scraped_count += 1
+
             async with get_db() as db:
                 await db.save_event(event)
                 await cache_manager.set(event.reference, event)
 
+            # Update pipeline state in real-time
+            await pipeline_state.update(
+                current=scraped_count,
+                message=f"Scraping {scraped_count}/{len(references)} - {event.reference}"
+            )
+
         events = await scraper.scrape_details_by_ids(references, on_event_scraped=save_event_callback)
+
+        await pipeline_state.complete(message=f"✅ Stage 2: {len(events)} eventos processados e salvos")
+
         msg = f"✅ Stage 2: {len(events)} eventos processados e salvos em tempo real"
         print(msg)
         add_dashboard_log(msg, "success")
 
-        # Stage 3: Scrape Imagens - COM ATUALIZAÇÃO EM TEMPO REAL
+        # ===== STAGE 3: Scrape Imagens =====
+        await pipeline_state.start(
+            stage=3,
+            stage_name="Stage 3 - Imagens",
+            total=len(references),
+            details={"update_db": True}
+        )
+
         add_dashboard_log("STAGE 3: SCRAPING IMAGENS", "info")
+
+        # Counter for tracking progress
+        images_count = 0
 
         # Callback para atualizar imagens assim que são scraped
         async def update_images_callback(ref: str, images: List[str]):
             """Atualiza imagens do evento em tempo real"""
+            nonlocal images_count
+            images_count += 1
+
             async with get_db() as db:
                 event = await db.get_event(ref)
                 if event:
@@ -984,19 +1039,36 @@ async def run_full_pipeline(tipo: Optional[int], max_pages: Optional[int]):
                     await db.save_event(event)
                     await cache_manager.set(ref, event)
 
+            # Update pipeline state in real-time
+            await pipeline_state.update(
+                current=images_count,
+                message=f"Atualizando {images_count}/{len(references)} - {ref} ({len(images)} imagens)"
+            )
+
         images_map = await scraper.scrape_images_by_ids(references, on_images_scraped=update_images_callback)
+
+        await pipeline_state.complete(message=f"✅ Stage 3: {len(images_map)} eventos com imagens atualizadas")
+
         msg = f"✅ Stage 3: {len(images_map)} eventos com imagens atualizadas em tempo real"
         print(msg)
         add_dashboard_log(msg, "success")
 
+        # Final message
         msg = f"🎉 PIPELINE COMPLETO! IDs: {len(references)} | Detalhes: {len(events)} | Imagens: {len(images_map)}"
         print(msg)
         add_dashboard_log(msg, "success")
+
+        # Delay to show final message, then stop
+        await asyncio.sleep(3)
+        await pipeline_state.stop()
 
     except Exception as e:
         msg = f"❌ Erro no pipeline: {e}"
         print(msg)
         add_dashboard_log(msg, "error")
+        await pipeline_state.add_error(msg)
+        await asyncio.sleep(2)
+        await pipeline_state.stop()
 
 
 # ============== ERRO HANDLERS ==============
