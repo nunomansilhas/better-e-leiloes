@@ -1,5 +1,6 @@
 """
-Database layer usando SQLAlchemy + SQLite
+Database layer usando SQLAlchemy + SQLite/MySQL
+Suporta tanto SQLite (desenvolvimento) quanto MySQL/MariaDB (produção)
 """
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
@@ -17,6 +18,8 @@ from models import (
 )
 
 # Database URL
+# SQLite: sqlite+aiosqlite:///./eleiloes.db
+# MySQL:  mysql+aiomysql://user:password@localhost:3306/eleiloes
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./eleiloes.db")
 
 # SQLAlchemy setup
