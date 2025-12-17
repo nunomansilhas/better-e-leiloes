@@ -1777,17 +1777,17 @@
                             </div>
                         </div>
 
-                        <!-- Pipeline X - Verificação de Preços (< 5 min) -->
+                        <!-- Pipeline X-Critical - Verificação de Preços (< 5 min) -->
                         <div class="auto-pipeline-item" style="background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border: 2px solid #fca5a5;">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
                                 <div style="flex: 1;">
                                     <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-                                        <span style="font-size: 18px;">💰</span>
-                                        <span style="font-weight: 600; color: #dc2626;">Pipeline X - Preços</span>
+                                        <span style="font-size: 18px;">🔴</span>
+                                        <span style="font-weight: 600; color: #dc2626;">Pipeline X-Critical</span>
                                         <span style="font-size: 10px; background: #dc2626; color: white; padding: 2px 6px; border-radius: 4px; font-weight: 700;">< 5 MIN</span>
                                     </div>
                                     <div style="font-size: 12px; color: #991b1b; margin-left: 26px; font-weight: 500;">
-                                        Verificação a cada 5 SEGUNDOS • Apenas eventos terminando em menos de 5 minutos
+                                        A cada 5 SEGUNDOS • Eventos < 5 minutos
                                     </div>
                                 </div>
                                 <label class="toggle-switch">
@@ -1796,6 +1796,54 @@
                                 </label>
                             </div>
                             <div id="auto-pipeline-prices-status" style="font-size: 11px; color: #dc2626; margin-left: 26px; margin-top: 6px; display: none; font-weight: 500;">
+                                <span class="status-indicator"></span>
+                                <span class="status-text"></span>
+                            </div>
+                        </div>
+
+                        <!-- Pipeline X-Urgent - Verificação de Preços (< 1 hora) -->
+                        <div class="auto-pipeline-item" style="background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%); border: 2px solid #fdba74;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div style="flex: 1;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                                        <span style="font-size: 18px;">🟠</span>
+                                        <span style="font-weight: 600; color: #ea580c;">Pipeline X-Urgent</span>
+                                        <span style="font-size: 10px; background: #ea580c; color: white; padding: 2px 6px; border-radius: 4px; font-weight: 700;">< 1 HORA</span>
+                                    </div>
+                                    <div style="font-size: 12px; color: #9a3412; margin-left: 26px; font-weight: 500;">
+                                        A cada 1 MINUTO • Eventos < 1 hora
+                                    </div>
+                                </div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="auto-pipeline-prices_urgent" onchange="toggleAutoPipeline('prices_urgent', this.checked)">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div id="auto-pipeline-prices_urgent-status" style="font-size: 11px; color: #ea580c; margin-left: 26px; margin-top: 6px; display: none; font-weight: 500;">
+                                <span class="status-indicator"></span>
+                                <span class="status-text"></span>
+                            </div>
+                        </div>
+
+                        <!-- Pipeline X-Soon - Verificação de Preços (< 24 horas) -->
+                        <div class="auto-pipeline-item" style="background: linear-gradient(135deg, #fefce8 0%, #fef9c3 100%); border: 2px solid #facc15;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div style="flex: 1;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                                        <span style="font-size: 18px;">🟡</span>
+                                        <span style="font-weight: 600; color: #ca8a04;">Pipeline X-Soon</span>
+                                        <span style="font-size: 10px; background: #ca8a04; color: white; padding: 2px 6px; border-radius: 4px; font-weight: 700;">< 24H</span>
+                                    </div>
+                                    <div style="font-size: 12px; color: #854d0e; margin-left: 26px; font-weight: 500;">
+                                        A cada 10 MINUTOS • Eventos < 24 horas
+                                    </div>
+                                </div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="auto-pipeline-prices_soon" onchange="toggleAutoPipeline('prices_soon', this.checked)">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div id="auto-pipeline-prices_soon-status" style="font-size: 11px; color: #ca8a04; margin-left: 26px; margin-top: 6px; display: none; font-weight: 500;">
                                 <span class="status-indicator"></span>
                                 <span class="status-text"></span>
                             </div>
