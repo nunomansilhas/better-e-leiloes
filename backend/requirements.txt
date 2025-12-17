@@ -13,8 +13,8 @@ playwright==1.41.0
 
 # Database
 sqlalchemy==2.0.25
-aiosqlite==0.19.0  # For SQLite (development)
-aiomysql==0.2.0    # For MySQL/MariaDB (production)
+aiomysql==0.3.2    # For MySQL/MariaDB (async driver)
+pymysql==1.1.2     # Required by aiomysql
 cryptography==41.0.7  # Required by aiomysql
 
 # CORS
