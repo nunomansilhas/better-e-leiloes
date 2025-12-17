@@ -5,7 +5,7 @@ APENAS MySQL/MariaDB - SQLite foi removido
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy import select, func, String, Float, DateTime, Text
+from sqlalchemy import select, func, String, Float, DateTime, Text, Boolean
 from typing import List, Tuple, Optional
 from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
@@ -89,6 +89,7 @@ class EventDB(Base):
     # Metadados
     scraped_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    ativo: Mapped[bool] = mapped_column(Boolean, default=True)  # Evento ativo (não vendido)
     
     def to_model(self) -> EventData:
         """Converte DB model para Pydantic model"""
@@ -131,7 +132,8 @@ class EventDB(Base):
             agenteExecucao=self.agente_execucao,  # HTML string
             dadosProcesso=self.dados_processo,  # HTML string
             scraped_at=self.scraped_at,
-            updated_at=self.updated_at
+            updated_at=self.updated_at,
+            ativo=self.ativo
         )
 
 
@@ -187,6 +189,7 @@ class DatabaseManager:
             existing.cerimonia_encerramento = event.cerimoniaEncerramento  # HTML string
             existing.agente_execucao = event.agenteExecucao  # HTML string
             existing.dados_processo = event.dadosProcesso  # HTML string
+            existing.ativo = event.ativo  # Preserva estado ativo
 
             existing.updated_at = datetime.utcnow()
         else:
@@ -221,7 +224,8 @@ class DatabaseManager:
                 cerimonia_encerramento=event.cerimoniaEncerramento,  # HTML string
                 agente_execucao=event.agenteExecucao,  # HTML string
                 dados_processo=event.dadosProcesso,  # HTML string
-                scraped_at=event.scraped_at
+                scraped_at=event.scraped_at,
+                ativo=True  # Novo evento é sempre ativo
             )
             self.session.add(new_event)
         
@@ -312,7 +316,7 @@ class DatabaseManager:
 
     async def get_events_ending_within(self, seconds: int) -> List[EventData]:
         """
-        PIPELINE X: Retorna eventos que terminam dentro de X segundos.
+        PIPELINE X: Retorna eventos ATIVOS que terminam dentro de X segundos.
         Query otimizada direto na BD (sem carregar todos os eventos em memória).
 
         Args:
@@ -326,6 +330,7 @@ class DatabaseManager:
 
         result = await self.session.execute(
             select(EventDB)
+            .where(EventDB.ativo == True)  # Só eventos ativos
             .where(EventDB.data_fim.isnot(None))
             .where(EventDB.data_fim > now)
             .where(EventDB.data_fim <= end_limit)
@@ -337,7 +342,7 @@ class DatabaseManager:
 
     async def get_events_refs_ending_within(self, seconds: int) -> List[str]:
         """
-        PIPELINE X: Retorna apenas REFs de eventos que terminam dentro de X segundos.
+        PIPELINE X: Retorna apenas REFs de eventos ATIVOS que terminam dentro de X segundos.
         Versão ainda mais leve - só retorna referencias para scraping.
 
         Args:
@@ -351,6 +356,7 @@ class DatabaseManager:
 
         result = await self.session.execute(
             select(EventDB.reference, EventDB.data_fim)
+            .where(EventDB.ativo == True)  # Só eventos ativos
             .where(EventDB.data_fim.isnot(None))
             .where(EventDB.data_fim > now)
             .where(EventDB.data_fim <= end_limit)
@@ -359,6 +365,54 @@ class DatabaseManager:
         rows = result.all()
 
         return [row[0] for row in rows]
+
+    async def mark_event_inactive(self, reference: str) -> bool:
+        """
+        PIPELINE X: Marca um evento como inativo (vendido/terminado).
+        Eventos inativos não são incluídos nas queries de Pipeline X.
+
+        Args:
+            reference: REF do evento
+
+        Returns:
+            True se marcado, False se evento não encontrado
+        """
+        result = await self.session.execute(
+            select(EventDB).where(EventDB.reference == reference)
+        )
+        existing = result.scalar_one_or_none()
+
+        if not existing:
+            return False
+
+        existing.ativo = False
+        existing.updated_at = datetime.utcnow()
+        await self.session.commit()
+
+        return True
+
+    async def bulk_mark_events_inactive(self, references: List[str]) -> int:
+        """
+        PIPELINE X: Marca múltiplos eventos como inativos em batch.
+
+        Returns:
+            Número de eventos marcados como inativos
+        """
+        marked_count = 0
+
+        for ref in references:
+            result = await self.session.execute(
+                select(EventDB).where(EventDB.reference == ref)
+            )
+            existing = result.scalar_one_or_none()
+
+            if existing and existing.ativo:
+                existing.ativo = False
+                existing.updated_at = datetime.utcnow()
+                marked_count += 1
+
+        await self.session.commit()
+        return marked_count
 
     async def update_volatile_fields(
         self,

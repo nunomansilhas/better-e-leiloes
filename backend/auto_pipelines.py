@@ -446,13 +446,21 @@ class AutoPipelinesManager:
                 updates = []
                 updated_count = 0
                 time_extended_count = 0
+                events_to_deactivate = []  # Eventos terminados/vendidos
 
                 # Cria mapa de eventos antigos para comparação rápida
                 old_events_map = {e.reference: e for e in events}
+                scraped_refs = {d.get("reference") for d in volatile_data if d.get("reference")}
 
                 for new_data in volatile_data:
                     ref = new_data.get("reference")
-                    if not ref or "error" in new_data:
+                    if not ref:
+                        continue
+
+                    # Se scrape falhou (evento removido/vendido), marcar para desativar
+                    if "error" in new_data:
+                        events_to_deactivate.append(ref)
+                        print(f"  🔒 {ref}: Marcando inativo (scrape falhou)")
                         continue
 
                     old_event = old_events_map.get(ref)
@@ -464,12 +472,18 @@ class AutoPipelinesManager:
                     old_end = old_event.dataFim
                     new_end = new_data.get("data_fim")
 
+                    # Verifica se evento já terminou (data_fim no passado)
+                    now = datetime.now()
+                    if new_end and new_end < now:
+                        events_to_deactivate.append(ref)
+                        print(f"  🔒 {ref}: Marcando inativo (terminado)")
+                        continue
+
                     price_changed = old_price != new_price
                     time_extended = (new_end and old_end and new_end > old_end)
 
                     if price_changed or time_extended:
                         # Calcula tempo restante
-                        now = datetime.now()
                         seconds_left = (old_end - now).total_seconds() if old_end else 0
                         minutes = int(seconds_left / 60)
                         secs = int(seconds_left % 60)
@@ -492,9 +506,14 @@ class AutoPipelinesManager:
                         updated_count += 1
 
                 # Batch UPDATE na BD
-                if updates:
-                    async with get_db() as db:
+                async with get_db() as db:
+                    if updates:
                         await db.bulk_update_volatile_fields(updates)
+                    if events_to_deactivate:
+                        deactivated = await db.bulk_mark_events_inactive(events_to_deactivate)
+                        print(f"  🔒 {deactivated} eventos marcados como inativos")
+
+                if updated_count > 0 or events_to_deactivate:
                     print(f"  ✅ {updated_count} updated, {time_extended_count} timer resets")
 
                 # Update pipeline stats

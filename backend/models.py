@@ -106,6 +106,7 @@ class EventData(BaseModel):
     # Metadados
     scraped_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: Optional[datetime] = None
+    ativo: bool = Field(default=True, description="Evento ainda ativo (não vendido/terminado)")
     
     class Config:
         json_schema_extra = {
