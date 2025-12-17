@@ -1,6 +1,6 @@
 """
-Database layer usando SQLAlchemy + SQLite/MySQL
-Suporta tanto SQLite (desenvolvimento) quanto MySQL/MariaDB (produção)
+Database layer usando SQLAlchemy + MySQL/MariaDB
+APENAS MySQL/MariaDB - SQLite foi removido
 """
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
@@ -17,10 +17,16 @@ from models import (
     DescricaoPredial, CerimoniaEncerramento, AgenteExecucao, DadosProcesso
 )
 
-# Database URL
-# SQLite: sqlite+aiosqlite:///./eleiloes.db
+# Database URL - MUST be set in .env file
 # MySQL:  mysql+aiomysql://user:password@localhost:3306/eleiloes
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./eleiloes.db")
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+if not DATABASE_URL:
+    raise ValueError(
+        "❌ DATABASE_URL not configured!\n"
+        "Create a .env file with:\n"
+        "DATABASE_URL=mysql+aiomysql://user:password@localhost:3306/eleiloes"
+    )
 
 # SQLAlchemy setup
 engine = create_async_engine(DATABASE_URL, echo=False)
