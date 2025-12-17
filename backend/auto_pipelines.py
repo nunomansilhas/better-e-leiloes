@@ -433,12 +433,22 @@ class AutoPipelinesManager:
                 pipeline.runs_count += 1
                 self._save_config()
 
+        # Create proper async wrappers (lambdas don't work with APScheduler async)
+        async def run_critical():
+            await run_price_pipeline(5, "prices", "🔴")
+
+        async def run_urgent():
+            await run_price_pipeline(60, "prices_urgent", "🟠")
+
+        async def run_soon():
+            await run_price_pipeline(1440, "prices_soon", "🟡")
+
         # Map pipeline types to functions
         tasks = {
             "full": run_full_pipeline,
-            "prices": lambda: run_price_pipeline(5, "prices", "🔴"),
-            "prices_urgent": lambda: run_price_pipeline(60, "prices_urgent", "🟠"),
-            "prices_soon": lambda: run_price_pipeline(1440, "prices_soon", "🟡"),
+            "prices": run_critical,
+            "prices_urgent": run_urgent,
+            "prices_soon": run_soon,
             "info": run_info_pipeline
         }
 

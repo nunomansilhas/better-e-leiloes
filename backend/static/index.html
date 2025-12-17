@@ -3778,18 +3778,31 @@
 
         // ============== AUTOMATIC PIPELINES SYSTEM ==============
 
+        // Event counts from SQL queries
+        let eventsCritical = 0;
+        let eventsUrgent = 0;
+        let eventsSoon = 0;
+
+        // Fetch event counts from new SQL-based endpoint
+        async function updateEventsCounts() {
+            try {
+                const response = await fetch(`${API_BASE}/api/events/ending/summary`);
+                if (response.ok) {
+                    const data = await response.json();
+                    eventsCritical = data.critical?.count || 0;
+                    eventsUrgent = data.urgent?.count || 0;
+                    eventsSoon = data.soon?.count || 0;
+                    pipelineXCachedEvents = eventsCritical; // For backwards compatibility
+                }
+            } catch (error) {
+                console.error('Erro ao buscar contagem de eventos:', error);
+            }
+        }
+
         // Load pipeline states on page load
         // Pipeline X Countdown Functions
         async function updatePipelineXCacheInfo() {
-            try {
-                const response = await fetch(`${API_BASE}/api/auto-pipelines/prices/cache-info`);
-                if (response.ok) {
-                    const data = await response.json();
-                    pipelineXCachedEvents = data.cached_events || 0;
-                }
-            } catch (error) {
-                console.error('Erro ao buscar info do cache Pipeline X:', error);
-            }
+            await updateEventsCounts();
         }
 
         function updatePipelineXDisplay() {
