@@ -59,6 +59,10 @@ async def lifespan(app: FastAPI):
     """Startup e shutdown da aplicação"""
     global scraper, cache_manager, scheduler
 
+    # CRITICAL: Set Windows event loop policy for Playwright subprocess support
+    if sys.platform == 'win32':
+        asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+
     # Startup
     print("🚀 Iniciando E-Leiloes API...")
     await init_db()
