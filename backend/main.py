@@ -254,6 +254,49 @@ async def get_prices_cache_info():
 # ============== END AUTOMATIC PIPELINES ENDPOINTS ==============
 
 
+# ============== EVENTS ENDING SUMMARY (for Pipeline X dashboard) ==============
+
+@app.get("/api/events/ending/summary")
+async def get_events_ending_summary():
+    """
+    Retorna resumo de eventos a terminar em diferentes janelas temporais.
+    Usado pelo dashboard das Pipelines X.
+
+    Returns:
+        - critical: eventos < 5 minutos
+        - urgent: eventos < 1 hora
+        - soon: eventos < 24 horas
+        - total: total de eventos na BD
+    """
+    async with get_db() as db:
+        # Usa as novas queries otimizadas
+        critical = await db.get_events_ending_within(300)      # < 5 min
+        urgent = await db.get_events_ending_within(3600)       # < 1h
+        soon = await db.get_events_ending_within(86400)        # < 24h
+
+        # Total de eventos
+        _, total = await db.list_events(limit=1)
+
+    return {
+        "critical": {
+            "count": len(critical),
+            "label": "< 5 min",
+            "events": [{"reference": e.reference, "dataFim": e.dataFim.isoformat() if e.dataFim else None} for e in critical[:10]]
+        },
+        "urgent": {
+            "count": len(urgent),
+            "label": "< 1 hora",
+            "events": [{"reference": e.reference, "dataFim": e.dataFim.isoformat() if e.dataFim else None} for e in urgent[:10]]
+        },
+        "soon": {
+            "count": len(soon),
+            "label": "< 24 horas",
+            "events": [{"reference": e.reference, "dataFim": e.dataFim.isoformat() if e.dataFim else None} for e in soon[:10]]
+        },
+        "total": total
+    }
+
+
 @app.get("/api/events/{reference}", response_model=EventData)
 async def get_event(reference: str):
     """
