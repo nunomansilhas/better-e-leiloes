@@ -94,18 +94,19 @@ print("\n🚀 Step 4: Testing connections...")
 
 import asyncio
 from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy import text
 
 async def test_connection(url, description):
     try:
         engine = create_async_engine(url, echo=False)
         async with engine.begin() as conn:
-            result = await conn.execute("SELECT VERSION()")
+            result = await conn.execute(text("SELECT VERSION()"))
             version = result.scalar()
             print(f"\n   ✅ SUCCESS: {description}")
             print(f"   MySQL Version: {version}")
 
             # Test if eleiloes database exists
-            result = await conn.execute("SHOW DATABASES LIKE 'eleiloes'")
+            result = await conn.execute(text("SHOW DATABASES LIKE 'eleiloes'"))
             db_exists = result.fetchone()
             if db_exists:
                 print(f"   ✅ Database 'eleiloes' exists")

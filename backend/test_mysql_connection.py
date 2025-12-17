@@ -3,6 +3,7 @@ Test MySQL connection with different passwords
 """
 import asyncio
 from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy import text
 
 passwords_to_try = [
     ("Empty password", ""),
@@ -21,7 +22,7 @@ async def test_connection(password_name, password):
     try:
         engine = create_async_engine(url, echo=False)
         async with engine.begin() as conn:
-            result = await conn.execute("SELECT VERSION()")
+            result = await conn.execute(text("SELECT VERSION()"))
             version = result.scalar()
             print(f"✅ {password_name} - SUCCESS!")
             print(f"   MySQL version: {version}")
