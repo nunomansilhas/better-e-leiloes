@@ -25,7 +25,7 @@ class EventDetails(BaseModel):
     """Detalhes do evento (IMOVEL ou MOVEL)"""
     tipo: str = "N/A"
     subtipo: str = "N/A"
-    
+
     # Campos específicos de IMOVEIS
     tipologia: Optional[str] = None
     areaPrivativa: Optional[float] = None  # em m²
@@ -34,25 +34,75 @@ class EventDetails(BaseModel):
     distrito: Optional[str] = None
     concelho: Optional[str] = None
     freguesia: Optional[str] = None
-    
+
     # Campos específicos de MOVEIS (automóveis)
     matricula: Optional[str] = None
+
+
+class DescricaoPredial(BaseModel):
+    """Informação da descrição predial"""
+    numeroDescricao: Optional[str] = None
+    fracao: Optional[str] = None
+    distritoCode: Optional[str] = None
+    concelhoCode: Optional[str] = None
+    freguesiaCode: Optional[str] = None
+    artigos: List[dict] = Field(default_factory=list)  # Lista de artigos matriciais
+
+
+class CerimoniaEncerramento(BaseModel):
+    """Dados da cerimónia de encerramento"""
+    data: Optional[datetime] = None
+    local: Optional[str] = None
+    morada: Optional[str] = None
+
+
+class AgenteExecucao(BaseModel):
+    """Dados do agente de execução"""
+    nome: Optional[str] = None
+    email: Optional[str] = None
+    telefone: Optional[str] = None
+
+
+class DadosProcesso(BaseModel):
+    """Dados do processo judicial"""
+    processo: Optional[str] = None
+    tribunal: Optional[str] = None
+    unidadeOrganica: Optional[str] = None
+    requerentes: List[str] = Field(default_factory=list)
 
 
 class EventData(BaseModel):
     """Dados completos de um evento"""
     reference: str = Field(..., description="Referência única (NP-XXXX ou LO-XXXX)")
     tipoEvento: str = Field(..., description="'imovel' ou 'movel'")
-    
+
     # Valores do leilão
     valores: ValoresLeilao
-    
+
     # GPS (apenas para imóveis)
     gps: Optional[GPSCoordinates] = None
-    
+
     # Detalhes
     detalhes: EventDetails
-    
+
+    # Datas do evento
+    dataInicio: Optional[datetime] = None
+    dataFim: Optional[datetime] = None
+
+    # Galeria de imagens
+    imagens: List[str] = Field(default_factory=list)
+
+    # Textos descritivos e secções completas (HTML)
+    descricao: Optional[str] = None
+    observacoes: Optional[str] = None
+    onuselimitacoes: Optional[str] = None  # Novo campo
+
+    # Informações adicionais (HTML completo das secções)
+    descricaoPredial: Optional[str] = None  # Alterado: era DescricaoPredial
+    cerimoniaEncerramento: Optional[str] = None  # Alterado: era CerimoniaEncerramento
+    agenteExecucao: Optional[str] = None  # Alterado: era AgenteExecucao
+    dadosProcesso: Optional[str] = None  # Alterado: era DadosProcesso
+
     # Metadados
     scraped_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: Optional[datetime] = None

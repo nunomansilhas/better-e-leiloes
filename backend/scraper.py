@@ -10,7 +10,7 @@ import asyncio
 if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
-from typing import List, Optional
+from typing import List, Optional, Callable, Awaitable
 from datetime import datetime
 import re
 from playwright.async_api import async_playwright, Page, Browser
@@ -28,6 +28,7 @@ class EventScraper:
         
         # Status tracking
         self.is_running = False
+        self.stop_requested = False
         self.events_processed = 0
         self.events_failed = 0
         self.current_page = None
@@ -54,7 +55,42 @@ class EventScraper:
             await self.browser.close()
         if self.playwright:
             await self.playwright.stop()
-    
+
+    def stop(self):
+        """Solicita parada do scraping"""
+        print("🛑 Paragem do scraper solicitada...")
+        self.stop_requested = True
+
+    async def scrape_event(self, reference: str) -> EventData:
+        """
+        Scrape público de um único evento por referência.
+        Detecta automaticamente se é imóvel (LO) ou móvel (NP) pela referência.
+
+        Args:
+            reference: Referência do evento (ex: LO1234567890 ou NP1234567890)
+
+        Returns:
+            EventData completo do evento
+        """
+        await self.init_browser()
+
+        # Determina tipo baseado no prefixo da referência
+        # LO = Leilão Online (geralmente imóveis)
+        # NP = Negociação Particular (pode ser móveis ou imóveis)
+        # Para segurança, vamos tentar buscar a página e detectar o tipo
+        tipo_evento = "imovel" if reference.startswith("LO") else "imovel"  # default imovel
+
+        # Cria preview fake (valores virão da página individual)
+        preview = {
+            'reference': reference,
+            'valores': ValoresLeilao()  # Vazio, será preenchido na página
+        }
+
+        try:
+            return await self._scrape_event_details(preview, tipo_evento)
+        except Exception as e:
+            raise Exception(f"Erro ao fazer scrape do evento {reference}: {str(e)}")
+
     async def _scrape_event_details(self, preview: dict, tipo_evento: str) -> EventData:
         """
         FASE 2: Entra na página individual para extrair detalhes completos
@@ -79,21 +115,40 @@ class EventScraper:
             # Navega para página do evento
             await page.goto(url, wait_until="networkidle", timeout=15000)
             await asyncio.sleep(1.5)
-            
-            # GPS (apenas para imóveis)
-            gps = None
-            if tipo_evento == "imovel":
-                gps = await self._extract_gps(page)
-            
-            # Detalhes (diferente para imovel vs movel)
-            if tipo_evento == "imovel":
-                detalhes = await self._extract_imovel_details(page)
+
+            # Extrai datas do evento
+            data_inicio, data_fim = await self._extract_dates(page)
+
+            # Extrai localização UMA VEZ (GPS + Distrito/Concelho/Freguesia)
+            gps, distrito, concelho, freguesia = await self._extract_localizacao(page)
+
+            # Detalhes - extrai AMBOS os tipos para deteção automática
+            detalhes_imovel = await self._extract_imovel_details(page, distrito, concelho, freguesia)
+            detalhes_movel = await self._extract_movel_details(page, distrito, concelho, freguesia)
+
+            # DETECÇÃO AUTOMÁTICA: Se tem matrícula, marca, modelo, etc → é móvel
+            is_movel = (
+                detalhes_movel.matricula is not None or
+                "veículo" in (detalhes_movel.tipo or "").lower() or
+                "veiculo" in (detalhes_movel.tipo or "").lower() or
+                "ligeiro" in (detalhes_movel.tipo or "").lower() or
+                "pesado" in (detalhes_movel.tipo or "").lower() or
+                "motociclo" in (detalhes_movel.tipo or "").lower()
+            )
+
+            # Define o tipo correto
+            if is_movel:
+                tipo_evento = "movel"
+                detalhes = detalhes_movel
+                gps = None  # Móveis não têm GPS (só têm distrito/concelho/freguesia)
             else:
-                detalhes = await self._extract_movel_details(page)
-            
+                tipo_evento = "imovel"
+                detalhes = detalhes_imovel
+                # GPS já foi extraído acima
+
             # Confirma/atualiza valores na página individual (podem ser mais precisos)
             valores_pagina = await self._extract_valores_from_page(page)
-            
+
             # Merge valores (prioridade: página individual > listagem)
             valores_final = ValoresLeilao(
                 valorBase=valores_pagina.valorBase or valores_listagem.valorBase,
@@ -101,15 +156,40 @@ class EventScraper:
                 valorMinimo=valores_pagina.valorMinimo or valores_listagem.valorMinimo,
                 lanceAtual=valores_pagina.lanceAtual or valores_listagem.lanceAtual
             )
-            
-            return EventData(
-                reference=reference,
-                tipoEvento=tipo_evento,
-                valores=valores_final,
-                gps=gps,
-                detalhes=detalhes,
-                scraped_at=datetime.utcnow()
-            )
+
+            # Extrai todas as secções (HTML completo) - com safeguard para None
+            imagens = await self._extract_gallery(page)
+            descricao = await self._extract_descricao(page)
+            observacoes = await self._extract_observacoes(page)
+            onuselimitacoes = await self._extract_onus_limitacoes(page)
+            descricao_predial = await self._extract_descricao_predial(page)
+            cerimonia = await self._extract_cerimonia(page)
+            agente = await self._extract_agente(page)
+            dados_processo = await self._extract_dados_processo(page)
+
+            # SAFEGUARD: Garante que tudo é None se vazio
+            try:
+                return EventData(
+                    reference=reference,
+                    tipoEvento=tipo_evento,
+                    valores=valores_final,
+                    gps=gps,
+                    detalhes=detalhes,
+                    dataInicio=data_inicio,
+                    dataFim=data_fim,
+                    imagens=imagens,
+                    descricao=descricao,
+                    observacoes=observacoes,
+                    onuselimitacoes=onuselimitacoes,
+                    descricaoPredial=descricao_predial,
+                    cerimoniaEncerramento=cerimonia,
+                    agenteExecucao=agente,
+                    dadosProcesso=dados_processo,
+                    scraped_at=datetime.utcnow()
+                )
+            except Exception as e:
+                print(f"❌ Erro validação EventData para {reference}: {e}")
+                raise
             
         except Exception as e:
             raise Exception(f"Erro ao scrape {reference}: {str(e)}")
@@ -118,49 +198,388 @@ class EventScraper:
             await page.close()
             await context.close()
     
-    async def _extract_gps(self, page: Page) -> GPSCoordinates:
-        """Extrai coordenadas GPS do DOM da página"""
+    async def _extract_dates(self, page: Page) -> tuple[Optional[datetime], Optional[datetime]]:
+        """Extrai datas de início e fim do evento do DOM da página"""
+        try:
+            data_inicio = None
+            data_fim = None
+
+            # Procura por divs que contenham as datas
+            # Estrutura: <div><span>Início:</span><span class="font-semibold">DATA</span></div>
+            divs = await page.query_selector_all('div.flex.justify-content-between')
+
+            for div in divs:
+                text = await div.text_content()
+                if not text:
+                    continue
+
+                text = text.strip()
+
+                # Verifica se é a div de Início
+                if 'Início:' in text:
+                    # Busca o span com font-semibold dentro desta div
+                    date_span = await div.query_selector('span.font-semibold')
+                    if date_span:
+                        value = await date_span.text_content()
+                        if value:
+                            try:
+                                # Parse data no formato DD/MM/YYYY HH:MM:SS
+                                data_inicio = datetime.strptime(value.strip(), '%d/%m/%Y %H:%M:%S')
+                            except ValueError as e:
+                                print(f"⚠️ Erro ao parsear data de início '{value}': {e}")
+
+                # Verifica se é a div de Fim
+                elif 'Fim:' in text:
+                    # Busca o span com font-semibold dentro desta div
+                    date_span = await div.query_selector('span.font-semibold')
+                    if date_span:
+                        value = await date_span.text_content()
+                        if value:
+                            try:
+                                # Parse data no formato DD/MM/YYYY HH:MM:SS
+                                data_fim = datetime.strptime(value.strip(), '%d/%m/%Y %H:%M:%S')
+                            except ValueError as e:
+                                print(f"⚠️ Erro ao parsear data de fim '{value}': {e}")
+
+            return data_inicio, data_fim
+
+        except Exception as e:
+            print(f"⚠️ Erro ao extrair datas: {e}")
+            return None, None
+
+    async def _extract_localizacao(self, page: Page) -> tuple[GPSCoordinates, Optional[str], Optional[str], Optional[str]]:
+        """
+        Extrai dados da secção Localização: GPS, Distrito, Concelho, Freguesia.
+        Funciona para móveis e imóveis.
+
+        Returns:
+            (gps, distrito, concelho, freguesia)
+        """
         try:
             latitude = None
             longitude = None
-            
-            # Procura por spans com "GPS Latitude:" e "GPS Longitude:"
-            spans = await page.query_selector_all('.flex.w-full .font-semibold')
-            
-            for span in spans:
-                text = await span.text_content()
-                if not text:
-                    continue
-                
-                text = text.strip()
-                
-                if text == 'GPS Latitude:':
-                    # Pega próximo elemento (o valor)
-                    next_el = await span.evaluate_handle('el => el.nextElementSibling')
-                    if next_el:
-                        value = await next_el.text_content()
-                        if value:
-                            try:
-                                latitude = float(value.strip())
-                            except ValueError:
-                                pass
-                
-                elif text == 'GPS Longitude:':
-                    next_el = await span.evaluate_handle('el => el.nextElementSibling')
-                    if next_el:
-                        value = await next_el.text_content()
-                        if value:
-                            try:
-                                longitude = float(value.strip())
-                            except ValueError:
-                                pass
-            
-            return GPSCoordinates(latitude=latitude, longitude=longitude)
-            
+            distrito = None
+            concelho = None
+            freguesia = None
+
+            # Primeiro, encontra a div com título "Localização"
+            localizacao_section = None
+            title_divs = await page.query_selector_all('.font-semibold.text-xl')
+
+            for title_div in title_divs:
+                text = await title_div.text_content()
+                if text and 'Localização' in text.strip():
+                    # Pega o elemento pai mais próximo (bg-white shadow-1)
+                    localizacao_section = await title_div.evaluate_handle(
+                        'el => el.closest(".bg-white.shadow-1") || el.closest(".flex.flex-column.w-full")'
+                    )
+                    break
+
+            if not localizacao_section:
+                print("⚠️ Seção 'Localização' não encontrada")
+                return GPSCoordinates(latitude=None, longitude=None), None, None, None
+
+            # Procura por todos os containers .flex.flex-wrap.gap-1
+            field_containers = await localizacao_section.query_selector_all('.flex.flex-wrap.gap-1')
+
+            for container in field_containers:
+                # Dentro de cada container, procura label e valor
+                spans = await container.query_selector_all('span')
+                if len(spans) >= 2:
+                    label_span = spans[0]
+                    value_span = spans[1]
+
+                    label = await label_span.text_content()
+                    value = await value_span.text_content()
+
+                    if not label or not value:
+                        continue
+
+                    label = label.strip()
+                    value = value.strip()
+
+                    # GPS
+                    if 'GPS Latitude' in label:
+                        try:
+                            latitude = float(value)
+                            print(f"  ✓ GPS Lat: {latitude}")
+                        except ValueError:
+                            pass
+
+                    elif 'GPS Longitude' in label:
+                        try:
+                            longitude = float(value)
+                            print(f"  ✓ GPS Lon: {longitude}")
+                        except ValueError:
+                            pass
+
+                    # Distrito / Concelho / Freguesia
+                    elif 'Distrito' in label:
+                        distrito = value
+                        print(f"  ✓ Distrito: {distrito}")
+
+                    elif 'Concelho' in label:
+                        concelho = value
+                        print(f"  ✓ Concelho: {concelho}")
+
+                    elif 'Freguesia' in label:
+                        freguesia = value
+                        print(f"  ✓ Freguesia: {freguesia}")
+
+            gps = GPSCoordinates(latitude=latitude, longitude=longitude)
+            return gps, distrito, concelho, freguesia
+
         except Exception as e:
-            print(f"⚠️ Erro ao extrair GPS: {e}")
-            return GPSCoordinates(latitude=None, longitude=None)
-    
+            print(f"⚠️ Erro ao extrair Localização: {e}")
+            import traceback
+            traceback.print_exc()
+            return GPSCoordinates(latitude=None, longitude=None), None, None, None
+
+    async def _extract_gps(self, page: Page) -> GPSCoordinates:
+        """Extrai coordenadas GPS (wrapper para compatibilidade)"""
+        gps, _, _, _ = await self._extract_localizacao(page)
+        return gps
+
+    async def _extract_gallery(self, page: Page) -> List[str]:
+        """Extrai TODAS as imagens iterando pelos IDs pv_id_X_item_Y"""
+        try:
+            import re
+
+            # Aguarda a galeria carregar
+            try:
+                await page.wait_for_selector('.p-galleria', timeout=3000)
+            except:
+                print("⚠️ Galeria não encontrada")
+                return []
+
+            # ===== NOVO: Aguarda pelo contador de imagens e calcula tempo de espera =====
+            try:
+                # Tenta encontrar o contador de imagens (ex: "1/7")
+                footer_selector = '.custom-galleria-footer, .p-galleria-footer, .better-image-badge'
+                await page.wait_for_selector(footer_selector, timeout=2000)
+
+                footer = await page.query_selector(footer_selector)
+                if footer:
+                    footer_text = await footer.inner_text()
+                    print(f"📊 Contador de imagens: {footer_text}")
+
+                    # Parse "X/Y" ou "📷 Y" para obter total de imagens
+                    match = re.search(r'(\d+)/(\d+)|📷\s*(\d+)', footer_text)
+                    if match:
+                        total_images = int(match.group(2) if match.group(2) else match.group(3))
+                        print(f"🖼️ Total de imagens detectadas: {total_images}")
+
+                        # Calcula tempo de espera: 2.5s por imagem + 1s buffer
+                        wait_time = (total_images * 2.5) + 1
+                        print(f"⏳ Aguardando {wait_time:.1f}s para todas as imagens carregarem...")
+                        await asyncio.sleep(wait_time)
+                    else:
+                        # Fallback: se não conseguiu parsear, espera 3s
+                        print("⚠️ Não conseguiu parsear contador, aguardando 3s...")
+                        await asyncio.sleep(3)
+                else:
+                    # Se não encontrou footer, espera tempo padrão
+                    print("⚠️ Footer não encontrado, aguardando 2s...")
+                    await asyncio.sleep(2)
+            except Exception as e:
+                print(f"⚠️ Erro ao detectar contador: {e}, aguardando 2s...")
+                await asyncio.sleep(2)
+
+            images = []
+
+            # Método 1: Itera pelos items da galeria (pv_id_X_item_0, item_1, item_2...)
+            try:
+                # Encontra o primeiro item para obter o prefixo do ID
+                first_item = await page.query_selector('.p-galleria-item[id]')
+                if first_item:
+                    first_id = await first_item.get_attribute('id')
+                    if first_id:
+                        # Extrai prefixo (ex: "pv_id_7" de "pv_id_7_item_0")
+                        id_match = re.match(r'(pv_id_\d+)_item_\d+', first_id)
+                        if id_match:
+                            id_prefix = id_match.group(1)
+                            print(f"🔍 Galeria ID: {id_prefix}")
+
+                            # Itera de item_0 até não encontrar mais
+                            item_num = 0
+                            consecutive_misses = 0
+                            max_misses = 3  # Para se houver gaps
+
+                            while consecutive_misses < max_misses and item_num < 100:
+                                item_id = f"{id_prefix}_item_{item_num}"
+                                item = await page.query_selector(f'#{item_id} .p-evento-image')
+
+                                if item:
+                                    style = await item.get_attribute('style')
+                                    if style and 'background-image: url(' in style:
+                                        match = re.search(r'url\(["\']?([^"\']+)["\']?\)', style)
+                                        if match:
+                                            url = match.group(1).replace('&quot;', '')
+                                            if url and url not in images:
+                                                images.append(url)
+                                                print(f"  ✓ Imagem {item_num}: {url.split('/')[-1]}")
+                                    consecutive_misses = 0
+                                else:
+                                    consecutive_misses += 1
+
+                                item_num += 1
+
+                            print(f"📷 Total: {len(images)} imagens extraídas")
+            except Exception as e:
+                print(f"⚠️ Erro ao iterar items: {e}")
+
+            # Fallback: Se não encontrou nada, tenta buscar todos os items visíveis
+            if not images:
+                try:
+                    gallery_items = await page.query_selector_all('.p-galleria-item .p-evento-image')
+                    for item in gallery_items:
+                        style = await item.get_attribute('style')
+                        if style and 'background-image: url(' in style:
+                            match = re.search(r'url\(["\']?([^"\']+)["\']?\)', style)
+                            if match:
+                                url = match.group(1).replace('&quot;', '')
+                                if url and url not in images:
+                                    images.append(url)
+                    print(f"📷 Fallback: {len(images)} imagens")
+                except Exception as e:
+                    print(f"⚠️ Erro no fallback: {e}")
+
+            return images
+
+        except Exception as e:
+            print(f"⚠️ Erro ao extrair galeria: {e}")
+            return []
+
+    async def _extract_section_html(self, page: Page, section_title: str) -> Optional[str]:
+        """
+        Método genérico para extrair HTML completo de uma secção.
+
+        Args:
+            page: Página do Playwright
+            section_title: Título da secção (ex: "Descrição", "Observações", etc.)
+
+        Returns:
+            HTML completo da secção ou None se não encontrada ou vazia
+        """
+        try:
+            title_divs = await page.query_selector_all('.font-semibold.text-xl')
+
+            for title_div in title_divs:
+                text = await title_div.text_content()
+                if text and section_title.lower() in text.strip().lower():
+                    # Pega o elemento pai (a seção completa)
+                    section = await title_div.evaluate_handle(
+                        'el => el.closest(".flex.flex-column.w-full")'
+                    )
+                    if section:
+                        # Retorna o HTML completo da secção
+                        html = await section.evaluate('el => el.innerHTML')
+                        # SAFEGUARD: Retorna None se vazio ou só whitespace
+                        if html and html.strip():
+                            return html.strip()
+                        return None
+
+            return None
+
+        except Exception as e:
+            print(f"⚠️ Erro ao extrair secção '{section_title}': {e}")
+            return None
+
+    async def _extract_descricao(self, page: Page) -> Optional[str]:
+        """Extrai HTML completo da secção Descrição"""
+        return await self._extract_section_html(page, "Descrição")
+
+    async def _extract_observacoes(self, page: Page) -> Optional[str]:
+        """Extrai HTML completo da secção Observações"""
+        return await self._extract_section_html(page, "Observações")
+
+    async def _extract_onus_limitacoes(self, page: Page) -> Optional[str]:
+        """Extrai HTML completo da secção Ónus e Limitações"""
+        return await self._extract_section_html(page, "Ónus")
+
+    async def _extract_descricao_predial(self, page: Page) -> Optional[str]:
+        """Extrai HTML completo da secção Descrição Predial"""
+        return await self._extract_section_html(page, "Descrição Predial")
+
+    async def _extract_cerimonia(self, page: Page) -> Optional[str]:
+        """Extrai HTML completo da secção Cerimónia de Encerramento"""
+        return await self._extract_section_html(page, "Cerimónia")
+
+    async def _extract_agente(self, page: Page) -> Optional[str]:
+        """Extrai HTML completo da secção Agente de Execução"""
+        return await self._extract_section_html(page, "Agente")
+
+    async def _extract_dados_processo(self, page: Page) -> Optional[str]:
+        """Extrai HTML completo da secção Dados do Processo"""
+        return await self._extract_section_html(page, "Dados do Processo")
+
+    async def _extract_descricao_predial_OLD(self, page: Page):
+        """Extrai informação da descrição predial"""
+        try:
+            from models import DescricaoPredial
+
+            # Procura pela seção "Descrição Predial"
+            title_divs = await page.query_selector_all('.font-semibold.text-xl')
+
+            for title_div in title_divs:
+                text = await title_div.text_content()
+                if text and 'Descrição Predial' in text.strip():
+                    section = await title_div.evaluate_handle(
+                        'el => el.closest(".flex.flex-column.w-full")'
+                    )
+                    if not section:
+                        continue
+
+                    # Extrai campos
+                    numero_desc = None
+                    fracao = None
+                    distrito_code = None
+                    concelho_code = None
+                    freguesia_code = None
+                    artigos = []
+
+                    spans = await section.query_selector_all('.font-semibold')
+                    for span in spans:
+                        label = await span.text_content()
+                        if not label:
+                            continue
+
+                        label = label.strip()
+
+                        # Pega o próximo elemento (o valor)
+                        next_el = await span.evaluate_handle('el => el.nextElementSibling')
+                        if next_el:
+                            value = await next_el.text_content()
+                            if value:
+                                value = value.strip()
+
+                                if 'N.º da Descrição:' in label:
+                                    numero_desc = value
+                                elif 'Fração:' in label:
+                                    fracao = value if value else None
+                                elif 'Distrito:' in label:
+                                    distrito_code = value
+                                elif 'Concelho:' in label:
+                                    concelho_code = value
+                                elif 'Freguesia:' in label:
+                                    freguesia_code = value
+
+                    return DescricaoPredial(
+                        numeroDescricao=numero_desc,
+                        fracao=fracao,
+                        distritoCode=distrito_code,
+                        concelhoCode=concelho_code,
+                        freguesiaCode=freguesia_code,
+                        artigos=artigos
+                    )
+
+            return None
+
+        except Exception as e:
+            print(f"⚠️ Erro ao extrair descrição predial: {e}")
+            return None
+
+
     async def _extract_valores_from_page(self, page: Page) -> ValoresLeilao:
         """Extrai valores da página individual do evento"""
         valores = ValoresLeilao()
@@ -188,15 +607,21 @@ class EventScraper:
         
         return valores
     
-    async def _extract_imovel_details(self, page: Page) -> EventDetails:
+    async def _extract_imovel_details(
+        self,
+        page: Page,
+        distrito: Optional[str] = None,
+        concelho: Optional[str] = None,
+        freguesia: Optional[str] = None
+    ) -> EventDetails:
         """Extrai detalhes COMPLETOS do IMÓVEL via DOM"""
-        
-        async def extract_detail(label: str) -> str:
+
+        async def extract_detail(label: str) -> Optional[str]:
             """Extrai valor de um campo específico"""
             try:
                 # Procura por span.font-semibold com o label
                 spans = await page.query_selector_all('.flex.w-full .font-semibold')
-                
+
                 for span in spans:
                     text = await span.text_content()
                     if text and text.strip() == label:
@@ -204,17 +629,17 @@ class EventScraper:
                         next_el = await span.evaluate_handle('el => el.nextElementSibling')
                         if next_el:
                             value = await next_el.text_content()
-                            return value.strip() if value else "N/A"
-                
-                return "N/A"
+                            return value.strip() if value else None
+
+                return None
             except:
-                return "N/A"
-        
+                return None
+
         async def extract_area(label: str) -> Optional[float]:
             """Extrai área em m²"""
             try:
                 spans = await page.query_selector_all('.flex.w-full .font-semibold')
-                
+
                 for span in spans:
                     text = await span.text_content()
                     if text and text.strip() == label:
@@ -226,23 +651,20 @@ class EventScraper:
                                 value = await number_span.text_content()
                                 # Remove espaços e converte para float
                                 return float(value.replace(',', '.').strip())
-                
+
                 return None
             except:
                 return None
-        
-        # Extrai todos os campos
+
+        # Extrai campos básicos
         tipo = await extract_detail('Tipo:')
         subtipo = await extract_detail('Subtipo:')
         tipologia = await extract_detail('Tipologia:')
-        distrito = await extract_detail('Distrito:')
-        concelho = await extract_detail('Concelho:')
-        freguesia = await extract_detail('Freguesia:')
-        
+
         area_priv = await extract_area('Área Privativa:')
         area_dep = await extract_area('Área Dependente:')
         area_total = await extract_area('Área Total:')
-        
+
         return EventDetails(
             tipo=tipo,
             subtipo=subtipo,
@@ -255,75 +677,91 @@ class EventScraper:
             freguesia=freguesia
         )
     
-    async def _extract_movel_details(self, page: Page) -> EventDetails:
-        """Extrai detalhes SIMPLIFICADOS do MÓVEL (automóvel) via DOM"""
-        
-        async def extract_detail(label: str) -> str:
+    async def _extract_movel_details(
+        self,
+        page: Page,
+        distrito: Optional[str] = None,
+        concelho: Optional[str] = None,
+        freguesia: Optional[str] = None
+    ) -> EventDetails:
+        """Extrai detalhes do MÓVEL (automóvel) via DOM"""
+
+        async def extract_detail(label: str) -> Optional[str]:
             """Extrai valor de um campo específico"""
             try:
                 spans = await page.query_selector_all('.flex.w-full .font-semibold')
-                
+
                 for span in spans:
                     text = await span.text_content()
                     if text and text.strip() == label:
                         next_el = await span.evaluate_handle('el => el.nextElementSibling')
                         if next_el:
                             value = await next_el.text_content()
-                            return value.strip() if value else "N/A"
-                
-                return "N/A"
+                            return value.strip() if value else None
+
+                return None
             except:
-                return "N/A"
-        
-        # Extrai apenas os 3 campos necessários para móveis
+                return None
+
+        # Extrai campos básicos
         tipo = await extract_detail('Tipo:')
         subtipo = await extract_detail('Subtipo:')
         matricula = await extract_detail('Matrícula:')
-        
+
         return EventDetails(
             tipo=tipo,
             subtipo=subtipo,
-            matricula=matricula
+            matricula=matricula,
+            distrito=distrito,
+            concelho=concelho,
+            freguesia=freguesia
         )
     
     async def scrape_all_events(self, max_pages: Optional[int] = None) -> List[EventData]:
         """
         Scrape TODOS os eventos (IMOVEIS + MOVEIS) do site
-        
+
         Args:
             max_pages: Máximo de páginas para processar POR TIPO (None = todas)
-            
+
         Returns:
             Lista com todos os eventos
         """
         self.is_running = True
+        self.stop_requested = False
         self.started_at = datetime.utcnow()
         self.events_processed = 0
         self.events_failed = 0
-        
+
         all_events = []
-        
+
         await self.init_browser()
-        
+
         try:
             # 1. SCRAPE IMOVEIS (tipo=1)
-            print("🏠 Iniciando scraping de IMÓVEIS...")
-            imoveis = await self._scrape_by_type(tipo=1, max_pages=max_pages)
-            all_events.extend(imoveis)
-            print(f"✅ Imóveis recolhidos: {len(imoveis)}")
-            
+            if not self.stop_requested:
+                print("🏠 Iniciando scraping de IMÓVEIS...")
+                imoveis = await self._scrape_by_type(tipo=1, max_pages=max_pages)
+                all_events.extend(imoveis)
+                print(f"✅ Imóveis recolhidos: {len(imoveis)}")
+
             # 2. SCRAPE MOVEIS (tipo=2)
-            print("🚗 Iniciando scraping de MÓVEIS...")
-            moveis = await self._scrape_by_type(tipo=2, max_pages=max_pages)
-            all_events.extend(moveis)
-            print(f"✅ Móveis recolhidos: {len(moveis)}")
-            
-            print(f"🎉 Total de eventos: {len(all_events)}")
-            
+            if not self.stop_requested:
+                print("🚗 Iniciando scraping de MÓVEIS...")
+                moveis = await self._scrape_by_type(tipo=2, max_pages=max_pages)
+                all_events.extend(moveis)
+                print(f"✅ Móveis recolhidos: {len(moveis)}")
+
+            if self.stop_requested:
+                print(f"⚠️ Scraping interrompido pelo utilizador. Total processado: {len(all_events)}")
+            else:
+                print(f"🎉 Total de eventos: {len(all_events)}")
+
             return all_events
-            
+
         finally:
             self.is_running = False
+            self.stop_requested = False
     
     async def _scrape_by_type(self, tipo: int, max_pages: Optional[int] = None) -> List[EventData]:
         """
@@ -340,27 +778,33 @@ class EventScraper:
         
         # FASE 2: Página individual (paralelo)
         all_events = []
-        
+
         for i in range(0, len(events_preview), self.concurrent):
+            # Verifica se foi solicitada paragem
+            if self.stop_requested:
+                print(f"🛑 Scraping interrompido na página {self.current_page}")
+                break
+
             batch = events_preview[i:i + self.concurrent]
-            
+
             tasks = [
-                self._scrape_event_details(preview, tipo_nome) 
+                self._scrape_event_details(preview, tipo_nome)
                 for preview in batch
             ]
             results = await asyncio.gather(*tasks, return_exceptions=True)
-            
+
             for result in results:
                 if isinstance(result, EventData):
                     all_events.append(result)
                     self.events_processed += 1
+                    self.last_update = datetime.utcnow()
                 else:
                     self.events_failed += 1
                     print(f"⚠️ Erro: {result}")
-            
+
             print(f"📊 Processados: {self.events_processed} eventos {tipo_nome}")
             await asyncio.sleep(self.delay)
-        
+
         return all_events
     
     async def _extract_from_listing(self, tipo: int, max_pages: Optional[int]) -> List[dict]:
@@ -382,8 +826,13 @@ class EventScraper:
             first_offset = 0  # Offset inicial
             
             while True:
+                # Verifica se foi solicitada paragem
+                if self.stop_requested:
+                    print(f"🛑 Scraping da listagem interrompido")
+                    break
+
                 self.current_page = page_num + 1  # Para display (página 1, 2, 3...)
-                
+
                 # Navega para página de listagem com offset correto
                 # https://www.e-leiloes.pt/eventos?layout=grid&first=0&sort=dataFimAsc&tipo=1
                 url = f"https://www.e-leiloes.pt/eventos?layout=grid&first={first_offset}&sort=dataFimAsc&tipo={tipo}"
@@ -624,3 +1073,355 @@ class EventScraper:
             started_at=self.started_at,
             last_update=self.last_update
         )
+
+    # ============== MULTI-STAGE SCRAPING ==============
+    # Stage 1: Scrape apenas IDs
+    # Stage 2: Scrape detalhes por ID
+    # Stage 3: Scrape imagens por ID
+
+    async def scrape_ids_only(self, tipo: Optional[int] = None, max_pages: Optional[int] = None) -> List[dict]:
+        """
+        STAGE 1: Scrape apenas referências e valores básicos da listagem (rápido).
+
+        Args:
+            tipo: 1=imoveis, 2=moveis, None=ambos
+            max_pages: Máximo de páginas por tipo
+
+        Returns:
+            Lista de dicts: [{reference, tipo_evento, valores}, ...]
+        """
+        await self.init_browser()
+
+        all_ids = []
+
+        try:
+            if tipo is None:
+                # Scrape ambos os tipos
+                print("🆔 Stage 1: Scraping IDs de IMÓVEIS...")
+                imoveis_ids = await self._extract_from_listing(tipo=1, max_pages=max_pages)
+                for item in imoveis_ids:
+                    item['tipo_evento'] = 'imovel'
+                all_ids.extend(imoveis_ids)
+
+                print("🆔 Stage 1: Scraping IDs de MÓVEIS...")
+                moveis_ids = await self._extract_from_listing(tipo=2, max_pages=max_pages)
+                for item in moveis_ids:
+                    item['tipo_evento'] = 'movel'
+                all_ids.extend(moveis_ids)
+            else:
+                # Scrape tipo específico
+                tipo_nome = "IMÓVEIS" if tipo == 1 else "MÓVEIS"
+                print(f"🆔 Stage 1: Scraping IDs de {tipo_nome}...")
+                ids = await self._extract_from_listing(tipo=tipo, max_pages=max_pages)
+                tipo_evento = 'imovel' if tipo == 1 else 'movel'
+                for item in ids:
+                    item['tipo_evento'] = tipo_evento
+                all_ids.extend(ids)
+
+            print(f"✅ Stage 1 completo: {len(all_ids)} IDs recolhidos")
+            return all_ids
+
+        except Exception as e:
+            print(f"❌ Erro no Stage 1: {e}")
+            raise
+
+    async def scrape_details_by_ids(
+        self,
+        references: List[str],
+        on_event_scraped: Optional[Callable[[EventData], Awaitable[None]]] = None
+    ) -> List[EventData]:
+        """
+        STAGE 2: Scrape detalhes completos (SEM imagens) para lista de referências.
+
+        Args:
+            references: Lista de referências (ex: ["LO-2024-001", "NP-2024-002"])
+            on_event_scraped: Callback async chamado para cada evento scraped (inserção em tempo real)
+
+        Returns:
+            Lista de EventData (sem imagens)
+        """
+        await self.init_browser()
+
+        events = []
+        failed = []
+
+        print(f"📋 Stage 2: Scraping detalhes de {len(references)} eventos...")
+
+        # Processa em batches paralelos
+        for i in range(0, len(references), self.concurrent):
+            batch = references[i:i + self.concurrent]
+
+            tasks = []
+            for ref in batch:
+                # Determina tipo baseado no prefixo
+                tipo_evento = "imovel" if ref.startswith("LO") or ref.startswith("NP") else "imovel"
+
+                # Cria preview fake (valores virão da página)
+                preview = {
+                    'reference': ref,
+                    'valores': ValoresLeilao()
+                }
+
+                tasks.append(self._scrape_event_details_no_images(preview, tipo_evento))
+
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+
+            for idx, result in enumerate(results):
+                if isinstance(result, EventData):
+                    events.append(result)
+                    print(f"  ✓ {batch[idx]}")
+
+                    # 🔥 INSERÇÃO EM TEMPO REAL via callback
+                    if on_event_scraped:
+                        try:
+                            await on_event_scraped(result)
+                        except Exception as e:
+                            print(f"  ⚠️ Erro ao salvar {batch[idx]}: {e}")
+                else:
+                    failed.append(batch[idx])
+                    print(f"  ✗ {batch[idx]}: {str(result)[:50]}")
+
+            await asyncio.sleep(self.delay)
+
+        print(f"✅ Stage 2 completo: {len(events)} eventos / {len(failed)} falhas")
+        return events
+
+    async def _scrape_event_details_no_images(self, preview: dict, tipo_evento: str) -> EventData:
+        """
+        Scrape detalhes de um evento SEM extrair imagens (mais rápido).
+        Similar a _scrape_event_details mas pula a galeria.
+        """
+        reference = preview['reference']
+        valores_listagem = preview['valores']
+
+        url = f"https://www.e-leiloes.pt/evento/{reference}"
+
+        context = await self.browser.new_context(
+            user_agent=self.user_agent,
+            viewport={'width': 1920, 'height': 1080}
+        )
+
+        page = await context.new_page()
+
+        try:
+            await page.goto(url, wait_until="networkidle", timeout=15000)
+            await asyncio.sleep(1.5)
+
+            # Extrai datas
+            data_inicio, data_fim = await self._extract_dates(page)
+
+            # Extrai localização UMA VEZ (GPS + Distrito/Concelho/Freguesia)
+            gps, distrito, concelho, freguesia = await self._extract_localizacao(page)
+
+            # Detalhes - extrai AMBOS os tipos para detetar automaticamente
+            detalhes_imovel = await self._extract_imovel_details(page, distrito, concelho, freguesia)
+            detalhes_movel = await self._extract_movel_details(page, distrito, concelho, freguesia)
+
+            # DETECÇÃO AUTOMÁTICA: Se tem matrícula, marca, modelo, etc → é móvel
+            # Se tem tipologia, área, distrito, etc → é imóvel
+            is_movel = (
+                detalhes_movel.matricula is not None or
+                "veículo" in (detalhes_movel.tipo or "").lower() or
+                "veiculo" in (detalhes_movel.tipo or "").lower() or
+                "ligeiro" in (detalhes_movel.tipo or "").lower() or
+                "pesado" in (detalhes_movel.tipo or "").lower() or
+                "motociclo" in (detalhes_movel.tipo or "").lower()
+            )
+
+            # Define o tipo correto
+            if is_movel:
+                tipo_evento = "movel"
+                detalhes = detalhes_movel
+                gps = None  # Móveis não têm GPS (só têm distrito/concelho/freguesia)
+            else:
+                tipo_evento = "imovel"
+                detalhes = detalhes_imovel
+                # GPS já foi extraído acima
+
+            # Valores
+            valores_pagina = await self._extract_valores_from_page(page)
+            valores_final = ValoresLeilao(
+                valorBase=valores_pagina.valorBase or valores_listagem.valorBase,
+                valorAbertura=valores_pagina.valorAbertura or valores_listagem.valorAbertura,
+                valorMinimo=valores_pagina.valorMinimo or valores_listagem.valorMinimo,
+                lanceAtual=valores_pagina.lanceAtual or valores_listagem.lanceAtual
+            )
+
+            # Textos e informações (SEM IMAGENS) - com safeguard para None
+            descricao = await self._extract_descricao(page)
+            observacoes = await self._extract_observacoes(page)
+            onuselimitacoes = await self._extract_onus_limitacoes(page)
+            descricao_predial = await self._extract_descricao_predial(page)
+            cerimonia = await self._extract_cerimonia(page)
+            agente = await self._extract_agente(page)
+            dados_processo = await self._extract_dados_processo(page)
+
+            # SAFEGUARD: Garante que tudo é None se vazio
+            try:
+                return EventData(
+                    reference=reference,
+                    tipoEvento=tipo_evento,
+                    valores=valores_final,
+                    gps=gps,
+                    detalhes=detalhes,
+                    dataInicio=data_inicio,
+                    dataFim=data_fim,
+                    imagens=[],  # VAZIO - Stage 3 preenche isto
+                    descricao=descricao,
+                    observacoes=observacoes,
+                    onuselimitacoes=onuselimitacoes,
+                    descricaoPredial=descricao_predial,
+                    cerimoniaEncerramento=cerimonia,
+                    agenteExecucao=agente,
+                    dadosProcesso=dados_processo,
+                    scraped_at=datetime.utcnow()
+                )
+            except Exception as e:
+                print(f"❌ Erro validação EventData para {reference}: {e}")
+                raise
+
+        finally:
+            await page.close()
+            await context.close()
+
+    async def scrape_images_by_ids(
+        self,
+        references: List[str],
+        on_images_scraped: Optional[Callable[[str, List[str]], Awaitable[None]]] = None
+    ) -> dict:
+        """
+        STAGE 3: Scrape apenas imagens para lista de referências.
+
+        Args:
+            references: Lista de referências
+            on_images_scraped: Callback async chamado para cada ref com imagens (inserção em tempo real)
+
+        Returns:
+            Dict: {reference: [image_urls], ...}
+        """
+        await self.init_browser()
+
+        images_map = {}
+        failed = []
+
+        print(f"🖼️ Stage 3: Scraping imagens de {len(references)} eventos...")
+
+        # Processa em batches paralelos
+        for i in range(0, len(references), self.concurrent):
+            batch = references[i:i + self.concurrent]
+
+            tasks = [self._scrape_images_only(ref) for ref in batch]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+
+            for idx, result in enumerate(results):
+                ref = batch[idx]
+                if isinstance(result, list):
+                    images_map[ref] = result
+                    print(f"  ✓ {ref}: {len(result)} imagens")
+
+                    # 🔥 INSERÇÃO EM TEMPO REAL via callback
+                    if on_images_scraped:
+                        try:
+                            await on_images_scraped(ref, result)
+                        except Exception as e:
+                            print(f"  ⚠️ Erro ao atualizar imagens {ref}: {e}")
+                else:
+                    images_map[ref] = []
+                    failed.append(ref)
+                    print(f"  ✗ {ref}: {str(result)[:50]}")
+
+            await asyncio.sleep(self.delay)
+
+        print(f"✅ Stage 3 completo: {len(images_map)} eventos / {len(failed)} falhas")
+        return images_map
+
+    async def _scrape_images_only(self, reference: str) -> List[str]:
+        """Scrape apenas as imagens de um evento usando interceptação de requests"""
+        url = f"https://www.e-leiloes.pt/evento/{reference}"
+
+        # Lista para coletar URLs de imagens interceptadas
+        intercepted_images = []
+        verba_folder = None  # 🔥 Vamos determinar o folder correto
+
+        context = await self.browser.new_context(
+            user_agent=self.user_agent,
+            viewport={'width': 1920, 'height': 1080}
+        )
+
+        page = await context.new_page()
+
+        # 🔥 INTERCEPTA requests de imagens da API
+        async def handle_route(route):
+            nonlocal verba_folder
+            request = route.request
+            img_url = request.url
+
+            # Intercepta chamadas para Verbas_Fotos/verba_X/
+            if 'Verbas_Fotos/verba_' in img_url and img_url.endswith(('.jpg', '.jpeg', '.png', '.webp')):
+
+                # Extrai o folder verba (ex: "verba_121561")
+                match = re.search(r'(verba_\d+)', img_url)
+                if match:
+                    folder = match.group(1)
+
+                    # 🎯 Se ainda não determinamos o folder, usa o primeiro
+                    if verba_folder is None:
+                        verba_folder = folder
+                        print(f"    🎯 Folder detectado: {verba_folder}")
+
+                    # ✅ SÓ adiciona imagens do folder CORRETO
+                    if folder == verba_folder:
+                        if img_url not in intercepted_images:
+                            intercepted_images.append(img_url)
+                            print(f"    📸 {len(intercepted_images)}: {img_url.split('/')[-1]}")
+                    else:
+                        # ❌ Ignora imagens de outros folders
+                        print(f"    ⏭️  Ignorado (folder diferente): {folder}")
+
+            # Continua com o request normal
+            await route.continue_()
+
+        # Ativa a interceptação
+        await page.route("**/*", handle_route)
+
+        try:
+            await page.goto(url, wait_until="networkidle", timeout=15000)
+
+            # ===== AGUARDA dinamicamente baseado no contador de imagens =====
+            try:
+                footer_selector = '.custom-galleria-footer, .p-galleria-footer, .better-image-badge'
+                await page.wait_for_selector(footer_selector, timeout=2000)
+
+                footer = await page.query_selector(footer_selector)
+                if footer:
+                    footer_text = await footer.inner_text()
+                    print(f"    📊 Contador: {footer_text}")
+
+                    # Parse "X/Y" ou "📷 Y"
+                    match = re.search(r'(\d+)/(\d+)|📷\s*(\d+)', footer_text)
+                    if match:
+                        total_images = int(match.group(2) if match.group(2) else match.group(3))
+                        wait_time = (total_images * 2.5) + 1
+                        print(f"    ⏳ Aguardando {wait_time:.1f}s para {total_images} imagens...")
+                        await asyncio.sleep(wait_time)
+                    else:
+                        await asyncio.sleep(3)
+                else:
+                    await asyncio.sleep(2)
+            except Exception as e:
+                print(f"    ⚠️ Erro ao detectar contador: {e}")
+                await asyncio.sleep(2)
+
+            # Se interceptamos imagens, retorna essas
+            if intercepted_images:
+                print(f"    ✅ {len(intercepted_images)} imagens de {verba_folder}")
+                return intercepted_images
+
+            # Fallback: usa método DOM (caso a interceptação falhe)
+            print(f"    ⚠️ Nenhuma imagem interceptada, tentando fallback DOM...")
+            images = await self._extract_gallery(page)
+            return images
+
+        finally:
+            await page.close()
+            await context.close()
