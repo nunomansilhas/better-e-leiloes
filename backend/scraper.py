@@ -1494,27 +1494,49 @@ class EventScraper:
             # Verifica se evento foi CANCELADO ou TERMINADO
             body_text = await page.text_content('body')
 
+            # === EVENTO CANCELADO ===
             if 'Este leilão online foi' in body_text and 'cancelado' in body_text.lower():
-                print(f"  🚫 {reference}: CANCELADO")
+                # Tenta extrair lance_atual mesmo assim
+                valores = await self._extract_valores_from_page(page)
+                print(f"  🚫 {reference}: CANCELADO (lance: {valores.lanceAtual}€)")
                 return {
                     "reference": reference,
                     "ended": True,
-                    "reason": "cancelado"
+                    "reason": "cancelado",
+                    "data_fim": None,  # Manter existente
+                    "lance_atual": valores.lanceAtual  # Pode ser None
                 }
 
+            # === EVENTO TERMINADO ===
             if 'Este leilão online terminou em' in body_text:
-                # Extrai data de fim do texto
-                match = re.search(r'terminou em.*?(\d{2}/\d{2}/\d{4}\s+\d{2}:\d{2}:\d{2})', body_text)
-                end_date = match.group(1) if match else "desconhecido"
-                print(f"  ✅ {reference}: TERMINADO em {end_date}")
+                # Extrai data de fim do texto "terminou em 17/12/2025 11:21:50"
+                match = re.search(r'terminou em.*?<b[^>]*>(\d{2}/\d{2}/\d{4}\s+\d{2}:\d{2}:\d{2})', body_text)
+                if not match:
+                    # Tenta sem tags HTML
+                    match = re.search(r'terminou em[^0-9]*(\d{2}/\d{2}/\d{4}\s+\d{2}:\d{2}:\d{2})', body_text)
+
+                data_fim_parsed = None
+                if match:
+                    date_str = match.group(1)
+                    try:
+                        # Parse "17/12/2025 11:21:50" para datetime
+                        data_fim_parsed = datetime.strptime(date_str, "%d/%m/%Y %H:%M:%S")
+                    except ValueError:
+                        print(f"    ⚠️ Erro ao parsear data: {date_str}")
+
+                # Tenta extrair lance_atual mesmo assim
+                valores = await self._extract_valores_from_page(page)
+
+                print(f"  ✅ {reference}: TERMINADO em {data_fim_parsed} (lance: {valores.lanceAtual}€)")
                 return {
                     "reference": reference,
                     "ended": True,
                     "reason": "terminado",
-                    "end_date": end_date
+                    "data_fim": data_fim_parsed,  # Data extraída do texto
+                    "lance_atual": valores.lanceAtual  # Pode ser None
                 }
 
-            # Evento ainda ativo - extrai dados voláteis
+            # === EVENTO AINDA ATIVO ===
             data_inicio, data_fim = await self._extract_dates(page)
             valores = await self._extract_valores_from_page(page)
 
@@ -1522,7 +1544,7 @@ class EventScraper:
                 "reference": reference,
                 "data_fim": data_fim,
                 "data_inicio": data_inicio,
-                "lance_atual": valores.lanceAtual,
+                "lance_atual": valores.lanceAtual,  # Pode ser None se não encontrou
                 "valor_base": valores.valorBase,
                 "valor_abertura": valores.valorAbertura,
                 "valor_minimo": valores.valorMinimo,
