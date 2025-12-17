@@ -638,19 +638,74 @@
             width: 0%;
         }
 
+        /* Auto Pipeline Grid - Responsive */
+        .auto-pipeline-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 12px;
+        }
+
+        @media (min-width: 1200px) {
+            .auto-pipeline-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
+        @media (min-width: 900px) and (max-width: 1199px) {
+            .auto-pipeline-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (min-width: 600px) and (max-width: 899px) {
+            .auto-pipeline-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
         /* Auto Pipeline Items */
         .auto-pipeline-item {
-            padding: 16px;
+            padding: 14px;
             background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
             border-radius: 12px;
             border: 1px solid #e2e8f0;
             transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            min-height: 100px;
         }
 
         .auto-pipeline-item:hover {
             background: linear-gradient(135deg, #f1f5f9 0%, #e0e7ff 100%);
             border-color: #c7d2fe;
-            transform: translateX(2px);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .auto-pipeline-item .pipeline-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
+        .auto-pipeline-item .pipeline-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .auto-pipeline-item .pipeline-title {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 4px;
+            flex-wrap: wrap;
+        }
+
+        .auto-pipeline-item .pipeline-desc {
+            font-size: 11px;
+            color: #64748b;
+            line-height: 1.3;
         }
 
         /* Toggle Switch */
@@ -1753,121 +1808,116 @@
                         <span style="font-size: 12px; color: #64748b;">Agendamento automático de scrapers</span>
                     </div>
 
-                    <div style="display: grid; gap: 12px;">
-                        <!-- Pipeline Automática -->
-                        <div class="auto-pipeline-item">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <div style="flex: 1;">
-                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-                                        <span style="font-size: 18px;">🤖</span>
-                                        <span style="font-weight: 600; color: #1e293b;">Pipeline Automática</span>
-                                    </div>
-                                    <div style="font-size: 12px; color: #64748b; margin-left: 26px;">
-                                        Recolhe novos IDs, conteúdos e imagens • A cada 8 horas
-                                    </div>
-                                </div>
-                                <label class="toggle-switch">
-                                    <input type="checkbox" id="auto-pipeline-full" onchange="toggleAutoPipeline('full', this.checked)">
-                                    <span class="toggle-slider"></span>
-                                </label>
-                            </div>
-                            <div id="auto-pipeline-full-status" style="font-size: 11px; color: #94a3b8; margin-left: 26px; margin-top: 6px; display: none;">
-                                <span class="status-indicator"></span>
-                                <span class="status-text"></span>
-                            </div>
-                        </div>
-
-                        <!-- Pipeline X-Critical - Verificação de Preços (< 5 min) -->
+                    <div class="auto-pipeline-grid">
+                        <!-- Pipeline X-Critical (< 5 min) -->
                         <div class="auto-pipeline-item" style="background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border: 2px solid #fca5a5;">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <div style="flex: 1;">
-                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-                                        <span style="font-size: 18px;">🔴</span>
-                                        <span style="font-weight: 600; color: #dc2626;">Pipeline X-Critical</span>
-                                        <span style="font-size: 10px; background: #dc2626; color: white; padding: 2px 6px; border-radius: 4px; font-weight: 700;">< 5 MIN</span>
+                            <div class="pipeline-header">
+                                <div class="pipeline-info">
+                                    <div class="pipeline-title">
+                                        <span style="font-size: 16px;">🔴</span>
+                                        <span style="font-weight: 600; color: #dc2626; font-size: 13px;">X-Critical</span>
+                                        <span style="font-size: 9px; background: #dc2626; color: white; padding: 1px 5px; border-radius: 3px; font-weight: 700;">< 5 MIN</span>
                                     </div>
-                                    <div style="font-size: 12px; color: #991b1b; margin-left: 26px; font-weight: 500;">
-                                        A cada 5 SEGUNDOS • Eventos < 5 minutos
+                                    <div class="pipeline-desc" style="color: #991b1b;">
+                                        5 segundos • Eventos a terminar
                                     </div>
                                 </div>
-                                <label class="toggle-switch">
+                                <label class="toggle-switch" style="transform: scale(0.85);">
                                     <input type="checkbox" id="auto-pipeline-prices" onchange="toggleAutoPipeline('prices', this.checked)">
                                     <span class="toggle-slider"></span>
                                 </label>
                             </div>
-                            <div id="auto-pipeline-prices-status" style="font-size: 11px; color: #dc2626; margin-left: 26px; margin-top: 6px; display: none; font-weight: 500;">
-                                <span class="status-indicator"></span>
+                            <div id="auto-pipeline-prices-status" style="font-size: 10px; color: #dc2626; margin-top: 8px; display: none; font-weight: 500;">
                                 <span class="status-text"></span>
                             </div>
                         </div>
 
-                        <!-- Pipeline X-Urgent - Verificação de Preços (< 1 hora) -->
+                        <!-- Pipeline X-Urgent (< 1 hora) -->
                         <div class="auto-pipeline-item" style="background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%); border: 2px solid #fdba74;">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <div style="flex: 1;">
-                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-                                        <span style="font-size: 18px;">🟠</span>
-                                        <span style="font-weight: 600; color: #ea580c;">Pipeline X-Urgent</span>
-                                        <span style="font-size: 10px; background: #ea580c; color: white; padding: 2px 6px; border-radius: 4px; font-weight: 700;">< 1 HORA</span>
+                            <div class="pipeline-header">
+                                <div class="pipeline-info">
+                                    <div class="pipeline-title">
+                                        <span style="font-size: 16px;">🟠</span>
+                                        <span style="font-weight: 600; color: #ea580c; font-size: 13px;">X-Urgent</span>
+                                        <span style="font-size: 9px; background: #ea580c; color: white; padding: 1px 5px; border-radius: 3px; font-weight: 700;">< 1H</span>
                                     </div>
-                                    <div style="font-size: 12px; color: #9a3412; margin-left: 26px; font-weight: 500;">
-                                        A cada 1 MINUTO • Eventos < 1 hora
+                                    <div class="pipeline-desc" style="color: #9a3412;">
+                                        1 minuto • Eventos < 1 hora
                                     </div>
                                 </div>
-                                <label class="toggle-switch">
+                                <label class="toggle-switch" style="transform: scale(0.85);">
                                     <input type="checkbox" id="auto-pipeline-prices_urgent" onchange="toggleAutoPipeline('prices_urgent', this.checked)">
                                     <span class="toggle-slider"></span>
                                 </label>
                             </div>
-                            <div id="auto-pipeline-prices_urgent-status" style="font-size: 11px; color: #ea580c; margin-left: 26px; margin-top: 6px; display: none; font-weight: 500;">
-                                <span class="status-indicator"></span>
+                            <div id="auto-pipeline-prices_urgent-status" style="font-size: 10px; color: #ea580c; margin-top: 8px; display: none; font-weight: 500;">
                                 <span class="status-text"></span>
                             </div>
                         </div>
 
-                        <!-- Pipeline X-Soon - Verificação de Preços (< 24 horas) -->
+                        <!-- Pipeline X-Soon (< 24 horas) -->
                         <div class="auto-pipeline-item" style="background: linear-gradient(135deg, #fefce8 0%, #fef9c3 100%); border: 2px solid #facc15;">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <div style="flex: 1;">
-                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-                                        <span style="font-size: 18px;">🟡</span>
-                                        <span style="font-weight: 600; color: #ca8a04;">Pipeline X-Soon</span>
-                                        <span style="font-size: 10px; background: #ca8a04; color: white; padding: 2px 6px; border-radius: 4px; font-weight: 700;">< 24H</span>
+                            <div class="pipeline-header">
+                                <div class="pipeline-info">
+                                    <div class="pipeline-title">
+                                        <span style="font-size: 16px;">🟡</span>
+                                        <span style="font-weight: 600; color: #ca8a04; font-size: 13px;">X-Soon</span>
+                                        <span style="font-size: 9px; background: #ca8a04; color: white; padding: 1px 5px; border-radius: 3px; font-weight: 700;">< 24H</span>
                                     </div>
-                                    <div style="font-size: 12px; color: #854d0e; margin-left: 26px; font-weight: 500;">
-                                        A cada 10 MINUTOS • Eventos < 24 horas
+                                    <div class="pipeline-desc" style="color: #854d0e;">
+                                        10 minutos • Eventos < 24 horas
                                     </div>
                                 </div>
-                                <label class="toggle-switch">
+                                <label class="toggle-switch" style="transform: scale(0.85);">
                                     <input type="checkbox" id="auto-pipeline-prices_soon" onchange="toggleAutoPipeline('prices_soon', this.checked)">
                                     <span class="toggle-slider"></span>
                                 </label>
                             </div>
-                            <div id="auto-pipeline-prices_soon-status" style="font-size: 11px; color: #ca8a04; margin-left: 26px; margin-top: 6px; display: none; font-weight: 500;">
-                                <span class="status-indicator"></span>
+                            <div id="auto-pipeline-prices_soon-status" style="font-size: 10px; color: #ca8a04; margin-top: 8px; display: none; font-weight: 500;">
                                 <span class="status-text"></span>
                             </div>
                         </div>
 
-                        <!-- Pipeline Y - Verificação de Informações -->
+                        <!-- Pipeline Y - Info -->
                         <div class="auto-pipeline-item">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <div style="flex: 1;">
-                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-                                        <span style="font-size: 18px;">🔄</span>
-                                        <span style="font-weight: 600; color: #1e293b;">Pipeline Y - Info</span>
+                            <div class="pipeline-header">
+                                <div class="pipeline-info">
+                                    <div class="pipeline-title">
+                                        <span style="font-size: 16px;">🔄</span>
+                                        <span style="font-weight: 600; color: #1e293b; font-size: 13px;">Y-Info</span>
                                     </div>
-                                    <div style="font-size: 12px; color: #64748b; margin-left: 26px;">
-                                        Verifica preços e datas de TODOS os eventos • A cada 2 horas
+                                    <div class="pipeline-desc">
+                                        2 horas • Todos os eventos
                                     </div>
                                 </div>
-                                <label class="toggle-switch">
+                                <label class="toggle-switch" style="transform: scale(0.85);">
                                     <input type="checkbox" id="auto-pipeline-info" onchange="toggleAutoPipeline('info', this.checked)">
                                     <span class="toggle-slider"></span>
                                 </label>
                             </div>
-                            <div id="auto-pipeline-info-status" style="font-size: 11px; color: #94a3b8; margin-left: 26px; margin-top: 6px; display: none;">
-                                <span class="status-indicator"></span>
+                            <div id="auto-pipeline-info-status" style="font-size: 10px; color: #94a3b8; margin-top: 8px; display: none;">
+                                <span class="status-text"></span>
+                            </div>
+                        </div>
+
+                        <!-- Pipeline Automática (Full) -->
+                        <div class="auto-pipeline-item">
+                            <div class="pipeline-header">
+                                <div class="pipeline-info">
+                                    <div class="pipeline-title">
+                                        <span style="font-size: 16px;">🤖</span>
+                                        <span style="font-weight: 600; color: #1e293b; font-size: 13px;">Auto-Full</span>
+                                    </div>
+                                    <div class="pipeline-desc">
+                                        8 horas • IDs + Conteúdos + Imagens
+                                    </div>
+                                </div>
+                                <label class="toggle-switch" style="transform: scale(0.85);">
+                                    <input type="checkbox" id="auto-pipeline-full" onchange="toggleAutoPipeline('full', this.checked)">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div id="auto-pipeline-full-status" style="font-size: 10px; color: #94a3b8; margin-top: 8px; display: none;">
                                 <span class="status-text"></span>
                             </div>
                         </div>

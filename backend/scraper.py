@@ -1475,6 +1475,7 @@ class EventScraper:
         """
         Scrape APENAS dataFim e lanceAtual de um único evento.
         Versão ultra-leve - não carrega imagens, detalhes, GPS, etc.
+        Também deteta se o evento foi terminado ou cancelado.
         """
         url = f"https://www.e-leiloes.pt/evento/{reference}"
 
@@ -1490,7 +1491,30 @@ class EventScraper:
             await page.goto(url, wait_until="domcontentloaded", timeout=10000)
             await asyncio.sleep(0.8)  # Breve espera para JS renderizar
 
-            # Extrai APENAS datas e valores
+            # Verifica se evento foi CANCELADO ou TERMINADO
+            body_text = await page.text_content('body')
+
+            if 'Este leilão online foi' in body_text and 'cancelado' in body_text.lower():
+                print(f"  🚫 {reference}: CANCELADO")
+                return {
+                    "reference": reference,
+                    "ended": True,
+                    "reason": "cancelado"
+                }
+
+            if 'Este leilão online terminou em' in body_text:
+                # Extrai data de fim do texto
+                match = re.search(r'terminou em.*?(\d{2}/\d{2}/\d{4}\s+\d{2}:\d{2}:\d{2})', body_text)
+                end_date = match.group(1) if match else "desconhecido"
+                print(f"  ✅ {reference}: TERMINADO em {end_date}")
+                return {
+                    "reference": reference,
+                    "ended": True,
+                    "reason": "terminado",
+                    "end_date": end_date
+                }
+
+            # Evento ainda ativo - extrai dados voláteis
             data_inicio, data_fim = await self._extract_dates(page)
             valores = await self._extract_valores_from_page(page)
 
@@ -1501,7 +1525,8 @@ class EventScraper:
                 "lance_atual": valores.lanceAtual,
                 "valor_base": valores.valorBase,
                 "valor_abertura": valores.valorAbertura,
-                "valor_minimo": valores.valorMinimo
+                "valor_minimo": valores.valorMinimo,
+                "ended": False
             }
 
         except Exception as e:

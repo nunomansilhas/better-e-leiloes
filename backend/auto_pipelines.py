@@ -463,6 +463,13 @@ class AutoPipelinesManager:
                         print(f"  🔒 {ref}: Marcando inativo (scrape falhou)")
                         continue
 
+                    # Se evento terminou ou foi cancelado (detetado pelo scraper)
+                    if new_data.get("ended"):
+                        events_to_deactivate.append(ref)
+                        reason = new_data.get("reason", "desconhecido")
+                        print(f"  🔒 {ref}: Marcando inativo ({reason})")
+                        continue
+
                     old_event = old_events_map.get(ref)
                     if not old_event:
                         continue
@@ -476,7 +483,7 @@ class AutoPipelinesManager:
                     now = datetime.now()
                     if new_end and new_end < now:
                         events_to_deactivate.append(ref)
-                        print(f"  🔒 {ref}: Marcando inativo (terminado)")
+                        print(f"  🔒 {ref}: Marcando inativo (data_fim expirada)")
                         continue
 
                     price_changed = old_price != new_price
