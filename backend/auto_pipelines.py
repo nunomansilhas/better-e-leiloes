@@ -294,10 +294,14 @@ class AutoPipelinesManager:
 
                 print(f"✅ Full Auto-Pipeline completed: {len(ids)} total, {len(new_refs)} processed")
 
-                # Update last run
+                # Update last run and next run
                 pipeline = self.pipelines['full']
-                pipeline.last_run = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                now = datetime.now()
+                pipeline.last_run = now.strftime("%Y-%m-%d %H:%M:%S")
                 pipeline.runs_count += 1
+                # Calculate next run time
+                next_run_time = now + timedelta(hours=pipeline.interval_hours)
+                pipeline.next_run = next_run_time.strftime("%Y-%m-%d %H:%M:%S")
                 self._save_config()
 
             finally:
@@ -414,10 +418,14 @@ class AutoPipelinesManager:
                 if updated_count > 0:
                     print(f"  ✅ {updated_count} events updated, {time_extended_count} timer resets")
 
-                # Update pipeline stats
+                # Update pipeline stats and next run
                 pipeline = self.pipelines['prices']
-                pipeline.last_run = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                now = datetime.now()
+                pipeline.last_run = now.strftime("%Y-%m-%d %H:%M:%S")
                 pipeline.runs_count += 1
+                # Calculate next run time (5 seconds from now)
+                next_run_time = now + timedelta(hours=pipeline.interval_hours)
+                pipeline.next_run = next_run_time.strftime("%Y-%m-%d %H:%M:%S")
                 self._save_config()
 
             finally:
@@ -501,10 +509,14 @@ class AutoPipelinesManager:
 
                 print(f"  ✅ Info verification complete: {updated_count} events updated, {errors_count} errors")
 
-                # Update pipeline stats
+                # Update pipeline stats and next run
                 pipeline = self.pipelines['info']
-                pipeline.last_run = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                now = datetime.now()
+                pipeline.last_run = now.strftime("%Y-%m-%d %H:%M:%S")
                 pipeline.runs_count += 1
+                # Calculate next run time
+                next_run_time = now + timedelta(hours=pipeline.interval_hours)
+                pipeline.next_run = next_run_time.strftime("%Y-%m-%d %H:%M:%S")
                 self._save_config()
 
             finally:
