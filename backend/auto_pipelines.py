@@ -542,18 +542,20 @@ class AutoPipelinesManager:
 
                 # Batch UPDATE na BD
                 async with get_db() as db:
-                    # Atualiza valores finais de eventos que vão ser desativados
+                    # Finaliza eventos terminados/cancelados (atualiza valores + ativo=0 + updated_at)
                     if ended_updates:
-                        await db.bulk_update_volatile_fields(ended_updates)
+                        finalized = await db.finalize_ended_events(ended_updates)
+                        print(f"  🔒 {finalized} eventos finalizados (ativo=0)")
+
+                    # Marca eventos sem updates como inativos (só scrape falhou ou data expirada)
+                    refs_without_updates = [ref for ref in events_to_deactivate if ref not in [u.get("reference") for u in ended_updates]]
+                    if refs_without_updates:
+                        deactivated = await db.bulk_mark_events_inactive(refs_without_updates)
+                        print(f"  🔒 {deactivated} eventos marcados como inativos")
 
                     # Atualiza eventos ativos
                     if updates:
                         await db.bulk_update_volatile_fields(updates)
-
-                    # Marca eventos como inativos
-                    if events_to_deactivate:
-                        deactivated = await db.bulk_mark_events_inactive(events_to_deactivate)
-                        print(f"  🔒 {deactivated} eventos marcados como inativos")
 
                 if updated_count > 0 or events_to_deactivate:
                     print(f"  ✅ {updated_count} updated, {time_extended_count} timer resets, {len(events_to_deactivate)} inativos")
@@ -710,27 +712,76 @@ class AutoPipelinesManager:
                 updates = []
                 updated_count = 0
                 time_extended_count = 0
+                events_to_deactivate = []  # Eventos terminados/vendidos
+                ended_updates = []  # Updates para eventos que vão ser desativados
                 old_events_map = {e.reference: e for e in events}
 
                 for new_data in volatile_data:
                     ref = new_data.get("reference")
-                    if not ref or "error" in new_data:
+                    if not ref:
                         continue
 
                     old_event = old_events_map.get(ref)
+
+                    # Se scrape falhou (evento removido/vendido), marcar para desativar
+                    if "error" in new_data:
+                        events_to_deactivate.append(ref)
+                        print(f"  🔒 {ref}: Marcando inativo (scrape falhou)")
+                        continue
+
+                    # Se evento terminou ou foi cancelado (detetado pelo scraper)
+                    if new_data.get("ended"):
+                        reason = new_data.get("reason", "desconhecido")
+                        new_price = new_data.get("lance_atual")
+                        new_end = new_data.get("data_fim")
+
+                        # Prepara update para valores finais antes de desativar
+                        update_data = {"reference": ref}
+
+                        # Atualiza lance_atual se obtivemos um valor válido
+                        if new_price is not None and new_price > 0:
+                            old_price = old_event.valores.lanceAtual if old_event else 0
+                            update_data["lance_atual"] = new_price
+                            print(f"  🔒 {ref}: {reason} | lance: {old_price}€ → {new_price}€")
+                        else:
+                            print(f"  🔒 {ref}: {reason}")
+
+                        # Atualiza data_fim se obtivemos uma (só para "terminado")
+                        if new_end is not None:
+                            update_data["data_fim"] = new_end
+
+                        if len(update_data) > 1:  # Tem mais que só reference
+                            ended_updates.append(update_data)
+
+                        events_to_deactivate.append(ref)
+                        continue
+
                     if not old_event:
                         continue
 
                     old_price = old_event.valores.lanceAtual or 0
-                    new_price = new_data.get("lance_atual") or 0
+                    new_price = new_data.get("lance_atual")
                     old_end = old_event.dataFim
                     new_end = new_data.get("data_fim")
 
-                    price_changed = old_price != new_price
+                    # Verifica se evento já terminou (data_fim no passado)
+                    now = datetime.now()
+                    if new_end and new_end < now:
+                        events_to_deactivate.append(ref)
+                        print(f"  🔒 {ref}: Marcando inativo (data_fim expirada)")
+                        continue
+
+                    # VALIDAÇÃO: Só atualiza lance_atual se valor válido
+                    # Não trocar de valor > 0 para 0 (bug de scraping)
+                    price_valid = (
+                        new_price is not None and
+                        (new_price > 0 or old_price == 0)  # Só aceita 0 se já era 0
+                    )
+                    price_changed = price_valid and old_price != new_price
+
                     time_extended = (new_end and old_end and new_end > old_end)
 
                     if price_changed or time_extended:
-                        now = datetime.now()
                         seconds_left = (old_end - now).total_seconds() if old_end else 0
                         minutes = int(seconds_left / 60)
 
@@ -751,10 +802,25 @@ class AutoPipelinesManager:
                         })
                         updated_count += 1
 
-                if updates:
-                    async with get_db() as db:
+                # Batch UPDATE na BD
+                async with get_db() as db:
+                    # Finaliza eventos terminados/cancelados (atualiza valores + ativo=0 + updated_at)
+                    if ended_updates:
+                        finalized = await db.finalize_ended_events(ended_updates)
+                        print(f"  🔒 {finalized} eventos finalizados (ativo=0)")
+
+                    # Marca eventos sem updates como inativos (só scrape falhou ou data expirada)
+                    refs_without_updates = [ref for ref in events_to_deactivate if ref not in [u.get("reference") for u in ended_updates]]
+                    if refs_without_updates:
+                        deactivated = await db.bulk_mark_events_inactive(refs_without_updates)
+                        print(f"  🔒 {deactivated} eventos marcados como inativos")
+
+                    # Atualiza eventos ativos
+                    if updates:
                         await db.bulk_update_volatile_fields(updates)
-                    print(f"  ✅ {updated_count} updated, {time_extended_count} timer resets")
+
+                if updated_count > 0 or events_to_deactivate:
+                    print(f"  ✅ {updated_count} updated, {time_extended_count} timer resets, {len(events_to_deactivate)} inativos")
 
                 pipeline = self.pipelines['prices_urgent']
                 now = datetime.now()
@@ -807,27 +873,76 @@ class AutoPipelinesManager:
                 updates = []
                 updated_count = 0
                 time_extended_count = 0
+                events_to_deactivate = []  # Eventos terminados/vendidos
+                ended_updates = []  # Updates para eventos que vão ser desativados
                 old_events_map = {e.reference: e for e in events}
 
                 for new_data in volatile_data:
                     ref = new_data.get("reference")
-                    if not ref or "error" in new_data:
+                    if not ref:
                         continue
 
                     old_event = old_events_map.get(ref)
+
+                    # Se scrape falhou (evento removido/vendido), marcar para desativar
+                    if "error" in new_data:
+                        events_to_deactivate.append(ref)
+                        print(f"  🔒 {ref}: Marcando inativo (scrape falhou)")
+                        continue
+
+                    # Se evento terminou ou foi cancelado (detetado pelo scraper)
+                    if new_data.get("ended"):
+                        reason = new_data.get("reason", "desconhecido")
+                        new_price = new_data.get("lance_atual")
+                        new_end = new_data.get("data_fim")
+
+                        # Prepara update para valores finais antes de desativar
+                        update_data = {"reference": ref}
+
+                        # Atualiza lance_atual se obtivemos um valor válido
+                        if new_price is not None and new_price > 0:
+                            old_price = old_event.valores.lanceAtual if old_event else 0
+                            update_data["lance_atual"] = new_price
+                            print(f"  🔒 {ref}: {reason} | lance: {old_price}€ → {new_price}€")
+                        else:
+                            print(f"  🔒 {ref}: {reason}")
+
+                        # Atualiza data_fim se obtivemos uma (só para "terminado")
+                        if new_end is not None:
+                            update_data["data_fim"] = new_end
+
+                        if len(update_data) > 1:  # Tem mais que só reference
+                            ended_updates.append(update_data)
+
+                        events_to_deactivate.append(ref)
+                        continue
+
                     if not old_event:
                         continue
 
                     old_price = old_event.valores.lanceAtual or 0
-                    new_price = new_data.get("lance_atual") or 0
+                    new_price = new_data.get("lance_atual")
                     old_end = old_event.dataFim
                     new_end = new_data.get("data_fim")
 
-                    price_changed = old_price != new_price
+                    # Verifica se evento já terminou (data_fim no passado)
+                    now = datetime.now()
+                    if new_end and new_end < now:
+                        events_to_deactivate.append(ref)
+                        print(f"  🔒 {ref}: Marcando inativo (data_fim expirada)")
+                        continue
+
+                    # VALIDAÇÃO: Só atualiza lance_atual se valor válido
+                    # Não trocar de valor > 0 para 0 (bug de scraping)
+                    price_valid = (
+                        new_price is not None and
+                        (new_price > 0 or old_price == 0)  # Só aceita 0 se já era 0
+                    )
+                    price_changed = price_valid and old_price != new_price
+
                     time_extended = (new_end and old_end and new_end > old_end)
 
                     if price_changed or time_extended:
-                        now = datetime.now()
                         seconds_left = (old_end - now).total_seconds() if old_end else 0
                         hours = int(seconds_left / 3600)
                         minutes = int((seconds_left % 3600) / 60)
@@ -849,10 +964,25 @@ class AutoPipelinesManager:
                         })
                         updated_count += 1
 
-                if updates:
-                    async with get_db() as db:
+                # Batch UPDATE na BD
+                async with get_db() as db:
+                    # Finaliza eventos terminados/cancelados (atualiza valores + ativo=0 + updated_at)
+                    if ended_updates:
+                        finalized = await db.finalize_ended_events(ended_updates)
+                        print(f"  🔒 {finalized} eventos finalizados (ativo=0)")
+
+                    # Marca eventos sem updates como inativos (só scrape falhou ou data expirada)
+                    refs_without_updates = [ref for ref in events_to_deactivate if ref not in [u.get("reference") for u in ended_updates]]
+                    if refs_without_updates:
+                        deactivated = await db.bulk_mark_events_inactive(refs_without_updates)
+                        print(f"  🔒 {deactivated} eventos marcados como inativos")
+
+                    # Atualiza eventos ativos
+                    if updates:
                         await db.bulk_update_volatile_fields(updates)
-                    print(f"  ✅ {updated_count} updated, {time_extended_count} timer resets")
+
+                if updated_count > 0 or events_to_deactivate:
+                    print(f"  ✅ {updated_count} updated, {time_extended_count} timer resets, {len(events_to_deactivate)} inativos")
 
                 pipeline = self.pipelines['prices_soon']
                 now = datetime.now()

@@ -414,6 +414,43 @@ class DatabaseManager:
         await self.session.commit()
         return marked_count
 
+    async def finalize_ended_events(self, updates: List[dict]) -> int:
+        """
+        PIPELINE X: Finaliza eventos terminados/cancelados numa só operação.
+        Atualiza lance_atual, data_fim, ativo=False, updated_at de uma vez.
+
+        Formato: [{"reference": "XX", "lance_atual": 1000.0, "data_fim": datetime}, ...]
+
+        Returns:
+            Número de eventos finalizados
+        """
+        finalized_count = 0
+
+        for update in updates:
+            ref = update.get("reference")
+            if not ref:
+                continue
+
+            result = await self.session.execute(
+                select(EventDB).where(EventDB.reference == ref)
+            )
+            existing = result.scalar_one_or_none()
+
+            if existing:
+                # Atualiza valores finais
+                if "lance_atual" in update and update["lance_atual"] is not None:
+                    existing.lance_atual = update["lance_atual"]
+                if "data_fim" in update and update["data_fim"] is not None:
+                    existing.data_fim = update["data_fim"]
+
+                # Marca como inativo
+                existing.ativo = False
+                existing.updated_at = datetime.utcnow()
+                finalized_count += 1
+
+        await self.session.commit()
+        return finalized_count
+
     async def update_volatile_fields(
         self,
         reference: str,
