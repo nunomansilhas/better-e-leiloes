@@ -770,6 +770,7 @@ class AutoPipelinesManager:
                     event = item['event']
                     seconds = item['seconds_until_end']
                     minutes = int(seconds / 60)
+                    secs = int(seconds % 60)
 
                     try:
                         # LIGHTWEIGHT: Only scrape price + end time (fast)
@@ -795,7 +796,7 @@ class AutoPipelinesManager:
                                     msg_parts.append(f"timer reset to {new_end_str} from {old_end_str}")
                                     time_extended_count += 1
 
-                                print(f"    🟠 {event.reference}: {' | '.join(msg_parts)} ({minutes}min remaining)")
+                                print(f"    🟠 {event.reference}: {' | '.join(msg_parts)} ({minutes}m{secs}s remaining)")
 
                                 event.valores.lanceAtual = new_price
                                 event.dataFim = new_end
@@ -814,7 +815,7 @@ class AutoPipelinesManager:
                                     "old_end": old_end.isoformat() if old_end else None,
                                     "new_end": new_end.isoformat() if new_end else None,
                                     "time_extended": time_extended,
-                                    "time_remaining": f"{minutes}min",
+                                    "time_remaining": f"{minutes}m{secs}s",
                                     "timestamp": datetime.now().isoformat()
                                 })
 
@@ -913,6 +914,7 @@ class AutoPipelinesManager:
                     seconds = item['seconds_until_end']
                     hours = int(seconds / 3600)
                     minutes = int((seconds % 3600) / 60)
+                    secs = int(seconds % 60)
 
                     try:
                         # LIGHTWEIGHT: Only scrape price + end time (fast)
@@ -938,7 +940,7 @@ class AutoPipelinesManager:
                                     msg_parts.append(f"timer reset to {new_end_str} from {old_end_str}")
                                     time_extended_count += 1
 
-                                print(f"    🟡 {event.reference}: {' | '.join(msg_parts)} ({hours}h{minutes}m remaining)")
+                                print(f"    🟡 {event.reference}: {' | '.join(msg_parts)} ({hours}h{minutes}m{secs}s remaining)")
 
                                 event.valores.lanceAtual = new_price
                                 event.dataFim = new_end
@@ -957,7 +959,7 @@ class AutoPipelinesManager:
                                     "old_end": old_end.isoformat() if old_end else None,
                                     "new_end": new_end.isoformat() if new_end else None,
                                     "time_extended": time_extended,
-                                    "time_remaining": f"{hours}h{minutes}m",
+                                    "time_remaining": f"{hours}h{minutes}m{secs}s",
                                     "timestamp": datetime.now().isoformat()
                                 })
 
