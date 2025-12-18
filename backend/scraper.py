@@ -1421,16 +1421,22 @@ class EventScraper:
             try:
                 body_text = await page.text_content('body')
                 # Try multiple patterns: "P. Mais Alta", "Proposta Mais Alta", "Lance Atual"
+                # Note: € can be before OR after the number, and number uses space/dot as thousands separator
                 patterns = [
-                    r'(?:P\.\s*Mais\s*Alta|Proposta\s*Mais\s*Alta)[:\s]*€?\s*([\d\s.]+,\d{2})',
-                    r'(?:lance\s+atual|atual)[:\s]*€?\s*([\d\s.]+,\d{2})'
+                    r'P\.\s*Mais\s*Alta[:\s]*([\d\s.]+,\d{2})\s*€?',
+                    r'Proposta\s*Mais\s*Alta[:\s]*([\d\s.]+,\d{2})\s*€?',
+                    r'Lance\s*Atual[:\s]*([\d\s.]+,\d{2})\s*€?',
+                    r'Lance\s*Atual[:\s]*€?\s*([\d\s.]+,\d{2})',
                 ]
                 for pattern in patterns:
                     match = re.search(pattern, body_text, re.IGNORECASE)
                     if match:
                         value_str = match.group(1).replace(' ', '').replace('.', '').replace(',', '.')
                         lance_atual = float(value_str)
+                        print(f"  📊 {reference}: Found PMA = {lance_atual}€ (pattern: {pattern[:30]}...)")
                         break
+                if lance_atual is None:
+                    print(f"  ⚠️ {reference}: Could not find PMA in page text")
             except Exception as e:
                 print(f"  ⚠️ Error extracting lanceAtual for {reference}: {e}")
 
