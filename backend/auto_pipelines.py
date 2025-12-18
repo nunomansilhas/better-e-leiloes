@@ -138,6 +138,7 @@ class AutoPipelinesManager:
             if not events:
                 self._critical_events_cache = []
                 self._cache_last_refresh = datetime.now()
+                print(f"🔴 Cache refresh: No events in database")
                 return
 
             # Filter events ending in LESS THAN 6 MINUTES (360 seconds)
@@ -145,10 +146,16 @@ class AutoPipelinesManager:
             now = datetime.now()
             critical_events = []
 
+            print(f"🔍 Cache refresh: Checking {len(events)} events, now={now}")
+
             for event in events:
                 if event.dataFim:
                     time_until_end = event.dataFim - now
                     seconds_until_end = time_until_end.total_seconds()
+
+                    # Debug: show first few events
+                    if seconds_until_end <= 3600:  # Show events < 1h
+                        print(f"    {event.reference}: dataFim={event.dataFim}, seconds={int(seconds_until_end)}")
 
                     # Cache events ending in < 6 minutes (1-minute buffer)
                     if 0 < seconds_until_end <= 360:
@@ -159,6 +166,8 @@ class AutoPipelinesManager:
 
             if critical_events:
                 print(f"🔄 Critical events cache refreshed: {len(critical_events)} events (< 6 min)")
+            else:
+                print(f"🔴 Cache refresh: 0 critical events found (< 6 min)")
 
         except Exception as e:
             print(f"⚠️ Error refreshing critical events cache: {e}")
