@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      6.5
+// @version      6.6
 // @description  Design moderno com carousel de imagens e distinção visual de tipos de leilão
 // @author       Nuno Mansilhas
 // @match        https://www.e-leiloes.pt/*
@@ -242,6 +242,14 @@
 
         .better-valor-amount {
             font-weight: 700;
+        }
+
+        /* Lance row - separate centered row */
+        .better-lance-row {
+            display: flex;
+            justify-content: center;
+            padding: 8px 12px;
+            background: white;
         }
 
         /* Countdown - Row 5 (locked to bottom) */
@@ -509,16 +517,18 @@
                 }
             }
 
-            // Values
+            // Values - VB/VA/VM in one row, Lance in separate row
             let valoresHTML = '';
             if (apiData.valores) {
                 const v = apiData.valores;
-                const items = [];
-                if (v.valorBase) items.push(`<div class="better-valor-item"><span class="better-valor-label">VB:</span><span class="better-valor-amount">${formatCurrency(v.valorBase)}</span></div>`);
-                if (v.valorAbertura) items.push(`<div class="better-valor-item"><span class="better-valor-label">VA:</span><span class="better-valor-amount">${formatCurrency(v.valorAbertura)}</span></div>`);
-                if (v.valorMinimo) items.push(`<div class="better-valor-item"><span class="better-valor-label">VM:</span><span class="better-valor-amount">${formatCurrency(v.valorMinimo)}</span></div>`);
-                items.push(`<div class="better-valor-item lance-atual"><span class="better-valor-label">Lance:</span><span class="better-valor-amount">${v.lanceAtual ? formatCurrency(v.lanceAtual) : '0 €'}</span></div>`);
-                valoresHTML = `<div class="better-valores-row">${items.join('')}</div>`;
+                const topItems = [];
+                if (v.valorBase) topItems.push(`<div class="better-valor-item"><span class="better-valor-label">VB:</span><span class="better-valor-amount">${formatCurrency(v.valorBase)}</span></div>`);
+                if (v.valorAbertura) topItems.push(`<div class="better-valor-item"><span class="better-valor-label">VA:</span><span class="better-valor-amount">${formatCurrency(v.valorAbertura)}</span></div>`);
+                if (v.valorMinimo) topItems.push(`<div class="better-valor-item"><span class="better-valor-label">VM:</span><span class="better-valor-amount">${formatCurrency(v.valorMinimo)}</span></div>`);
+
+                const lanceHTML = `<div class="better-lance-row"><div class="better-valor-item lance-atual"><span class="better-valor-label">Lance:</span><span class="better-valor-amount">${v.lanceAtual ? formatCurrency(v.lanceAtual) : '0 €'}</span></div></div>`;
+
+                valoresHTML = `<div class="better-valores-row">${topItems.join('')}</div>${lanceHTML}`;
             }
 
             // Countdown
@@ -594,7 +604,7 @@
 
         observer.observe(document.body, { childList: true, subtree: true });
 
-        console.log('✅ Card enhancer v6.5 ativo - Minimal Clean!');
+        console.log('✅ Card enhancer v6.6 ativo - Minimal Clean!');
     }
 
     if (document.readyState === 'loading') {
