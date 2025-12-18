@@ -32,6 +32,8 @@
             box-shadow: 4px 0 12px rgba(0,0,0,0.1);
             z-index: 1000;
             transition: width 0.3s ease;
+            display: flex;
+            flex-direction: column;
         }
 
         .sidebar:hover:not(.locked),
@@ -113,6 +115,34 @@
 
         .sidebar-nav {
             margin-top: 24px;
+            flex: 1;
+        }
+
+        .nav-section-label {
+            padding: 8px 24px 4px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #64748b;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .sidebar:hover .nav-section-label,
+        .sidebar.locked .nav-section-label {
+            opacity: 1;
+        }
+
+        .nav-divider {
+            height: 1px;
+            background: rgba(255, 255, 255, 0.1);
+            margin: 12px 16px;
+        }
+
+        .sidebar-bottom {
+            margin-top: auto;
+            padding-bottom: 16px;
         }
 
         .nav-item {
@@ -1690,6 +1720,8 @@
         </div>
 
         <nav class="sidebar-nav">
+            <!-- MAIN -->
+            <div class="nav-section-label">Main</div>
             <div class="nav-item active" onclick="showPage('dashboard')">
                 <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
@@ -1697,33 +1729,45 @@
                 <span>Dashboard</span>
             </div>
 
-            <div class="nav-item" onclick="toggleDropdown(this)">
+            <div class="nav-divider"></div>
+
+            <!-- EVENTS -->
+            <div class="nav-section-label">Events</div>
+            <div class="nav-item" onclick="showPage('imoveis')">
                 <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
                 </svg>
-                <span>Eventos</span>
+                <span>Imóveis</span>
             </div>
-            <div class="nav-dropdown">
-                <div class="nav-dropdown-item" onclick="showPage('imoveis')">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
-                    </svg>
-                    <span>Imóveis</span>
-                </div>
-                <div class="nav-dropdown-item" onclick="showPage('moveis')">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 17c0 1.1.9 2 2 2s2-.9 2-2-2-2-2-2-2 .9-2 2zM15 17c0 1.1.9 2 2 2s2-.9 2-2-2-2-2-2-2 .9-2 2zM2.5 12.5L5 13l1.5-3 4-1 1 4h5l1-4 4 1 1.5 3 2.5-.5"/>
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M2 12h20M7 4l1.5 4M17 4l-1.5 4"/>
-                    </svg>
-                    <span>Móveis</span>
-                </div>
+            <div class="nav-item" onclick="showPage('moveis')">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 7h8M8 11h8m-8 4h4m-6 6h12a2 2 0 002-2V5a2 2 0 00-2-2H6a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                </svg>
+                <span>Móveis</span>
+            </div>
+
+            <div class="nav-divider"></div>
+
+            <!-- TOOLS -->
+            <div class="nav-section-label">Tools</div>
+            <div class="nav-item" onclick="scrollToPipelines()">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                </svg>
+                <span>Scrapers</span>
             </div>
         </nav>
 
-        <div class="sidebar-lock" onclick="toggleSidebarLock()" id="sidebarLock" title="Travar/Destravar sidebar">
-            <svg id="lockIcon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"/>
-            </svg>
+        <!-- Settings Section (bottom) -->
+        <div class="sidebar-bottom">
+            <div class="nav-divider"></div>
+            <div class="nav-section-label">Settings</div>
+            <div class="nav-item" onclick="toggleSidebarLock()">
+                <svg id="lockIcon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"/>
+                </svg>
+                <span>Lock Sidebar</span>
+            </div>
         </div>
     </div>
 
@@ -1935,140 +1979,45 @@
                 </div>
                 </div> <!-- end dashboard-row -->
 
-                <!-- ============================================ -->
-                <!-- OPÇÃO 1: Stepper Minimalista -->
-                <!-- ============================================ -->
-                <div class="scraper-control-card" style="margin-top: 16px; border: 3px solid #3b82f6;">
-                    <div style="background: #3b82f6; color: white; padding: 4px 12px; font-size: 11px; font-weight: 700; margin: -17px -17px 16px -17px; border-radius: 8px 8px 0 0;">OPÇÃO 1: Stepper Minimalista</div>
+                <!-- Pipeline Completo - Stepper Minimalista -->
+                <div class="scraper-control-card" style="margin-top: 16px;">
                     <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
                         <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
                             <!-- Step 1 -->
                             <div style="display: flex; align-items: center; gap: 6px;">
-                                <div style="width: 28px; height: 28px; border-radius: 50%; background: #e0e7ff; color: #3b82f6; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700;">1</div>
+                                <div id="stage1-circle" style="width: 28px; height: 28px; border-radius: 50%; background: #e0e7ff; color: #3b82f6; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; transition: all 0.3s ease;">1</div>
                                 <span style="font-size: 13px; font-weight: 500; color: #1e293b;">IDs</span>
+                                <span id="stage1-count" style="font-size: 11px; color: #94a3b8; font-weight: 600;"></span>
                             </div>
-                            <div style="flex: 1; height: 2px; background: #e2e8f0; border-radius: 1px;"></div>
+                            <div id="pipeline-line1" style="flex: 1; height: 2px; background: #e2e8f0; border-radius: 1px; transition: background 0.3s ease;"></div>
                             <!-- Step 2 -->
                             <div style="display: flex; align-items: center; gap: 6px;">
-                                <div style="width: 28px; height: 28px; border-radius: 50%; background: #f1f5f9; color: #94a3b8; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700;">2</div>
+                                <div id="stage2-circle" style="width: 28px; height: 28px; border-radius: 50%; background: #f1f5f9; color: #94a3b8; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; transition: all 0.3s ease;">2</div>
                                 <span style="font-size: 13px; font-weight: 500; color: #64748b;">Content</span>
+                                <span id="stage2-count" style="font-size: 11px; color: #94a3b8; font-weight: 600;"></span>
                             </div>
-                            <div style="flex: 1; height: 2px; background: #e2e8f0; border-radius: 1px;"></div>
+                            <div id="pipeline-line2" style="flex: 1; height: 2px; background: #e2e8f0; border-radius: 1px; transition: background 0.3s ease;"></div>
                             <!-- Step 3 -->
                             <div style="display: flex; align-items: center; gap: 6px;">
-                                <div style="width: 28px; height: 28px; border-radius: 50%; background: #f1f5f9; color: #94a3b8; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700;">3</div>
+                                <div id="stage3-circle" style="width: 28px; height: 28px; border-radius: 50%; background: #f1f5f9; color: #94a3b8; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; transition: all 0.3s ease;">3</div>
                                 <span style="font-size: 13px; font-weight: 500; color: #64748b;">Images</span>
+                                <span id="stage3-count" style="font-size: 11px; color: #94a3b8; font-weight: 600;"></span>
                             </div>
                         </div>
-                        <button class="scraper-btn primary" style="padding: 10px 20px; font-size: 13px; white-space: nowrap;">
+                        <button class="scraper-btn primary" id="btn-pipeline" onclick="togglePipeline()" style="padding: 10px 20px; font-size: 13px; white-space: nowrap;">
                             ▶ Executar
                         </button>
                     </div>
-                </div>
-
-                <!-- ============================================ -->
-                <!-- OPÇÃO 2: Barra de Progresso Única -->
-                <!-- ============================================ -->
-                <div class="scraper-control-card" style="margin-top: 16px; border: 3px solid #10b981;">
-                    <div style="background: #10b981; color: white; padding: 4px 12px; font-size: 11px; font-weight: 700; margin: -17px -17px 16px -17px; border-radius: 8px 8px 0 0;">OPÇÃO 2: Barra de Progresso</div>
-                    <div style="display: flex; align-items: center; gap: 16px;">
-                        <div style="flex: 1;">
-                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                                <span style="font-size: 14px; font-weight: 600; color: #1e293b;">🚀 Pipeline Completo</span>
-                                <span style="font-size: 12px; color: #64748b;">0 / 3 etapas</span>
-                            </div>
-                            <div style="position: relative; height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden;">
-                                <div style="position: absolute; height: 100%; width: 33%; background: linear-gradient(90deg, #3b82f6, #8b5cf6); border-radius: 4px;"></div>
-                                <!-- Markers -->
-                                <div style="position: absolute; top: -4px; left: 33%; width: 2px; height: 16px; background: white;"></div>
-                                <div style="position: absolute; top: -4px; left: 66%; width: 2px; height: 16px; background: white;"></div>
-                            </div>
-                            <div style="display: flex; justify-content: space-between; margin-top: 4px; font-size: 10px; color: #94a3b8;">
-                                <span>IDs</span>
-                                <span>Content</span>
-                                <span>Images</span>
-                            </div>
-                        </div>
-                        <button class="scraper-btn primary" style="padding: 10px 20px; font-size: 13px; white-space: nowrap;">
-                            ▶ Executar
-                        </button>
-                    </div>
-                </div>
-
-                <!-- ============================================ -->
-                <!-- OPÇÃO 3: Mini Cards Inline -->
-                <!-- ============================================ -->
-                <div class="scraper-control-card" style="margin-top: 16px; border: 3px solid #f59e0b;">
-                    <div style="background: #f59e0b; color: white; padding: 4px 12px; font-size: 11px; font-weight: 700; margin: -17px -17px 16px -17px; border-radius: 8px 8px 0 0;">OPÇÃO 3: Mini Cards</div>
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <div style="display: flex; gap: 8px; flex: 1;">
-                            <!-- Card 1 -->
-                            <div style="flex: 1; padding: 12px; background: #f0fdf4; border: 2px solid #86efac; border-radius: 8px; text-align: center;">
-                                <div style="font-size: 18px; margin-bottom: 4px;">🔍</div>
-                                <div style="font-size: 12px; font-weight: 600; color: #166534;">IDs</div>
-                                <div style="font-size: 10px; color: #16a34a;">✓ 1.2k</div>
-                            </div>
-                            <!-- Arrow -->
-                            <div style="display: flex; align-items: center; color: #cbd5e1;">→</div>
-                            <!-- Card 2 -->
-                            <div style="flex: 1; padding: 12px; background: #fefce8; border: 2px solid #fde047; border-radius: 8px; text-align: center;">
-                                <div style="font-size: 18px; margin-bottom: 4px;">📋</div>
-                                <div style="font-size: 12px; font-weight: 600; color: #854d0e;">Content</div>
-                                <div style="font-size: 10px; color: #ca8a04;">⏳ 45%</div>
-                            </div>
-                            <!-- Arrow -->
-                            <div style="display: flex; align-items: center; color: #cbd5e1;">→</div>
-                            <!-- Card 3 -->
-                            <div style="flex: 1; padding: 12px; background: #f1f5f9; border: 2px solid #e2e8f0; border-radius: 8px; text-align: center;">
-                                <div style="font-size: 18px; margin-bottom: 4px;">🖼️</div>
-                                <div style="font-size: 12px; font-weight: 600; color: #475569;">Images</div>
-                                <div style="font-size: 10px; color: #94a3b8;">—</div>
-                            </div>
-                        </div>
-                        <button class="scraper-btn primary" style="padding: 10px 20px; font-size: 13px; white-space: nowrap;">
-                            ▶ Executar
-                        </button>
-                    </div>
-                </div>
-
-                <!-- ============================================ -->
-                <!-- DESIGN ORIGINAL (para referência) -->
-                <!-- ============================================ -->
-                <div class="scraper-control-card" style="margin-top: 16px; opacity: 0.5;">
-                    <div style="background: #64748b; color: white; padding: 4px 12px; font-size: 11px; font-weight: 700; margin: -17px -17px 16px -17px; border-radius: 8px 8px 0 0;">ORIGINAL (atual)</div>
-                    <div class="scraper-control-header">
-                        <h3>🚀 Pipeline Completo</h3>
-                        <button class="scraper-btn primary" id="btn-pipeline" onclick="togglePipeline()" style="padding: 10px 20px; font-size: 13px;">
-                            ▶ Executar
-                        </button>
-                    </div>
-                    <div style="padding: 16px; background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%); border-radius: 8px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; position: relative;">
-                            <div style="position: absolute; top: 50%; left: 0; right: 0; height: 3px; background: #cbd5e1; z-index: 1; border-radius: 2px;"></div>
-                            <div id="pipeline-progress-line" style="position: absolute; top: 50%; left: 0; height: 3px; width: 0%; background: linear-gradient(90deg, #3b82f6, #8b5cf6); z-index: 2; border-radius: 2px; transition: width 0.5s ease;"></div>
-                            <div style="z-index: 3; text-align: center; flex: 1;">
-                                <div id="stage1-circle" class="pipeline-stage" style="width: 50px; height: 50px; border-radius: 50%; background: white; border: 3px solid #cbd5e1; display: flex; align-items: center; justify-content: center; margin: 0 auto; font-size: 20px; transition: all 0.3s ease;">🔍</div>
-                                <div style="margin-top: 8px;"><div style="font-weight: 600; color: #1e293b; font-size: 12px;">IDs</div><div id="stage1-count" style="font-size: 10px; color: #94a3b8; margin-top: 2px; font-weight: 600;">-</div></div>
-                            </div>
-                            <div style="z-index: 3; text-align: center; flex: 1;">
-                                <div id="stage2-circle" class="pipeline-stage" style="width: 50px; height: 50px; border-radius: 50%; background: white; border: 3px solid #cbd5e1; display: flex; align-items: center; justify-content: center; margin: 0 auto; font-size: 20px; transition: all 0.3s ease;">📋</div>
-                                <div style="margin-top: 8px;"><div style="font-weight: 600; color: #1e293b; font-size: 12px;">Detalhes</div><div id="stage2-count" style="font-size: 10px; color: #94a3b8; margin-top: 2px; font-weight: 600;">-</div></div>
-                            </div>
-                            <div style="z-index: 3; text-align: center; flex: 1;">
-                                <div id="stage3-circle" class="pipeline-stage" style="width: 50px; height: 50px; border-radius: 50%; background: white; border: 3px solid #cbd5e1; display: flex; align-items: center; justify-content: center; margin: 0 auto; font-size: 20px; transition: all 0.3s ease;">🖼️</div>
-                                <div style="margin-top: 8px;"><div style="font-weight: 600; color: #1e293b; font-size: 12px;">Imagens</div><div id="stage3-count" style="font-size: 10px; color: #94a3b8; margin-top: 2px; font-weight: 600;">-</div></div>
-                            </div>
-                        </div>
-                    </div>
-                    <div id="pipeline-feedback" style="display: none; background: white; border: 2px solid #3b82f6; border-radius: 12px; padding: 20px; margin-top: 12px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <!-- Progress Feedback -->
+                    <div id="pipeline-feedback" style="display: none; margin-top: 12px; padding: 12px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
                             <div>
-                                <div style="font-weight: 600; color: #1e293b; font-size: 16px; margin-bottom: 4px;"><span id="feedback-status">A processar...</span></div>
-                                <div style="font-size: 14px; color: #64748b;" id="feedback-action">Aguarde enquanto processamos os eventos</div>
+                                <span id="feedback-status" style="font-weight: 600; color: #1e293b; font-size: 13px;">A processar...</span>
+                                <span id="feedback-action" style="font-size: 12px; color: #64748b; margin-left: 8px;"></span>
                             </div>
-                            <div style="font-size: 24px; font-weight: 700; color: #3b82f6;" id="feedback-count">0 / 0</div>
+                            <span id="feedback-count" style="font-size: 14px; font-weight: 700; color: #3b82f6;">0 / 0</span>
                         </div>
-                        <div style="background: #f1f5f9; border-radius: 8px; height: 8px; overflow: hidden;">
+                        <div style="margin-top: 8px; background: #e2e8f0; border-radius: 4px; height: 4px; overflow: hidden;">
                             <div id="feedback-progress-bar" style="height: 100%; background: linear-gradient(90deg, #3b82f6, #8b5cf6); width: 0%; transition: width 0.3s ease;"></div>
                         </div>
                     </div>
@@ -2309,20 +2258,15 @@
 
             // Update nav items
             document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
-            document.querySelectorAll('.nav-dropdown-item').forEach(item => item.classList.remove('active'));
+
+            const navItem = document.querySelector(`.nav-item[onclick*="${pageId}"]`);
+            if (navItem) navItem.classList.add('active');
 
             if (pageId === 'dashboard') {
-                document.querySelector('.nav-item[onclick*="dashboard"]').classList.add('active');
                 loadDashboard();
             } else if (pageId === 'imoveis') {
-                // Mark parent "Eventos" nav-item as active
-                document.querySelector('.nav-item[onclick*="toggleDropdown"]').classList.add('active');
-                document.querySelector('.nav-dropdown-item[onclick*="imoveis"]').classList.add('active');
                 loadEvents('imoveis');
             } else if (pageId === 'moveis') {
-                // Mark parent "Eventos" nav-item as active
-                document.querySelector('.nav-item[onclick*="toggleDropdown"]').classList.add('active');
-                document.querySelector('.nav-dropdown-item[onclick*="moveis"]').classList.add('active');
                 loadEvents('moveis');
             }
 
@@ -2331,8 +2275,14 @@
             document.querySelectorAll('.type-badge').forEach(b => b.classList.remove('active'));
         }
 
-        function toggleDropdown(item) {
-            item.classList.toggle('dropdown-open');
+        function scrollToPipelines() {
+            showPage('dashboard');
+            setTimeout(() => {
+                const scraperCard = document.querySelector('.dashboard-row');
+                if (scraperCard) {
+                    scraperCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }, 100);
         }
 
         function toggleTypeFilter(type, element) {
