@@ -543,8 +543,9 @@ class AutoPipelinesManager:
                                     msg_parts.append(f"{old_price}€ → {new_price}€")
 
                                 if time_extended:
-                                    time_diff = (new_end - old_end).total_seconds()
-                                    msg_parts.append(f"timer reset (+{int(time_diff/60)}min)")
+                                    old_end_str = old_end.strftime('%d/%m/%Y %H:%M:%S') if old_end else 'N/A'
+                                    new_end_str = new_end.strftime('%d/%m/%Y %H:%M:%S') if new_end else 'N/A'
+                                    msg_parts.append(f"timer reset to {new_end_str} from {old_end_str}")
                                     time_extended_count += 1
 
                                 print(f"    💰 {event.reference}: {' | '.join(msg_parts)} ({minutes}m{secs}s remaining)")
@@ -564,6 +565,9 @@ class AutoPipelinesManager:
                                     "reference": event.reference,
                                     "old_price": old_price,
                                     "new_price": new_price,
+                                    "old_end": old_end.isoformat() if old_end else None,
+                                    "new_end": new_end.isoformat() if new_end else None,
+                                    "time_extended": time_extended,
                                     "time_remaining": f"{minutes}m{secs}s",
                                     "timestamp": datetime.now().isoformat()
                                 })
@@ -786,8 +790,9 @@ class AutoPipelinesManager:
                                 if price_changed:
                                     msg_parts.append(f"{old_price}€ → {new_price}€")
                                 if time_extended:
-                                    time_diff = (new_end - old_end).total_seconds()
-                                    msg_parts.append(f"timer reset (+{int(time_diff/60)}min)")
+                                    old_end_str = old_end.strftime('%d/%m/%Y %H:%M:%S') if old_end else 'N/A'
+                                    new_end_str = new_end.strftime('%d/%m/%Y %H:%M:%S') if new_end else 'N/A'
+                                    msg_parts.append(f"timer reset to {new_end_str} from {old_end_str}")
                                     time_extended_count += 1
 
                                 print(f"    🟠 {event.reference}: {' | '.join(msg_parts)} ({minutes}min remaining)")
@@ -806,6 +811,9 @@ class AutoPipelinesManager:
                                     "reference": event.reference,
                                     "old_price": old_price,
                                     "new_price": new_price,
+                                    "old_end": old_end.isoformat() if old_end else None,
+                                    "new_end": new_end.isoformat() if new_end else None,
+                                    "time_extended": time_extended,
                                     "time_remaining": f"{minutes}min",
                                     "timestamp": datetime.now().isoformat()
                                 })
@@ -925,8 +933,9 @@ class AutoPipelinesManager:
                                 if price_changed:
                                     msg_parts.append(f"{old_price}€ → {new_price}€")
                                 if time_extended:
-                                    time_diff = (new_end - old_end).total_seconds()
-                                    msg_parts.append(f"timer reset (+{int(time_diff/60)}min)")
+                                    old_end_str = old_end.strftime('%d/%m/%Y %H:%M:%S') if old_end else 'N/A'
+                                    new_end_str = new_end.strftime('%d/%m/%Y %H:%M:%S') if new_end else 'N/A'
+                                    msg_parts.append(f"timer reset to {new_end_str} from {old_end_str}")
                                     time_extended_count += 1
 
                                 print(f"    🟡 {event.reference}: {' | '.join(msg_parts)} ({hours}h{minutes}m remaining)")
@@ -945,6 +954,9 @@ class AutoPipelinesManager:
                                     "reference": event.reference,
                                     "old_price": old_price,
                                     "new_price": new_price,
+                                    "old_end": old_end.isoformat() if old_end else None,
+                                    "new_end": new_end.isoformat() if new_end else None,
+                                    "time_extended": time_extended,
                                     "time_remaining": f"{hours}h{minutes}m",
                                     "timestamp": datetime.now().isoformat()
                                 })
