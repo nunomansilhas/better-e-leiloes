@@ -527,20 +527,29 @@ class AutoPipelinesManager:
 
                         if volatile_data and len(volatile_data) > 0:
                             data = volatile_data[0]
-                            old_price = event.valores.lanceAtual or 0
-                            new_price = data['lanceAtual'] or 0
+                            old_price = event.valores.lanceAtual
+                            new_price = data['lanceAtual']
                             old_end = event.dataFim
                             new_end = data['dataFim']
 
-                            # Check if price or time changed
-                            price_changed = old_price != new_price
+                            # Debug: show comparison
+                            print(f"    🔎 {event.reference}: DB={old_price} vs Scraped={new_price}")
+
+                            # Check if price changed (only if we got a valid new price)
+                            price_changed = False
+                            if new_price is not None:
+                                # Update if: DB is None OR values are different
+                                if old_price is None or old_price != new_price:
+                                    price_changed = True
+
+                            # Check if time was extended
                             time_extended = new_end > old_end if (old_end and new_end) else False
 
                             if price_changed or time_extended:
                                 msg_parts = []
 
                                 if price_changed:
-                                    msg_parts.append(f"{old_price}€ → {new_price}€")
+                                    msg_parts.append(f"{old_price or 0}€ → {new_price}€")
 
                                 if time_extended:
                                     old_end_str = old_end.strftime('%d/%m/%Y %H:%M:%S') if old_end else 'N/A'
@@ -550,9 +559,11 @@ class AutoPipelinesManager:
 
                                 print(f"    💰 {event.reference}: {' | '.join(msg_parts)} ({minutes}m{secs}s remaining)")
 
-                                # Update event in database with new price AND new end time
-                                event.valores.lanceAtual = new_price
-                                event.dataFim = new_end  # Update reset timer
+                                # Update event in database - only update price if we got a valid one
+                                if price_changed and new_price is not None:
+                                    event.valores.lanceAtual = new_price
+                                if time_extended and new_end is not None:
+                                    event.dataFim = new_end
 
                                 async with get_db() as db:
                                     await db.save_event(event)
@@ -563,8 +574,8 @@ class AutoPipelinesManager:
                                 await broadcast_price_update({
                                     "type": "price_update",
                                     "reference": event.reference,
-                                    "old_price": old_price,
-                                    "new_price": new_price,
+                                    "old_price": old_price or 0,
+                                    "new_price": new_price or 0,
                                     "old_end": old_end.isoformat() if old_end else None,
                                     "new_end": new_end.isoformat() if new_end else None,
                                     "time_extended": time_extended,
@@ -778,18 +789,27 @@ class AutoPipelinesManager:
 
                         if volatile_data and len(volatile_data) > 0:
                             data = volatile_data[0]
-                            old_price = event.valores.lanceAtual or 0
-                            new_price = data['lanceAtual'] or 0
+                            old_price = event.valores.lanceAtual
+                            new_price = data['lanceAtual']
                             old_end = event.dataFim
                             new_end = data['dataFim']
 
-                            price_changed = old_price != new_price
+                            # Debug: show comparison
+                            print(f"    🔎 {event.reference}: DB={old_price} vs Scraped={new_price}")
+
+                            # Check if price changed (only if we got a valid new price)
+                            price_changed = False
+                            if new_price is not None:
+                                # Update if: DB is None OR values are different
+                                if old_price is None or old_price != new_price:
+                                    price_changed = True
+
                             time_extended = new_end > old_end if (old_end and new_end) else False
 
                             if price_changed or time_extended:
                                 msg_parts = []
                                 if price_changed:
-                                    msg_parts.append(f"{old_price}€ → {new_price}€")
+                                    msg_parts.append(f"{old_price or 0}€ → {new_price}€")
                                 if time_extended:
                                     old_end_str = old_end.strftime('%d/%m/%Y %H:%M:%S') if old_end else 'N/A'
                                     new_end_str = new_end.strftime('%d/%m/%Y %H:%M:%S') if new_end else 'N/A'
@@ -798,8 +818,11 @@ class AutoPipelinesManager:
 
                                 print(f"    🟠 {event.reference}: {' | '.join(msg_parts)} ({minutes}m{secs}s remaining)")
 
-                                event.valores.lanceAtual = new_price
-                                event.dataFim = new_end
+                                # Update event - only update price if we got a valid one
+                                if price_changed and new_price is not None:
+                                    event.valores.lanceAtual = new_price
+                                if time_extended and new_end is not None:
+                                    event.dataFim = new_end
 
                                 async with get_db() as db:
                                     await db.save_event(event)
@@ -810,8 +833,8 @@ class AutoPipelinesManager:
                                 await broadcast_price_update({
                                     "type": "price_update",
                                     "reference": event.reference,
-                                    "old_price": old_price,
-                                    "new_price": new_price,
+                                    "old_price": old_price or 0,
+                                    "new_price": new_price or 0,
                                     "old_end": old_end.isoformat() if old_end else None,
                                     "new_end": new_end.isoformat() if new_end else None,
                                     "time_extended": time_extended,
@@ -922,18 +945,27 @@ class AutoPipelinesManager:
 
                         if volatile_data and len(volatile_data) > 0:
                             data = volatile_data[0]
-                            old_price = event.valores.lanceAtual or 0
-                            new_price = data['lanceAtual'] or 0
+                            old_price = event.valores.lanceAtual
+                            new_price = data['lanceAtual']
                             old_end = event.dataFim
                             new_end = data['dataFim']
 
-                            price_changed = old_price != new_price
+                            # Debug: show comparison
+                            print(f"    🔎 {event.reference}: DB={old_price} vs Scraped={new_price}")
+
+                            # Check if price changed (only if we got a valid new price)
+                            price_changed = False
+                            if new_price is not None:
+                                # Update if: DB is None OR values are different
+                                if old_price is None or old_price != new_price:
+                                    price_changed = True
+
                             time_extended = new_end > old_end if (old_end and new_end) else False
 
                             if price_changed or time_extended:
                                 msg_parts = []
                                 if price_changed:
-                                    msg_parts.append(f"{old_price}€ → {new_price}€")
+                                    msg_parts.append(f"{old_price or 0}€ → {new_price}€")
                                 if time_extended:
                                     old_end_str = old_end.strftime('%d/%m/%Y %H:%M:%S') if old_end else 'N/A'
                                     new_end_str = new_end.strftime('%d/%m/%Y %H:%M:%S') if new_end else 'N/A'
@@ -942,8 +974,11 @@ class AutoPipelinesManager:
 
                                 print(f"    🟡 {event.reference}: {' | '.join(msg_parts)} ({hours}h{minutes}m{secs}s remaining)")
 
-                                event.valores.lanceAtual = new_price
-                                event.dataFim = new_end
+                                # Update event - only update price if we got a valid one
+                                if price_changed and new_price is not None:
+                                    event.valores.lanceAtual = new_price
+                                if time_extended and new_end is not None:
+                                    event.dataFim = new_end
 
                                 async with get_db() as db:
                                     await db.save_event(event)
@@ -954,8 +989,8 @@ class AutoPipelinesManager:
                                 await broadcast_price_update({
                                     "type": "price_update",
                                     "reference": event.reference,
-                                    "old_price": old_price,
-                                    "new_price": new_price,
+                                    "old_price": old_price or 0,
+                                    "new_price": new_price or 0,
                                     "old_end": old_end.isoformat() if old_end else None,
                                     "new_end": new_end.isoformat() if new_end else None,
                                     "time_extended": time_extended,

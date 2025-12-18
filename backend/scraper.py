@@ -1369,9 +1369,9 @@ class EventScraper:
                     # Show extracted values
                     price = result.get('lanceAtual')
                     end_time = result.get('dataFim')
-                    price_str = f"{price}€" if price else "N/A"
+                    price_str = f"{price}€" if price is not None else "N/A"
                     time_str = end_time.strftime('%d/%m/%Y %H:%M:%S') if end_time else "N/A"
-                    print(f"  ✓ {result['reference']}: LA={price_str} | Fim={time_str}")
+                    print(f"  ✓ {result['reference']}: PMA={price_str} | Fim={time_str}")
                 else:
                     failed.append(batch[idx])
                     print(f"  ✗ {batch[idx]}: {str(result)[:50]}")
@@ -1416,14 +1416,53 @@ class EventScraper:
             except Exception as e:
                 print(f"  ⚠️ Error extracting dataFim for {reference}: {e}")
 
-            # Extract only lanceAtual
+            # Extract only lanceAtual (P. Mais Alta / Lance Atual) via DOM
             lance_atual = None
             try:
-                body_text = await page.text_content('body')
-                match = re.search(r'(?:lance\s+atual|atual)[:\s]*€?\s*([\d\s.]+,\d{2})', body_text, re.IGNORECASE)
-                if match:
-                    value_str = match.group(1).replace(' ', '').replace('.', '').replace(',', '.')
-                    lance_atual = float(value_str)
+                # Look for the price label spans - try multiple approaches
+                price_labels = ['Lance Atual:', 'P. Mais Alta:']
+
+                # Approach 1: Look for label span with specific classes
+                spans = await page.query_selector_all('span.text-xl.text-primary-800.font-semibold')
+                print(f"  🔍 {reference}: Found {len(spans)} spans with text-xl.text-primary-800.font-semibold")
+
+                for span in spans:
+                    text = await span.text_content()
+                    print(f"    → Span text: '{text}'")
+                    if text and any(label in text for label in price_labels):
+                        # Found the label, now get the sibling with the value
+                        parent = await span.evaluate_handle('el => el.parentElement')
+                        if parent:
+                            value_span = await parent.query_selector('span.text-right')
+                            if value_span:
+                                value_text = await value_span.text_content()
+                                print(f"    → Value span text: '{value_text}'")
+                                if value_text:
+                                    # Parse "83 299,99 €" or "92 541,54 €"
+                                    value_str = value_text.strip().replace('€', '').replace(' ', '').replace('.', '').replace(',', '.').strip()
+                                    lance_atual = float(value_str)
+                                    print(f"  📊 {reference}: Found price = {lance_atual}€ (label: {text.strip()})")
+                                    break
+                            else:
+                                print(f"    → No span.text-right found in parent")
+                        else:
+                            print(f"    → Could not get parent element")
+
+                # Approach 2: Try alternative - look for any element containing € followed by numbers
+                if lance_atual is None:
+                    print(f"  🔄 {reference}: Trying alternative approach...")
+                    # Get page HTML and search for price pattern
+                    html = await page.content()
+                    import re
+                    # Pattern for Portuguese price format: "123 456,78 €" or "123 456€"
+                    price_match = re.search(r'(?:Lance Atual:|P\. Mais Alta:)\s*</span>.*?>([\d\s.,]+)\s*€', html, re.DOTALL)
+                    if price_match:
+                        value_str = price_match.group(1).strip().replace(' ', '').replace('.', '').replace(',', '.')
+                        lance_atual = float(value_str)
+                        print(f"  📊 {reference}: Found price via regex = {lance_atual}€")
+
+                if lance_atual is None:
+                    print(f"  ⚠️ {reference}: Could not find price via DOM or regex")
             except Exception as e:
                 print(f"  ⚠️ Error extracting lanceAtual for {reference}: {e}")
 
