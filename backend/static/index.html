@@ -259,6 +259,104 @@
             margin-bottom: 32px;
         }
 
+        /* Compact Stats Bar */
+        .stats-bar {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 12px 20px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+
+        .stats-bar-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+            padding: 0 16px;
+        }
+
+        .stats-bar-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .stats-bar-icon.blue { background: #eff6ff; }
+        .stats-bar-icon.green { background: #f0fdf4; }
+        .stats-bar-icon.purple { background: #f5f3ff; }
+
+        .stats-bar-content {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .stats-bar-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #0f172a;
+            line-height: 1;
+        }
+
+        .stats-bar-label {
+            font-size: 11px;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stats-bar-breakdown {
+            display: flex;
+            gap: 8px;
+            font-size: 11px;
+            color: #94a3b8;
+            margin-left: auto;
+        }
+
+        .stats-bar-breakdown .lo {
+            color: #f59e0b;
+            font-weight: 600;
+        }
+
+        .stats-bar-breakdown .np {
+            color: #3b82f6;
+            font-weight: 600;
+        }
+
+        .stats-bar-divider {
+            width: 1px;
+            height: 40px;
+            background: linear-gradient(to bottom, transparent, #e2e8f0, transparent);
+        }
+
+        /* Side-by-side Dashboard Layout */
+        .dashboard-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .dashboard-row .scraper-control-card {
+            margin-top: 0;
+        }
+
+        @media (max-width: 1024px) {
+            .dashboard-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
         .stat-card {
             position: relative;
             background: rgba(255, 255, 255, 0.8);
@@ -1317,6 +1415,25 @@
                 grid-template-columns: 1fr;
             }
 
+            .stats-bar {
+                flex-direction: column;
+                gap: 0;
+                padding: 8px;
+            }
+
+            .stats-bar-item {
+                padding: 12px;
+                border-bottom: 1px solid #e2e8f0;
+            }
+
+            .stats-bar-item:last-child {
+                border-bottom: none;
+            }
+
+            .stats-bar-divider {
+                display: none;
+            }
+
             .filters-bar {
                 flex-direction: column;
             }
@@ -1618,82 +1735,48 @@
     <div class="main-content" id="mainContent">
         <!-- Dashboard Page -->
         <div id="dashboard" class="page active">
-            <div class="page-header">
-                <h2>Dashboard</h2>
-                <p>Visão geral de todos os eventos e leilões</p>
-            </div>
-
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-card-header">
-                        <span class="stat-card-title">Total de Eventos</span>
-                        <div class="stat-icon blue">
-                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
-                            </svg>
-                        </div>
+            <!-- Compact Stats Bar -->
+            <div class="stats-bar">
+                <div class="stats-bar-item">
+                    <div class="stats-bar-icon blue">📦</div>
+                    <div class="stats-bar-content">
+                        <span class="stats-bar-value" id="stat-total">-</span>
+                        <span class="stats-bar-label">Total</span>
                     </div>
-                    <div class="stat-value" id="stat-total">-</div>
-                    <div class="stat-breakdown">
-                        <div class="stat-breakdown-item">
-                            <div class="stat-breakdown-label">LO · Leilão Online</div>
-                            <div class="stat-breakdown-value lo" id="stat-total-lo">-</div>
-                        </div>
-                        <div class="stat-breakdown-item">
-                            <div class="stat-breakdown-label">NP · Negociação Particular</div>
-                            <div class="stat-breakdown-value np" id="stat-total-np">-</div>
-                        </div>
+                    <div class="stats-bar-breakdown">
+                        <span class="lo" id="stat-total-lo">-</span> LO
+                        <span class="np" id="stat-total-np">-</span> NP
                     </div>
                 </div>
-
-                <div class="stat-card">
-                    <div class="stat-card-header">
-                        <span class="stat-card-title">Imóveis</span>
-                        <div class="stat-icon green">
-                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
-                            </svg>
-                        </div>
+                <div class="stats-bar-divider"></div>
+                <div class="stats-bar-item">
+                    <div class="stats-bar-icon green">🏠</div>
+                    <div class="stats-bar-content">
+                        <span class="stats-bar-value" id="stat-imoveis">-</span>
+                        <span class="stats-bar-label">Imóveis</span>
                     </div>
-                    <div class="stat-value" id="stat-imoveis">-</div>
-                    <div class="stat-breakdown">
-                        <div class="stat-breakdown-item">
-                            <div class="stat-breakdown-label">LO · Leilão Online</div>
-                            <div class="stat-breakdown-value lo" id="stat-imoveis-lo">-</div>
-                        </div>
-                        <div class="stat-breakdown-item">
-                            <div class="stat-breakdown-label">NP · Negociação Particular</div>
-                            <div class="stat-breakdown-value np" id="stat-imoveis-np">-</div>
-                        </div>
+                    <div class="stats-bar-breakdown">
+                        <span class="lo" id="stat-imoveis-lo">-</span> LO
+                        <span class="np" id="stat-imoveis-np">-</span> NP
                     </div>
                 </div>
-
-                <div class="stat-card">
-                    <div class="stat-card-header">
-                        <span class="stat-card-title">Móveis</span>
-                        <div class="stat-icon purple">
-                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 17c0 1.1.9 2 2 2s2-.9 2-2-2-2-2-2-2 .9-2 2zM15 17c0 1.1.9 2 2 2s2-.9 2-2-2-2-2-2-2 .9-2 2zM2.5 12.5L5 13l1.5-3 4-1 1 4h5l1-4 4 1 1.5 3 2.5-.5"/>
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M2 12h20M7 4l1.5 4M17 4l-1.5 4"/>
-                            </svg>
-                        </div>
+                <div class="stats-bar-divider"></div>
+                <div class="stats-bar-item">
+                    <div class="stats-bar-icon purple">🚗</div>
+                    <div class="stats-bar-content">
+                        <span class="stats-bar-value" id="stat-moveis">-</span>
+                        <span class="stats-bar-label">Móveis</span>
                     </div>
-                    <div class="stat-value" id="stat-moveis">-</div>
-                    <div class="stat-breakdown">
-                        <div class="stat-breakdown-item">
-                            <div class="stat-breakdown-label">LO · Leilão Online</div>
-                            <div class="stat-breakdown-value lo" id="stat-moveis-lo">-</div>
-                        </div>
-                        <div class="stat-breakdown-item">
-                            <div class="stat-breakdown-label">NP · Negociação Particular</div>
-                            <div class="stat-breakdown-value np" id="stat-moveis-np">-</div>
-                        </div>
+                    <div class="stats-bar-breakdown">
+                        <span class="lo" id="stat-moveis-lo">-</span> LO
+                        <span class="np" id="stat-moveis-np">-</span> NP
                     </div>
                 </div>
             </div>
 
             <div id="dashboard-content">
-                <!-- Scraper Control Card -->
+                <!-- Side-by-side: Scrapers + Pipelines -->
+                <div class="dashboard-row">
                 <!-- Independent Scrapers -->
                 <div class="scraper-control-card">
                     <div class="scraper-control-header">
@@ -1747,7 +1830,7 @@
                 </div>
 
                 <!-- Pipelines Automáticas -->
-                <div class="scraper-control-card" style="margin-top: 16px;">
+                <div class="scraper-control-card">
                     <div class="scraper-control-header">
                         <h3>⚡ Pipelines Automáticas</h3>
                         <span style="font-size: 12px; color: #64748b;">Agendamento automático de scrapers</span>
@@ -1873,6 +1956,7 @@
                         </div>
                     </div>
                 </div>
+                </div> <!-- end dashboard-row -->
 
                 <!-- Compact Pipeline -->
                 <div class="scraper-control-card" style="margin-top: 16px;">
@@ -1946,50 +2030,20 @@
                     </div>
                 </div>
 
-                <!-- Console + Danger Zone (Side by Side) -->
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 24px;">
-                    <!-- Console Card -->
-                    <div class="scraper-control-card">
-                        <div class="scraper-control-header">
-                            <h3>📟 Console de Logs</h3>
-                            <div style="display: flex; gap: 8px; align-items: center;">
-                                <button class="scraper-btn" onclick="toggleAutoScroll()" style="padding: 6px 12px; font-size: 12px;" id="btn-autoscroll">
-                                    📌 Auto-scroll: ON
-                                </button>
-                                <button class="scraper-btn" onclick="clearConsole()" style="padding: 6px 12px; font-size: 12px;">
-                                    🧹 Limpar
-                                </button>
-                            </div>
-                        </div>
-
-                        <div style="background: #1e1e1e; border-radius: 8px; padding: 16px; font-family: 'Courier New', monospace; font-size: 12px; color: #d4d4d4; min-height: 300px; max-height: 400px; overflow-y: auto; line-height: 1.6;" id="console-output">
-                            <div style="color: #6b7280;">
-                                🟢 Console iniciado. A aguardar logs...
-                            </div>
-                        </div>
+                <!-- Collapsible Danger Zone -->
+                <details class="danger-zone-collapsible" style="margin-top: 16px;">
+                    <summary style="cursor: pointer; padding: 12px 16px; background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border: 1px solid #fecaca; border-radius: 8px; font-weight: 600; color: #dc2626; display: flex; align-items: center; gap: 8px; user-select: none;">
+                        <span style="transition: transform 0.2s;">▶</span> ⚠️ Zona de Perigo
+                    </summary>
+                    <div style="padding: 16px; background: white; border: 1px solid #fecaca; border-top: none; border-radius: 0 0 8px 8px;">
+                        <p style="color: #7f1d1d; font-size: 12px; line-height: 1.5; margin-bottom: 12px;">
+                            Esta ação irá <strong>apagar permanentemente TODOS os eventos</strong> da base de dados.
+                        </p>
+                        <button class="scraper-btn stop" onclick="confirmClearDatabase()" style="width: auto; padding: 8px 16px; font-size: 12px;">
+                            🗑️ Limpar Base de Dados
+                        </button>
                     </div>
-
-                    <!-- Danger Zone Card -->
-                    <div class="scraper-control-card" style="border: 2px solid #ef4444; background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);">
-                        <div class="scraper-control-header">
-                            <h3 style="color: #dc2626;">⚠️ Zona de Perigo</h3>
-                        </div>
-
-                        <div class="scraper-controls">
-                            <div style="padding: 16px; background: white; border-radius: 8px; border: 1px solid #fecaca; margin-bottom: 16px;">
-                                <p style="color: #991b1b; font-size: 14px; font-weight: 600; margin-bottom: 8px;">
-                                    🗑️ Limpar Base de Dados
-                                </p>
-                                <p style="color: #7f1d1d; font-size: 12px; line-height: 1.5; margin-bottom: 12px;">
-                                    Esta ação irá <strong>apagar permanentemente TODOS os eventos</strong> da base de dados. Esta operação é <strong>irreversível</strong>!
-                                </p>
-                                <button class="scraper-btn stop" onclick="confirmClearDatabase()" style="width: auto;">
-                                    💣 Limpar Base de Dados
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                </details>
             </div>
         </div>
 
