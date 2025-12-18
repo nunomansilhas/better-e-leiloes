@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      6.0
+// @version      6.1
 // @description  Design moderno com carousel de imagens e distinção visual de tipos de leilão
 // @author       Nuno Mansilhas
 // @match        https://www.e-leiloes.pt/*
@@ -22,16 +22,11 @@
         API_BASE: 'http://localhost:8000/api',
         DASHBOARD_URL: 'http://localhost:8000',
         ENABLE_API_ENRICHMENT: true,
-        MAX_CAROUSEL_IMAGES: 5,
-        // CARD_DESIGN: 1, 2, ou 3 - Escolhe o design dos cards
-        // 1 = Minimal Clean (branco, limpo)
-        // 2 = Glassmorphism (vidro fosco, gradientes)
-        // 3 = Dark Premium (escuro, dourado)
-        CARD_DESIGN: 'all' // 'all' mostra os 3 para comparar, ou 1, 2, 3 para escolher um
+        MAX_CAROUSEL_IMAGES: 5
     };
 
     // ====================================
-    // ESTILOS CSS - 3 DESIGNS
+    // ESTILOS CSS - MINIMAL CLEAN
     // ====================================
 
     const styles = document.createElement('style');
@@ -167,253 +162,66 @@
         }
 
         /* ============================================ */
-        /* DESIGN 1: MINIMAL CLEAN                     */
+        /* MINIMAL CLEAN DESIGN                        */
         /* ============================================ */
 
-        .p-evento[data-design="1"] {
+        .p-evento[data-better-enhanced="true"] {
             border-radius: 16px !important;
             border: 1px solid #e5e7eb !important;
             box-shadow: 0 1px 3px rgba(0,0,0,0.05) !important;
             background: white !important;
         }
 
-        .p-evento[data-design="1"]:hover {
+        .p-evento[data-better-enhanced="true"]:hover {
             box-shadow: 0 10px 40px rgba(0,0,0,0.1) !important;
             border-color: #d1d5db !important;
         }
 
-        .p-evento[data-design="1"] .better-carousel {
+        .p-evento[data-better-enhanced="true"] .better-carousel {
             border-radius: 12px;
             margin: 8px;
             height: 160px;
         }
 
-        .p-evento[data-design="1"] .better-valores-row {
+        .p-evento[data-better-enhanced="true"] .better-valores-row {
             background: #f9fafb;
             padding: 10px 12px;
             gap: 6px;
         }
 
-        .p-evento[data-design="1"] .better-valor-item {
+        .p-evento[data-better-enhanced="true"] .better-valor-item {
             background: white;
             border: 1px solid #e5e7eb;
             border-radius: 8px;
             padding: 6px 10px;
         }
 
-        .p-evento[data-design="1"] .better-valor-label {
+        .p-evento[data-better-enhanced="true"] .better-valor-label {
             color: #6b7280;
             font-size: 9px;
         }
 
-        .p-evento[data-design="1"] .better-valor-amount {
+        .p-evento[data-better-enhanced="true"] .better-valor-amount {
             color: #111827;
             font-size: 12px;
         }
 
-        .p-evento[data-design="1"] .better-valor-item.lance-atual {
+        .p-evento[data-better-enhanced="true"] .better-valor-item.lance-atual {
             background: #fef3c7;
             border-color: #fcd34d;
         }
 
-        .p-evento[data-design="1"] .better-countdown-row {
+        .p-evento[data-better-enhanced="true"] .better-countdown-row {
             background: white;
             padding: 8px 12px;
             border-top: 1px solid #f3f4f6;
         }
 
-        .p-evento[data-design="1"] .native-ref-prefix.lo { color: #3b82f6 !important; }
-        .p-evento[data-design="1"] .native-ref-prefix.np { color: #f59e0b !important; }
+        .p-evento[data-better-enhanced="true"] .native-ref-prefix.lo { color: #3b82f6 !important; }
+        .p-evento[data-better-enhanced="true"] .native-ref-prefix.np { color: #f59e0b !important; }
 
         /* ============================================ */
-        /* DESIGN 2: GLASSMORPHISM                     */
-        /* ============================================ */
-
-        .p-evento[data-design="2"] {
-            border-radius: 20px !important;
-            border: 1px solid rgba(255,255,255,0.2) !important;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1) !important;
-            background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.7) 100%) !important;
-            backdrop-filter: blur(10px) !important;
-        }
-
-        .p-evento[data-design="2"]:hover {
-            box-shadow: 0 16px 48px rgba(59,130,246,0.2) !important;
-            border-color: rgba(59,130,246,0.3) !important;
-        }
-
-        .p-evento[data-design="2"] .better-carousel {
-            border-radius: 16px;
-            margin: 10px;
-            height: 170px;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.1);
-        }
-
-        .p-evento[data-design="2"] .better-carousel-nav {
-            background: rgba(255,255,255,0.9);
-            color: #1e293b;
-            backdrop-filter: blur(8px);
-        }
-
-        .p-evento[data-design="2"] .better-valores-row {
-            background: linear-gradient(135deg, rgba(59,130,246,0.05) 0%, rgba(139,92,246,0.05) 100%);
-            padding: 12px;
-            gap: 8px;
-            border-radius: 0 0 16px 16px;
-        }
-
-        .p-evento[data-design="2"] .better-valor-item {
-            background: rgba(255,255,255,0.8);
-            border: 1px solid rgba(59,130,246,0.2);
-            border-radius: 10px;
-            padding: 8px 12px;
-            backdrop-filter: blur(4px);
-        }
-
-        .p-evento[data-design="2"] .better-valor-label {
-            color: #6366f1;
-            font-size: 9px;
-            font-weight: 700;
-        }
-
-        .p-evento[data-design="2"] .better-valor-amount {
-            color: #1e293b;
-            font-size: 12px;
-            font-weight: 700;
-        }
-
-        .p-evento[data-design="2"] .better-valor-item.lance-atual {
-            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-            border-color: #fbbf24;
-        }
-
-        .p-evento[data-design="2"] .better-countdown-row {
-            background: transparent;
-            padding: 10px 12px;
-        }
-
-        .p-evento[data-design="2"] .better-countdown {
-            background: rgba(59,130,246,0.1);
-            padding: 6px 12px;
-            border-radius: 20px;
-        }
-
-        .p-evento[data-design="2"] .native-ref-prefix.lo { color: #6366f1 !important; }
-        .p-evento[data-design="2"] .native-ref-prefix.np { color: #f59e0b !important; }
-
-        /* ============================================ */
-        /* DESIGN 3: DARK PREMIUM                      */
-        /* ============================================ */
-
-        .p-evento[data-design="3"] {
-            border-radius: 12px !important;
-            border: 1px solid #374151 !important;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3) !important;
-            background: linear-gradient(180deg, #1f2937 0%, #111827 100%) !important;
-        }
-
-        .p-evento[data-design="3"]:hover {
-            box-shadow: 0 8px 32px rgba(251,191,36,0.2) !important;
-            border-color: #fbbf24 !important;
-        }
-
-        .p-evento[data-design="3"] .w-full {
-            background: transparent !important;
-        }
-
-        .p-evento[data-design="3"] .better-carousel {
-            border-radius: 8px;
-            margin: 8px;
-            height: 165px;
-            border: 1px solid #374151;
-        }
-
-        .p-evento[data-design="3"] .better-carousel-nav {
-            background: rgba(251,191,36,0.9);
-            color: #111827;
-        }
-
-        .p-evento[data-design="3"] .better-carousel-dot {
-            background: rgba(251,191,36,0.4);
-        }
-
-        .p-evento[data-design="3"] .better-carousel-dot.active {
-            background: #fbbf24;
-        }
-
-        .p-evento[data-design="3"] .better-valores-row {
-            background: rgba(0,0,0,0.3);
-            padding: 10px 12px;
-            gap: 6px;
-        }
-
-        .p-evento[data-design="3"] .better-valor-item {
-            background: rgba(55,65,81,0.8);
-            border: 1px solid #4b5563;
-            border-radius: 6px;
-            padding: 6px 10px;
-        }
-
-        .p-evento[data-design="3"] .better-valor-label {
-            color: #9ca3af;
-            font-size: 9px;
-        }
-
-        .p-evento[data-design="3"] .better-valor-amount {
-            color: #f9fafb;
-            font-size: 12px;
-        }
-
-        .p-evento[data-design="3"] .better-valor-item.lance-atual {
-            background: linear-gradient(135deg, #78350f 0%, #92400e 100%);
-            border-color: #fbbf24;
-        }
-
-        .p-evento[data-design="3"] .better-valor-item.lance-atual .better-valor-label {
-            color: #fde68a;
-        }
-
-        .p-evento[data-design="3"] .better-valor-item.lance-atual .better-valor-amount {
-            color: #fbbf24;
-        }
-
-        .p-evento[data-design="3"] .better-countdown-row {
-            background: transparent;
-            padding: 8px 12px;
-            border-top: 1px solid #374151;
-        }
-
-        .p-evento[data-design="3"] .better-countdown-text {
-            color: #9ca3af !important;
-        }
-
-        .p-evento[data-design="3"] .better-countdown-time {
-            color: #fbbf24 !important;
-        }
-
-        /* Dark theme text overrides */
-        .p-evento[data-design="3"] .text-sm,
-        .p-evento[data-design="3"] .text-xs,
-        .p-evento[data-design="3"] .font-semibold {
-            color: #f3f4f6 !important;
-        }
-
-        .p-evento[data-design="3"] .pi-tag,
-        .p-evento[data-design="3"] .pi-building,
-        .p-evento[data-design="3"] .pi-map-marker,
-        .p-evento[data-design="3"] .pi-star {
-            color: #9ca3af !important;
-        }
-
-        .p-evento[data-design="3"] .pi-map-marker.better-map-link {
-            color: #fbbf24 !important;
-        }
-
-        .p-evento[data-design="3"] .native-ref-prefix.lo { color: #60a5fa !important; }
-        .p-evento[data-design="3"] .native-ref-prefix.np { color: #fbbf24 !important; }
-
-        /* ============================================ */
-        /* VALORES E COUNTDOWN (shared)                */
+        /* VALORES E COUNTDOWN                         */
         /* ============================================ */
 
         .better-valores-row {
@@ -470,76 +278,6 @@
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
         }
-
-        /* ============================================ */
-        /* DESIGN SELECTOR (para preview)              */
-        /* ============================================ */
-
-        .better-design-selector {
-            position: fixed;
-            top: 80px;
-            right: 20px;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-            padding: 16px;
-            z-index: 10000;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        }
-
-        .better-design-selector h4 {
-            margin: 0 0 12px 0;
-            font-size: 14px;
-            color: #1f2937;
-        }
-
-        .better-design-option {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 12px;
-            margin: 4px 0;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s;
-            border: 2px solid transparent;
-        }
-
-        .better-design-option:hover {
-            background: #f3f4f6;
-        }
-
-        .better-design-option.active {
-            background: #eff6ff;
-            border-color: #3b82f6;
-        }
-
-        .better-design-option input {
-            display: none;
-        }
-
-        .better-design-dot {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            border: 2px solid #d1d5db;
-        }
-
-        .better-design-option.active .better-design-dot {
-            background: #3b82f6;
-            border-color: #3b82f6;
-        }
-
-        .better-design-name {
-            font-size: 13px;
-            font-weight: 500;
-            color: #374151;
-        }
-
-        .better-design-desc {
-            font-size: 10px;
-            color: #6b7280;
-        }
     `;
     document.head.appendChild(styles);
 
@@ -583,67 +321,6 @@
         }
 
         return { text, isEnding };
-    }
-
-    // ====================================
-    // DESIGN SELECTOR
-    // ====================================
-
-    let currentDesign = CONFIG.CARD_DESIGN === 'all' ? 1 : CONFIG.CARD_DESIGN;
-
-    function createDesignSelector() {
-        if (CONFIG.CARD_DESIGN !== 'all') return;
-        if (document.querySelector('.better-design-selector')) return;
-
-        const selector = document.createElement('div');
-        selector.className = 'better-design-selector';
-        selector.innerHTML = `
-            <h4>🎨 Card Design</h4>
-            <label class="better-design-option ${currentDesign === 1 ? 'active' : ''}" data-design="1">
-                <input type="radio" name="design" value="1" ${currentDesign === 1 ? 'checked' : ''}>
-                <span class="better-design-dot"></span>
-                <div>
-                    <div class="better-design-name">Minimal Clean</div>
-                    <div class="better-design-desc">Branco, limpo, subtil</div>
-                </div>
-            </label>
-            <label class="better-design-option ${currentDesign === 2 ? 'active' : ''}" data-design="2">
-                <input type="radio" name="design" value="2" ${currentDesign === 2 ? 'checked' : ''}>
-                <span class="better-design-dot"></span>
-                <div>
-                    <div class="better-design-name">Glassmorphism</div>
-                    <div class="better-design-desc">Vidro fosco, gradientes</div>
-                </div>
-            </label>
-            <label class="better-design-option ${currentDesign === 3 ? 'active' : ''}" data-design="3">
-                <input type="radio" name="design" value="3" ${currentDesign === 3 ? 'checked' : ''}>
-                <span class="better-design-dot"></span>
-                <div>
-                    <div class="better-design-name">Dark Premium</div>
-                    <div class="better-design-desc">Escuro, dourado, premium</div>
-                </div>
-            </label>
-        `;
-
-        selector.querySelectorAll('.better-design-option').forEach(opt => {
-            opt.addEventListener('click', () => {
-                const design = parseInt(opt.dataset.design);
-                currentDesign = design;
-
-                // Update UI
-                selector.querySelectorAll('.better-design-option').forEach(o => o.classList.remove('active'));
-                opt.classList.add('active');
-
-                // Update all cards
-                document.querySelectorAll('.p-evento[data-better-enhanced="true"]').forEach(card => {
-                    card.dataset.design = design;
-                });
-
-                console.log(`🎨 Design changed to: ${design}`);
-            });
-        });
-
-        document.body.appendChild(selector);
     }
 
     // ====================================
@@ -705,7 +382,6 @@
     async function enhanceCard(card) {
         if (card.dataset.betterEnhanced) return;
         card.dataset.betterEnhanced = 'true';
-        card.dataset.design = currentDesign;
 
         const reference = extractReferenceFromCard(card);
 
@@ -883,18 +559,16 @@
     }
 
     function init() {
-        console.log('🚀 Better E-Leilões Card Enhancer v6.0');
-        console.log('🎨 Design mode:', CONFIG.CARD_DESIGN === 'all' ? 'Preview all 3 designs' : `Design ${CONFIG.CARD_DESIGN}`);
+        console.log('🚀 Better E-Leilões Card Enhancer v6.1 - Minimal Clean');
 
         integrateWithNativeFloatingButtons();
-        createDesignSelector();
         enhanceAllCards();
 
         setInterval(updateAllCountdowns, 1000);
 
         observer.observe(document.body, { childList: true, subtree: true });
 
-        console.log('✅ Card enhancer v6.0 ativo!');
+        console.log('✅ Card enhancer v6.1 ativo!');
     }
 
     if (document.readyState === 'loading') {
