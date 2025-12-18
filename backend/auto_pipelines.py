@@ -538,8 +538,8 @@ class AutoPipelinesManager:
                             # Check if price changed (only if we got a valid new price)
                             price_changed = False
                             if new_price is not None:
-                                old_price_val = old_price or 0
-                                if old_price_val != new_price:
+                                # Update if: DB is None OR values are different
+                                if old_price is None or old_price != new_price:
                                     price_changed = True
 
                             # Check if time was extended
@@ -800,8 +800,8 @@ class AutoPipelinesManager:
                             # Check if price changed (only if we got a valid new price)
                             price_changed = False
                             if new_price is not None:
-                                old_price_val = old_price or 0
-                                if old_price_val != new_price:
+                                # Update if: DB is None OR values are different
+                                if old_price is None or old_price != new_price:
                                     price_changed = True
 
                             time_extended = new_end > old_end if (old_end and new_end) else False
@@ -956,8 +956,8 @@ class AutoPipelinesManager:
                             # Check if price changed (only if we got a valid new price)
                             price_changed = False
                             if new_price is not None:
-                                old_price_val = old_price or 0
-                                if old_price_val != new_price:
+                                # Update if: DB is None OR values are different
+                                if old_price is None or old_price != new_price:
                                     price_changed = True
 
                             time_extended = new_end > old_end if (old_end and new_end) else False
