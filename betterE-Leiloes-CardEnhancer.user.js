@@ -555,16 +555,19 @@
         const days = Math.floor(diff / (1000 * 60 * 60 * 24));
         const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
         const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
 
         let text = '';
         const isEnding = days === 0 && hours < 24;
 
         if (days > 0) {
-            text = `${days}d ${hours}h`;
+            text = `${days}d ${hours}h ${minutes}m`;
         } else if (hours > 0) {
-            text = `${hours}h ${minutes}m`;
+            text = `${hours}h ${minutes}m ${seconds}s`;
+        } else if (minutes > 0) {
+            text = `${minutes}m ${seconds}s`;
         } else {
-            text = `${minutes}m`;
+            text = `${seconds}s`;
         }
 
         return { text, isEnding };
