@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      6.6
+// @version      6.7
 // @description  Design moderno com carousel de imagens e distinção visual de tipos de leilão
 // @author       Nuno Mansilhas
 // @match        https://www.e-leiloes.pt/*
@@ -54,6 +54,23 @@
         .p-evento[data-better-enhanced="true"],
         .p-evento[data-better-enhanced="true"] *:not([class*="pi-"]):not(i) {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+        }
+
+        /* Hide custom context menu */
+        .p-contextmenu.p-component {
+            display: none !important;
+        }
+
+        /* Force white backgrounds on hover for all card elements */
+        .p-evento[data-better-enhanced="true"] *:hover {
+            background-color: inherit;
+        }
+
+        .p-evento[data-better-enhanced="true"]:hover .better-valores-row,
+        .p-evento[data-better-enhanced="true"]:hover .better-lance-row,
+        .p-evento[data-better-enhanced="true"]:hover .better-countdown-row,
+        .p-evento[data-better-enhanced="true"]:hover .better-valor-item:not(.lance-atual) {
+            background: white !important;
         }
 
         /* Esconde elementos nativos que substituímos */
@@ -567,6 +584,11 @@
                 window.open(eventUrl, '_blank', 'noopener,noreferrer');
             }, true);
 
+            // Restore native right-click context menu
+            card.addEventListener('contextmenu', (e) => {
+                e.stopPropagation();
+            }, true);
+
         } catch (error) {
             console.error(`❌ Error enhancing card for ${reference}:`, error);
         }
@@ -604,7 +626,7 @@
 
         observer.observe(document.body, { childList: true, subtree: true });
 
-        console.log('✅ Card enhancer v6.6 ativo - Minimal Clean!');
+        console.log('✅ Card enhancer v6.7 ativo - Minimal Clean!');
     }
 
     if (document.readyState === 'loading') {
