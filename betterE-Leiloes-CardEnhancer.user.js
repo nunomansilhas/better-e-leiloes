@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      6.7
+// @version      6.8
 // @description  Design moderno com carousel de imagens e distinção visual de tipos de leilão
 // @author       Nuno Mansilhas
 // @match        https://www.e-leiloes.pt/*
@@ -66,11 +66,17 @@
             background-color: inherit;
         }
 
-        .p-evento[data-better-enhanced="true"]:hover .better-valores-row,
-        .p-evento[data-better-enhanced="true"]:hover .better-lance-row,
-        .p-evento[data-better-enhanced="true"]:hover .better-countdown-row,
-        .p-evento[data-better-enhanced="true"]:hover .better-valor-item:not(.lance-atual) {
+        .p-evento[data-better-enhanced="true"]:hover .better-valores-row {
             background: white !important;
+        }
+        .p-evento[data-better-enhanced="true"]:hover .better-lance-row {
+            background: white !important;
+        }
+        .p-evento[data-better-enhanced="true"]:hover .better-countdown-row {
+            background: #f9fafb !important;
+        }
+        .p-evento[data-better-enhanced="true"]:hover .better-valor-item:not(.lance-atual) {
+            background: #f9fafb !important;
         }
 
         /* Esconde elementos nativos que substituímos */
@@ -200,38 +206,50 @@
             height: 160px;
         }
 
+        /* Zone: Values (VB/VA/VM) */
         .p-evento[data-better-enhanced="true"] .better-valores-row {
             background: white;
-            padding: 10px 12px;
-            gap: 6px;
+            padding: 12px 16px 8px 16px;
+            gap: 8px;
+            border-top: 1px solid #f3f4f6;
         }
 
         .p-evento[data-better-enhanced="true"] .better-valor-item {
-            background: white;
+            background: #f9fafb;
             border: 1px solid #e5e7eb;
             border-radius: 8px;
-            padding: 6px 10px;
+            padding: 6px 12px;
+            flex: 1;
+            justify-content: center;
         }
 
         .p-evento[data-better-enhanced="true"] .better-valor-label {
             color: #6b7280;
-            font-size: 9px;
+            font-size: 10px;
         }
 
         .p-evento[data-better-enhanced="true"] .better-valor-amount {
             color: #111827;
-            font-size: 12px;
+            font-size: 13px;
+        }
+
+        /* Zone: Lance */
+        .p-evento[data-better-enhanced="true"] .better-lance-row {
+            padding: 8px 16px 12px 16px;
         }
 
         .p-evento[data-better-enhanced="true"] .better-valor-item.lance-atual {
             background: #fef3c7;
             border-color: #fcd34d;
+            flex: none;
+            padding: 8px 20px;
         }
 
+        /* Zone: Countdown */
         .p-evento[data-better-enhanced="true"] .better-countdown-row {
-            background: white;
-            padding: 8px 12px;
-            border-top: 1px solid #f3f4f6;
+            background: #f9fafb;
+            padding: 10px 16px;
+            border-top: 1px solid #e5e7eb;
         }
 
         .p-evento[data-better-enhanced="true"] .native-ref-prefix.lo { color: #3b82f6 !important; }
@@ -480,29 +498,31 @@
                 });
             }
 
-            // Carousel
+            // Carousel - render even with 1 image
             const nativeImageDiv = card.querySelector('.p-evento-image');
             if (nativeImageDiv && apiData.imagens && apiData.imagens.length > 0) {
                 const images = apiData.imagens.slice(0, CONFIG.MAX_CAROUSEL_IMAGES);
 
-                if (images.length > 1) {
-                    nativeImageDiv.style.display = 'none';
+                nativeImageDiv.style.display = 'none';
 
-                    const carousel = document.createElement('div');
-                    carousel.className = 'better-carousel';
-                    carousel.innerHTML = `
-                        <div class="better-carousel-track">
-                            ${images.map(img => `<div class="better-carousel-slide" style="background-image: url('${img}');"></div>`).join('')}
-                        </div>
+                const carousel = document.createElement('div');
+                carousel.className = 'better-carousel';
+                carousel.innerHTML = `
+                    <div class="better-carousel-track">
+                        ${images.map(img => `<div class="better-carousel-slide" style="background-image: url('${img}');"></div>`).join('')}
+                    </div>
+                    ${images.length > 1 ? `
                         <button class="better-carousel-nav prev">‹</button>
                         <button class="better-carousel-nav next">›</button>
                         <div class="better-carousel-dots">
                             ${images.map((_, idx) => `<div class="better-carousel-dot ${idx === 0 ? 'active' : ''}" data-index="${idx}"></div>`).join('')}
                         </div>
-                    `;
+                    ` : ''}
+                `;
 
-                    nativeImageDiv.parentNode.insertBefore(carousel, nativeImageDiv.nextSibling);
+                nativeImageDiv.parentNode.insertBefore(carousel, nativeImageDiv.nextSibling);
 
+                if (images.length > 1) {
                     const track = carousel.querySelector('.better-carousel-track');
                     const dots = carousel.querySelectorAll('.better-carousel-dot');
                     let currentSlide = 0;
@@ -626,7 +646,7 @@
 
         observer.observe(document.body, { childList: true, subtree: true });
 
-        console.log('✅ Card enhancer v6.7 ativo - Minimal Clean!');
+        console.log('✅ Card enhancer v6.8 ativo - Minimal Clean!');
     }
 
     if (document.readyState === 'loading') {
