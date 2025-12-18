@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      5.1
+// @version      5.2
 // @description  Design moderno com carousel de imagens e distinção visual de tipos de leilão
 // @author       Nuno Mansilhas
 // @match        https://www.e-leiloes.pt/*
@@ -722,87 +722,72 @@
                 if (images.length > 1) {
                     console.log(`🎠 Creating carousel with ${images.length} images (max ${CONFIG.MAX_CAROUSEL_IMAGES})`);
 
-                    // Create carousel to replace native image
-                    const carouselHTML = `
-                        <div class="better-carousel" data-current="0">
-                            <div class="better-carousel-track">
-                                ${images.map(img => `
-                                    <div class="better-carousel-slide" style="background-image: url('${img}');"></div>
-                                `).join('')}
-                            </div>
-                            <button class="better-carousel-nav prev">‹</button>
-                            <button class="better-carousel-nav next">›</button>
-                            <div class="better-carousel-dots">
-                                ${images.map((_, idx) => `
-                                    <div class="better-carousel-dot ${idx === 0 ? 'active' : ''}" data-index="${idx}"></div>
-                                `).join('')}
-                            </div>
-                            <div class="better-image-badge">📷 ${apiData.imagens.length}</div>
+                    // Hide native image div instead of replacing (Vue-safe)
+                    nativeImageDiv.style.display = 'none';
+
+                    // Create carousel element
+                    const carousel = document.createElement('div');
+                    carousel.className = 'better-carousel';
+                    carousel.dataset.current = '0';
+                    carousel.innerHTML = `
+                        <div class="better-carousel-track">
+                            ${images.map(img => `
+                                <div class="better-carousel-slide" style="background-image: url('${img}');"></div>
+                            `).join('')}
                         </div>
+                        <button class="better-carousel-nav prev">‹</button>
+                        <button class="better-carousel-nav next">›</button>
+                        <div class="better-carousel-dots">
+                            ${images.map((_, idx) => `
+                                <div class="better-carousel-dot ${idx === 0 ? 'active' : ''}" data-index="${idx}"></div>
+                            `).join('')}
+                        </div>
+                        <div class="better-image-badge">📷 ${apiData.imagens.length}</div>
                     `;
 
-                    // Replace native image with carousel
-                    const carouselDiv = document.createElement('div');
-                    carouselDiv.innerHTML = carouselHTML;
+                    // Insert carousel after hidden native image
+                    nativeImageDiv.parentNode.insertBefore(carousel, nativeImageDiv.nextSibling);
 
-                    // Check if parentNode exists before replacing
-                    if (nativeImageDiv.parentNode) {
-                        nativeImageDiv.parentNode.replaceChild(carouselDiv.firstChild, nativeImageDiv);
+                    // Add event handlers directly to the carousel element we just created
+                    const track = carousel.querySelector('.better-carousel-track');
+                    const prevBtn = carousel.querySelector('.better-carousel-nav.prev');
+                    const nextBtn = carousel.querySelector('.better-carousel-nav.next');
+                    const dots = carousel.querySelectorAll('.better-carousel-dot');
 
-                        // Add event handlers for the carousel
-                        const carousel = card.querySelector('.better-carousel');
-                        if (carousel) {
-                            const track = carousel.querySelector('.better-carousel-track');
-                            const prevBtn = carousel.querySelector('.better-carousel-nav.prev');
-                            const nextBtn = carousel.querySelector('.better-carousel-nav.next');
-                            const dots = carousel.querySelectorAll('.better-carousel-dot');
+                    let currentSlide = 0;
+                    const totalSlides = images.length;
 
-                            let currentSlide = 0;
-                            const totalSlides = images.length;
-
-                            function updateCarousel() {
-                                if (track) {
-                                    track.style.transform = `translateX(-${currentSlide * 100}%)`;
-                                }
-                                dots.forEach((dot, idx) => {
-                                    dot.classList.toggle('active', idx === currentSlide);
-                                });
-                            }
-
-                            if (prevBtn) {
-                                prevBtn.addEventListener('click', (e) => {
-                                    e.stopPropagation();
-                                    e.preventDefault();
-                                    currentSlide = (currentSlide - 1 + totalSlides) % totalSlides;
-                                    updateCarousel();
-                                });
-                            }
-
-                            if (nextBtn) {
-                                nextBtn.addEventListener('click', (e) => {
-                                    e.stopPropagation();
-                                    e.preventDefault();
-                                    currentSlide = (currentSlide + 1) % totalSlides;
-                                    updateCarousel();
-                                });
-                            }
-
-                            dots.forEach((dot, idx) => {
-                                dot.addEventListener('click', (e) => {
-                                    e.stopPropagation();
-                                    e.preventDefault();
-                                    currentSlide = idx;
-                                    updateCarousel();
-                                });
-                            });
-
-                            console.log('✅ Carousel created and configured');
-                        } else {
-                            console.warn('⚠️ Carousel element not found after insertion');
-                        }
-                    } else {
-                        console.warn('⚠️ Native image div has no parent node');
+                    function updateCarousel() {
+                        track.style.transform = `translateX(-${currentSlide * 100}%)`;
+                        dots.forEach((dot, idx) => {
+                            dot.classList.toggle('active', idx === currentSlide);
+                        });
                     }
+
+                    prevBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        currentSlide = (currentSlide - 1 + totalSlides) % totalSlides;
+                        updateCarousel();
+                    });
+
+                    nextBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        currentSlide = (currentSlide + 1) % totalSlides;
+                        updateCarousel();
+                    });
+
+                    dots.forEach((dot, idx) => {
+                        dot.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            currentSlide = idx;
+                            updateCarousel();
+                        });
+                    });
+
+                    console.log('✅ Carousel created and configured');
                 } else {
                     // Single image - just add badge showing total from API
                     nativeImageDiv.style.position = 'relative';
@@ -994,7 +979,7 @@
     // ====================================
 
     function init() {
-        console.log('🚀 Better E-Leilões Card Enhancer v5.1');
+        console.log('🚀 Better E-Leilões Card Enhancer v5.2');
 
         integrateWithNativeFloatingButtons();
         enhanceAllCards();
@@ -1008,7 +993,7 @@
             subtree: true
         });
 
-        console.log('✅ Card enhancer v5.1 ativo - Native-style floating button, fixed carousel!');
+        console.log('✅ Card enhancer v5.2 ativo - Vue-safe carousel insertion!');
     }
 
     if (document.readyState === 'loading') {
