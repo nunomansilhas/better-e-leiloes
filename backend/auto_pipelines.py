@@ -71,6 +71,7 @@ class AutoPipelinesManager:
     def __init__(self):
         self.pipelines: Dict[str, PipelineConfig] = {}
         self.job_ids: Dict[str, str] = {}  # pipeline_type -> scheduler_job_id
+        self._scheduler = None  # Store scheduler reference for rescheduling
 
         # Cache for critical events (< 6 min) - refreshed every 5 minutes
         self._critical_events_cache = []
@@ -285,14 +286,19 @@ class AutoPipelinesManager:
         """Schedule a pipeline to run automatically"""
         pipeline = self.pipelines[pipeline_type]
 
+        # Store scheduler reference for rescheduling after job completion
+        self._scheduler = scheduler
+
         # Define the job function
         job_id = f"auto_pipeline_{pipeline_type}"
 
         # Import here to avoid circular imports
-        from apscheduler.triggers.interval import IntervalTrigger
+        from apscheduler.triggers.date import DateTrigger
 
-        # Create trigger for interval
-        trigger = IntervalTrigger(hours=pipeline.interval_hours)
+        # Schedule to run immediately (or in 1 second to avoid race conditions)
+        from datetime import datetime, timedelta
+        run_time = datetime.now() + timedelta(seconds=1)
+        trigger = DateTrigger(run_date=run_time)
 
         # Get the task function based on type
         task_func = self._get_pipeline_task(pipeline_type)
@@ -308,6 +314,42 @@ class AutoPipelinesManager:
 
         self.job_ids[pipeline_type] = job_id
         print(f"📅 Scheduled {pipeline.name} every {pipeline.interval_hours}h")
+
+    def _reschedule_pipeline(self, pipeline_type: str):
+        """Reschedule a pipeline to run after the configured interval"""
+        if not self._scheduler or pipeline_type not in self.job_ids:
+            return
+
+        pipeline = self.pipelines.get(pipeline_type)
+        if not pipeline or not pipeline.enabled:
+            return
+
+        from apscheduler.triggers.date import DateTrigger
+        from datetime import datetime, timedelta
+
+        job_id = self.job_ids[pipeline_type]
+        task_func = self._get_pipeline_task(pipeline_type)
+
+        # Schedule next run after interval_hours from NOW (after completion)
+        next_run = datetime.now() + timedelta(hours=pipeline.interval_hours)
+
+        try:
+            # Remove old job and add new one with updated time
+            try:
+                self._scheduler.remove_job(job_id)
+            except:
+                pass
+
+            self._scheduler.add_job(
+                task_func,
+                trigger=DateTrigger(run_date=next_run),
+                id=job_id,
+                name=pipeline.name,
+                replace_existing=True
+            )
+            print(f"⏰ Next run of {pipeline.name} scheduled for {next_run.strftime('%H:%M:%S')}")
+        except Exception as e:
+            print(f"⚠️ Error rescheduling {pipeline.name}: {e}")
 
     async def _unschedule_pipeline(self, pipeline_type: str, scheduler):
         """Remove pipeline from scheduler"""
@@ -404,6 +446,8 @@ class AutoPipelinesManager:
                 # Mark as not running
                 self.pipelines['full'].is_running = False
                 self._save_config()
+                # Reschedule next run after completion
+                self._reschedule_pipeline('full')
 
         async def run_prices_pipeline():
             """Pipeline X: Price verification every 5 SECONDS for events < 5 minutes"""
@@ -536,6 +580,8 @@ class AutoPipelinesManager:
                 await cache_manager.close()
                 # Mark as not running
                 self.pipelines['prices'].is_running = False
+                # Reschedule next run after completion
+                self._reschedule_pipeline('prices')
 
         async def run_info_pipeline():
             """Pipeline Y: Quick info verification and update for ALL events"""
@@ -636,6 +682,8 @@ class AutoPipelinesManager:
                 # Mark as not running
                 self.pipelines['info'].is_running = False
                 self._save_config()
+                # Reschedule next run after completion
+                self._reschedule_pipeline('info')
 
         async def run_prices_urgent_pipeline():
             """Pipeline X-Urgent: Price verification every 1 MINUTE for events < 1 hour"""
@@ -760,6 +808,8 @@ class AutoPipelinesManager:
                 await scraper.close()
                 await cache_manager.close()
                 self.pipelines['prices_urgent'].is_running = False
+                # Reschedule next run after completion
+                self._reschedule_pipeline('prices_urgent')
 
         async def run_prices_soon_pipeline():
             """Pipeline X-Soon: Price verification every 10 MINUTES for events < 24 hours"""
@@ -885,6 +935,8 @@ class AutoPipelinesManager:
                 await scraper.close()
                 await cache_manager.close()
                 self.pipelines['prices_soon'].is_running = False
+                # Reschedule next run after completion
+                self._reschedule_pipeline('prices_soon')
 
         # Return the appropriate function
         tasks = {
