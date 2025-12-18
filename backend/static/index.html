@@ -626,30 +626,11 @@
             font-size: 14px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.2s ease;
             display: flex;
             align-items: center;
             gap: 8px;
             overflow: hidden;
-        }
-
-        /* Ripple effect */
-        .scraper-btn::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 0;
-            height: 0;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.5);
-            transform: translate(-50%, -50%);
-            transition: width 0.6s, height 0.6s;
-        }
-
-        .scraper-btn:active::after {
-            width: 300px;
-            height: 300px;
         }
 
         .scraper-btn:disabled {
@@ -657,48 +638,63 @@
             cursor: not-allowed;
         }
 
+        /* Outlined Start Button */
         .scraper-btn.start {
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-            color: white;
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+            background: transparent;
+            color: #10b981;
+            border: 2px solid #10b981;
+            box-shadow: none;
         }
 
         .scraper-btn.start:hover:not(:disabled) {
-            background: linear-gradient(135deg, #059669 0%, #047857 100%);
-            box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
-            transform: translateY(-2px);
+            background: #10b981;
+            color: white;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
         }
 
         .scraper-btn.start:active:not(:disabled) {
             transform: translateY(0);
+            box-shadow: none;
         }
 
+        /* Outlined Stop Button */
         .scraper-btn.stop {
-            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-            color: white;
-            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+            background: transparent;
+            color: #ef4444;
+            border: 2px solid #ef4444;
+            box-shadow: none;
         }
 
         .scraper-btn.stop:hover:not(:disabled) {
-            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
-            box-shadow: 0 6px 16px rgba(239, 68, 68, 0.4);
-            transform: translateY(-2px);
+            background: #ef4444;
+            color: white;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25);
         }
 
         .scraper-btn.stop:active:not(:disabled) {
             transform: translateY(0);
+            box-shadow: none;
         }
 
-        /* Icon bounce animation on hover */
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-4px); }
+        /* Primary Outlined (Blue) */
+        .scraper-btn.primary {
+            background: transparent;
+            color: #3b82f6;
+            border: 2px solid #3b82f6;
         }
 
-        .scraper-btn:hover svg,
-        .scraper-btn:hover .icon,
-        .scraper-btn:hover > span:first-child {
-            animation: bounce 0.6s ease;
+        .scraper-btn.primary:hover:not(:disabled) {
+            background: #3b82f6;
+            color: white;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+        }
+
+        /* Icon hover animation */
+        .scraper-btn:hover:not(:disabled) > span:first-child {
+            transform: scale(1.1);
         }
 
         .scraper-progress {
@@ -1784,37 +1780,18 @@
                         <span style="font-size: 12px; color: #64748b;">Execute cada scraper separadamente</span>
                     </div>
 
-                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 16px;">
-                        <button class="scraper-btn start" onclick="runIndependentScraper('ids')" style="display: flex; align-items: center; gap: 8px; justify-content: center;">
-                            <span style="font-size: 20px;">🔍</span>
-                            <div style="text-align: left;">
-                                <div style="font-weight: 600;">Scrape IDs</div>
-                                <div style="font-size: 11px; opacity: 0.8;">Obter referências</div>
-                            </div>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 16px;">
+                        <button class="scraper-btn start" onclick="runIndependentScraper('ids')" style="justify-content: center; padding: 12px 16px;">
+                            <span>🔍</span> IDs
                         </button>
-
-                        <button class="scraper-btn start" onclick="runIndependentScraper('recheck')" style="display: flex; align-items: center; gap: 8px; justify-content: center;">
-                            <span style="font-size: 20px;">🔄</span>
-                            <div style="text-align: left;">
-                                <div style="font-weight: 600;">Recheck New</div>
-                                <div style="font-size: 11px; opacity: 0.8;">Verificar novos eventos</div>
-                            </div>
+                        <button class="scraper-btn start" onclick="runIndependentScraper('recheck')" style="justify-content: center; padding: 12px 16px;">
+                            <span>🔄</span> Recheck
                         </button>
-
-                        <button class="scraper-btn start" onclick="runIndependentScraper('content')" style="display: flex; align-items: center; gap: 8px; justify-content: center;">
-                            <span style="font-size: 20px;">📋</span>
-                            <div style="text-align: left;">
-                                <div style="font-weight: 600;">Scrape Content</div>
-                                <div style="font-size: 11px; opacity: 0.8;">Extrair detalhes</div>
-                            </div>
+                        <button class="scraper-btn start" onclick="runIndependentScraper('content')" style="justify-content: center; padding: 12px 16px;">
+                            <span>📋</span> Content
                         </button>
-
-                        <button class="scraper-btn start" onclick="runIndependentScraper('images')" style="display: flex; align-items: center; gap: 8px; justify-content: center;">
-                            <span style="font-size: 20px;">🖼️</span>
-                            <div style="text-align: left;">
-                                <div style="font-weight: 600;">Scrape Images</div>
-                                <div style="font-size: 11px; opacity: 0.8;">Download imagens</div>
-                            </div>
+                        <button class="scraper-btn start" onclick="runIndependentScraper('images')" style="justify-content: center; padding: 12px 16px;">
+                            <span>🖼️</span> Images
                         </button>
                     </div>
 
@@ -1962,8 +1939,8 @@
                 <div class="scraper-control-card" style="margin-top: 16px;">
                     <div class="scraper-control-header">
                         <h3>🚀 Pipeline Completo</h3>
-                        <button class="scraper-btn start" id="btn-pipeline" onclick="togglePipeline()" style="padding: 8px 16px; font-size: 13px;">
-                            ▶ Executar Pipeline
+                        <button class="scraper-btn primary" id="btn-pipeline" onclick="togglePipeline()" style="padding: 10px 20px; font-size: 13px;">
+                            ▶ Executar
                         </button>
                     </div>
 
