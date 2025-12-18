@@ -1371,7 +1371,7 @@ class EventScraper:
                     end_time = result.get('dataFim')
                     price_str = f"{price}€" if price else "N/A"
                     time_str = end_time.strftime('%d/%m/%Y %H:%M:%S') if end_time else "N/A"
-                    print(f"  ✓ {result['reference']}: LA={price_str} | Fim={time_str}")
+                    print(f"  ✓ {result['reference']}: PMA={price_str} | Fim={time_str}")
                 else:
                     failed.append(batch[idx])
                     print(f"  ✗ {batch[idx]}: {str(result)[:50]}")
@@ -1416,14 +1416,21 @@ class EventScraper:
             except Exception as e:
                 print(f"  ⚠️ Error extracting dataFim for {reference}: {e}")
 
-            # Extract only lanceAtual
+            # Extract only lanceAtual (P. Mais Alta / Proposta Mais Alta)
             lance_atual = None
             try:
                 body_text = await page.text_content('body')
-                match = re.search(r'(?:lance\s+atual|atual)[:\s]*€?\s*([\d\s.]+,\d{2})', body_text, re.IGNORECASE)
-                if match:
-                    value_str = match.group(1).replace(' ', '').replace('.', '').replace(',', '.')
-                    lance_atual = float(value_str)
+                # Try multiple patterns: "P. Mais Alta", "Proposta Mais Alta", "Lance Atual"
+                patterns = [
+                    r'(?:P\.\s*Mais\s*Alta|Proposta\s*Mais\s*Alta)[:\s]*€?\s*([\d\s.]+,\d{2})',
+                    r'(?:lance\s+atual|atual)[:\s]*€?\s*([\d\s.]+,\d{2})'
+                ]
+                for pattern in patterns:
+                    match = re.search(pattern, body_text, re.IGNORECASE)
+                    if match:
+                        value_str = match.group(1).replace(' ', '').replace('.', '').replace(',', '.')
+                        lance_atual = float(value_str)
+                        break
             except Exception as e:
                 print(f"  ⚠️ Error extracting lanceAtual for {reference}: {e}")
 
