@@ -1416,27 +1416,31 @@ class EventScraper:
             except Exception as e:
                 print(f"  ⚠️ Error extracting dataFim for {reference}: {e}")
 
-            # Extract only lanceAtual (P. Mais Alta / Proposta Mais Alta)
+            # Extract only lanceAtual (P. Mais Alta / Lance Atual) via DOM
             lance_atual = None
             try:
-                body_text = await page.text_content('body')
-                # Try multiple patterns: "P. Mais Alta", "Proposta Mais Alta", "Lance Atual"
-                # Note: € can be before OR after the number, and number uses space/dot as thousands separator
-                patterns = [
-                    r'P\.\s*Mais\s*Alta[:\s]*([\d\s.]+,\d{2})\s*€?',
-                    r'Proposta\s*Mais\s*Alta[:\s]*([\d\s.]+,\d{2})\s*€?',
-                    r'Lance\s*Atual[:\s]*([\d\s.]+,\d{2})\s*€?',
-                    r'Lance\s*Atual[:\s]*€?\s*([\d\s.]+,\d{2})',
-                ]
-                for pattern in patterns:
-                    match = re.search(pattern, body_text, re.IGNORECASE)
-                    if match:
-                        value_str = match.group(1).replace(' ', '').replace('.', '').replace(',', '.')
-                        lance_atual = float(value_str)
-                        print(f"  📊 {reference}: Found PMA = {lance_atual}€ (pattern: {pattern[:30]}...)")
-                        break
+                # Look for the price label spans
+                price_labels = ['Lance Atual:', 'P. Mais Alta:']
+                spans = await page.query_selector_all('span.text-xl.text-primary-800.font-semibold')
+
+                for span in spans:
+                    text = await span.text_content()
+                    if text and any(label in text for label in price_labels):
+                        # Found the label, now get the sibling with the value
+                        parent = await span.evaluate_handle('el => el.parentElement')
+                        if parent:
+                            value_span = await parent.query_selector('span.text-right')
+                            if value_span:
+                                value_text = await value_span.text_content()
+                                if value_text:
+                                    # Parse "83 299,99 €" or "92 541,54 €"
+                                    value_str = value_text.strip().replace('€', '').replace(' ', '').replace('.', '').replace(',', '.').strip()
+                                    lance_atual = float(value_str)
+                                    print(f"  📊 {reference}: Found price = {lance_atual}€ (label: {text.strip()})")
+                                    break
+
                 if lance_atual is None:
-                    print(f"  ⚠️ {reference}: Could not find PMA in page text")
+                    print(f"  ⚠️ {reference}: Could not find price via DOM")
             except Exception as e:
                 print(f"  ⚠️ Error extracting lanceAtual for {reference}: {e}")
 
