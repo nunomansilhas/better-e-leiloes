@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      4.6
+// @version      4.7
 // @description  Design moderno com carousel de imagens e distinção visual de tipos de leilão
 // @author       Nuno Mansilhas
 // @match        https://www.e-leiloes.pt/*
@@ -909,13 +909,16 @@
                         </div>
                     `;
                 } else {
-                    // Menos de 1 dia, mostra countdown
+                    // Menos de 1 dia, mostra countdown LIVE
+                    const countdownId = `countdown-${reference}`;
                     countdownHTML = `
                         <div class="better-countdown-row">
                             <div class="better-countdown">
                                 <span class="better-countdown-icon">⏱️</span>
                                 <span class="better-countdown-text">Termina em:</span>
-                                <span class="better-countdown-time ${remaining.isEnding ? 'ending-soon' : ''}">
+                                <span class="better-countdown-time ${remaining.isEnding ? 'ending-soon' : ''}"
+                                      id="${countdownId}"
+                                      data-end="${apiData.dataFim}">
                                     ${remaining.text}
                                 </span>
                             </div>
@@ -1023,18 +1026,44 @@
     // INICIALIZAÇÃO
     // ====================================
 
+    // ====================================
+    // LIVE COUNTDOWN TIMER
+    // ====================================
+
+    function updateAllCountdowns() {
+        const countdownElements = document.querySelectorAll('[data-end]');
+        countdownElements.forEach(el => {
+            const endDate = el.dataset.end;
+            if (endDate) {
+                const remaining = calculateTimeRemaining(endDate);
+                if (remaining) {
+                    el.textContent = remaining.text;
+                    if (remaining.isEnding) {
+                        el.classList.add('ending-soon');
+                    } else {
+                        el.classList.remove('ending-soon');
+                    }
+                }
+            }
+        });
+    }
+
     function init() {
-        console.log('🚀 Better E-Leilões Card Enhancer v4.6');
+        console.log('🚀 Better E-Leilões Card Enhancer v4.7');
 
         createDashboardButton();
         enhanceAllCards();
+
+        // Start live countdown updates every second
+        setInterval(updateAllCountdowns, 1000);
+        console.log('⏱️ Live countdown timer started');
 
         observer.observe(document.body, {
             childList: true,
             subtree: true
         });
 
-        console.log('✅ Card enhancer v4.6 ativo - Capture phase + auxclick!');
+        console.log('✅ Card enhancer v4.7 ativo - Live countdown!');
     }
 
     if (document.readyState === 'loading') {
