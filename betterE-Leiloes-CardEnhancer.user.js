@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      6.3
+// @version      6.4
 // @description  Design moderno com carousel de imagens e distinção visual de tipos de leilão
 // @author       Nuno Mansilhas
 // @match        https://www.e-leiloes.pt/*
@@ -260,20 +260,6 @@
             display: flex;
             flex-direction: column;
             flex-grow: 1;
-            min-height: 120px;
-        }
-
-        /* Make the card body flex to fill height */
-        .p-evento[data-better-enhanced="true"] .w-full {
-            display: flex;
-            flex-direction: column;
-            flex-grow: 1;
-        }
-
-        /* Ensure card has proper flex layout */
-        .p-evento[data-better-enhanced="true"] {
-            display: flex;
-            flex-direction: column;
         }
 
         .better-countdown {
@@ -595,7 +581,7 @@
 
         observer.observe(document.body, { childList: true, subtree: true });
 
-        console.log('✅ Card enhancer v6.3 ativo - Minimal Clean!');
+        console.log('✅ Card enhancer v6.4 ativo - Minimal Clean!');
     }
 
     if (document.readyState === 'loading') {
