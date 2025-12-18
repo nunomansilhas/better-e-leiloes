@@ -522,15 +522,15 @@ class AutoPipelinesManager:
                     secs = int(seconds % 60)
 
                     try:
-                        # Re-scrape event details to get current price and end time
-                        new_events = await scraper.scrape_details_by_ids([event.reference])
+                        # LIGHTWEIGHT: Only scrape price + end time (fast)
+                        volatile_data = await scraper.scrape_volatile_by_ids([event.reference])
 
-                        if new_events and len(new_events) > 0:
-                            new_event = new_events[0]
+                        if volatile_data and len(volatile_data) > 0:
+                            data = volatile_data[0]
                             old_price = event.valores.lanceAtual or 0
-                            new_price = new_event.valores.lanceAtual or 0
+                            new_price = data['lanceAtual'] or 0
                             old_end = event.dataFim
-                            new_end = new_event.dataFim
+                            new_end = data['dataFim']
 
                             # Check if price or time changed
                             price_changed = old_price != new_price
@@ -550,8 +550,8 @@ class AutoPipelinesManager:
                                 print(f"    💰 {event.reference}: {' | '.join(msg_parts)} ({minutes}m{secs}s remaining)")
 
                                 # Update event in database with new price AND new end time
-                                event.valores = new_event.valores
-                                event.dataFim = new_event.dataFim  # Update reset timer
+                                event.valores.lanceAtual = new_price
+                                event.dataFim = new_end  # Update reset timer
 
                                 async with get_db() as db:
                                     await db.save_event(event)
@@ -768,14 +768,15 @@ class AutoPipelinesManager:
                     minutes = int(seconds / 60)
 
                     try:
-                        new_events = await scraper.scrape_details_by_ids([event.reference])
+                        # LIGHTWEIGHT: Only scrape price + end time (fast)
+                        volatile_data = await scraper.scrape_volatile_by_ids([event.reference])
 
-                        if new_events and len(new_events) > 0:
-                            new_event = new_events[0]
+                        if volatile_data and len(volatile_data) > 0:
+                            data = volatile_data[0]
                             old_price = event.valores.lanceAtual or 0
-                            new_price = new_event.valores.lanceAtual or 0
+                            new_price = data['lanceAtual'] or 0
                             old_end = event.dataFim
-                            new_end = new_event.dataFim
+                            new_end = data['dataFim']
 
                             price_changed = old_price != new_price
                             time_extended = new_end > old_end if (old_end and new_end) else False
@@ -791,8 +792,8 @@ class AutoPipelinesManager:
 
                                 print(f"    🟠 {event.reference}: {' | '.join(msg_parts)} ({minutes}min remaining)")
 
-                                event.valores = new_event.valores
-                                event.dataFim = new_event.dataFim
+                                event.valores.lanceAtual = new_price
+                                event.dataFim = new_end
 
                                 async with get_db() as db:
                                     await db.save_event(event)
@@ -906,14 +907,15 @@ class AutoPipelinesManager:
                     minutes = int((seconds % 3600) / 60)
 
                     try:
-                        new_events = await scraper.scrape_details_by_ids([event.reference])
+                        # LIGHTWEIGHT: Only scrape price + end time (fast)
+                        volatile_data = await scraper.scrape_volatile_by_ids([event.reference])
 
-                        if new_events and len(new_events) > 0:
-                            new_event = new_events[0]
+                        if volatile_data and len(volatile_data) > 0:
+                            data = volatile_data[0]
                             old_price = event.valores.lanceAtual or 0
-                            new_price = new_event.valores.lanceAtual or 0
+                            new_price = data['lanceAtual'] or 0
                             old_end = event.dataFim
-                            new_end = new_event.dataFim
+                            new_end = data['dataFim']
 
                             price_changed = old_price != new_price
                             time_extended = new_end > old_end if (old_end and new_end) else False
@@ -929,8 +931,8 @@ class AutoPipelinesManager:
 
                                 print(f"    🟡 {event.reference}: {' | '.join(msg_parts)} ({hours}h{minutes}m remaining)")
 
-                                event.valores = new_event.valores
-                                event.dataFim = new_event.dataFim
+                                event.valores.lanceAtual = new_price
+                                event.dataFim = new_end
 
                                 async with get_db() as db:
                                     await db.save_event(event)

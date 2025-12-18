@@ -1335,6 +1335,105 @@ class EventScraper:
         print(f"✅ Stage 3 completo: {len(images_map)} eventos / {len(failed)} falhas")
         return images_map
 
+    async def scrape_volatile_by_ids(
+        self,
+        references: List[str],
+    ) -> List[dict]:
+        """
+        LIGHTWEIGHT SCRAPER: Only extracts volatile data (price + end time).
+        Used by Pipeline X variants for fast price/time updates.
+
+        Args:
+            references: Lista de referências (ex: ["LO-2024-001", "NP-2024-002"])
+
+        Returns:
+            Lista de dicts: [{reference, lanceAtual, dataFim}, ...]
+        """
+        await self.init_browser()
+
+        results = []
+        failed = []
+
+        print(f"⚡ Volatile scrape: {len(references)} events (price + time only)...")
+
+        # Process in batches
+        for i in range(0, len(references), self.concurrent):
+            batch = references[i:i + self.concurrent]
+
+            tasks = [self._scrape_volatile_only(ref) for ref in batch]
+            batch_results = await asyncio.gather(*tasks, return_exceptions=True)
+
+            for idx, result in enumerate(batch_results):
+                if isinstance(result, dict):
+                    results.append(result)
+                else:
+                    failed.append(batch[idx])
+                    print(f"  ✗ {batch[idx]}: {str(result)[:50]}")
+
+            await asyncio.sleep(self.delay * 0.5)  # Faster delay for lightweight scrape
+
+        print(f"⚡ Volatile scrape complete: {len(results)} OK / {len(failed)} failed")
+        return results
+
+    async def _scrape_volatile_only(self, reference: str) -> dict:
+        """
+        Scrape ONLY volatile data from an event page (price + end time).
+        Much faster than full scrape - skips GPS, location, descriptions, etc.
+        """
+        url = f"https://www.e-leiloes.pt/evento/{reference}"
+
+        context = await self.browser.new_context(
+            user_agent=self.user_agent,
+            viewport={'width': 1920, 'height': 1080}
+        )
+
+        page = await context.new_page()
+
+        try:
+            # Use domcontentloaded instead of networkidle for faster load
+            await page.goto(url, wait_until="domcontentloaded", timeout=10000)
+            await asyncio.sleep(0.5)  # Minimal wait
+
+            # Extract only dataFim
+            data_fim = None
+            try:
+                divs = await page.query_selector_all('div.flex.justify-content-between')
+                for div in divs:
+                    text = await div.text_content()
+                    if text and 'Fim:' in text:
+                        date_span = await div.query_selector('span.font-semibold')
+                        if date_span:
+                            value = await date_span.text_content()
+                            if value:
+                                data_fim = datetime.strptime(value.strip(), '%d/%m/%Y %H:%M:%S')
+                        break
+            except Exception as e:
+                print(f"  ⚠️ Error extracting dataFim for {reference}: {e}")
+
+            # Extract only lanceAtual
+            lance_atual = None
+            try:
+                body_text = await page.text_content('body')
+                match = re.search(r'(?:lance\s+atual|atual)[:\s]*€?\s*([\d\s.]+,\d{2})', body_text, re.IGNORECASE)
+                if match:
+                    value_str = match.group(1).replace(' ', '').replace('.', '').replace(',', '.')
+                    lance_atual = float(value_str)
+            except Exception as e:
+                print(f"  ⚠️ Error extracting lanceAtual for {reference}: {e}")
+
+            return {
+                'reference': reference,
+                'lanceAtual': lance_atual,
+                'dataFim': data_fim
+            }
+
+        except Exception as e:
+            raise Exception(f"Volatile scrape failed for {reference}: {str(e)}")
+
+        finally:
+            await page.close()
+            await context.close()
+
     async def _scrape_images_only(self, reference: str) -> List[str]:
         """Scrape apenas as imagens de um evento usando interceptação de requests"""
         url = f"https://www.e-leiloes.pt/evento/{reference}"
