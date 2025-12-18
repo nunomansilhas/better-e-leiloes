@@ -557,6 +557,17 @@ class AutoPipelinesManager:
                                     await db.save_event(event)
                                     await cache_manager.set(event.reference, event)
 
+                                # Broadcast price update to SSE clients
+                                from main import broadcast_price_update
+                                await broadcast_price_update({
+                                    "type": "price_update",
+                                    "reference": event.reference,
+                                    "old_price": old_price,
+                                    "new_price": new_price,
+                                    "time_remaining": f"{minutes}m{secs}s",
+                                    "timestamp": datetime.now().isoformat()
+                                })
+
                                 updated_count += 1
 
                     except Exception as e:
@@ -787,6 +798,17 @@ class AutoPipelinesManager:
                                     await db.save_event(event)
                                     await cache_manager.set(event.reference, event)
 
+                                # Broadcast price update to SSE clients
+                                from main import broadcast_price_update
+                                await broadcast_price_update({
+                                    "type": "price_update",
+                                    "reference": event.reference,
+                                    "old_price": old_price,
+                                    "new_price": new_price,
+                                    "time_remaining": f"{minutes}min",
+                                    "timestamp": datetime.now().isoformat()
+                                })
+
                                 updated_count += 1
 
                     except Exception as e:
@@ -913,6 +935,17 @@ class AutoPipelinesManager:
                                 async with get_db() as db:
                                     await db.save_event(event)
                                     await cache_manager.set(event.reference, event)
+
+                                # Broadcast price update to SSE clients
+                                from main import broadcast_price_update
+                                await broadcast_price_update({
+                                    "type": "price_update",
+                                    "reference": event.reference,
+                                    "old_price": old_price,
+                                    "new_price": new_price,
+                                    "time_remaining": f"{hours}h{minutes}m",
+                                    "timestamp": datetime.now().isoformat()
+                                })
 
                                 updated_count += 1
 
