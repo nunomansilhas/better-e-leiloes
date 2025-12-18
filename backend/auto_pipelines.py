@@ -131,31 +131,28 @@ class AutoPipelinesManager:
         from database import get_db
 
         try:
-            # Get all events from database
+            # Get upcoming events (next 1 hour, ordered by end time)
             async with get_db() as db:
-                events, total = await db.list_events(limit=1000)
+                events = await db.get_upcoming_events(hours=1)
 
             if not events:
                 self._critical_events_cache = []
                 self._cache_last_refresh = datetime.now()
-                print(f"🔴 Cache refresh: No events in database")
+                print(f"🔴 Critical cache: No upcoming events in next 1h")
                 return
 
             # Filter events ending in LESS THAN 6 MINUTES (360 seconds)
-            # This catches events that just got reset to 5:00
             now = datetime.now()
             critical_events = []
 
-            print(f"🔍 Cache refresh: Checking {len(events)} events, now={now}")
+            print(f"🔍 Critical cache: {len(events)} upcoming events (< 1h)")
 
             for event in events:
                 if event.dataFim:
                     time_until_end = event.dataFim - now
                     seconds_until_end = time_until_end.total_seconds()
 
-                    # Debug: show first few events
-                    if seconds_until_end <= 3600:  # Show events < 1h
-                        print(f"    {event.reference}: dataFim={event.dataFim}, seconds={int(seconds_until_end)}")
+                    print(f"    {event.reference}: {int(seconds_until_end)}s")
 
                     # Cache events ending in < 6 minutes (1-minute buffer)
                     if 0 < seconds_until_end <= 360:
@@ -165,9 +162,7 @@ class AutoPipelinesManager:
             self._cache_last_refresh = datetime.now()
 
             if critical_events:
-                print(f"🔄 Critical events cache refreshed: {len(critical_events)} events (< 6 min)")
-            else:
-                print(f"🔴 Cache refresh: 0 critical events found (< 6 min)")
+                print(f"🔴 Critical cache: {len(critical_events)} events (< 6 min)")
 
         except Exception as e:
             print(f"⚠️ Error refreshing critical events cache: {e}")
@@ -177,15 +172,11 @@ class AutoPipelinesManager:
         from database import get_db
 
         try:
+            # Get upcoming events (next 2 hours, ordered by end time)
             async with get_db() as db:
-                events, total = await db.list_events(limit=1000)
+                events = await db.get_upcoming_events(hours=2)
 
-            if not events:
-                self._urgent_events_cache = []
-                self._urgent_cache_last_refresh = datetime.now()
-                return
-
-            # Filter events ending in LESS THAN 1.5 HOURS (5400 seconds)
+            # Filter events ending in < 1.5 hours
             now = datetime.now()
             urgent_events = []
 
@@ -193,8 +184,6 @@ class AutoPipelinesManager:
                 if event.dataFim:
                     time_until_end = event.dataFim - now
                     seconds_until_end = time_until_end.total_seconds()
-
-                    # Cache events ending in < 1.5 hours (30-min buffer)
                     if 0 < seconds_until_end <= 5400:
                         urgent_events.append(event)
 
@@ -202,7 +191,7 @@ class AutoPipelinesManager:
             self._urgent_cache_last_refresh = datetime.now()
 
             if urgent_events:
-                print(f"🟠 Urgent events cache refreshed: {len(urgent_events)} events (< 1.5h)")
+                print(f"🟠 Urgent cache: {len(urgent_events)} events (< 1.5h)")
 
         except Exception as e:
             print(f"⚠️ Error refreshing urgent events cache: {e}")
@@ -212,32 +201,15 @@ class AutoPipelinesManager:
         from database import get_db
 
         try:
+            # Get upcoming events (next 25 hours, ordered by end time)
             async with get_db() as db:
-                events, total = await db.list_events(limit=1000)
+                events = await db.get_upcoming_events(hours=25)
 
-            if not events:
-                self._soon_events_cache = []
-                self._soon_cache_last_refresh = datetime.now()
-                return
-
-            # Filter events ending in LESS THAN 25 HOURS (90000 seconds)
-            now = datetime.now()
-            soon_events = []
-
-            for event in events:
-                if event.dataFim:
-                    time_until_end = event.dataFim - now
-                    seconds_until_end = time_until_end.total_seconds()
-
-                    # Cache events ending in < 25 hours (1-hour buffer)
-                    if 0 < seconds_until_end <= 90000:
-                        soon_events.append(event)
-
-            self._soon_events_cache = soon_events
+            self._soon_events_cache = events
             self._soon_cache_last_refresh = datetime.now()
 
-            if soon_events:
-                print(f"🟡 Soon events cache refreshed: {len(soon_events)} events (< 25h)")
+            if events:
+                print(f"🟡 Soon cache: {len(events)} events (< 25h)")
 
         except Exception as e:
             print(f"⚠️ Error refreshing soon events cache: {e}")
