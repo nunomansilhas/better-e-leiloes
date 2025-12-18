@@ -1366,6 +1366,12 @@ class EventScraper:
             for idx, result in enumerate(batch_results):
                 if isinstance(result, dict):
                     results.append(result)
+                    # Show extracted values
+                    price = result.get('lanceAtual')
+                    end_time = result.get('dataFim')
+                    price_str = f"{price}€" if price else "N/A"
+                    time_str = end_time.strftime('%d/%m/%Y %H:%M:%S') if end_time else "N/A"
+                    print(f"  ✓ {result['reference']}: LA={price_str} | Fim={time_str}")
                 else:
                     failed.append(batch[idx])
                     print(f"  ✗ {batch[idx]}: {str(result)[:50]}")
