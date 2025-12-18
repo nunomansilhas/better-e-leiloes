@@ -1821,132 +1821,32 @@
             </div>
 
             <div id="dashboard-content">
-                <!-- Side-by-side: Scrapers + Pipelines -->
-                <!-- ========================================== -->
-                <!-- SCRAPERS - OPÇÃO 1: Linha Compacta -->
-                <!-- ========================================== -->
-                <div class="scraper-control-card" style="border: 3px solid #3b82f6; margin-bottom: 16px;">
-                    <div style="background: #3b82f6; color: white; padding: 4px 12px; font-size: 11px; font-weight: 700; margin: -17px -17px 12px -17px; border-radius: 8px 8px 0 0;">SCRAPERS OPÇÃO 1: Linha Compacta</div>
+                <!-- Scrapers Independentes - Linha Compacta -->
+                <div class="scraper-control-card" style="margin-bottom: 16px;">
+                    <div class="scraper-control-header" style="margin-bottom: 12px;">
+                        <h3 style="font-size: 14px; margin: 0;">🛠️ Scrapers Independentes</h3>
+                    </div>
                     <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                         <span style="font-size: 12px; color: #64748b; font-weight: 500;">Run:</span>
-                        <button class="scraper-btn start" style="padding: 6px 12px; font-size: 12px;">🔍 IDs</button>
-                        <button class="scraper-btn start" style="padding: 6px 12px; font-size: 12px;">🔄 Recheck</button>
-                        <button class="scraper-btn start" style="padding: 6px 12px; font-size: 12px;">📋 Content</button>
-                        <button class="scraper-btn start" style="padding: 6px 12px; font-size: 12px;">🖼️ Images</button>
+                        <button class="scraper-btn start" onclick="runIndependentScraper('ids')" style="padding: 6px 12px; font-size: 12px;">🔍 IDs</button>
+                        <button class="scraper-btn start" onclick="runIndependentScraper('recheck')" style="padding: 6px 12px; font-size: 12px;">🔄 Recheck</button>
+                        <button class="scraper-btn start" onclick="runIndependentScraper('content')" style="padding: 6px 12px; font-size: 12px;">📋 Content</button>
+                        <button class="scraper-btn start" onclick="runIndependentScraper('images')" style="padding: 6px 12px; font-size: 12px;">🖼️ Images</button>
                         <div style="margin-left: auto; display: flex; gap: 8px;">
-                            <select class="filter-select" style="padding: 6px 10px; font-size: 11px; min-width: 100px;">
-                                <option>📦 Todos</option>
-                                <option>🏠 Imóveis</option>
-                                <option>🚗 Móveis</option>
+                            <select class="filter-select" id="independent-tipo" style="padding: 6px 10px; font-size: 11px; min-width: 100px;">
+                                <option value="">📦 Todos</option>
+                                <option value="1">🏠 Imóveis</option>
+                                <option value="2">🚗 Móveis</option>
                             </select>
                         </div>
                     </div>
                 </div>
 
-                <!-- ========================================== -->
-                <!-- SCRAPERS - OPÇÃO 2: Mini Cards -->
-                <!-- ========================================== -->
-                <div class="scraper-control-card" style="border: 3px solid #10b981; margin-bottom: 16px;">
-                    <div style="background: #10b981; color: white; padding: 4px 12px; font-size: 11px; font-weight: 700; margin: -17px -17px 12px -17px; border-radius: 8px 8px 0 0;">SCRAPERS OPÇÃO 2: Mini Cards</div>
-                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
-                        <div style="padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; text-align: center; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.borderColor='#10b981';this.style.background='#f0fdf4'" onmouseout="this.style.borderColor='#e2e8f0';this.style.background='white'">
-                            <div style="font-size: 24px; margin-bottom: 4px;">🔍</div>
-                            <div style="font-size: 12px; font-weight: 600; color: #1e293b;">IDs</div>
-                            <div style="font-size: 10px; color: #64748b;">Obter refs</div>
-                        </div>
-                        <div style="padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; text-align: center; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.borderColor='#10b981';this.style.background='#f0fdf4'" onmouseout="this.style.borderColor='#e2e8f0';this.style.background='white'">
-                            <div style="font-size: 24px; margin-bottom: 4px;">🔄</div>
-                            <div style="font-size: 12px; font-weight: 600; color: #1e293b;">Recheck</div>
-                            <div style="font-size: 10px; color: #64748b;">Verificar novos</div>
-                        </div>
-                        <div style="padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; text-align: center; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.borderColor='#10b981';this.style.background='#f0fdf4'" onmouseout="this.style.borderColor='#e2e8f0';this.style.background='white'">
-                            <div style="font-size: 24px; margin-bottom: 4px;">📋</div>
-                            <div style="font-size: 12px; font-weight: 600; color: #1e293b;">Content</div>
-                            <div style="font-size: 10px; color: #64748b;">Extrair dados</div>
-                        </div>
-                        <div style="padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; text-align: center; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.borderColor='#10b981';this.style.background='#f0fdf4'" onmouseout="this.style.borderColor='#e2e8f0';this.style.background='white'">
-                            <div style="font-size: 24px; margin-bottom: 4px;">🖼️</div>
-                            <div style="font-size: 12px; font-weight: 600; color: #1e293b;">Images</div>
-                            <div style="font-size: 10px; color: #64748b;">Download imgs</div>
-                        </div>
+                <!-- Pipelines Automáticas - Tabela -->
+                <div class="scraper-control-card" style="margin-bottom: 16px;">
+                    <div class="scraper-control-header" style="margin-bottom: 12px;">
+                        <h3 style="font-size: 14px; margin: 0;">⚡ Pipelines Automáticas</h3>
                     </div>
-                </div>
-
-                <!-- ========================================== -->
-                <!-- SCRAPERS - OPÇÃO 3: Dropdown -->
-                <!-- ========================================== -->
-                <div class="scraper-control-card" style="border: 3px solid #f59e0b; margin-bottom: 16px;">
-                    <div style="background: #f59e0b; color: white; padding: 4px 12px; font-size: 11px; font-weight: 700; margin: -17px -17px 12px -17px; border-radius: 8px 8px 0 0;">SCRAPERS OPÇÃO 3: Dropdown Menu</div>
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <select class="filter-select" style="flex: 1; padding: 10px 14px;">
-                            <option>🔍 Scrape IDs - Obter referências de eventos</option>
-                            <option>🔄 Recheck New - Verificar novos eventos</option>
-                            <option>📋 Scrape Content - Extrair detalhes completos</option>
-                            <option>🖼️ Scrape Images - Download de imagens</option>
-                        </select>
-                        <select class="filter-select" style="width: 120px; padding: 10px 14px;">
-                            <option>📦 Todos</option>
-                            <option>🏠 Imóveis</option>
-                            <option>🚗 Móveis</option>
-                        </select>
-                        <button class="scraper-btn primary" style="padding: 10px 20px;">▶ Run</button>
-                    </div>
-                </div>
-
-                <!-- ========================================== -->
-                <!-- PIPELINES - OPÇÃO 1: Lista Compacta -->
-                <!-- ========================================== -->
-                <div class="scraper-control-card" style="border: 3px solid #8b5cf6; margin-bottom: 16px;">
-                    <div style="background: #8b5cf6; color: white; padding: 4px 12px; font-size: 11px; font-weight: 700; margin: -17px -17px 12px -17px; border-radius: 8px 8px 0 0;">PIPELINES OPÇÃO 1: Lista Compacta</div>
-                    <div style="display: flex; flex-direction: column; gap: 8px;">
-                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: #f8fafc; border-radius: 6px;">
-                            <div style="display: flex; align-items: center; gap: 10px;">
-                                <span>🤖</span>
-                                <span style="font-weight: 500; font-size: 13px;">Auto Pipeline</span>
-                                <span style="font-size: 10px; color: #64748b; background: #e2e8f0; padding: 2px 6px; border-radius: 4px;">8h</span>
-                            </div>
-                            <label class="toggle-switch"><input type="checkbox"><span class="toggle-slider"></span></label>
-                        </div>
-                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: #fef2f2; border-radius: 6px; border-left: 3px solid #ef4444;">
-                            <div style="display: flex; align-items: center; gap: 10px;">
-                                <span>🔴</span>
-                                <span style="font-weight: 500; font-size: 13px; color: #dc2626;">X-Critical</span>
-                                <span style="font-size: 10px; color: white; background: #ef4444; padding: 2px 6px; border-radius: 4px;">5s</span>
-                            </div>
-                            <label class="toggle-switch"><input type="checkbox"><span class="toggle-slider"></span></label>
-                        </div>
-                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: #fff7ed; border-radius: 6px; border-left: 3px solid #f97316;">
-                            <div style="display: flex; align-items: center; gap: 10px;">
-                                <span>🟠</span>
-                                <span style="font-weight: 500; font-size: 13px; color: #ea580c;">X-Urgent</span>
-                                <span style="font-size: 10px; color: white; background: #f97316; padding: 2px 6px; border-radius: 4px;">1m</span>
-                            </div>
-                            <label class="toggle-switch"><input type="checkbox"><span class="toggle-slider"></span></label>
-                        </div>
-                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: #fefce8; border-radius: 6px; border-left: 3px solid #eab308;">
-                            <div style="display: flex; align-items: center; gap: 10px;">
-                                <span>🟡</span>
-                                <span style="font-weight: 500; font-size: 13px; color: #ca8a04;">X-Soon</span>
-                                <span style="font-size: 10px; color: white; background: #eab308; padding: 2px 6px; border-radius: 4px;">10m</span>
-                            </div>
-                            <label class="toggle-switch"><input type="checkbox"><span class="toggle-slider"></span></label>
-                        </div>
-                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: #f8fafc; border-radius: 6px;">
-                            <div style="display: flex; align-items: center; gap: 10px;">
-                                <span>🔄</span>
-                                <span style="font-weight: 500; font-size: 13px;">Y-Info</span>
-                                <span style="font-size: 10px; color: #64748b; background: #e2e8f0; padding: 2px 6px; border-radius: 4px;">2h</span>
-                            </div>
-                            <label class="toggle-switch"><input type="checkbox"><span class="toggle-slider"></span></label>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- ========================================== -->
-                <!-- PIPELINES - OPÇÃO 2: Tabela -->
-                <!-- ========================================== -->
-                <div class="scraper-control-card" style="border: 3px solid #ec4899; margin-bottom: 16px;">
-                    <div style="background: #ec4899; color: white; padding: 4px 12px; font-size: 11px; font-weight: 700; margin: -17px -17px 12px -17px; border-radius: 8px 8px 0 0;">PIPELINES OPÇÃO 2: Tabela</div>
                     <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
                         <thead>
                             <tr style="border-bottom: 2px solid #e2e8f0;">
@@ -1961,256 +1861,60 @@
                                 <td style="padding: 10px 8px;"><span style="margin-right: 6px;">🤖</span>Auto Pipeline</td>
                                 <td style="text-align: center; padding: 10px 8px; color: #64748b;">8 horas</td>
                                 <td style="text-align: center; padding: 10px 8px; color: #64748b;">Todos</td>
-                                <td style="text-align: right; padding: 10px 8px;"><label class="toggle-switch"><input type="checkbox"><span class="toggle-slider"></span></label></td>
+                                <td style="text-align: right; padding: 10px 8px;">
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="auto-pipeline-full" onchange="toggleAutoPipeline('full', this.checked)">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </td>
                             </tr>
                             <tr style="border-bottom: 1px solid #f1f5f9; background: #fef2f2;">
                                 <td style="padding: 10px 8px; color: #dc2626; font-weight: 500;"><span style="margin-right: 6px;">🔴</span>X-Critical</td>
                                 <td style="text-align: center; padding: 10px 8px; color: #dc2626; font-weight: 600;">5 seg</td>
                                 <td style="text-align: center; padding: 10px 8px; color: #dc2626;">< 5 min</td>
-                                <td style="text-align: right; padding: 10px 8px;"><label class="toggle-switch"><input type="checkbox"><span class="toggle-slider"></span></label></td>
+                                <td style="text-align: right; padding: 10px 8px;">
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="auto-pipeline-prices" onchange="toggleAutoPipeline('prices', this.checked)">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </td>
                             </tr>
                             <tr style="border-bottom: 1px solid #f1f5f9; background: #fff7ed;">
                                 <td style="padding: 10px 8px; color: #ea580c; font-weight: 500;"><span style="margin-right: 6px;">🟠</span>X-Urgent</td>
                                 <td style="text-align: center; padding: 10px 8px; color: #ea580c; font-weight: 600;">1 min</td>
                                 <td style="text-align: center; padding: 10px 8px; color: #ea580c;">< 1 hora</td>
-                                <td style="text-align: right; padding: 10px 8px;"><label class="toggle-switch"><input type="checkbox"><span class="toggle-slider"></span></label></td>
+                                <td style="text-align: right; padding: 10px 8px;">
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="auto-pipeline-prices_urgent" onchange="toggleAutoPipeline('prices_urgent', this.checked)">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </td>
                             </tr>
                             <tr style="border-bottom: 1px solid #f1f5f9; background: #fefce8;">
                                 <td style="padding: 10px 8px; color: #ca8a04; font-weight: 500;"><span style="margin-right: 6px;">🟡</span>X-Soon</td>
                                 <td style="text-align: center; padding: 10px 8px; color: #ca8a04; font-weight: 600;">10 min</td>
                                 <td style="text-align: center; padding: 10px 8px; color: #ca8a04;">< 24h</td>
-                                <td style="text-align: right; padding: 10px 8px;"><label class="toggle-switch"><input type="checkbox"><span class="toggle-slider"></span></label></td>
+                                <td style="text-align: right; padding: 10px 8px;">
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="auto-pipeline-prices_soon" onchange="toggleAutoPipeline('prices_soon', this.checked)">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </td>
                             </tr>
                             <tr>
                                 <td style="padding: 10px 8px;"><span style="margin-right: 6px;">🔄</span>Y-Info</td>
                                 <td style="text-align: center; padding: 10px 8px; color: #64748b;">2 horas</td>
                                 <td style="text-align: center; padding: 10px 8px; color: #64748b;">Todos</td>
-                                <td style="text-align: right; padding: 10px 8px;"><label class="toggle-switch"><input type="checkbox"><span class="toggle-slider"></span></label></td>
+                                <td style="text-align: right; padding: 10px 8px;">
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="auto-pipeline-info" onchange="toggleAutoPipeline('info', this.checked)">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
-
-                <!-- ========================================== -->
-                <!-- PIPELINES - OPÇÃO 3: Grid de Cards -->
-                <!-- ========================================== -->
-                <div class="scraper-control-card" style="border: 3px solid #06b6d4; margin-bottom: 16px;">
-                    <div style="background: #06b6d4; color: white; padding: 4px 12px; font-size: 11px; font-weight: 700; margin: -17px -17px 12px -17px; border-radius: 8px 8px 0 0;">PIPELINES OPÇÃO 3: Grid Cards</div>
-                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
-                        <!-- X-Critical -->
-                        <div style="padding: 12px; background: linear-gradient(135deg, #fef2f2, #fee2e2); border: 2px solid #fca5a5; border-radius: 10px;">
-                            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
-                                <span style="font-size: 20px;">🔴</span>
-                                <label class="toggle-switch" style="transform: scale(0.8);"><input type="checkbox"><span class="toggle-slider"></span></label>
-                            </div>
-                            <div style="font-weight: 700; color: #dc2626; font-size: 13px;">X-Critical</div>
-                            <div style="font-size: 10px; color: #991b1b; margin-top: 2px;">5 seg • < 5 min</div>
-                        </div>
-                        <!-- X-Urgent -->
-                        <div style="padding: 12px; background: linear-gradient(135deg, #fff7ed, #ffedd5); border: 2px solid #fdba74; border-radius: 10px;">
-                            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
-                                <span style="font-size: 20px;">🟠</span>
-                                <label class="toggle-switch" style="transform: scale(0.8);"><input type="checkbox"><span class="toggle-slider"></span></label>
-                            </div>
-                            <div style="font-weight: 700; color: #ea580c; font-size: 13px;">X-Urgent</div>
-                            <div style="font-size: 10px; color: #9a3412; margin-top: 2px;">1 min • < 1 hora</div>
-                        </div>
-                        <!-- X-Soon -->
-                        <div style="padding: 12px; background: linear-gradient(135deg, #fefce8, #fef9c3); border: 2px solid #facc15; border-radius: 10px;">
-                            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
-                                <span style="font-size: 20px;">🟡</span>
-                                <label class="toggle-switch" style="transform: scale(0.8);"><input type="checkbox"><span class="toggle-slider"></span></label>
-                            </div>
-                            <div style="font-weight: 700; color: #ca8a04; font-size: 13px;">X-Soon</div>
-                            <div style="font-size: 10px; color: #854d0e; margin-top: 2px;">10 min • < 24h</div>
-                        </div>
-                        <!-- Auto Pipeline -->
-                        <div style="padding: 12px; background: #f8fafc; border: 2px solid #e2e8f0; border-radius: 10px;">
-                            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
-                                <span style="font-size: 20px;">🤖</span>
-                                <label class="toggle-switch" style="transform: scale(0.8);"><input type="checkbox"><span class="toggle-slider"></span></label>
-                            </div>
-                            <div style="font-weight: 700; color: #1e293b; font-size: 13px;">Auto</div>
-                            <div style="font-size: 10px; color: #64748b; margin-top: 2px;">8h • Full scrape</div>
-                        </div>
-                        <!-- Y-Info -->
-                        <div style="padding: 12px; background: #f8fafc; border: 2px solid #e2e8f0; border-radius: 10px;">
-                            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
-                                <span style="font-size: 20px;">🔄</span>
-                                <label class="toggle-switch" style="transform: scale(0.8);"><input type="checkbox"><span class="toggle-slider"></span></label>
-                            </div>
-                            <div style="font-weight: 700; color: #1e293b; font-size: 13px;">Y-Info</div>
-                            <div style="font-size: 10px; color: #64748b; margin-top: 2px;">2h • All events</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- ========================================== -->
-                <!-- ORIGINAL (para referência) -->
-                <!-- ========================================== -->
-                <div class="dashboard-row" style="opacity: 0.4;">
-                <!-- Independent Scrapers -->
-                <div class="scraper-control-card">
-                    <div style="background: #64748b; color: white; padding: 4px 12px; font-size: 11px; font-weight: 700; margin: -17px -17px 12px -17px; border-radius: 8px 8px 0 0;">ORIGINAL (atual)</div>
-                    <div class="scraper-control-header">
-                        <h3>🛠️ Scrapers Independentes</h3>
-                        <span style="font-size: 12px; color: #64748b;">Execute cada scraper separadamente</span>
-                    </div>
-
-                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 16px;">
-                        <button class="scraper-btn start" onclick="runIndependentScraper('ids')" style="justify-content: center; padding: 12px 16px;">
-                            <span>🔍</span> IDs
-                        </button>
-                        <button class="scraper-btn start" onclick="runIndependentScraper('recheck')" style="justify-content: center; padding: 12px 16px;">
-                            <span>🔄</span> Recheck
-                        </button>
-                        <button class="scraper-btn start" onclick="runIndependentScraper('content')" style="justify-content: center; padding: 12px 16px;">
-                            <span>📋</span> Content
-                        </button>
-                        <button class="scraper-btn start" onclick="runIndependentScraper('images')" style="justify-content: center; padding: 12px 16px;">
-                            <span>🖼️</span> Images
-                        </button>
-                    </div>
-
-                    <!-- Scraper Options -->
-                    <div style="display: flex; gap: 12px; padding: 12px; background: #f8fafc; border-radius: 8px;">
-                        <select class="filter-select" id="independent-tipo" style="flex: 1;">
-                            <option value="">📦 Ambos (Imóveis + Móveis)</option>
-                            <option value="1">🏠 Apenas Imóveis</option>
-                            <option value="2">🚗 Apenas Móveis</option>
-                        </select>
-                        <input type="number" class="filter-input" id="independent-pages" placeholder="Nº Páginas (vazio=todas)" style="width: 160px;">
-                    </div>
-                </div>
-
-                <!-- Pipelines Automáticas -->
-                <div class="scraper-control-card">
-                    <div class="scraper-control-header">
-                        <h3>⚡ Pipelines Automáticas</h3>
-                        <span style="font-size: 12px; color: #64748b;">Agendamento automático de scrapers</span>
-                    </div>
-
-                    <div style="display: grid; gap: 12px;">
-                        <!-- Pipeline Automática -->
-                        <div class="auto-pipeline-item">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <div style="flex: 1;">
-                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-                                        <span style="font-size: 18px;">🤖</span>
-                                        <span style="font-weight: 600; color: #1e293b;">Pipeline Automática</span>
-                                    </div>
-                                    <div style="font-size: 12px; color: #64748b; margin-left: 26px;">
-                                        Recolhe novos IDs, conteúdos e imagens • A cada 8 horas
-                                    </div>
-                                </div>
-                                <label class="toggle-switch">
-                                    <input type="checkbox" id="auto-pipeline-full" onchange="toggleAutoPipeline('full', this.checked)">
-                                    <span class="toggle-slider"></span>
-                                </label>
-                            </div>
-                            <div id="auto-pipeline-full-status" style="font-size: 11px; color: #94a3b8; margin-left: 26px; margin-top: 6px; display: none;">
-                                <span class="status-indicator"></span>
-                                <span class="status-text"></span>
-                            </div>
-                        </div>
-
-                        <!-- Pipeline X-Critical - Verificação de Preços (< 5 min) -->
-                        <div class="auto-pipeline-item" style="background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border: 2px solid #fca5a5;">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <div style="flex: 1;">
-                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-                                        <span style="font-size: 18px;">🔴</span>
-                                        <span style="font-weight: 600; color: #dc2626;">Pipeline X-Critical</span>
-                                        <span style="font-size: 10px; background: #dc2626; color: white; padding: 2px 6px; border-radius: 4px; font-weight: 700;">< 5 MIN</span>
-                                    </div>
-                                    <div style="font-size: 12px; color: #991b1b; margin-left: 26px; font-weight: 500;">
-                                        A cada 5 SEGUNDOS • Eventos < 5 minutos
-                                    </div>
-                                </div>
-                                <label class="toggle-switch">
-                                    <input type="checkbox" id="auto-pipeline-prices" onchange="toggleAutoPipeline('prices', this.checked)">
-                                    <span class="toggle-slider"></span>
-                                </label>
-                            </div>
-                            <div id="auto-pipeline-prices-status" style="font-size: 11px; color: #dc2626; margin-left: 26px; margin-top: 6px; display: none; font-weight: 500;">
-                                <span class="status-indicator"></span>
-                                <span class="status-text"></span>
-                            </div>
-                        </div>
-
-                        <!-- Pipeline X-Urgent - Verificação de Preços (< 1 hora) -->
-                        <div class="auto-pipeline-item" style="background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%); border: 2px solid #fdba74;">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <div style="flex: 1;">
-                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-                                        <span style="font-size: 18px;">🟠</span>
-                                        <span style="font-weight: 600; color: #ea580c;">Pipeline X-Urgent</span>
-                                        <span style="font-size: 10px; background: #ea580c; color: white; padding: 2px 6px; border-radius: 4px; font-weight: 700;">< 1 HORA</span>
-                                    </div>
-                                    <div style="font-size: 12px; color: #9a3412; margin-left: 26px; font-weight: 500;">
-                                        A cada 1 MINUTO • Eventos < 1 hora
-                                    </div>
-                                </div>
-                                <label class="toggle-switch">
-                                    <input type="checkbox" id="auto-pipeline-prices_urgent" onchange="toggleAutoPipeline('prices_urgent', this.checked)">
-                                    <span class="toggle-slider"></span>
-                                </label>
-                            </div>
-                            <div id="auto-pipeline-prices_urgent-status" style="font-size: 11px; color: #ea580c; margin-left: 26px; margin-top: 6px; display: none; font-weight: 500;">
-                                <span class="status-indicator"></span>
-                                <span class="status-text"></span>
-                            </div>
-                        </div>
-
-                        <!-- Pipeline X-Soon - Verificação de Preços (< 24 horas) -->
-                        <div class="auto-pipeline-item" style="background: linear-gradient(135deg, #fefce8 0%, #fef9c3 100%); border: 2px solid #facc15;">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <div style="flex: 1;">
-                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-                                        <span style="font-size: 18px;">🟡</span>
-                                        <span style="font-weight: 600; color: #ca8a04;">Pipeline X-Soon</span>
-                                        <span style="font-size: 10px; background: #ca8a04; color: white; padding: 2px 6px; border-radius: 4px; font-weight: 700;">< 24H</span>
-                                    </div>
-                                    <div style="font-size: 12px; color: #854d0e; margin-left: 26px; font-weight: 500;">
-                                        A cada 10 MINUTOS • Eventos < 24 horas
-                                    </div>
-                                </div>
-                                <label class="toggle-switch">
-                                    <input type="checkbox" id="auto-pipeline-prices_soon" onchange="toggleAutoPipeline('prices_soon', this.checked)">
-                                    <span class="toggle-slider"></span>
-                                </label>
-                            </div>
-                            <div id="auto-pipeline-prices_soon-status" style="font-size: 11px; color: #ca8a04; margin-left: 26px; margin-top: 6px; display: none; font-weight: 500;">
-                                <span class="status-indicator"></span>
-                                <span class="status-text"></span>
-                            </div>
-                        </div>
-
-                        <!-- Pipeline Y - Verificação de Informações -->
-                        <div class="auto-pipeline-item">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <div style="flex: 1;">
-                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-                                        <span style="font-size: 18px;">🔄</span>
-                                        <span style="font-weight: 600; color: #1e293b;">Pipeline Y - Info</span>
-                                    </div>
-                                    <div style="font-size: 12px; color: #64748b; margin-left: 26px;">
-                                        Verifica preços e datas de TODOS os eventos • A cada 2 horas
-                                    </div>
-                                </div>
-                                <label class="toggle-switch">
-                                    <input type="checkbox" id="auto-pipeline-info" onchange="toggleAutoPipeline('info', this.checked)">
-                                    <span class="toggle-slider"></span>
-                                </label>
-                            </div>
-                            <div id="auto-pipeline-info-status" style="font-size: 11px; color: #94a3b8; margin-left: 26px; margin-top: 6px; display: none;">
-                                <span class="status-indicator"></span>
-                                <span class="status-text"></span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                </div> <!-- end dashboard-row -->
 
                 <!-- Pipeline Completo - Stepper Minimalista -->
                 <div class="scraper-control-card" style="margin-top: 16px;">
