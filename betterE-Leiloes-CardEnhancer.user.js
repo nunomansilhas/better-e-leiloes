@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      4.7
+// @version      5.0
 // @description  Design moderno com carousel de imagens e distinção visual de tipos de leilão
 // @author       Nuno Mansilhas
 // @match        https://www.e-leiloes.pt/*
@@ -21,7 +21,8 @@
     const CONFIG = {
         API_BASE: 'http://localhost:8000/api',
         DASHBOARD_URL: 'http://localhost:8000',
-        ENABLE_API_ENRICHMENT: true
+        ENABLE_API_ENRICHMENT: true,
+        MAX_CAROUSEL_IMAGES: 5
     };
 
     // ====================================
@@ -66,6 +67,11 @@
             display: none !important;
         }
 
+        /* ESCONDE o p-tag p-component (badge "Neg. Particular", "Leilão Online", etc) */
+        .p-evento[data-better-enhanced="true"] .p-tag.p-component {
+            display: none !important;
+        }
+
         /* Centraliza o título do evento */
         .p-evento[data-better-enhanced="true"] .flex.align-items-start.px-3.pt-1 {
             text-align: center;
@@ -96,19 +102,22 @@
             pointer-events: none !important;
         }
 
-        .p-evento a:not(.pi-map) {
+        .p-evento a:not(.better-map-link) {
             cursor: default !important;
         }
 
-        /* GPS icon - permitir clique */
-        .p-evento a.pi-map {
-            pointer-events: auto !important;
+        /* Map marker icon - styled and clickable */
+        .p-evento[data-better-enhanced="true"] .pi-map-marker.better-map-link {
+            color: #3b82f6 !important;
             cursor: pointer !important;
-            transition: transform 0.2s ease;
+            pointer-events: auto !important;
+            transition: all 0.2s ease !important;
+            font-size: 14px !important;
         }
 
-        .p-evento a.pi-map:hover {
-            transform: scale(1.1);
+        .p-evento[data-better-enhanced="true"] .pi-map-marker.better-map-link:hover {
+            color: #1d4ed8 !important;
+            transform: scale(1.2) !important;
         }
 
         /* Header do card - Row 1 */
@@ -188,19 +197,6 @@
             transform: translateY(-1px);
         }
 
-        .better-btn-map {
-            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
-            color: white !important;
-            border: none !important;
-            display: inline-flex !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-        }
-
-        .better-btn-map:hover {
-            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%) !important;
-        }
-
         .better-btn-primary {
             background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
             color: white;
@@ -209,6 +205,29 @@
 
         .better-btn-primary:hover {
             background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        }
+
+        /* Outlined button style for dashboard link */
+        .better-btn-outlined {
+            background: transparent !important;
+            border: 2px solid #3b82f6 !important;
+            color: #3b82f6 !important;
+            padding: 8px 16px !important;
+            border-radius: 8px !important;
+            font-size: 12px !important;
+            font-weight: 600 !important;
+            cursor: pointer !important;
+            transition: all 0.2s ease !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 6px !important;
+            text-decoration: none !important;
+        }
+
+        .better-btn-outlined:hover {
+            background: #3b82f6 !important;
+            color: white !important;
+            transform: translateY(-1px) !important;
         }
 
         /* Contador de imagens no carousel */
@@ -233,7 +252,7 @@
         .better-carousel {
             position: relative;
             width: 100%;
-            height: 240px;
+            height: 200px;
             overflow: hidden;
             background: #f1f5f9;
         }
@@ -247,15 +266,9 @@
         .better-carousel-slide {
             min-width: 100%;
             height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .better-carousel-slide img {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
         }
 
         .better-carousel-nav {
@@ -266,14 +279,14 @@
             backdrop-filter: blur(8px);
             color: white;
             border: none;
-            width: 40px;
-            height: 40px;
+            width: 32px;
+            height: 32px;
             border-radius: 50%;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 18px;
+            font-size: 16px;
             z-index: 5;
             transition: all 0.2s ease;
         }
@@ -284,26 +297,26 @@
         }
 
         .better-carousel-nav.prev {
-            left: 10px;
+            left: 8px;
         }
 
         .better-carousel-nav.next {
-            right: 10px;
+            right: 8px;
         }
 
         .better-carousel-dots {
             position: absolute;
-            bottom: 10px;
+            bottom: 8px;
             left: 50%;
             transform: translateX(-50%);
             display: flex;
-            gap: 6px;
+            gap: 5px;
             z-index: 5;
         }
 
         .better-carousel-dot {
-            width: 8px;
-            height: 8px;
+            width: 6px;
+            height: 6px;
             border-radius: 50%;
             background: rgba(255, 255, 255, 0.5);
             cursor: pointer;
@@ -312,8 +325,8 @@
 
         .better-carousel-dot.active {
             background: white;
-            width: 24px;
-            border-radius: 4px;
+            width: 18px;
+            border-radius: 3px;
         }
 
         /* Detalhes - Row 3 */
@@ -321,7 +334,7 @@
             display: flex;
             align-items: center;
             gap: 10px;
-            padding: 12px 16px;
+            padding: 8px 16px;
             background: white;
             border-bottom: 1px solid #f1f5f9;
         }
@@ -382,24 +395,25 @@
             font-size: 11px;
         }
 
-        /* Valores - Row 4 */
+        /* VALORES COMPACTOS - Linha única */
         .better-valores-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-            padding: 12px 16px;
-            background: white;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            padding: 8px 12px;
+            background: #f8fafc;
+            justify-content: center;
         }
 
         .better-valor-item {
             display: flex;
             align-items: center;
-            justify-content: center;
-            gap: 6px;
-            padding: 8px 12px;
-            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-            border-radius: 8px;
-            border: 1px solid #bae6fd;
+            gap: 4px;
+            padding: 4px 8px;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+            font-size: 11px;
         }
 
         .better-valor-item.lance-atual {
@@ -416,20 +430,20 @@
         }
 
         .better-valor-label {
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 600;
-            color: #0369a1;
+            color: #64748b;
         }
 
         .better-valor-amount {
-            font-size: 13px;
+            font-size: 11px;
             font-weight: 700;
-            color: #0c4a6e;
+            color: #1e293b;
         }
 
         /* Countdown - Row 5 */
         .better-countdown-row {
-            padding: 10px 16px;
+            padding: 8px 12px;
             background: white;
             display: flex;
             align-items: center;
@@ -439,12 +453,12 @@
         .better-countdown {
             display: flex;
             align-items: center;
-            gap: 8px;
-            font-size: 12px;
+            gap: 6px;
+            font-size: 11px;
         }
 
         .better-countdown-icon {
-            font-size: 16px;
+            font-size: 14px;
         }
 
         .better-countdown-text {
@@ -501,30 +515,21 @@
             gap: 4px;
         }
 
-        /* Botão flutuante dashboard */
-        .better-dashboard-btn {
+        /* Better floating button container - integrates with native floating buttons */
+        .better-floating-container {
             position: fixed;
             bottom: 24px;
             right: 24px;
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 56px;
-            height: 56px;
-            font-size: 24px;
-            cursor: pointer;
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
-            z-index: 9999;
-            transition: all 0.3s ease;
+            z-index: 9998;
             display: flex;
-            align-items: center;
-            justify-content: center;
+            flex-direction: column;
+            gap: 12px;
+            align-items: flex-end;
         }
 
-        .better-dashboard-btn:hover {
-            transform: scale(1.1);
-            box-shadow: 0 6px 16px rgba(16, 185, 129, 0.6);
+        /* Hide our container if native buttons exist */
+        .p-speeddial ~ .better-floating-container {
+            display: none;
         }
     `;
     document.head.appendChild(styles);
@@ -535,12 +540,17 @@
 
     function formatCurrency(value) {
         if (!value) return '-';
+        // Compact format without decimals
+        const num = parseFloat(value);
+        if (num >= 1000) {
+            return new Intl.NumberFormat('pt-PT', {
+                maximumFractionDigits: 0
+            }).format(num) + ' €';
+        }
         return new Intl.NumberFormat('pt-PT', {
-            style: 'currency',
-            currency: 'EUR',
             minimumFractionDigits: 0,
             maximumFractionDigits: 0
-        }).format(value);
+        }).format(num) + ' €';
     }
 
     function calculateTimeRemaining(endDate) {
@@ -598,18 +608,48 @@
     }
 
     // ====================================
-    // BOTÃO DASHBOARD
+    // INTEGRAR COM BOTÕES FLUTUANTES NATIVOS
     // ====================================
 
-    function createDashboardButton() {
-        const btn = document.createElement('button');
-        btn.className = 'better-dashboard-btn';
-        btn.innerHTML = '🏠';
-        btn.title = 'Abrir Dashboard Better E-Leilões';
-        btn.onclick = () => {
-            window.open(CONFIG.DASHBOARD_URL, '_blank');
-        };
-        document.body.appendChild(btn);
+    function integrateWithNativeFloatingButtons() {
+        // Look for native speed dial / floating button container
+        const nativeSpeedDial = document.querySelector('.p-speeddial, .p-speeddial-list');
+
+        if (nativeSpeedDial) {
+            // Check if we already added our button
+            if (nativeSpeedDial.querySelector('.better-dashboard-link')) return;
+
+            // Create our dashboard button in their style
+            const dashboardItem = document.createElement('li');
+            dashboardItem.className = 'p-speeddial-item';
+            dashboardItem.innerHTML = `
+                <a href="${CONFIG.DASHBOARD_URL}" target="_blank"
+                   class="better-dashboard-link better-btn-outlined"
+                   title="Better E-Leilões Dashboard">
+                    🏠 Dashboard
+                </a>
+            `;
+
+            // Try to append to the list
+            const list = nativeSpeedDial.querySelector('.p-speeddial-list') || nativeSpeedDial;
+            list.appendChild(dashboardItem);
+            console.log('✅ Dashboard button integrated with native floating buttons');
+        } else {
+            // No native speed dial found, create our own container
+            if (!document.querySelector('.better-floating-container')) {
+                const container = document.createElement('div');
+                container.className = 'better-floating-container';
+                container.innerHTML = `
+                    <a href="${CONFIG.DASHBOARD_URL}" target="_blank"
+                       class="better-btn-outlined"
+                       title="Better E-Leilões Dashboard">
+                        🏠 Dashboard
+                    </a>
+                `;
+                document.body.appendChild(container);
+                console.log('✅ Created floating dashboard button');
+            }
+        }
     }
 
     // ====================================
@@ -678,330 +718,261 @@
             }
 
             // ===== REMOVE CLASSES DE BORDA DO DIV NATIVO =====
-            // Busca todos os divs com w-full e remove as classes de borda
             const nativeCardBodies = card.querySelectorAll('.w-full');
             nativeCardBodies.forEach(div => {
-                // Remove as classes de borda
                 div.classList.remove('border-1', 'surface-border', 'border-round');
-                // Força remover estilos inline se houver
                 div.style.border = 'none';
                 div.style.borderRadius = '0';
-                console.log('🔧 Border classes and styles removed from div:', div.className);
             });
 
-            // ===== ADICIONAR ÍCONE GPS AO HEADER NATIVO =====
-            // Encontra o header nativo existente (linha com tag e referência)
-            const nativeHeader = card.querySelector('.flex.w-full.flex-wrap.align-items-center.justify-content-between');
-            if (nativeHeader) {
-                console.log('🔧 Found native header:', nativeHeader);
+            // ===== ESTILIZAR ÍCONE DE MAPA NATIVO (pi-map-marker) =====
+            const hasGPS = apiData.gps && apiData.gps.latitude;
+            const nativeMapMarker = card.querySelector('.pi-map-marker');
 
-                // Encontra o container do lado direito (onde está o tag badge e star)
-                const rightContainer = nativeHeader.querySelector('.flex.align-items-center.gap-1:last-child');
-                if (rightContainer) {
-                    console.log('🔧 Found right container:', rightContainer);
+            if (nativeMapMarker && hasGPS) {
+                const mapsUrl = `https://www.google.com/maps?q=${apiData.gps.latitude},${apiData.gps.longitude}`;
+                console.log(`🗺️ Styling native map marker with coords: ${apiData.gps.latitude}, ${apiData.gps.longitude}`);
 
-                    // Adiciona APENAS o ícone GPS se tiver coordenadas (mantém tag badge e star)
-                    const hasGPS = apiData.gps && apiData.gps.latitude;
-                    if (hasGPS) {
-                        const mapsUrl = `https://www.google.com/maps?q=${apiData.gps.latitude},${apiData.gps.longitude}`;
-                        console.log(`🗺️ Creating GPS icon with coords: ${apiData.gps.latitude}, ${apiData.gps.longitude}`);
+                // Add our class for styling
+                nativeMapMarker.classList.add('better-map-link');
+                nativeMapMarker.title = 'Ver no Google Maps';
+                nativeMapMarker.style.cursor = 'pointer';
 
-                        // Cria ícone GPS (só o ícone, sem texto)
-                        const gpsIcon = document.createElement('a');
-                        gpsIcon.href = '#'; // Dummy href
-                        gpsIcon.className = 'pi pi-map text-primary-800 text-xl cursor-pointer';
-                        gpsIcon.title = 'Ver no Google Maps';
-                        gpsIcon.style.textDecoration = 'none';
+                // Make the parent container clickable if it exists
+                const mapContainer = nativeMapMarker.closest('.flex.align-items-center.gap-1');
+                if (mapContainer) {
+                    mapContainer.style.cursor = 'pointer';
+                }
 
-                        // Adiciona click handler que abre em nova janela SEM mudar a atual
-                        gpsIcon.addEventListener('click', (e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            window.open(mapsUrl, '_blank', 'noopener,noreferrer');
-                            console.log('🗺️ GPS clicked - opening Maps in new tab');
-                            return false;
+                // Add click handler
+                nativeMapMarker.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    window.open(mapsUrl, '_blank', 'noopener,noreferrer');
+                    console.log('🗺️ Map marker clicked - opening Maps in new tab');
+                    return false;
+                });
+
+                console.log('✅ Native map marker styled and made clickable');
+            }
+
+            // ===== ROW 2: CAROUSEL DE IMAGENS =====
+            const nativeImageDiv = card.querySelector('.p-evento-image');
+            if (nativeImageDiv && apiData.imagens && apiData.imagens.length > 0) {
+                // Limit to max 5 images
+                const images = apiData.imagens.slice(0, CONFIG.MAX_CAROUSEL_IMAGES);
+
+                if (images.length > 1) {
+                    console.log(`🎠 Creating carousel with ${images.length} images (max ${CONFIG.MAX_CAROUSEL_IMAGES})`);
+
+                    // Create carousel to replace native image
+                    const carouselHTML = `
+                        <div class="better-carousel" data-current="0">
+                            <div class="better-carousel-track">
+                                ${images.map(img => `
+                                    <div class="better-carousel-slide" style="background-image: url('${img}');"></div>
+                                `).join('')}
+                            </div>
+                            <button class="better-carousel-nav prev">‹</button>
+                            <button class="better-carousel-nav next">›</button>
+                            <div class="better-carousel-dots">
+                                ${images.map((_, idx) => `
+                                    <div class="better-carousel-dot ${idx === 0 ? 'active' : ''}" data-index="${idx}"></div>
+                                `).join('')}
+                            </div>
+                            <div class="better-image-badge">📷 ${apiData.imagens.length}</div>
+                        </div>
+                    `;
+
+                    // Replace native image with carousel
+                    const carouselDiv = document.createElement('div');
+                    carouselDiv.innerHTML = carouselHTML;
+                    nativeImageDiv.parentNode.replaceChild(carouselDiv.firstChild, nativeImageDiv);
+
+                    // Add event handlers for the carousel
+                    const carousel = card.querySelector('.better-carousel');
+                    const track = carousel.querySelector('.better-carousel-track');
+                    const prevBtn = carousel.querySelector('.better-carousel-nav.prev');
+                    const nextBtn = carousel.querySelector('.better-carousel-nav.next');
+                    const dots = carousel.querySelectorAll('.better-carousel-dot');
+
+                    let currentSlide = 0;
+                    const totalSlides = images.length;
+
+                    function updateCarousel() {
+                        track.style.transform = `translateX(-${currentSlide * 100}%)`;
+                        dots.forEach((dot, idx) => {
+                            dot.classList.toggle('active', idx === currentSlide);
                         });
+                    }
 
-                        // Insere o ícone GPS ANTES da estrela de favoritos
-                        const starIcon = rightContainer.querySelector('.pi-star');
-                        if (starIcon) {
-                            rightContainer.insertBefore(gpsIcon, starIcon);
-                        } else {
-                            // Se não tiver estrela, adiciona no final
-                            rightContainer.appendChild(gpsIcon);
-                        }
-                        console.log('✅ GPS icon added to native header');
+                    prevBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        currentSlide = (currentSlide - 1 + totalSlides) % totalSlides;
+                        updateCarousel();
+                    });
+
+                    nextBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        currentSlide = (currentSlide + 1) % totalSlides;
+                        updateCarousel();
+                    });
+
+                    dots.forEach((dot, idx) => {
+                        dot.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            currentSlide = idx;
+                            updateCarousel();
+                        });
+                    });
+
+                    console.log('✅ Carousel created and configured');
+                } else {
+                    // Single image - just add badge showing total from API
+                    nativeImageDiv.style.position = 'relative';
+                    const imageBadge = document.createElement('div');
+                    imageBadge.className = 'better-image-badge';
+                    imageBadge.innerHTML = `📷 ${apiData.imagens.length}`;
+                    nativeImageDiv.appendChild(imageBadge);
+                }
+            }
+
+            // ===== ROW 3: DETALHES (APENAS MATRÍCULA PARA MÓVEIS) =====
+            const det = apiData.detalhes || {};
+
+            let detailsHTML = '';
+            if (apiData.tipoEvento === 'movel' && det.matricula) {
+                detailsHTML = `
+                    <div class="better-details-row">
+                        <div class="better-details-info">
+                            <div class="better-matricula-badge">🚙 ${det.matricula}</div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // ===== ROW 4: VALORES COMPACTOS =====
+            let valoresHTML = '';
+            if (apiData.valores) {
+                const v = apiData.valores;
+                const items = [];
+
+                if (v.valorBase) {
+                    items.push(`<div class="better-valor-item"><span class="better-valor-label">VB:</span><span class="better-valor-amount">${formatCurrency(v.valorBase)}</span></div>`);
+                }
+                if (v.valorAbertura) {
+                    items.push(`<div class="better-valor-item"><span class="better-valor-label">VA:</span><span class="better-valor-amount">${formatCurrency(v.valorAbertura)}</span></div>`);
+                }
+                if (v.valorMinimo) {
+                    items.push(`<div class="better-valor-item"><span class="better-valor-label">VM:</span><span class="better-valor-amount">${formatCurrency(v.valorMinimo)}</span></div>`);
+                }
+                // Lance atual sempre visível
+                items.push(`<div class="better-valor-item lance-atual"><span class="better-valor-label">Lance:</span><span class="better-valor-amount">${v.lanceAtual ? formatCurrency(v.lanceAtual) : '0 €'}</span></div>`);
+
+                valoresHTML = `<div class="better-valores-row">${items.join('')}</div>`;
+            }
+
+            // ===== ROW 5: COUNTDOWN OU DATAS =====
+            let countdownHTML = '';
+            if (apiData.dataFim) {
+                const remaining = calculateTimeRemaining(apiData.dataFim);
+                if (remaining) {
+                    const now = new Date();
+                    const end = new Date(apiData.dataFim);
+                    const start = apiData.dataInicio ? new Date(apiData.dataInicio) : null;
+                    const diffDays = Math.floor((end - now) / (1000 * 60 * 60 * 24));
+
+                    // Se mais de 1 dia, mostra as datas
+                    if (diffDays > 1 && start) {
+                        const formatDate = (date) => {
+                            return new Intl.DateTimeFormat('pt-PT', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            }).format(date);
+                        };
+
+                        countdownHTML = `
+                            <div class="better-countdown-row">
+                                <div class="better-countdown">
+                                    <span class="better-countdown-icon">📅</span>
+                                    <span class="better-countdown-text">De:</span>
+                                    <span class="better-countdown-time">${formatDate(start)}</span>
+                                    <span class="better-countdown-text">a:</span>
+                                    <span class="better-countdown-time">${formatDate(end)}</span>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        // Menos de 1 dia, mostra countdown LIVE
+                        const countdownId = `countdown-${reference}`;
+                        countdownHTML = `
+                            <div class="better-countdown-row">
+                                <div class="better-countdown">
+                                    <span class="better-countdown-icon">⏱️</span>
+                                    <span class="better-countdown-text">Termina em:</span>
+                                    <span class="better-countdown-time ${remaining.isEnding ? 'ending-soon' : ''}"
+                                          id="${countdownId}"
+                                          data-end="${apiData.dataFim}">
+                                        ${remaining.text}
+                                    </span>
+                                </div>
+                            </div>
+                        `;
                     }
                 }
             }
 
-        // ===== ROW 2: CAROUSEL DE IMAGENS =====
-        const galleryContainer = card.querySelector('.p-galleria, .p-evento-header');
-        if (galleryContainer && apiData.imagens && apiData.imagens.length > 0) {
-            // Se houver múltiplas imagens, cria carousel customizado
-            if (apiData.imagens.length > 1) {
-                console.log(`🎠 Creating carousel with ${apiData.imagens.length} images`);
+            // Insere rows no card
+            const cardBody = card.querySelector('.w-full');
+            if (cardBody) {
+                const newContent = detailsHTML + valoresHTML + countdownHTML;
 
-                // Esconde o gallery nativo
-                galleryContainer.style.display = 'none';
+                // Adiciona o conteúdo DEPOIS do conteúdo nativo
+                const contentWrapper = document.createElement('div');
+                contentWrapper.className = 'better-card-content';
+                contentWrapper.innerHTML = newContent;
+                cardBody.appendChild(contentWrapper);
+                console.log('✅ Card body updated');
+            }
 
-                // Cria carousel customizado
-                const carouselHTML = `
-                    <div class="better-carousel" data-current="0">
-                        <div class="better-carousel-track">
-                            ${apiData.imagens.map(img => `
-                                <div class="better-carousel-slide">
-                                    <img src="${img}" alt="Imagem do evento">
-                                </div>
-                            `).join('')}
-                        </div>
-                        <button class="better-carousel-nav prev">‹</button>
-                        <button class="better-carousel-nav next">›</button>
-                        <div class="better-carousel-dots">
-                            ${apiData.imagens.map((_, idx) => `
-                                <div class="better-carousel-dot ${idx === 0 ? 'active' : ''}" data-index="${idx}"></div>
-                            `).join('')}
-                        </div>
-                        <div class="better-image-badge">📷 ${apiData.imagens.length}</div>
-                    </div>
-                `;
+            // ===== EVENT HANDLERS =====
+            // Click no card inteiro abre em nova aba
+            card.style.cursor = 'pointer';
 
-                // Insere o carousel após o gallery nativo
-                const carouselDiv = document.createElement('div');
-                carouselDiv.innerHTML = carouselHTML;
-                galleryContainer.parentNode.insertBefore(carouselDiv.firstChild, galleryContainer.nextSibling);
-
-                // Adiciona event handlers para o carousel
-                const carousel = card.querySelector('.better-carousel');
-                const track = carousel.querySelector('.better-carousel-track');
-                const prevBtn = carousel.querySelector('.better-carousel-nav.prev');
-                const nextBtn = carousel.querySelector('.better-carousel-nav.next');
-                const dots = carousel.querySelectorAll('.better-carousel-dot');
-
-                let currentSlide = 0;
-                const totalSlides = apiData.imagens.length;
-
-                function updateCarousel() {
-                    track.style.transform = `translateX(-${currentSlide * 100}%)`;
-                    dots.forEach((dot, idx) => {
-                        dot.classList.toggle('active', idx === currentSlide);
-                    });
+            card.addEventListener('click', (e) => {
+                // Ignore clicks on specific elements
+                if (e.target.closest('.pi-map-marker') ||
+                    e.target.closest('.better-map-link') ||
+                    e.target.closest('.pi-star') ||
+                    e.target.closest('.better-btn') ||
+                    e.target.closest('.better-carousel-nav') ||
+                    e.target.closest('.better-carousel-dot')) {
+                    return;
                 }
 
-                prevBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    currentSlide = (currentSlide - 1 + totalSlides) % totalSlides;
-                    updateCarousel();
-                });
-
-                nextBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    currentSlide = (currentSlide + 1) % totalSlides;
-                    updateCarousel();
-                });
-
-                dots.forEach((dot, idx) => {
-                    dot.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        currentSlide = idx;
-                        updateCarousel();
-                    });
-                });
-
-                console.log('✅ Carousel created and configured');
-            } else {
-                // Uma só imagem - mantém nativo e adiciona badge
-                galleryContainer.style.position = 'relative';
-                const imageBadge = document.createElement('div');
-                imageBadge.className = 'better-image-badge';
-                imageBadge.innerHTML = `📷 1`;
-                galleryContainer.appendChild(imageBadge);
-            }
-        }
-
-        // ===== ROW 3: DETALHES (APENAS MATRÍCULA PARA MÓVEIS, SEM ÍCONE) =====
-        const det = apiData.detalhes || {};
-
-        let detailsHTML = '';
-        // Só mostra detalhes para móveis (matrícula)
-        if (apiData.tipoEvento === 'movel' && det.matricula) {
-            detailsHTML = `
-                <div class="better-details-row">
-                    <div class="better-details-info">
-                        <div class="better-matricula-badge">🚙 ${det.matricula}</div>
-                    </div>
-                </div>
-            `;
-        }
-
-        // ===== ROW 4: VALORES (COM LEGENDAS, 2x2 GRID) =====
-        let valoresHTML = '';
-        if (apiData.valores) {
-            const v = apiData.valores;
-            valoresHTML = `
-                <div class="better-valores-row">
-                    ${v.valorBase ? `
-                        <div class="better-valor-item">
-                            <div class="better-valor-label">Valor Base:</div>
-                            <div class="better-valor-amount">${formatCurrency(v.valorBase)}</div>
-                        </div>
-                    ` : ''}
-                    ${v.valorAbertura ? `
-                        <div class="better-valor-item">
-                            <div class="better-valor-label">Valor Abertura:</div>
-                            <div class="better-valor-amount">${formatCurrency(v.valorAbertura)}</div>
-                        </div>
-                    ` : ''}
-                    ${v.valorMinimo ? `
-                        <div class="better-valor-item">
-                            <div class="better-valor-label">Valor Mínimo:</div>
-                            <div class="better-valor-amount">${formatCurrency(v.valorMinimo)}</div>
-                        </div>
-                    ` : ''}
-                    <div class="better-valor-item lance-atual">
-                        <div class="better-valor-label">Lance Atual:</div>
-                        <div class="better-valor-amount">${v.lanceAtual ? formatCurrency(v.lanceAtual) : '0,00 €'}</div>
-                    </div>
-                </div>
-            `;
-        }
-
-        // ===== ROW 5: COUNTDOWN OU DATAS =====
-        let countdownHTML = '';
-        if (apiData.dataFim) {
-            const remaining = calculateTimeRemaining(apiData.dataFim);
-            if (remaining) {
-                const now = new Date();
-                const end = new Date(apiData.dataFim);
-                const start = apiData.dataInicio ? new Date(apiData.dataInicio) : null;
-                const diffDays = Math.floor((end - now) / (1000 * 60 * 60 * 24));
-
-                console.log('📅 Date info:', {
-                    dataFim: apiData.dataFim,
-                    dataInicio: apiData.dataInicio,
-                    diffDays,
-                    now: now.toISOString(),
-                    end: end.toISOString(),
-                    start: start ? start.toISOString() : 'null'
-                });
-
-                // Se mais de 1 dia, mostra as datas
-                if (diffDays > 1 && start) {
-                    const formatDate = (date) => {
-                        return new Intl.DateTimeFormat('pt-PT', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                        }).format(date);
-                    };
-
-                    countdownHTML = `
-                        <div class="better-countdown-row">
-                            <div class="better-countdown">
-                                <span class="better-countdown-icon">📅</span>
-                                <span class="better-countdown-text">De:</span>
-                                <span class="better-countdown-time">${formatDate(start)}</span>
-                                <span class="better-countdown-text">até:</span>
-                                <span class="better-countdown-time">${formatDate(end)}</span>
-                            </div>
-                        </div>
-                    `;
-                } else {
-                    // Menos de 1 dia, mostra countdown LIVE
-                    const countdownId = `countdown-${reference}`;
-                    countdownHTML = `
-                        <div class="better-countdown-row">
-                            <div class="better-countdown">
-                                <span class="better-countdown-icon">⏱️</span>
-                                <span class="better-countdown-text">Termina em:</span>
-                                <span class="better-countdown-time ${remaining.isEnding ? 'ending-soon' : ''}"
-                                      id="${countdownId}"
-                                      data-end="${apiData.dataFim}">
-                                    ${remaining.text}
-                                </span>
-                            </div>
-                        </div>
-                    `;
-                }
-            }
-        }
-
-        // Não adiciona localização - usa a nativa
-
-        // Insere rows no card - usa o primeiro div filho
-        const cardBody = card.querySelector('.w-full');
-        console.log('🔧 Card body found:', cardBody);
-        if (cardBody) {
-            const newContent = detailsHTML + valoresHTML + countdownHTML;
-            console.log('🔧 New content length:', newContent.length, 'chars');
-
-            // Adiciona o conteúdo DEPOIS do conteúdo nativo (não substitui)
-            const contentWrapper = document.createElement('div');
-            contentWrapper.className = 'better-card-content';
-            contentWrapper.innerHTML = newContent;
-            cardBody.appendChild(contentWrapper);
-            console.log('✅ Card body updated');
-        } else {
-            console.error('❌ Card body (.w-full.border-1) not found!');
-        }
-
-        // ===== EVENT HANDLERS =====
-        // Botão "Ver Mais"
-        const verMaisBtn = card.querySelector('.better-btn-primary');
-        if (verMaisBtn) {
-            verMaisBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                window.open(eventUrl, '_blank');
-            });
-        }
-
-        // GPS Map link - handled by anchor tag href (no need for event listener)
-
-        // Click no card inteiro abre em nova aba (SEM atualizar atual)
-        card.style.cursor = 'pointer';
-
-        // Handler para click normal (left-click)
-        card.addEventListener('click', (e) => {
-            console.log('🖱️ Card click detected, target:', e.target.className);
-
-            // PRIMEIRO verifica se clicou em algo que deve ignorar
-            if (e.target.closest('.pi-map')) {
-                console.log('🗺️ GPS click - ignoring card handler');
-                return;
-            }
-            if (e.target.closest('.pi-star')) {
-                console.log('⭐ Star click - ignoring card handler');
-                return;
-            }
-            if (e.target.closest('.better-btn')) {
-                console.log('🔘 Button click - ignoring card handler');
-                return;
-            }
-
-            // Previne comportamento padrão
-            e.preventDefault();
-            e.stopPropagation();
-
-            // Abre em nova aba
-            const newWindow = window.open(eventUrl, '_blank', 'noopener,noreferrer');
-            console.log('🔗 Opening event in new tab:', eventUrl, 'Window:', newWindow);
-            return false;
-        }, true); // USE CAPTURE PHASE para interceptar antes
-
-        // Handler para middle-click e auxiliary button
-        card.addEventListener('auxclick', (e) => {
-            if (e.button === 1) { // Middle button
-                console.log('🖱️ Middle click detected');
                 e.preventDefault();
                 e.stopPropagation();
                 window.open(eventUrl, '_blank', 'noopener,noreferrer');
                 return false;
-            }
-        }, true);
+            }, true);
 
-        console.log(`✨ Card enhancement complete for ${reference}`);
+            // Middle-click handler
+            card.addEventListener('auxclick', (e) => {
+                if (e.button === 1) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    window.open(eventUrl, '_blank', 'noopener,noreferrer');
+                    return false;
+                }
+            }, true);
+
+            console.log(`✨ Card enhancement complete for ${reference}`);
 
         } catch (error) {
             console.error(`❌ Error enhancing card for ${reference}:`, error);
@@ -1020,11 +991,8 @@
 
     const observer = new MutationObserver(() => {
         enhanceAllCards();
+        integrateWithNativeFloatingButtons();
     });
-
-    // ====================================
-    // INICIALIZAÇÃO
-    // ====================================
 
     // ====================================
     // LIVE COUNTDOWN TIMER
@@ -1048,10 +1016,14 @@
         });
     }
 
-    function init() {
-        console.log('🚀 Better E-Leilões Card Enhancer v4.7');
+    // ====================================
+    // INICIALIZAÇÃO
+    // ====================================
 
-        createDashboardButton();
+    function init() {
+        console.log('🚀 Better E-Leilões Card Enhancer v5.0');
+
+        integrateWithNativeFloatingButtons();
         enhanceAllCards();
 
         // Start live countdown updates every second
@@ -1063,7 +1035,7 @@
             subtree: true
         });
 
-        console.log('✅ Card enhancer v4.7 ativo - Live countdown!');
+        console.log('✅ Card enhancer v5.0 ativo - Compact values, working carousel, native map integration!');
     }
 
     if (document.readyState === 'loading') {
