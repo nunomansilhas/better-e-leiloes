@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      5.0
+// @version      5.1
 // @description  Design moderno com carousel de imagens e distinção visual de tipos de leilão
 // @author       Nuno Mansilhas
 // @match        https://www.e-leiloes.pt/*
@@ -207,27 +207,16 @@
             background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
         }
 
-        /* Outlined button style for dashboard link */
-        .better-btn-outlined {
-            background: transparent !important;
-            border: 2px solid #3b82f6 !important;
-            color: #3b82f6 !important;
-            padding: 8px 16px !important;
-            border-radius: 8px !important;
-            font-size: 12px !important;
-            font-weight: 600 !important;
-            cursor: pointer !important;
-            transition: all 0.2s ease !important;
-            display: inline-flex !important;
-            align-items: center !important;
-            gap: 6px !important;
-            text-decoration: none !important;
+        /* Dashboard floating button - matches native PrimeVue style */
+        .better-dashboard-btn {
+            background: #3b82f6 !important;
+            border-color: #3b82f6 !important;
         }
 
-        .better-btn-outlined:hover {
-            background: #3b82f6 !important;
-            color: white !important;
-            transform: translateY(-1px) !important;
+        .better-dashboard-btn:hover {
+            background: #2563eb !important;
+            border-color: #2563eb !important;
+            transform: scale(1.05) !important;
         }
 
         /* Contador de imagens no carousel */
@@ -515,22 +504,6 @@
             gap: 4px;
         }
 
-        /* Better floating button container - integrates with native floating buttons */
-        .better-floating-container {
-            position: fixed;
-            bottom: 24px;
-            right: 24px;
-            z-index: 9998;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            align-items: flex-end;
-        }
-
-        /* Hide our container if native buttons exist */
-        .p-speeddial ~ .better-floating-container {
-            display: none;
-        }
     `;
     document.head.appendChild(styles);
 
@@ -612,44 +585,28 @@
     // ====================================
 
     function integrateWithNativeFloatingButtons() {
-        // Look for native speed dial / floating button container
-        const nativeSpeedDial = document.querySelector('.p-speeddial, .p-speeddial-list');
+        // Check if we already added our button
+        if (document.querySelector('.better-dashboard-btn')) return;
 
-        if (nativeSpeedDial) {
-            // Check if we already added our button
-            if (nativeSpeedDial.querySelector('.better-dashboard-link')) return;
+        // Create dashboard button matching native PrimeVue style (icon-only)
+        const btn = document.createElement('button');
+        btn.className = 'p-button p-component p-button-icon-only p-button-base fixed fadein animation-duration-400 right-0 z-999 better-dashboard-btn';
+        btn.type = 'button';
+        btn.title = 'Better E-Leilões Dashboard';
+        btn.style.cssText = 'margin-right: 5px; bottom: 137px; background: #3b82f6; border-color: #3b82f6;';
+        btn.innerHTML = `
+            <span class="p-button-icon pi pi-home" data-pc-section="icon"></span>
+            <span class="p-button-label" data-pc-section="label">&nbsp;</span>
+        `;
 
-            // Create our dashboard button in their style
-            const dashboardItem = document.createElement('li');
-            dashboardItem.className = 'p-speeddial-item';
-            dashboardItem.innerHTML = `
-                <a href="${CONFIG.DASHBOARD_URL}" target="_blank"
-                   class="better-dashboard-link better-btn-outlined"
-                   title="Better E-Leilões Dashboard">
-                    🏠 Dashboard
-                </a>
-            `;
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            window.open(CONFIG.DASHBOARD_URL, '_blank', 'noopener,noreferrer');
+        });
 
-            // Try to append to the list
-            const list = nativeSpeedDial.querySelector('.p-speeddial-list') || nativeSpeedDial;
-            list.appendChild(dashboardItem);
-            console.log('✅ Dashboard button integrated with native floating buttons');
-        } else {
-            // No native speed dial found, create our own container
-            if (!document.querySelector('.better-floating-container')) {
-                const container = document.createElement('div');
-                container.className = 'better-floating-container';
-                container.innerHTML = `
-                    <a href="${CONFIG.DASHBOARD_URL}" target="_blank"
-                       class="better-btn-outlined"
-                       title="Better E-Leilões Dashboard">
-                        🏠 Dashboard
-                    </a>
-                `;
-                document.body.appendChild(container);
-                console.log('✅ Created floating dashboard button');
-            }
-        }
+        document.body.appendChild(btn);
+        console.log('✅ Created native-style floating dashboard button');
     }
 
     // ====================================
@@ -787,49 +744,65 @@
                     // Replace native image with carousel
                     const carouselDiv = document.createElement('div');
                     carouselDiv.innerHTML = carouselHTML;
-                    nativeImageDiv.parentNode.replaceChild(carouselDiv.firstChild, nativeImageDiv);
 
-                    // Add event handlers for the carousel
-                    const carousel = card.querySelector('.better-carousel');
-                    const track = carousel.querySelector('.better-carousel-track');
-                    const prevBtn = carousel.querySelector('.better-carousel-nav.prev');
-                    const nextBtn = carousel.querySelector('.better-carousel-nav.next');
-                    const dots = carousel.querySelectorAll('.better-carousel-dot');
+                    // Check if parentNode exists before replacing
+                    if (nativeImageDiv.parentNode) {
+                        nativeImageDiv.parentNode.replaceChild(carouselDiv.firstChild, nativeImageDiv);
 
-                    let currentSlide = 0;
-                    const totalSlides = images.length;
+                        // Add event handlers for the carousel
+                        const carousel = card.querySelector('.better-carousel');
+                        if (carousel) {
+                            const track = carousel.querySelector('.better-carousel-track');
+                            const prevBtn = carousel.querySelector('.better-carousel-nav.prev');
+                            const nextBtn = carousel.querySelector('.better-carousel-nav.next');
+                            const dots = carousel.querySelectorAll('.better-carousel-dot');
 
-                    function updateCarousel() {
-                        track.style.transform = `translateX(-${currentSlide * 100}%)`;
-                        dots.forEach((dot, idx) => {
-                            dot.classList.toggle('active', idx === currentSlide);
-                        });
+                            let currentSlide = 0;
+                            const totalSlides = images.length;
+
+                            function updateCarousel() {
+                                if (track) {
+                                    track.style.transform = `translateX(-${currentSlide * 100}%)`;
+                                }
+                                dots.forEach((dot, idx) => {
+                                    dot.classList.toggle('active', idx === currentSlide);
+                                });
+                            }
+
+                            if (prevBtn) {
+                                prevBtn.addEventListener('click', (e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    currentSlide = (currentSlide - 1 + totalSlides) % totalSlides;
+                                    updateCarousel();
+                                });
+                            }
+
+                            if (nextBtn) {
+                                nextBtn.addEventListener('click', (e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    currentSlide = (currentSlide + 1) % totalSlides;
+                                    updateCarousel();
+                                });
+                            }
+
+                            dots.forEach((dot, idx) => {
+                                dot.addEventListener('click', (e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    currentSlide = idx;
+                                    updateCarousel();
+                                });
+                            });
+
+                            console.log('✅ Carousel created and configured');
+                        } else {
+                            console.warn('⚠️ Carousel element not found after insertion');
+                        }
+                    } else {
+                        console.warn('⚠️ Native image div has no parent node');
                     }
-
-                    prevBtn.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        currentSlide = (currentSlide - 1 + totalSlides) % totalSlides;
-                        updateCarousel();
-                    });
-
-                    nextBtn.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        currentSlide = (currentSlide + 1) % totalSlides;
-                        updateCarousel();
-                    });
-
-                    dots.forEach((dot, idx) => {
-                        dot.addEventListener('click', (e) => {
-                            e.stopPropagation();
-                            e.preventDefault();
-                            currentSlide = idx;
-                            updateCarousel();
-                        });
-                    });
-
-                    console.log('✅ Carousel created and configured');
                 } else {
                     // Single image - just add badge showing total from API
                     nativeImageDiv.style.position = 'relative';
@@ -1021,7 +994,7 @@
     // ====================================
 
     function init() {
-        console.log('🚀 Better E-Leilões Card Enhancer v5.0');
+        console.log('🚀 Better E-Leilões Card Enhancer v5.1');
 
         integrateWithNativeFloatingButtons();
         enhanceAllCards();
@@ -1035,7 +1008,7 @@
             subtree: true
         });
 
-        console.log('✅ Card enhancer v5.0 ativo - Compact values, working carousel, native map integration!');
+        console.log('✅ Card enhancer v5.1 ativo - Native-style floating button, fixed carousel!');
     }
 
     if (document.readyState === 'loading') {
