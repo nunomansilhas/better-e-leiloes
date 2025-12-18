@@ -532,6 +532,9 @@ class AutoPipelinesManager:
                             old_end = event.dataFim
                             new_end = data['dataFim']
 
+                            # Debug: show comparison
+                            print(f"    🔎 {event.reference}: DB={old_price} vs Scraped={new_price}")
+
                             # Check if price changed (only if we got a valid new price)
                             price_changed = False
                             if new_price is not None:
@@ -791,6 +794,9 @@ class AutoPipelinesManager:
                             old_end = event.dataFim
                             new_end = data['dataFim']
 
+                            # Debug: show comparison
+                            print(f"    🔎 {event.reference}: DB={old_price} vs Scraped={new_price}")
+
                             # Check if price changed (only if we got a valid new price)
                             price_changed = False
                             if new_price is not None:
@@ -943,6 +949,9 @@ class AutoPipelinesManager:
                             new_price = data['lanceAtual']
                             old_end = event.dataFim
                             new_end = data['dataFim']
+
+                            # Debug: show comparison
+                            print(f"    🔎 {event.reference}: DB={old_price} vs Scraped={new_price}")
 
                             # Check if price changed (only if we got a valid new price)
                             price_changed = False

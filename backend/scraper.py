@@ -1369,7 +1369,7 @@ class EventScraper:
                     # Show extracted values
                     price = result.get('lanceAtual')
                     end_time = result.get('dataFim')
-                    price_str = f"{price}€" if price else "N/A"
+                    price_str = f"{price}€" if price is not None else "N/A"
                     time_str = end_time.strftime('%d/%m/%Y %H:%M:%S') if end_time else "N/A"
                     print(f"  ✓ {result['reference']}: PMA={price_str} | Fim={time_str}")
                 else:
