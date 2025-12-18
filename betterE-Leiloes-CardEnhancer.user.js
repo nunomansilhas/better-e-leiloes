@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      5.2
+// @version      6.0
 // @description  Design moderno com carousel de imagens e distinção visual de tipos de leilão
 // @author       Nuno Mansilhas
 // @match        https://www.e-leiloes.pt/*
@@ -22,27 +22,31 @@
         API_BASE: 'http://localhost:8000/api',
         DASHBOARD_URL: 'http://localhost:8000',
         ENABLE_API_ENRICHMENT: true,
-        MAX_CAROUSEL_IMAGES: 5
+        MAX_CAROUSEL_IMAGES: 5,
+        // CARD_DESIGN: 1, 2, ou 3 - Escolhe o design dos cards
+        // 1 = Minimal Clean (branco, limpo)
+        // 2 = Glassmorphism (vidro fosco, gradientes)
+        // 3 = Dark Premium (escuro, dourado)
+        CARD_DESIGN: 'all' // 'all' mostra os 3 para comparar, ou 1, 2, 3 para escolher um
     };
 
     // ====================================
-    // ESTILOS CSS - DESIGN MODERNO
+    // ESTILOS CSS - 3 DESIGNS
     // ====================================
 
     const styles = document.createElement('style');
     styles.textContent = `
-        /* Override do card nativo */
+        /* ============================================ */
+        /* BASE STYLES (comum a todos os designs)      */
+        /* ============================================ */
+
         .p-evento {
-            border-radius: 12px !important;
-            overflow: hidden !important;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08) !important;
             transition: all 0.3s ease !important;
-            border: 1px solid #e5e7eb !important;
+            overflow: hidden !important;
         }
 
         .p-evento:hover {
-            box-shadow: 0 8px 24px rgba(0,0,0,0.12) !important;
-            transform: translateY(-2px) !important;
+            transform: translateY(-4px) !important;
         }
 
         /* Força remover bordas do div nativo */
@@ -51,197 +55,40 @@
             border-radius: 0 !important;
         }
 
-        /* Padroniza todas as fontes dentro do card, EXCETO ícones */
+        /* Padroniza fontes */
         .p-evento[data-better-enhanced="true"],
         .p-evento[data-better-enhanced="true"] *:not([class*="pi-"]):not(i) {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
         }
 
-        /* Esconde os elementos nativos que vamos substituir */
-        .p-evento[data-better-enhanced="true"] .flex.align-items-center.justify-content-between.mt-2 {
-            display: none !important;
-        }
-
-        /* Esconde os valores nativos na parte inferior */
-        .p-evento[data-better-enhanced="true"] .surface-100.border-round-bottom {
-            display: none !important;
-        }
-
-        /* ESCONDE o p-tag p-component (badge "Neg. Particular", "Leilão Online", etc) */
+        /* Esconde elementos nativos que substituímos */
+        .p-evento[data-better-enhanced="true"] .surface-100.border-round-bottom,
         .p-evento[data-better-enhanced="true"] .p-tag.p-component {
             display: none !important;
         }
 
-        /* Centraliza o título do evento */
-        .p-evento[data-better-enhanced="true"] .flex.align-items-start.px-3.pt-1 {
-            text-align: center;
-            justify-content: center;
-        }
-
-        .p-evento[data-better-enhanced="true"] .text-sm.font-semibold {
-            text-align: center;
-            width: 100%;
-        }
-
-        /* Colorir primeira parte da referência nativa (LO, NP) */
-        .p-evento[data-better-enhanced="true"] .pi-tag + span .native-ref-prefix {
-            color: #10b981 !important;
-            font-weight: 900 !important;
-        }
-
-        .p-evento[data-better-enhanced="true"] .pi-tag + span .native-ref-prefix.lo {
-            color: #3b82f6 !important;
-        }
-
-        .p-evento[data-better-enhanced="true"] .pi-tag + span .native-ref-prefix.np {
-            color: #f59e0b !important;
-        }
-
-        /* Fix para links abrirem em nova aba */
+        /* Fix para links */
         .p-evento a[href*="/evento/"] {
             pointer-events: none !important;
         }
 
-        .p-evento a:not(.better-map-link) {
-            cursor: default !important;
-        }
-
-        /* Map marker icon - styled and clickable */
+        /* Map marker clickable */
         .p-evento[data-better-enhanced="true"] .pi-map-marker.better-map-link {
             color: #3b82f6 !important;
             cursor: pointer !important;
             pointer-events: auto !important;
             transition: all 0.2s ease !important;
-            font-size: 14px !important;
         }
 
         .p-evento[data-better-enhanced="true"] .pi-map-marker.better-map-link:hover {
-            color: #1d4ed8 !important;
             transform: scale(1.2) !important;
         }
 
-        /* Header do card - Row 1 */
-        .better-card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 16px;
-            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-            border-bottom: 2px solid #e2e8f0;
-        }
-
-        .better-ref-badge {
-            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-            color: white;
-            padding: 6px 12px;
-            border-radius: 8px;
-            font-weight: 700;
-            font-size: 12px;
-            letter-spacing: 0.5px;
-            box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
-        }
-
-        .better-ref-badge .ref-prefix {
-            color: #fbbf24;
-            font-weight: 800;
-        }
-
-        .better-header-actions {
-            display: flex !important;
-            gap: 8px;
-            align-items: center;
-            flex-wrap: nowrap;
-            visibility: visible !important;
-        }
-
-        .better-tipo-badge {
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-            color: white;
-            padding: 6px 10px;
-            border-radius: 8px;
-            font-size: 11px;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .better-tipo-badge.movel {
-            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-        }
-
-        .better-btn {
-            background: white;
-            border: 1px solid #e5e7eb;
-            padding: 6px 12px;
-            border-radius: 8px;
-            font-size: 11px;
-            font-weight: 600;
-            cursor: pointer !important;
-            transition: all 0.2s ease;
-            display: inline-flex !important;
-            align-items: center;
-            gap: 4px;
-            color: #374151;
-            text-decoration: none;
-            white-space: nowrap;
-            visibility: visible !important;
-            opacity: 1 !important;
-            z-index: 2 !important;
-            position: relative !important;
-        }
-
-        .better-btn:hover {
-            background: #f9fafb;
-            border-color: #d1d5db;
-            transform: translateY(-1px);
-        }
-
-        .better-btn-primary {
-            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-            color: white;
-            border: none;
-        }
-
-        .better-btn-primary:hover {
-            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-        }
-
-        /* Dashboard floating button - matches native PrimeVue style */
-        .better-dashboard-btn {
-            background: #3b82f6 !important;
-            border-color: #3b82f6 !important;
-        }
-
-        .better-dashboard-btn:hover {
-            background: #2563eb !important;
-            border-color: #2563eb !important;
-            transform: scale(1.05) !important;
-        }
-
-        /* Contador de imagens no carousel */
-        .better-image-badge {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: rgba(0, 0, 0, 0.75);
-            backdrop-filter: blur(8px);
-            color: white;
-            padding: 6px 10px;
-            border-radius: 8px;
-            font-size: 11px;
-            font-weight: 600;
-            z-index: 10;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        /* Carousel de imagens customizado */
+        /* Carousel base */
         .better-carousel {
             position: relative;
             width: 100%;
-            height: 200px;
+            height: 180px;
             overflow: hidden;
             background: #f1f5f9;
         }
@@ -257,7 +104,6 @@
             height: 100%;
             background-size: cover;
             background-position: center;
-            background-repeat: no-repeat;
         }
 
         .better-carousel-nav {
@@ -265,41 +111,32 @@
             top: 50%;
             transform: translateY(-50%);
             background: rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(8px);
             color: white;
             border: none;
-            width: 32px;
-            height: 32px;
+            width: 28px;
+            height: 28px;
             border-radius: 50%;
             cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
+            font-size: 14px;
             z-index: 5;
+            opacity: 0;
             transition: all 0.2s ease;
         }
 
-        .better-carousel-nav:hover {
-            background: rgba(0, 0, 0, 0.7);
-            transform: translateY(-50%) scale(1.1);
+        .better-carousel:hover .better-carousel-nav {
+            opacity: 1;
         }
 
-        .better-carousel-nav.prev {
-            left: 8px;
-        }
-
-        .better-carousel-nav.next {
-            right: 8px;
-        }
+        .better-carousel-nav.prev { left: 6px; }
+        .better-carousel-nav.next { right: 6px; }
 
         .better-carousel-dots {
             position: absolute;
-            bottom: 8px;
+            bottom: 6px;
             left: 50%;
             transform: translateX(-50%);
             display: flex;
-            gap: 5px;
+            gap: 4px;
             z-index: 5;
         }
 
@@ -314,83 +151,274 @@
 
         .better-carousel-dot.active {
             background: white;
-            width: 18px;
+            width: 16px;
             border-radius: 3px;
         }
 
-        /* Detalhes - Row 3 */
-        .better-details-row {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 8px 16px;
-            background: white;
-            border-bottom: 1px solid #f1f5f9;
+        /* Dashboard button */
+        .better-dashboard-btn {
+            background: #3b82f6 !important;
+            border-color: #3b82f6 !important;
         }
 
-        .better-icon-box {
-            width: 48px;
-            height: 48px;
-            background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            flex-shrink: 0;
+        .better-dashboard-btn:hover {
+            background: #2563eb !important;
+            transform: scale(1.05) !important;
         }
 
-        .better-details-info {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
+        /* ============================================ */
+        /* DESIGN 1: MINIMAL CLEAN                     */
+        /* ============================================ */
+
+        .p-evento[data-design="1"] {
+            border-radius: 16px !important;
+            border: 1px solid #e5e7eb !important;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05) !important;
+            background: white !important;
         }
 
-        .better-detail-item {
-            font-size: 12px;
-            color: #64748b;
-            display: flex;
-            align-items: center;
+        .p-evento[data-design="1"]:hover {
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1) !important;
+            border-color: #d1d5db !important;
+        }
+
+        .p-evento[data-design="1"] .better-carousel {
+            border-radius: 12px;
+            margin: 8px;
+            height: 160px;
+        }
+
+        .p-evento[data-design="1"] .better-valores-row {
+            background: #f9fafb;
+            padding: 10px 12px;
             gap: 6px;
         }
 
-        .better-detail-label {
-            font-weight: 600;
-            color: #374151;
+        .p-evento[data-design="1"] .better-valor-item {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 6px 10px;
         }
 
-        .better-detail-value {
-            color: #1f2937;
-            font-weight: 500;
+        .p-evento[data-design="1"] .better-valor-label {
+            color: #6b7280;
+            font-size: 9px;
         }
 
-        .better-matricula-badge {
+        .p-evento[data-design="1"] .better-valor-amount {
+            color: #111827;
+            font-size: 12px;
+        }
+
+        .p-evento[data-design="1"] .better-valor-item.lance-atual {
+            background: #fef3c7;
+            border-color: #fcd34d;
+        }
+
+        .p-evento[data-design="1"] .better-countdown-row {
+            background: white;
+            padding: 8px 12px;
+            border-top: 1px solid #f3f4f6;
+        }
+
+        .p-evento[data-design="1"] .native-ref-prefix.lo { color: #3b82f6 !important; }
+        .p-evento[data-design="1"] .native-ref-prefix.np { color: #f59e0b !important; }
+
+        /* ============================================ */
+        /* DESIGN 2: GLASSMORPHISM                     */
+        /* ============================================ */
+
+        .p-evento[data-design="2"] {
+            border-radius: 20px !important;
+            border: 1px solid rgba(255,255,255,0.2) !important;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1) !important;
+            background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.7) 100%) !important;
+            backdrop-filter: blur(10px) !important;
+        }
+
+        .p-evento[data-design="2"]:hover {
+            box-shadow: 0 16px 48px rgba(59,130,246,0.2) !important;
+            border-color: rgba(59,130,246,0.3) !important;
+        }
+
+        .p-evento[data-design="2"] .better-carousel {
+            border-radius: 16px;
+            margin: 10px;
+            height: 170px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+        }
+
+        .p-evento[data-design="2"] .better-carousel-nav {
+            background: rgba(255,255,255,0.9);
+            color: #1e293b;
+            backdrop-filter: blur(8px);
+        }
+
+        .p-evento[data-design="2"] .better-valores-row {
+            background: linear-gradient(135deg, rgba(59,130,246,0.05) 0%, rgba(139,92,246,0.05) 100%);
+            padding: 12px;
+            gap: 8px;
+            border-radius: 0 0 16px 16px;
+        }
+
+        .p-evento[data-design="2"] .better-valor-item {
+            background: rgba(255,255,255,0.8);
+            border: 1px solid rgba(59,130,246,0.2);
+            border-radius: 10px;
+            padding: 8px 12px;
+            backdrop-filter: blur(4px);
+        }
+
+        .p-evento[data-design="2"] .better-valor-label {
+            color: #6366f1;
+            font-size: 9px;
+            font-weight: 700;
+        }
+
+        .p-evento[data-design="2"] .better-valor-amount {
+            color: #1e293b;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .p-evento[data-design="2"] .better-valor-item.lance-atual {
             background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-            color: #92400e;
-            padding: 4px 10px;
-            border-radius: 6px;
-            font-weight: 700;
-            font-size: 11px;
-            border: 1px solid #fbbf24;
+            border-color: #fbbf24;
         }
 
-        .better-tipologia-badge {
-            background: linear-gradient(135deg, #ddd6fe 0%, #c4b5fd 100%);
-            color: #5b21b6;
-            padding: 4px 10px;
-            border-radius: 6px;
-            font-weight: 700;
-            font-size: 11px;
+        .p-evento[data-design="2"] .better-countdown-row {
+            background: transparent;
+            padding: 10px 12px;
         }
 
-        /* VALORES COMPACTOS - Linha única */
+        .p-evento[data-design="2"] .better-countdown {
+            background: rgba(59,130,246,0.1);
+            padding: 6px 12px;
+            border-radius: 20px;
+        }
+
+        .p-evento[data-design="2"] .native-ref-prefix.lo { color: #6366f1 !important; }
+        .p-evento[data-design="2"] .native-ref-prefix.np { color: #f59e0b !important; }
+
+        /* ============================================ */
+        /* DESIGN 3: DARK PREMIUM                      */
+        /* ============================================ */
+
+        .p-evento[data-design="3"] {
+            border-radius: 12px !important;
+            border: 1px solid #374151 !important;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3) !important;
+            background: linear-gradient(180deg, #1f2937 0%, #111827 100%) !important;
+        }
+
+        .p-evento[data-design="3"]:hover {
+            box-shadow: 0 8px 32px rgba(251,191,36,0.2) !important;
+            border-color: #fbbf24 !important;
+        }
+
+        .p-evento[data-design="3"] .w-full {
+            background: transparent !important;
+        }
+
+        .p-evento[data-design="3"] .better-carousel {
+            border-radius: 8px;
+            margin: 8px;
+            height: 165px;
+            border: 1px solid #374151;
+        }
+
+        .p-evento[data-design="3"] .better-carousel-nav {
+            background: rgba(251,191,36,0.9);
+            color: #111827;
+        }
+
+        .p-evento[data-design="3"] .better-carousel-dot {
+            background: rgba(251,191,36,0.4);
+        }
+
+        .p-evento[data-design="3"] .better-carousel-dot.active {
+            background: #fbbf24;
+        }
+
+        .p-evento[data-design="3"] .better-valores-row {
+            background: rgba(0,0,0,0.3);
+            padding: 10px 12px;
+            gap: 6px;
+        }
+
+        .p-evento[data-design="3"] .better-valor-item {
+            background: rgba(55,65,81,0.8);
+            border: 1px solid #4b5563;
+            border-radius: 6px;
+            padding: 6px 10px;
+        }
+
+        .p-evento[data-design="3"] .better-valor-label {
+            color: #9ca3af;
+            font-size: 9px;
+        }
+
+        .p-evento[data-design="3"] .better-valor-amount {
+            color: #f9fafb;
+            font-size: 12px;
+        }
+
+        .p-evento[data-design="3"] .better-valor-item.lance-atual {
+            background: linear-gradient(135deg, #78350f 0%, #92400e 100%);
+            border-color: #fbbf24;
+        }
+
+        .p-evento[data-design="3"] .better-valor-item.lance-atual .better-valor-label {
+            color: #fde68a;
+        }
+
+        .p-evento[data-design="3"] .better-valor-item.lance-atual .better-valor-amount {
+            color: #fbbf24;
+        }
+
+        .p-evento[data-design="3"] .better-countdown-row {
+            background: transparent;
+            padding: 8px 12px;
+            border-top: 1px solid #374151;
+        }
+
+        .p-evento[data-design="3"] .better-countdown-text {
+            color: #9ca3af !important;
+        }
+
+        .p-evento[data-design="3"] .better-countdown-time {
+            color: #fbbf24 !important;
+        }
+
+        /* Dark theme text overrides */
+        .p-evento[data-design="3"] .text-sm,
+        .p-evento[data-design="3"] .text-xs,
+        .p-evento[data-design="3"] .font-semibold {
+            color: #f3f4f6 !important;
+        }
+
+        .p-evento[data-design="3"] .pi-tag,
+        .p-evento[data-design="3"] .pi-building,
+        .p-evento[data-design="3"] .pi-map-marker,
+        .p-evento[data-design="3"] .pi-star {
+            color: #9ca3af !important;
+        }
+
+        .p-evento[data-design="3"] .pi-map-marker.better-map-link {
+            color: #fbbf24 !important;
+        }
+
+        .p-evento[data-design="3"] .native-ref-prefix.lo { color: #60a5fa !important; }
+        .p-evento[data-design="3"] .native-ref-prefix.np { color: #fbbf24 !important; }
+
+        /* ============================================ */
+        /* VALORES E COUNTDOWN (shared)                */
+        /* ============================================ */
+
         .better-valores-row {
             display: flex;
             flex-wrap: wrap;
-            gap: 6px;
-            padding: 8px 12px;
-            background: #f8fafc;
             justify-content: center;
         }
 
@@ -398,44 +426,18 @@
             display: flex;
             align-items: center;
             gap: 4px;
-            padding: 4px 8px;
-            background: white;
-            border-radius: 6px;
-            border: 1px solid #e2e8f0;
-            font-size: 11px;
-        }
-
-        .better-valor-item.lance-atual {
-            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-            border-color: #fbbf24;
-        }
-
-        .better-valor-item.lance-atual .better-valor-label {
-            color: #92400e;
-        }
-
-        .better-valor-item.lance-atual .better-valor-amount {
-            color: #78350f;
         }
 
         .better-valor-label {
-            font-size: 10px;
             font-weight: 600;
-            color: #64748b;
         }
 
         .better-valor-amount {
-            font-size: 11px;
             font-weight: 700;
-            color: #1e293b;
         }
 
-        /* Countdown - Row 5 */
         .better-countdown-row {
-            padding: 8px 12px;
-            background: white;
             display: flex;
-            align-items: center;
             justify-content: center;
         }
 
@@ -447,7 +449,7 @@
         }
 
         .better-countdown-icon {
-            font-size: 14px;
+            font-size: 13px;
         }
 
         .better-countdown-text {
@@ -469,41 +471,75 @@
             50% { opacity: 0.5; }
         }
 
-        /* Localização extra */
-        .better-location-row {
-            padding: 8px 16px;
-            background: #f9fafb;
+        /* ============================================ */
+        /* DESIGN SELECTOR (para preview)              */
+        /* ============================================ */
+
+        .better-design-selector {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            padding: 16px;
+            z-index: 10000;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        .better-design-selector h4 {
+            margin: 0 0 12px 0;
+            font-size: 14px;
+            color: #1f2937;
+        }
+
+        .better-design-option {
             display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
             align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            margin: 4px 0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+
+        .better-design-option:hover {
+            background: #f3f4f6;
+        }
+
+        .better-design-option.active {
+            background: #eff6ff;
+            border-color: #3b82f6;
+        }
+
+        .better-design-option input {
+            display: none;
+        }
+
+        .better-design-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 2px solid #d1d5db;
+        }
+
+        .better-design-option.active .better-design-dot {
+            background: #3b82f6;
+            border-color: #3b82f6;
+        }
+
+        .better-design-name {
+            font-size: 13px;
+            font-weight: 500;
+            color: #374151;
+        }
+
+        .better-design-desc {
             font-size: 10px;
+            color: #6b7280;
         }
-
-        .better-location-tag {
-            background: #e0f2fe;
-            color: #0369a1;
-            padding: 3px 8px;
-            border-radius: 4px;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 3px;
-        }
-
-        /* GPS Badge */
-        .better-gps-badge {
-            background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
-            color: #1e40af;
-            padding: 4px 8px;
-            border-radius: 6px;
-            font-size: 10px;
-            font-weight: 600;
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-        }
-
     `;
     document.head.appendChild(styles);
 
@@ -513,15 +549,8 @@
 
     function formatCurrency(value) {
         if (!value) return '-';
-        // Compact format without decimals
         const num = parseFloat(value);
-        if (num >= 1000) {
-            return new Intl.NumberFormat('pt-PT', {
-                maximumFractionDigits: 0
-            }).format(num) + ' €';
-        }
         return new Intl.NumberFormat('pt-PT', {
-            minimumFractionDigits: 0,
             maximumFractionDigits: 0
         }).format(num) + ' €';
     }
@@ -557,6 +586,67 @@
     }
 
     // ====================================
+    // DESIGN SELECTOR
+    // ====================================
+
+    let currentDesign = CONFIG.CARD_DESIGN === 'all' ? 1 : CONFIG.CARD_DESIGN;
+
+    function createDesignSelector() {
+        if (CONFIG.CARD_DESIGN !== 'all') return;
+        if (document.querySelector('.better-design-selector')) return;
+
+        const selector = document.createElement('div');
+        selector.className = 'better-design-selector';
+        selector.innerHTML = `
+            <h4>🎨 Card Design</h4>
+            <label class="better-design-option ${currentDesign === 1 ? 'active' : ''}" data-design="1">
+                <input type="radio" name="design" value="1" ${currentDesign === 1 ? 'checked' : ''}>
+                <span class="better-design-dot"></span>
+                <div>
+                    <div class="better-design-name">Minimal Clean</div>
+                    <div class="better-design-desc">Branco, limpo, subtil</div>
+                </div>
+            </label>
+            <label class="better-design-option ${currentDesign === 2 ? 'active' : ''}" data-design="2">
+                <input type="radio" name="design" value="2" ${currentDesign === 2 ? 'checked' : ''}>
+                <span class="better-design-dot"></span>
+                <div>
+                    <div class="better-design-name">Glassmorphism</div>
+                    <div class="better-design-desc">Vidro fosco, gradientes</div>
+                </div>
+            </label>
+            <label class="better-design-option ${currentDesign === 3 ? 'active' : ''}" data-design="3">
+                <input type="radio" name="design" value="3" ${currentDesign === 3 ? 'checked' : ''}>
+                <span class="better-design-dot"></span>
+                <div>
+                    <div class="better-design-name">Dark Premium</div>
+                    <div class="better-design-desc">Escuro, dourado, premium</div>
+                </div>
+            </label>
+        `;
+
+        selector.querySelectorAll('.better-design-option').forEach(opt => {
+            opt.addEventListener('click', () => {
+                const design = parseInt(opt.dataset.design);
+                currentDesign = design;
+
+                // Update UI
+                selector.querySelectorAll('.better-design-option').forEach(o => o.classList.remove('active'));
+                opt.classList.add('active');
+
+                // Update all cards
+                document.querySelectorAll('.p-evento[data-better-enhanced="true"]').forEach(card => {
+                    card.dataset.design = design;
+                });
+
+                console.log(`🎨 Design changed to: ${design}`);
+            });
+        });
+
+        document.body.appendChild(selector);
+    }
+
+    // ====================================
     // API
     // ====================================
 
@@ -564,15 +654,9 @@
         if (!CONFIG.ENABLE_API_ENRICHMENT) return null;
 
         try {
-            console.log(`🔍 Fetching data for ${reference} from ${CONFIG.API_BASE}/events/${reference}`);
             const response = await fetch(`${CONFIG.API_BASE}/events/${reference}`);
-            console.log(`📡 Response status: ${response.status}`);
             if (response.ok) {
-                const data = await response.json();
-                console.log(`✅ Data received for ${reference}:`, data);
-                return data;
-            } else {
-                console.warn(`⚠️ API returned ${response.status} for ${reference}`);
+                return await response.json();
             }
         } catch (error) {
             console.error(`❌ API error for ${reference}:`, error);
@@ -581,14 +665,12 @@
     }
 
     // ====================================
-    // INTEGRAR COM BOTÕES FLUTUANTES NATIVOS
+    // FLOATING BUTTON
     // ====================================
 
     function integrateWithNativeFloatingButtons() {
-        // Check if we already added our button
         if (document.querySelector('.better-dashboard-btn')) return;
 
-        // Create dashboard button matching native PrimeVue style (icon-only)
         const btn = document.createElement('button');
         btn.className = 'p-button p-component p-button-icon-only p-button-base fixed fadein animation-duration-400 right-0 z-999 better-dashboard-btn';
         btn.type = 'button';
@@ -606,11 +688,10 @@
         });
 
         document.body.appendChild(btn);
-        console.log('✅ Created native-style floating dashboard button');
     }
 
     // ====================================
-    // REDESENHAR CARD
+    // CARD ENHANCEMENT
     // ====================================
 
     function extractReferenceFromCard(card) {
@@ -624,376 +705,196 @@
     async function enhanceCard(card) {
         if (card.dataset.betterEnhanced) return;
         card.dataset.betterEnhanced = 'true';
+        card.dataset.design = currentDesign;
 
-        // Extract reference before try block so it's accessible in catch
         const reference = extractReferenceFromCard(card);
 
         try {
-            console.log(`🎯 Enhancing card for reference: ${reference}`);
-            if (!reference) {
-                console.warn('⚠️ No reference found in card');
-                return;
-            }
+            if (!reference) return;
 
-            // Busca dados da API
             const apiData = await getEventFromAPI(reference);
-            if (!apiData) {
-                console.warn(`⚠️ No API data returned for ${reference} - card will not be enhanced`);
-                return;
-            }
-            console.log(`🎨 Starting card enhancement for ${reference}`);
+            if (!apiData) return;
 
-            // URL do evento
             const eventUrl = `https://www.e-leiloes.pt/evento/${reference}`;
-
-            // ===== LIMPA CARD E RECONSTRÓI =====
             card.style.position = 'relative';
 
-            // Remove COMPLETAMENTE os links nativos
-            const nativeLinks = card.querySelectorAll('a[href*="/evento/"]');
-            nativeLinks.forEach(link => {
+            // Remove native links
+            card.querySelectorAll('a[href*="/evento/"]').forEach(link => {
                 link.removeAttribute('href');
-                link.style.cursor = 'default';
                 link.style.pointerEvents = 'none';
-                // Previne navegação
-                link.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    return false;
-                });
             });
 
-            // ===== COLORIR PRIMEIRA PARTE DA REFERÊNCIA NATIVA (LO/NP) =====
+            // Color reference prefix
             const nativeRefSpan = card.querySelector('.pi-tag + span');
-            if (nativeRefSpan && reference) {
+            if (nativeRefSpan) {
                 const refText = nativeRefSpan.textContent.trim();
                 const prefix = refText.substring(0, 2);
                 const rest = refText.substring(2);
-                const prefixClass = prefix.toLowerCase();
-                nativeRefSpan.innerHTML = `<span class="native-ref-prefix ${prefixClass}">${prefix}</span>${rest}`;
-                console.log(`🎨 Native reference colored: ${prefix} (${prefixClass})`);
+                nativeRefSpan.innerHTML = `<span class="native-ref-prefix ${prefix.toLowerCase()}">${prefix}</span>${rest}`;
             }
 
-            // ===== REMOVE CLASSES DE BORDA DO DIV NATIVO =====
-            const nativeCardBodies = card.querySelectorAll('.w-full');
-            nativeCardBodies.forEach(div => {
+            // Remove borders from native divs
+            card.querySelectorAll('.w-full').forEach(div => {
                 div.classList.remove('border-1', 'surface-border', 'border-round');
                 div.style.border = 'none';
-                div.style.borderRadius = '0';
             });
 
-            // ===== ESTILIZAR ÍCONE DE MAPA NATIVO (pi-map-marker) =====
+            // Style map marker
             const hasGPS = apiData.gps && apiData.gps.latitude;
             const nativeMapMarker = card.querySelector('.pi-map-marker');
-
             if (nativeMapMarker && hasGPS) {
                 const mapsUrl = `https://www.google.com/maps?q=${apiData.gps.latitude},${apiData.gps.longitude}`;
-                console.log(`🗺️ Styling native map marker with coords: ${apiData.gps.latitude}, ${apiData.gps.longitude}`);
-
-                // Add our class for styling
                 nativeMapMarker.classList.add('better-map-link');
                 nativeMapMarker.title = 'Ver no Google Maps';
-                nativeMapMarker.style.cursor = 'pointer';
-
-                // Make the parent container clickable if it exists
-                const mapContainer = nativeMapMarker.closest('.flex.align-items-center.gap-1');
-                if (mapContainer) {
-                    mapContainer.style.cursor = 'pointer';
-                }
-
-                // Add click handler
                 nativeMapMarker.addEventListener('click', (e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     window.open(mapsUrl, '_blank', 'noopener,noreferrer');
-                    console.log('🗺️ Map marker clicked - opening Maps in new tab');
-                    return false;
                 });
-
-                console.log('✅ Native map marker styled and made clickable');
             }
 
-            // ===== ROW 2: CAROUSEL DE IMAGENS =====
+            // Carousel
             const nativeImageDiv = card.querySelector('.p-evento-image');
             if (nativeImageDiv && apiData.imagens && apiData.imagens.length > 0) {
-                // Limit to max 5 images
                 const images = apiData.imagens.slice(0, CONFIG.MAX_CAROUSEL_IMAGES);
 
                 if (images.length > 1) {
-                    console.log(`🎠 Creating carousel with ${images.length} images (max ${CONFIG.MAX_CAROUSEL_IMAGES})`);
-
-                    // Hide native image div instead of replacing (Vue-safe)
                     nativeImageDiv.style.display = 'none';
 
-                    // Create carousel element
                     const carousel = document.createElement('div');
                     carousel.className = 'better-carousel';
-                    carousel.dataset.current = '0';
                     carousel.innerHTML = `
                         <div class="better-carousel-track">
-                            ${images.map(img => `
-                                <div class="better-carousel-slide" style="background-image: url('${img}');"></div>
-                            `).join('')}
+                            ${images.map(img => `<div class="better-carousel-slide" style="background-image: url('${img}');"></div>`).join('')}
                         </div>
                         <button class="better-carousel-nav prev">‹</button>
                         <button class="better-carousel-nav next">›</button>
                         <div class="better-carousel-dots">
-                            ${images.map((_, idx) => `
-                                <div class="better-carousel-dot ${idx === 0 ? 'active' : ''}" data-index="${idx}"></div>
-                            `).join('')}
+                            ${images.map((_, idx) => `<div class="better-carousel-dot ${idx === 0 ? 'active' : ''}" data-index="${idx}"></div>`).join('')}
                         </div>
-                        <div class="better-image-badge">📷 ${apiData.imagens.length}</div>
                     `;
 
-                    // Insert carousel after hidden native image
                     nativeImageDiv.parentNode.insertBefore(carousel, nativeImageDiv.nextSibling);
 
-                    // Add event handlers directly to the carousel element we just created
                     const track = carousel.querySelector('.better-carousel-track');
-                    const prevBtn = carousel.querySelector('.better-carousel-nav.prev');
-                    const nextBtn = carousel.querySelector('.better-carousel-nav.next');
                     const dots = carousel.querySelectorAll('.better-carousel-dot');
-
                     let currentSlide = 0;
-                    const totalSlides = images.length;
 
                     function updateCarousel() {
                         track.style.transform = `translateX(-${currentSlide * 100}%)`;
-                        dots.forEach((dot, idx) => {
-                            dot.classList.toggle('active', idx === currentSlide);
-                        });
+                        dots.forEach((d, i) => d.classList.toggle('active', i === currentSlide));
                     }
 
-                    prevBtn.addEventListener('click', (e) => {
+                    carousel.querySelector('.prev').addEventListener('click', (e) => {
                         e.stopPropagation();
-                        e.preventDefault();
-                        currentSlide = (currentSlide - 1 + totalSlides) % totalSlides;
+                        currentSlide = (currentSlide - 1 + images.length) % images.length;
                         updateCarousel();
                     });
 
-                    nextBtn.addEventListener('click', (e) => {
+                    carousel.querySelector('.next').addEventListener('click', (e) => {
                         e.stopPropagation();
-                        e.preventDefault();
-                        currentSlide = (currentSlide + 1) % totalSlides;
+                        currentSlide = (currentSlide + 1) % images.length;
                         updateCarousel();
                     });
 
                     dots.forEach((dot, idx) => {
                         dot.addEventListener('click', (e) => {
                             e.stopPropagation();
-                            e.preventDefault();
                             currentSlide = idx;
                             updateCarousel();
                         });
                     });
-
-                    console.log('✅ Carousel created and configured');
-                } else {
-                    // Single image - just add badge showing total from API
-                    nativeImageDiv.style.position = 'relative';
-                    const imageBadge = document.createElement('div');
-                    imageBadge.className = 'better-image-badge';
-                    imageBadge.innerHTML = `📷 ${apiData.imagens.length}`;
-                    nativeImageDiv.appendChild(imageBadge);
                 }
             }
 
-            // ===== ROW 3: DETALHES (APENAS MATRÍCULA PARA MÓVEIS) =====
-            const det = apiData.detalhes || {};
-
-            let detailsHTML = '';
-            if (apiData.tipoEvento === 'movel' && det.matricula) {
-                detailsHTML = `
-                    <div class="better-details-row">
-                        <div class="better-details-info">
-                            <div class="better-matricula-badge">🚙 ${det.matricula}</div>
-                        </div>
-                    </div>
-                `;
-            }
-
-            // ===== ROW 4: VALORES COMPACTOS =====
+            // Values
             let valoresHTML = '';
             if (apiData.valores) {
                 const v = apiData.valores;
                 const items = [];
-
-                if (v.valorBase) {
-                    items.push(`<div class="better-valor-item"><span class="better-valor-label">VB:</span><span class="better-valor-amount">${formatCurrency(v.valorBase)}</span></div>`);
-                }
-                if (v.valorAbertura) {
-                    items.push(`<div class="better-valor-item"><span class="better-valor-label">VA:</span><span class="better-valor-amount">${formatCurrency(v.valorAbertura)}</span></div>`);
-                }
-                if (v.valorMinimo) {
-                    items.push(`<div class="better-valor-item"><span class="better-valor-label">VM:</span><span class="better-valor-amount">${formatCurrency(v.valorMinimo)}</span></div>`);
-                }
-                // Lance atual sempre visível
+                if (v.valorBase) items.push(`<div class="better-valor-item"><span class="better-valor-label">VB:</span><span class="better-valor-amount">${formatCurrency(v.valorBase)}</span></div>`);
+                if (v.valorAbertura) items.push(`<div class="better-valor-item"><span class="better-valor-label">VA:</span><span class="better-valor-amount">${formatCurrency(v.valorAbertura)}</span></div>`);
+                if (v.valorMinimo) items.push(`<div class="better-valor-item"><span class="better-valor-label">VM:</span><span class="better-valor-amount">${formatCurrency(v.valorMinimo)}</span></div>`);
                 items.push(`<div class="better-valor-item lance-atual"><span class="better-valor-label">Lance:</span><span class="better-valor-amount">${v.lanceAtual ? formatCurrency(v.lanceAtual) : '0 €'}</span></div>`);
-
                 valoresHTML = `<div class="better-valores-row">${items.join('')}</div>`;
             }
 
-            // ===== ROW 5: COUNTDOWN OU DATAS =====
+            // Countdown
             let countdownHTML = '';
             if (apiData.dataFim) {
                 const remaining = calculateTimeRemaining(apiData.dataFim);
                 if (remaining) {
-                    const now = new Date();
-                    const end = new Date(apiData.dataFim);
-                    const start = apiData.dataInicio ? new Date(apiData.dataInicio) : null;
-                    const diffDays = Math.floor((end - now) / (1000 * 60 * 60 * 24));
-
-                    // Se mais de 1 dia, mostra as datas
-                    if (diffDays > 1 && start) {
-                        const formatDate = (date) => {
-                            return new Intl.DateTimeFormat('pt-PT', {
-                                day: '2-digit',
-                                month: '2-digit',
-                                year: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                            }).format(date);
-                        };
-
-                        countdownHTML = `
-                            <div class="better-countdown-row">
-                                <div class="better-countdown">
-                                    <span class="better-countdown-icon">📅</span>
-                                    <span class="better-countdown-text">De:</span>
-                                    <span class="better-countdown-time">${formatDate(start)}</span>
-                                    <span class="better-countdown-text">a:</span>
-                                    <span class="better-countdown-time">${formatDate(end)}</span>
-                                </div>
+                    const countdownId = `countdown-${reference}`;
+                    countdownHTML = `
+                        <div class="better-countdown-row">
+                            <div class="better-countdown">
+                                <span class="better-countdown-icon">⏱️</span>
+                                <span class="better-countdown-text">Termina:</span>
+                                <span class="better-countdown-time ${remaining.isEnding ? 'ending-soon' : ''}" id="${countdownId}" data-end="${apiData.dataFim}">${remaining.text}</span>
                             </div>
-                        `;
-                    } else {
-                        // Menos de 1 dia, mostra countdown LIVE
-                        const countdownId = `countdown-${reference}`;
-                        countdownHTML = `
-                            <div class="better-countdown-row">
-                                <div class="better-countdown">
-                                    <span class="better-countdown-icon">⏱️</span>
-                                    <span class="better-countdown-text">Termina em:</span>
-                                    <span class="better-countdown-time ${remaining.isEnding ? 'ending-soon' : ''}"
-                                          id="${countdownId}"
-                                          data-end="${apiData.dataFim}">
-                                        ${remaining.text}
-                                    </span>
-                                </div>
-                            </div>
-                        `;
-                    }
+                        </div>
+                    `;
                 }
             }
 
-            // Insere rows no card
+            // Insert content
             const cardBody = card.querySelector('.w-full');
             if (cardBody) {
-                const newContent = detailsHTML + valoresHTML + countdownHTML;
-
-                // Adiciona o conteúdo DEPOIS do conteúdo nativo
-                const contentWrapper = document.createElement('div');
-                contentWrapper.className = 'better-card-content';
-                contentWrapper.innerHTML = newContent;
-                cardBody.appendChild(contentWrapper);
-                console.log('✅ Card body updated');
+                const wrapper = document.createElement('div');
+                wrapper.className = 'better-card-content';
+                wrapper.innerHTML = valoresHTML + countdownHTML;
+                cardBody.appendChild(wrapper);
             }
 
-            // ===== EVENT HANDLERS =====
-            // Click no card inteiro abre em nova aba
+            // Click handlers
             card.style.cursor = 'pointer';
-
             card.addEventListener('click', (e) => {
-                // Ignore clicks on specific elements
-                if (e.target.closest('.pi-map-marker') ||
-                    e.target.closest('.better-map-link') ||
-                    e.target.closest('.pi-star') ||
-                    e.target.closest('.better-btn') ||
-                    e.target.closest('.better-carousel-nav') ||
-                    e.target.closest('.better-carousel-dot')) {
-                    return;
-                }
-
+                if (e.target.closest('.pi-map-marker, .better-carousel-nav, .better-carousel-dot, .pi-star')) return;
                 e.preventDefault();
                 e.stopPropagation();
                 window.open(eventUrl, '_blank', 'noopener,noreferrer');
-                return false;
             }, true);
-
-            // Middle-click handler
-            card.addEventListener('auxclick', (e) => {
-                if (e.button === 1) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    window.open(eventUrl, '_blank', 'noopener,noreferrer');
-                    return false;
-                }
-            }, true);
-
-            console.log(`✨ Card enhancement complete for ${reference}`);
 
         } catch (error) {
             console.error(`❌ Error enhancing card for ${reference}:`, error);
-            console.error('Error stack:', error.stack);
         }
     }
 
     // ====================================
-    // OBSERVADOR
+    // OBSERVER & INIT
     // ====================================
 
     function enhanceAllCards() {
-        const cards = document.querySelectorAll('.p-evento');
-        cards.forEach(card => enhanceCard(card));
+        document.querySelectorAll('.p-evento').forEach(card => enhanceCard(card));
     }
 
     const observer = new MutationObserver(() => {
         enhanceAllCards();
-        integrateWithNativeFloatingButtons();
     });
 
-    // ====================================
-    // LIVE COUNTDOWN TIMER
-    // ====================================
-
     function updateAllCountdowns() {
-        const countdownElements = document.querySelectorAll('[data-end]');
-        countdownElements.forEach(el => {
-            const endDate = el.dataset.end;
-            if (endDate) {
-                const remaining = calculateTimeRemaining(endDate);
-                if (remaining) {
-                    el.textContent = remaining.text;
-                    if (remaining.isEnding) {
-                        el.classList.add('ending-soon');
-                    } else {
-                        el.classList.remove('ending-soon');
-                    }
-                }
+        document.querySelectorAll('[data-end]').forEach(el => {
+            const remaining = calculateTimeRemaining(el.dataset.end);
+            if (remaining) {
+                el.textContent = remaining.text;
+                el.classList.toggle('ending-soon', remaining.isEnding);
             }
         });
     }
 
-    // ====================================
-    // INICIALIZAÇÃO
-    // ====================================
-
     function init() {
-        console.log('🚀 Better E-Leilões Card Enhancer v5.2');
+        console.log('🚀 Better E-Leilões Card Enhancer v6.0');
+        console.log('🎨 Design mode:', CONFIG.CARD_DESIGN === 'all' ? 'Preview all 3 designs' : `Design ${CONFIG.CARD_DESIGN}`);
 
         integrateWithNativeFloatingButtons();
+        createDesignSelector();
         enhanceAllCards();
 
-        // Start live countdown updates every second
         setInterval(updateAllCountdowns, 1000);
-        console.log('⏱️ Live countdown timer started');
 
-        observer.observe(document.body, {
-            childList: true,
-            subtree: true
-        });
+        observer.observe(document.body, { childList: true, subtree: true });
 
-        console.log('✅ Card enhancer v5.2 ativo - Vue-safe carousel insertion!');
+        console.log('✅ Card enhancer v6.0 ativo!');
     }
 
     if (document.readyState === 'loading') {
