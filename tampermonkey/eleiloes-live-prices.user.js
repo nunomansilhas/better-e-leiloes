@@ -186,6 +186,9 @@
             bodyHTML += `<div>Timer: <span class="eleiloes-toast-timer">Reset to ${formatDateTime(newEnd)}</span></div>`;
         }
 
+        // Calculate remaining time with seconds precision
+        const timeRemaining = data.new_end ? formatTimeRemaining(data.new_end) : data.time_remaining;
+
         toast.innerHTML = `
             <div class="eleiloes-toast-title">
                 <span>💰</span>
@@ -194,7 +197,7 @@
             <div class="eleiloes-toast-body">
                 ${bodyHTML}
                 <div style="margin-top: 4px; opacity: 0.7; font-size: 11px;">
-                    ${data.time_remaining} remaining
+                    ${timeRemaining} remaining
                 </div>
             </div>
         `;
@@ -336,6 +339,25 @@
     function formatDateTime(date) {
         const pad = n => n.toString().padStart(2, '0');
         return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+    }
+
+    function formatTimeRemaining(endDate) {
+        if (!endDate) return 'N/A';
+        const now = new Date();
+        const end = new Date(endDate);
+        const diff = Math.max(0, end - now) / 1000; // seconds
+
+        const hours = Math.floor(diff / 3600);
+        const minutes = Math.floor((diff % 3600) / 60);
+        const seconds = Math.floor(diff % 60);
+
+        if (hours > 0) {
+            return `${hours}h${minutes}m${seconds}s`;
+        } else if (minutes > 0) {
+            return `${minutes}m${seconds}s`;
+        } else {
+            return `${seconds}s`;
+        }
     }
 
     // ============== SSE CONNECTION ==============
