@@ -16,7 +16,7 @@ import re
 from playwright.async_api import async_playwright, Page, Browser
 import os
 
-from models import EventData, GPSCoordinates, EventDetails, ValoresLeilao, ScraperStatus, TIPO_EVENTO_MAP, TIPO_EVENTO_NAMES
+from models import EventData, GPSCoordinates, EventDetails, ValoresLeilao, ScraperStatus, TIPO_EVENTO_MAP, TIPO_EVENTO_NAMES, TIPO_TO_WEBSITE
 
 
 class EventScraper:
@@ -834,8 +834,9 @@ class EventScraper:
                 self.current_page = page_num + 1  # Para display (página 1, 2, 3...)
 
                 # Navega para página de listagem com offset correto
-                # https://www.e-leiloes.pt/eventos?layout=grid&first=0&sort=dataFimAsc&tipo=1
-                url = f"https://www.e-leiloes.pt/eventos?layout=grid&first={first_offset}&sort=dataFimAsc&tipo={tipo}"
+                # Converte tipo interno para tipo do website
+                website_tipo = TIPO_TO_WEBSITE.get(tipo, tipo)
+                url = f"https://www.e-leiloes.pt/eventos?layout=grid&first={first_offset}&sort=dataFimAsc&tipo={website_tipo}"
                 print(f"🌐 Navegando para página {page_num + 1} (first={first_offset})...")
                 await page.goto(url, wait_until="networkidle")
                 await asyncio.sleep(1.5)

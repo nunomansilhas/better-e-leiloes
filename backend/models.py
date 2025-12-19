@@ -7,7 +7,7 @@ from typing import Optional, List
 from datetime import datetime
 
 
-# Mapeamento de tipos de evento
+# Mapeamento de tipos de evento (interno)
 TIPO_EVENTO_MAP = {
     1: "imoveis",
     2: "veiculos",
@@ -28,6 +28,21 @@ TIPO_EVENTO_NAMES = {
 
 # Reverso: string -> código
 TIPO_EVENTO_CODES = {v: k for k, v in TIPO_EVENTO_MAP.items()}
+
+# Mapeamento interno -> URL do website
+# Website usa: tipo=1 (Imóveis), tipo=2 (Veículos), tipo=3 (Equipamentos),
+#              tipo=4 (Mobiliário), tipo=5 (Máquinas), tipo=6 (Direitos)
+TIPO_TO_WEBSITE = {
+    1: 1,  # imoveis -> tipo=1
+    2: 2,  # veiculos -> tipo=2
+    3: 6,  # direitos -> tipo=6
+    4: 3,  # equipamentos -> tipo=3
+    5: 4,  # mobiliario -> tipo=4
+    6: 5,  # maquinas -> tipo=5
+}
+
+# Reverso: URL do website -> interno
+WEBSITE_TO_TIPO = {v: k for k, v in TIPO_TO_WEBSITE.items()}
 
 
 class GPSCoordinates(BaseModel):
