@@ -324,6 +324,10 @@
         .stats-bar-icon.blue { background: #eff6ff; }
         .stats-bar-icon.green { background: #f0fdf4; }
         .stats-bar-icon.purple { background: #f5f3ff; }
+        .stats-bar-icon.orange { background: #fff7ed; }
+        .stats-bar-icon.cyan { background: #ecfeff; }
+        .stats-bar-icon.yellow { background: #fefce8; }
+        .stats-bar-icon.red { background: #fef2f2; }
 
         .stats-bar-content {
             display: flex;
@@ -1801,21 +1805,45 @@
                         <span class="stats-bar-value" id="stat-imoveis">-</span>
                         <span class="stats-bar-label">Imóveis</span>
                     </div>
-                    <div class="stats-bar-breakdown">
-                        <span class="lo" id="stat-imoveis-lo">-</span> LO
-                        <span class="np" id="stat-imoveis-np">-</span> NP
-                    </div>
                 </div>
                 <div class="stats-bar-divider"></div>
                 <div class="stats-bar-item">
                     <div class="stats-bar-icon purple">🚗</div>
                     <div class="stats-bar-content">
-                        <span class="stats-bar-value" id="stat-moveis">-</span>
-                        <span class="stats-bar-label">Móveis</span>
+                        <span class="stats-bar-value" id="stat-veiculos">-</span>
+                        <span class="stats-bar-label">Veículos</span>
                     </div>
-                    <div class="stats-bar-breakdown">
-                        <span class="lo" id="stat-moveis-lo">-</span> LO
-                        <span class="np" id="stat-moveis-np">-</span> NP
+                </div>
+                <div class="stats-bar-divider"></div>
+                <div class="stats-bar-item">
+                    <div class="stats-bar-icon orange">📜</div>
+                    <div class="stats-bar-content">
+                        <span class="stats-bar-value" id="stat-direitos">-</span>
+                        <span class="stats-bar-label">Direitos</span>
+                    </div>
+                </div>
+                <div class="stats-bar-divider"></div>
+                <div class="stats-bar-item">
+                    <div class="stats-bar-icon cyan">🔧</div>
+                    <div class="stats-bar-content">
+                        <span class="stats-bar-value" id="stat-equipamentos">-</span>
+                        <span class="stats-bar-label">Equipamentos</span>
+                    </div>
+                </div>
+                <div class="stats-bar-divider"></div>
+                <div class="stats-bar-item">
+                    <div class="stats-bar-icon yellow">🪑</div>
+                    <div class="stats-bar-content">
+                        <span class="stats-bar-value" id="stat-mobiliario">-</span>
+                        <span class="stats-bar-label">Mobiliário</span>
+                    </div>
+                </div>
+                <div class="stats-bar-divider"></div>
+                <div class="stats-bar-item">
+                    <div class="stats-bar-icon red">⚙️</div>
+                    <div class="stats-bar-content">
+                        <span class="stats-bar-value" id="stat-maquinas">-</span>
+                        <span class="stats-bar-label">Máquinas</span>
                     </div>
                 </div>
             </div>
@@ -1833,10 +1861,14 @@
                         <button class="scraper-btn start" onclick="runIndependentScraper('content')" style="padding: 6px 12px; font-size: 12px;">📋 Content</button>
                         <button class="scraper-btn start" onclick="runIndependentScraper('images')" style="padding: 6px 12px; font-size: 12px;">🖼️ Images</button>
                         <div style="margin-left: auto; display: flex; gap: 8px;">
-                            <select class="filter-select" id="independent-tipo" style="padding: 6px 10px; font-size: 11px; min-width: 100px;">
+                            <select class="filter-select" id="independent-tipo" style="padding: 6px 10px; font-size: 11px; min-width: 120px;">
                                 <option value="">📦 Todos</option>
                                 <option value="1">🏠 Imóveis</option>
-                                <option value="2">🚗 Móveis</option>
+                                <option value="2">🚗 Veículos</option>
+                                <option value="3">📜 Direitos</option>
+                                <option value="4">🔧 Equipamentos</option>
+                                <option value="5">🪑 Mobiliário</option>
+                                <option value="6">⚙️ Máquinas</option>
                             </select>
                         </div>
                     </div>
@@ -2242,44 +2274,61 @@
             loadEvents(activePage);
         }
 
-        // Load Dashboard
+        // Load Dashboard - with auto-refresh
+        let statsRefreshInterval = null;
+
         async function loadDashboard() {
             try {
-                // Load ALL events to calculate accurate totals
-                const eventsResponse = await fetch(`${API_BASE}/api/events?limit=5000`);
-                const eventsData = await eventsResponse.json();
-
-                const total = eventsData.events.length;
-                const imoveis = eventsData.events.filter(e => e.tipoEvento === 'imovel');
-                const moveis = eventsData.events.filter(e => e.tipoEvento === 'movel');
-
-                const totalLO = eventsData.events.filter(e => e.reference.startsWith('LO')).length;
-                const totalNP = eventsData.events.filter(e => e.reference.startsWith('NP')).length;
-
-                const imoveisLO = imoveis.filter(e => e.reference.startsWith('LO')).length;
-                const imoveisNP = imoveis.filter(e => e.reference.startsWith('NP')).length;
-
-                const moveisLO = moveis.filter(e => e.reference.startsWith('LO')).length;
-                const moveisNP = moveis.filter(e => e.reference.startsWith('NP')).length;
-
-                document.getElementById('stat-total').textContent = total;
-                document.getElementById('stat-total-lo').textContent = totalLO;
-                document.getElementById('stat-total-np').textContent = totalNP;
-
-                document.getElementById('stat-imoveis').textContent = imoveis.length;
-                document.getElementById('stat-imoveis-lo').textContent = imoveisLO;
-                document.getElementById('stat-imoveis-np').textContent = imoveisNP;
-
-                document.getElementById('stat-moveis').textContent = moveis.length;
-                document.getElementById('stat-moveis-lo').textContent = moveisLO;
-                document.getElementById('stat-moveis-np').textContent = moveisNP;
+                await updateDashboardStats();
 
                 // Initialize scraper controls
                 initScraperControls();
                 // Check scraper status
                 updateScraperStatus();
+
+                // Start auto-refresh of stats every 10 seconds
+                if (!statsRefreshInterval) {
+                    statsRefreshInterval = setInterval(updateDashboardStats, 10000);
+                    console.log('📊 Stats auto-refresh started (10s)');
+                }
             } catch (error) {
                 console.error('Erro ao carregar dashboard:', error);
+            }
+        }
+
+        async function updateDashboardStats() {
+            try {
+                // Load ALL events to calculate accurate totals
+                const eventsResponse = await fetch(`${API_BASE}/api/events?limit=100000`);
+                const eventsData = await eventsResponse.json();
+
+                const total = eventsData.events.length;
+
+                // Count by tipoEvento (supports both old and new format)
+                const imoveis = eventsData.events.filter(e => e.tipoEvento === 'imoveis' || e.tipoEvento === 'imovel').length;
+                const veiculos = eventsData.events.filter(e => e.tipoEvento === 'veiculos' || e.tipoEvento === 'movel').length;
+                const direitos = eventsData.events.filter(e => e.tipoEvento === 'direitos').length;
+                const equipamentos = eventsData.events.filter(e => e.tipoEvento === 'equipamentos').length;
+                const mobiliario = eventsData.events.filter(e => e.tipoEvento === 'mobiliario').length;
+                const maquinas = eventsData.events.filter(e => e.tipoEvento === 'maquinas').length;
+
+                const totalLO = eventsData.events.filter(e => e.reference.startsWith('LO')).length;
+                const totalNP = eventsData.events.filter(e => e.reference.startsWith('NP')).length;
+
+                // Update UI
+                document.getElementById('stat-total').textContent = total;
+                document.getElementById('stat-total-lo').textContent = totalLO;
+                document.getElementById('stat-total-np').textContent = totalNP;
+
+                document.getElementById('stat-imoveis').textContent = imoveis;
+                document.getElementById('stat-veiculos').textContent = veiculos;
+                document.getElementById('stat-direitos').textContent = direitos;
+                document.getElementById('stat-equipamentos').textContent = equipamentos;
+                document.getElementById('stat-mobiliario').textContent = mobiliario;
+                document.getElementById('stat-maquinas').textContent = maquinas;
+
+            } catch (error) {
+                console.error('Erro ao atualizar stats:', error);
             }
         }
 
