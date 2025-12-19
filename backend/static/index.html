@@ -3621,36 +3621,43 @@
             const countEl = document.getElementById(`stage${stageNum}-count`);
 
             // Update count
-            if (count > 0) {
+            if (countEl && count > 0) {
                 countEl.textContent = `${count} eventos`;
                 countEl.style.color = '#10b981';
             }
 
             // Update circle style based on status
-            if (status === 'active') {
-                circle.style.borderColor = '#3b82f6';
-                circle.style.background = '#eff6ff';
-                circle.style.transform = 'scale(1.1)';
-            } else if (status === 'completed') {
-                circle.style.borderColor = '#10b981';
-                circle.style.background = '#f0fdf4';
-                circle.style.transform = 'scale(1)';
-            } else {
-                circle.style.borderColor = '#cbd5e1';
-                circle.style.background = 'white';
-                circle.style.transform = 'scale(1)';
+            if (circle) {
+                if (status === 'active') {
+                    circle.style.borderColor = '#3b82f6';
+                    circle.style.background = '#eff6ff';
+                    circle.style.transform = 'scale(1.1)';
+                } else if (status === 'completed') {
+                    circle.style.borderColor = '#10b981';
+                    circle.style.background = '#f0fdf4';
+                    circle.style.transform = 'scale(1)';
+                } else {
+                    circle.style.borderColor = '#cbd5e1';
+                    circle.style.background = 'white';
+                    circle.style.transform = 'scale(1)';
+                }
             }
         }
 
         function updatePipelineProgress(percent) {
             const progressLine = document.getElementById('pipeline-progress-line');
-            progressLine.style.width = `${percent}%`;
+            if (progressLine) {
+                progressLine.style.width = `${percent}%`;
+            }
         }
 
         function updateFeedback(action, current, total) {
-            document.getElementById('feedback-action').textContent = action;
-            document.getElementById('feedback-count').textContent = `${current} / ${total}`;
-            document.getElementById('feedback-progress-bar').style.width = total > 0 ? `${(current / total) * 100}%` : '0%';
+            const actionEl = document.getElementById('feedback-action');
+            const countEl = document.getElementById('feedback-count');
+            const progressBar = document.getElementById('feedback-progress-bar');
+            if (actionEl) actionEl.textContent = action;
+            if (countEl) countEl.textContent = `${current} / ${total}`;
+            if (progressBar) progressBar.style.width = total > 0 ? `${(current / total) * 100}%` : '0%';
         }
 
         // ============== PIPELINE REAL-TIME FEEDBACK SYSTEM ==============
