@@ -367,11 +367,44 @@
             flex-direction: column;
             gap: 6px;
             transition: all 0.2s ease;
+            position: relative;
         }
 
         .stats-card:hover {
             transform: translateY(-2px);
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+        }
+
+        .stats-card-view-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
+            background: rgba(100, 116, 139, 0.1);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0.5;
+            transition: all 0.2s ease;
+        }
+
+        .stats-card-view-btn:hover {
+            opacity: 1;
+            background: rgba(59, 130, 246, 0.15);
+        }
+
+        .stats-card-view-btn svg {
+            width: 14px;
+            height: 14px;
+            stroke: #64748b;
+        }
+
+        .stats-card-view-btn:hover svg {
+            stroke: #3b82f6;
         }
 
         .stats-card-header {
@@ -1923,6 +1956,9 @@
                 <div class="stats-grid">
                     <!-- Row 1 -->
                     <div class="stats-card">
+                        <button class="stats-card-view-btn" onclick="showPage('imoveis')" title="Ver Imóveis">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                        </button>
                         <div class="stats-card-header">
                             <div class="stats-card-icon green">🏠</div>
                             <div class="stats-card-info">
@@ -1936,6 +1972,9 @@
                         </div>
                     </div>
                     <div class="stats-card">
+                        <button class="stats-card-view-btn" onclick="showPage('veiculos')" title="Ver Veículos">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                        </button>
                         <div class="stats-card-header">
                             <div class="stats-card-icon purple">🚗</div>
                             <div class="stats-card-info">
@@ -1949,6 +1988,9 @@
                         </div>
                     </div>
                     <div class="stats-card">
+                        <button class="stats-card-view-btn" onclick="showPage('direitos')" title="Ver Direitos">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                        </button>
                         <div class="stats-card-header">
                             <div class="stats-card-icon orange">📜</div>
                             <div class="stats-card-info">
@@ -1963,6 +2005,9 @@
                     </div>
                     <!-- Row 2 -->
                     <div class="stats-card">
+                        <button class="stats-card-view-btn" onclick="showPage('equipamentos')" title="Ver Equipamentos">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                        </button>
                         <div class="stats-card-header">
                             <div class="stats-card-icon cyan">🔧</div>
                             <div class="stats-card-info">
@@ -1976,6 +2021,9 @@
                         </div>
                     </div>
                     <div class="stats-card">
+                        <button class="stats-card-view-btn" onclick="showPage('mobiliario')" title="Ver Mobiliário">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                        </button>
                         <div class="stats-card-header">
                             <div class="stats-card-icon yellow">🪑</div>
                             <div class="stats-card-info">
@@ -1989,6 +2037,9 @@
                         </div>
                     </div>
                     <div class="stats-card">
+                        <button class="stats-card-view-btn" onclick="showPage('maquinas')" title="Ver Máquinas">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                        </button>
                         <div class="stats-card-header">
                             <div class="stats-card-icon red">⚙️</div>
                             <div class="stats-card-info">
