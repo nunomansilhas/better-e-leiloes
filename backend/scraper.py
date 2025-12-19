@@ -131,15 +131,15 @@ class EventScraper:
                 "motociclo" in (detalhes_movel.tipo or "").lower()
             )
 
-            # Define o tipo correto
+            # Usa is_movel apenas para determinar qual objeto de detalhes usar
+            # Mas PRESERVA o tipo_evento original (direitos, equipamentos, etc.)
             if is_movel:
-                tipo_evento = "movel"
                 detalhes = detalhes_movel
                 gps = None  # Móveis não têm GPS (só têm distrito/concelho/freguesia)
             else:
-                tipo_evento = "imovel"
                 detalhes = detalhes_imovel
                 # GPS já foi extraído acima
+            # tipo_evento mantém o valor original passado como parâmetro
 
             # Confirma/atualiza valores na página individual (podem ser mais precisos)
             valores_pagina = await self._extract_valores_from_page(page)
@@ -1176,7 +1176,8 @@ class EventScraper:
     async def scrape_details_by_ids(
         self,
         references: List[str],
-        on_event_scraped: Optional[Callable[[EventData], Awaitable[None]]] = None
+        on_event_scraped: Optional[Callable[[EventData], Awaitable[None]]] = None,
+        tipo_map: Optional[dict] = None
     ) -> List[EventData]:
         """
         STAGE 2: Scrape detalhes completos (SEM imagens) para lista de referências.
@@ -1184,6 +1185,7 @@ class EventScraper:
         Args:
             references: Lista de referências (ex: ["LO-2024-001", "NP-2024-002"])
             on_event_scraped: Callback async chamado para cada evento scraped (inserção em tempo real)
+            tipo_map: Dict opcional {reference: tipo_evento} para preservar tipos específicos
 
         Returns:
             Lista de EventData (sem imagens)
@@ -1206,13 +1208,14 @@ class EventScraper:
 
             tasks = []
             for ref in batch:
-                # Determina tipo baseado no prefixo
-                tipo_evento = "imovel" if ref.startswith("LO") or ref.startswith("NP") else "imovel"
+                # Usa tipo do mapa se disponível, senão usa default
+                tipo_evento = tipo_map.get(ref, "imovel") if tipo_map else "imovel"
 
-                # Cria preview fake (valores virão da página)
+                # Cria preview (valores virão da página)
                 preview = {
                     'reference': ref,
-                    'valores': ValoresLeilao()
+                    'valores': ValoresLeilao(),
+                    'tipo_evento': tipo_evento  # Preserva o tipo original
                 }
 
                 tasks.append(self._scrape_event_details_no_images(preview, tipo_evento))
@@ -1282,15 +1285,15 @@ class EventScraper:
                 "motociclo" in (detalhes_movel.tipo or "").lower()
             )
 
-            # Define o tipo correto
+            # Usa is_movel apenas para determinar qual objeto de detalhes usar
+            # Mas PRESERVA o tipo_evento original (direitos, equipamentos, etc.)
             if is_movel:
-                tipo_evento = "movel"
                 detalhes = detalhes_movel
                 gps = None  # Móveis não têm GPS (só têm distrito/concelho/freguesia)
             else:
-                tipo_evento = "imovel"
                 detalhes = detalhes_imovel
                 # GPS já foi extraído acima
+            # tipo_evento mantém o valor original passado como parâmetro
 
             # Valores
             valores_pagina = await self._extract_valores_from_page(page)

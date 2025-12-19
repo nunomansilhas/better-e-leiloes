@@ -1222,6 +1222,8 @@ async def run_full_pipeline(tipo: Optional[int], max_pages: Optional[int]):
         )
 
         references = [item['reference'] for item in ids_data]
+        # Criar mapa de referência -> tipo_evento para preservar tipos específicos
+        tipo_map = {item['reference']: item.get('tipo_evento', 'imovel') for item in ids_data}
 
         # Check if stopped during scraping - but still report what we got
         if scraper.stop_requested:
@@ -1288,7 +1290,7 @@ async def run_full_pipeline(tipo: Optional[int], max_pages: Optional[int]):
                 message=f"Scraping {scraped_count}/{len(references)} - {event.reference}"
             )
 
-        events = await scraper.scrape_details_by_ids(references, on_event_scraped=save_event_callback)
+        events = await scraper.scrape_details_by_ids(references, on_event_scraped=save_event_callback, tipo_map=tipo_map)
 
         # Check if stopped during scraping
         if scraper.stop_requested:
