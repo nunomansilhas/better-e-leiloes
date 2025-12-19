@@ -1179,7 +1179,7 @@ async def run_full_pipeline(tipo: Optional[int], max_pages: Optional[int]):
             type_counter["count"] += 1
             total_ids = sum(totals.values())
 
-            # Build totals string
+            # Build totals string: "Total: X | Imóveis: X | Veículos: X"
             totals_parts = [f"Total: {total_ids}"]
             tipo_names_map = {
                 "imoveis": "Imóveis",
@@ -1196,11 +1196,12 @@ async def run_full_pipeline(tipo: Optional[int], max_pages: Optional[int]):
             msg = " | ".join(totals_parts)
             add_dashboard_log(f"✓ {tipo_nome}: {count} IDs | {msg}", "info")
 
-            # Update pipeline state
+            # Update pipeline state - use total_ids for display
             await pipeline_state.update(
-                current=type_counter["count"],
-                total=6 if tipo is None else 1,
-                message=msg
+                current=total_ids,  # Show total IDs collected
+                total=total_ids,    # Same value (we don't know final total)
+                message=msg,
+                details={"types_done": type_counter["count"], "total_ids": total_ids, "breakdown": totals}
             )
 
         # Check if scraper was stopped before starting

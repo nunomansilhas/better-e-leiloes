@@ -3965,7 +3965,7 @@
                 return;
             }
 
-            const { stage, stage_name, current, total, message, errors } = state;
+            const { stage, stage_name, current, total, message, errors, details } = state;
 
             // Atualizar feedback box
             const feedbackStatus = document.getElementById('feedback-status');
@@ -3973,20 +3973,36 @@
                 feedbackStatus.textContent = stage_name || 'A processar...';
             }
 
-            updateFeedback(message || 'Aguarde...', current, total);
+            // Atualizar feedback-action com a mensagem de totais
+            const actionEl = document.getElementById('feedback-action');
+            const countEl = document.getElementById('feedback-count');
+            const progressBar = document.getElementById('feedback-progress-bar');
 
-            // Atualizar visualização da pipeline
+            if (actionEl) {
+                actionEl.textContent = message || 'A processar...';
+            }
+
+            // Para Stage 1, mostrar total de IDs; para outros, mostrar progresso
             if (stage === 1) {
-                updatePipelineStage(1, 'active', current);
+                const totalIds = details?.total_ids || current;
+                const typesDone = details?.types_done || 0;
+                if (countEl) countEl.textContent = `${totalIds} IDs (${typesDone}/6 tipos)`;
+                // Progress based on types done
+                if (progressBar) progressBar.style.width = `${(typesDone / 6) * 100}%`;
+                updatePipelineStage(1, 'active', totalIds);
                 updatePipelineStage(2, 'pending', 0);
                 updatePipelineStage(3, 'pending', 0);
-                updatePipelineProgress(Math.min((current / total) * 33, 33));
+                updatePipelineProgress((typesDone / 6) * 33);
             } else if (stage === 2) {
+                if (countEl) countEl.textContent = `${current} / ${total}`;
+                if (progressBar) progressBar.style.width = total > 0 ? `${(current / total) * 100}%` : '0%';
                 updatePipelineStage(1, 'completed', total);
                 updatePipelineStage(2, 'active', current);
                 updatePipelineStage(3, 'pending', 0);
                 updatePipelineProgress(33 + Math.min((current / total) * 33, 33));
             } else if (stage === 3) {
+                if (countEl) countEl.textContent = `${current} / ${total}`;
+                if (progressBar) progressBar.style.width = total > 0 ? `${(current / total) * 100}%` : '0%';
                 updatePipelineStage(1, 'completed', total);
                 updatePipelineStage(2, 'completed', total);
                 updatePipelineStage(3, 'active', current);
@@ -4001,8 +4017,8 @@
             }
 
             // Log de progresso detalhado
-            if (current > 0 && total > 0) {
-                console.log(`📊 Pipeline: Stage ${stage} - ${current}/${total} - ${message}`);
+            if (current > 0) {
+                console.log(`📊 Pipeline: Stage ${stage} - ${message}`);
             }
         }
 
