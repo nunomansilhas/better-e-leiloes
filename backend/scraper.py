@@ -100,7 +100,8 @@ class EventScraper:
         
         context = await self.browser.new_context(
             user_agent=self.user_agent,
-            viewport={'width': 1920, 'height': 1080}
+            viewport={'width': 1920, 'height': 1080},
+            ignore_https_errors=True
         )
         
         page = await context.new_page()
@@ -810,7 +811,7 @@ class EventScraper:
         Returns:
             Lista de dicts com {reference, valores}
         """
-        context = await self.browser.new_context(user_agent=self.user_agent)
+        context = await self.browser.new_context(user_agent=self.user_agent, ignore_https_errors=True)
         page = await context.new_page()
         
         events_preview = []
@@ -948,7 +949,7 @@ class EventScraper:
     
     async def _get_all_references(self, max_pages: Optional[int]) -> List[str]:
         """Obtém lista de todas as referências de eventos"""
-        context = await self.browser.new_context(user_agent=self.user_agent)
+        context = await self.browser.new_context(user_agent=self.user_agent, ignore_https_errors=True)
         page = await context.new_page()
         
         references = []
@@ -1250,7 +1251,8 @@ class EventScraper:
 
         context = await self.browser.new_context(
             user_agent=self.user_agent,
-            viewport={'width': 1920, 'height': 1080}
+            viewport={'width': 1920, 'height': 1080},
+            ignore_https_errors=True
         )
 
         page = await context.new_page()
@@ -1447,7 +1449,8 @@ class EventScraper:
 
         context = await self.browser.new_context(
             user_agent=self.user_agent,
-            viewport={'width': 1920, 'height': 1080}
+            viewport={'width': 1920, 'height': 1080},
+            ignore_https_errors=True
         )
 
         page = await context.new_page()
@@ -1546,7 +1549,8 @@ class EventScraper:
 
         context = await self.browser.new_context(
             user_agent=self.user_agent,
-            viewport={'width': 1920, 'height': 1080}
+            viewport={'width': 1920, 'height': 1080},
+            ignore_https_errors=True
         )
 
         page = await context.new_page()
