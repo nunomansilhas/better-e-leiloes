@@ -91,6 +91,11 @@ async def lifespan(app: FastAPI):
     print("🚀 Iniciando E-Leiloes API...")
     await init_db()
 
+    # Clear pipeline state on startup (clean slate)
+    pipeline_state = get_pipeline_state()
+    await pipeline_state.stop()
+    print("🧹 Pipeline state limpo")
+
     scraper = EventScraper()
     cache_manager = CacheManager()
 
@@ -170,6 +175,40 @@ async def get_pipeline_status():
     pipeline_state = get_pipeline_state()
     state = await pipeline_state.get_state()
     return JSONResponse(state)
+
+
+@app.post("/api/pipeline/kill")
+async def kill_pipeline():
+    """
+    KILL SWITCH: Para imediatamente qualquer pipeline em execução.
+
+    Limpa o estado da pipeline e sinaliza paragem ao scraper.
+    """
+    pipeline_state = get_pipeline_state()
+
+    # Get current state before killing
+    state = await pipeline_state.get_state()
+    was_active = state.get("active", False)
+    stage = state.get("stage")
+    stage_name = state.get("stage_name")
+
+    # Stop the scraper if running
+    if scraper and scraper.is_running:
+        scraper.stop_requested = True
+        print("🛑 Scraper stop requested")
+
+    # Clear pipeline state
+    await pipeline_state.stop()
+
+    add_dashboard_log("🛑 Pipeline KILLED pelo utilizador", "warning")
+
+    return {
+        "success": True,
+        "message": "Pipeline terminada com sucesso",
+        "was_active": was_active,
+        "killed_stage": stage,
+        "killed_stage_name": stage_name
+    }
 
 
 @app.post("/api/pipeline/test")
