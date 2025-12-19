@@ -1080,7 +1080,12 @@ class EventScraper:
     # Stage 2: Scrape detalhes por ID
     # Stage 3: Scrape imagens por ID
 
-    async def scrape_ids_only(self, tipo: Optional[int] = None, max_pages: Optional[int] = None) -> List[dict]:
+    async def scrape_ids_only(
+        self,
+        tipo: Optional[int] = None,
+        max_pages: Optional[int] = None,
+        on_type_complete: Optional[Callable[[str, int, dict], Awaitable[None]]] = None
+    ) -> List[dict]:
         """
         STAGE 1: Scrape apenas referências e valores básicos da listagem (rápido).
 
@@ -1088,6 +1093,8 @@ class EventScraper:
             tipo: 1-6 para tipo específico, None=todos os tipos
                   1=Imóveis, 2=Veículos, 3=Direitos, 4=Equipamentos, 5=Mobiliário, 6=Máquinas
             max_pages: Máximo de páginas por tipo
+            on_type_complete: Callback async chamado quando um tipo é completado
+                              (tipo_nome, count, totals_dict)
 
         Returns:
             Lista de dicts: [{reference, tipo_evento, valores}, ...]
@@ -1095,19 +1102,36 @@ class EventScraper:
         await self.init_browser()
 
         all_ids = []
+        totals = {}  # Track totals per type
 
         try:
             if tipo is None:
                 # Scrape TODOS os 6 tipos
                 for tipo_code, tipo_str in TIPO_EVENTO_MAP.items():
+                    # Check stop flag before each type
+                    if self.stop_requested:
+                        print(f"🛑 Scraping interrompido pelo utilizador")
+                        break
+
                     tipo_nome = TIPO_EVENTO_NAMES[tipo_code]
                     print(f"🆔 Stage 1: Scraping IDs de {tipo_nome} (tipo={tipo_code})...")
                     ids = await self._extract_from_listing(tipo=tipo_code, max_pages=max_pages)
+
+                    # Check stop flag after extraction
+                    if self.stop_requested:
+                        print(f"🛑 Scraping interrompido pelo utilizador")
+                        break
+
                     for item in ids:
                         item['tipo_evento'] = tipo_str
                         item['tipo'] = tipo_str  # Alias para compatibilidade
                     all_ids.extend(ids)
+                    totals[tipo_str] = len(ids)
                     print(f"  ✓ {len(ids)} {tipo_nome} encontrados")
+
+                    # Call progress callback
+                    if on_type_complete:
+                        await on_type_complete(tipo_nome, len(ids), totals.copy())
             else:
                 # Scrape tipo específico
                 if tipo not in TIPO_EVENTO_MAP:
@@ -1120,6 +1144,11 @@ class EventScraper:
                     item['tipo_evento'] = tipo_str
                     item['tipo'] = tipo_str
                 all_ids.extend(ids)
+                totals[tipo_str] = len(ids)
+
+                # Call progress callback
+                if on_type_complete:
+                    await on_type_complete(tipo_nome, len(ids), totals.copy())
 
             print(f"✅ Stage 1 completo: {len(all_ids)} IDs recolhidos")
             return all_ids
@@ -1152,6 +1181,11 @@ class EventScraper:
 
         # Processa em batches paralelos
         for i in range(0, len(references), self.concurrent):
+            # Check stop flag
+            if self.stop_requested:
+                print(f"🛑 Stage 2 interrompido pelo utilizador")
+                break
+
             batch = references[i:i + self.concurrent]
 
             tasks = []
@@ -1311,6 +1345,11 @@ class EventScraper:
 
         # Processa em batches paralelos
         for i in range(0, len(references), self.concurrent):
+            # Check stop flag
+            if self.stop_requested:
+                print(f"🛑 Stage 3 interrompido pelo utilizador")
+                break
+
             batch = references[i:i + self.concurrent]
 
             tasks = [self._scrape_images_only(ref) for ref in batch]

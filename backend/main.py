@@ -1165,12 +1165,63 @@ async def run_full_pipeline(tipo: Optional[int], max_pages: Optional[int]):
         await pipeline_state.start(
             stage=1,
             stage_name=f"Stage 1 - IDs ({tipo_str})",
-            total=0,  # Will be updated after scraping
+            total=6 if tipo is None else 1,  # Number of types to scrape
             details={"tipo": tipo, "max_pages": max_pages}
         )
 
-        add_dashboard_log("STAGE 1: SCRAPING IDs", "info")
-        ids_data = await scraper.scrape_ids_only(tipo=tipo, max_pages=max_pages)
+        add_dashboard_log("🔍 STAGE 1: SCRAPING IDs", "info")
+
+        # Callback to log progress as each type completes
+        type_counter = {"count": 0}
+
+        async def on_type_complete(tipo_nome: str, count: int, totals: dict):
+            """Log when each type is complete"""
+            type_counter["count"] += 1
+            total_ids = sum(totals.values())
+
+            # Build totals string
+            totals_parts = [f"Total: {total_ids}"]
+            tipo_names_map = {
+                "imoveis": "Imóveis",
+                "veiculos": "Veículos",
+                "direitos": "Direitos",
+                "equipamentos": "Equipamentos",
+                "mobiliario": "Mobiliário",
+                "maquinas": "Máquinas"
+            }
+            for tipo_key, tipo_count in totals.items():
+                display_name = tipo_names_map.get(tipo_key, tipo_key)
+                totals_parts.append(f"{display_name}: {tipo_count}")
+
+            msg = " | ".join(totals_parts)
+            add_dashboard_log(f"✓ {tipo_nome}: {count} IDs | {msg}", "info")
+
+            # Update pipeline state
+            await pipeline_state.update(
+                current=type_counter["count"],
+                total=6 if tipo is None else 1,
+                message=msg
+            )
+
+        # Check if scraper was stopped before starting
+        if scraper.stop_requested:
+            add_dashboard_log("🛑 Pipeline cancelada antes de iniciar", "warning")
+            await pipeline_state.stop()
+            return
+
+        ids_data = await scraper.scrape_ids_only(
+            tipo=tipo,
+            max_pages=max_pages,
+            on_type_complete=on_type_complete
+        )
+
+        # Check if stopped during scraping
+        if scraper.stop_requested:
+            add_dashboard_log("🛑 Pipeline interrompida pelo utilizador", "warning")
+            await pipeline_state.stop()
+            scraper.stop_requested = False  # Reset flag
+            return
+
         references = [item['reference'] for item in ids_data]
 
         # Update total after scraping
@@ -1190,6 +1241,13 @@ async def run_full_pipeline(tipo: Optional[int], max_pages: Optional[int]):
             return
 
         # ===== STAGE 2: Scrape Detalhes =====
+        # Check if stopped
+        if scraper.stop_requested:
+            add_dashboard_log("🛑 Pipeline interrompida pelo utilizador", "warning")
+            await pipeline_state.stop()
+            scraper.stop_requested = False
+            return
+
         await pipeline_state.start(
             stage=2,
             stage_name="Stage 2 - Detalhes",
@@ -1197,7 +1255,7 @@ async def run_full_pipeline(tipo: Optional[int], max_pages: Optional[int]):
             details={"save_to_db": True}
         )
 
-        add_dashboard_log("STAGE 2: SCRAPING DETALHES", "info")
+        add_dashboard_log("📋 STAGE 2: SCRAPING DETALHES", "info")
 
         # Counter for tracking progress
         scraped_count = 0
@@ -1220,6 +1278,13 @@ async def run_full_pipeline(tipo: Optional[int], max_pages: Optional[int]):
 
         events = await scraper.scrape_details_by_ids(references, on_event_scraped=save_event_callback)
 
+        # Check if stopped during scraping
+        if scraper.stop_requested:
+            add_dashboard_log("🛑 Pipeline interrompida pelo utilizador", "warning")
+            await pipeline_state.stop()
+            scraper.stop_requested = False
+            return
+
         await pipeline_state.complete(message=f"✅ Stage 2: {len(events)} eventos processados e salvos")
 
         msg = f"✅ Stage 2: {len(events)} eventos processados e salvos em tempo real"
@@ -1227,6 +1292,13 @@ async def run_full_pipeline(tipo: Optional[int], max_pages: Optional[int]):
         add_dashboard_log(msg, "success")
 
         # ===== STAGE 3: Scrape Imagens =====
+        # Check if stopped
+        if scraper.stop_requested:
+            add_dashboard_log("🛑 Pipeline interrompida pelo utilizador", "warning")
+            await pipeline_state.stop()
+            scraper.stop_requested = False
+            return
+
         await pipeline_state.start(
             stage=3,
             stage_name="Stage 3 - Imagens",
@@ -1234,7 +1306,7 @@ async def run_full_pipeline(tipo: Optional[int], max_pages: Optional[int]):
             details={"update_db": True}
         )
 
-        add_dashboard_log("STAGE 3: SCRAPING IMAGENS", "info")
+        add_dashboard_log("🖼️ STAGE 3: SCRAPING IMAGENS", "info")
 
         # Counter for tracking progress
         images_count = 0
@@ -1260,6 +1332,13 @@ async def run_full_pipeline(tipo: Optional[int], max_pages: Optional[int]):
             )
 
         images_map = await scraper.scrape_images_by_ids(references, on_images_scraped=update_images_callback)
+
+        # Check if stopped during scraping
+        if scraper.stop_requested:
+            add_dashboard_log("🛑 Pipeline interrompida pelo utilizador", "warning")
+            await pipeline_state.stop()
+            scraper.stop_requested = False
+            return
 
         await pipeline_state.complete(message=f"✅ Stage 3: {len(images_map)} eventos com imagens atualizadas")
 
