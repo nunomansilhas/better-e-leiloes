@@ -826,7 +826,7 @@ class EventScraper:
             first_offset = 0  # Offset inicial
             
             while True:
-                # Verifica se foi solicitada paragem
+                # Verifica se foi solicitada paragem (CHECK 1 - início do loop)
                 if self.stop_requested:
                     print(f"🛑 Scraping da listagem interrompido")
                     break
@@ -839,17 +839,33 @@ class EventScraper:
                 url = f"https://www.e-leiloes.pt/eventos?layout=grid&first={first_offset}&sort=dataFimAsc&tipo={website_tipo}"
                 print(f"🌐 Navegando para página {page_num + 1} (first={first_offset})...")
                 await page.goto(url, wait_until="networkidle")
-                await asyncio.sleep(1.5)
-                
+
+                # CHECK 2 - após navegação
+                if self.stop_requested:
+                    print(f"🛑 Scraping interrompido após navegação")
+                    break
+
+                await asyncio.sleep(0.5)  # Reduced sleep
+
+                # CHECK 3 - após sleep
+                if self.stop_requested:
+                    print(f"🛑 Scraping interrompido")
+                    break
+
                 # Extrai cards
                 cards = await page.query_selector_all('.p-evento')
-                
+
                 if not cards:
                     print(f"📄 Página {page_num} vazia - fim")
                     break
-                
+
+                # CHECK 4 - antes de processar cards
+                if self.stop_requested:
+                    print(f"🛑 Scraping interrompido antes de processar cards")
+                    break
+
                 count_before = len(events_preview)
-                
+
                 for card in cards:
                     try:
                         # Referência

@@ -192,10 +192,10 @@ async def kill_pipeline():
     stage = state.get("stage")
     stage_name = state.get("stage_name")
 
-    # Stop the scraper if running
-    if scraper and scraper.is_running:
+    # Stop the scraper - ALWAYS set the flag regardless of is_running
+    if scraper:
         scraper.stop_requested = True
-        print("🛑 Scraper stop requested")
+        print("🛑 Scraper stop_requested = True")
 
     # Clear pipeline state
     await pipeline_state.stop()
