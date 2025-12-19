@@ -905,7 +905,8 @@ async def check_database():
     """
     Verifica integridade da base de dados: duplicados e estatísticas.
     """
-    from sqlalchemy import func
+    from sqlalchemy import func, select
+    from database import EventDB
 
     async with get_db() as db:
         # Total de eventos
@@ -941,7 +942,8 @@ async def cleanup_database():
     """
     Remove eventos duplicados, mantendo apenas o mais recente.
     """
-    from sqlalchemy import func, and_
+    from sqlalchemy import func, select
+    from database import EventDB
 
     async with get_db() as db:
         # Encontrar duplicados
@@ -985,7 +987,8 @@ async def migrate_event_types():
     - "imovel" -> "imoveis"
     - "movel" -> "veiculos"
     """
-    from sqlalchemy import update
+    from sqlalchemy import update, select, func
+    from database import EventDB
 
     migrations = {
         "imovel": "imoveis",
