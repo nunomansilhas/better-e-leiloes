@@ -900,6 +900,82 @@ async def clear_database():
     }
 
 
+@app.get("/api/database/check")
+async def check_database():
+    """
+    Verifica integridade da base de dados: duplicados e estatísticas.
+    """
+    from sqlalchemy import func
+
+    async with get_db() as db:
+        # Total de eventos
+        result = await db.session.execute(
+            select(func.count()).select_from(EventDB)
+        )
+        total = result.scalar()
+
+        # Verificar duplicados por reference
+        duplicates_result = await db.session.execute(
+            select(EventDB.reference, func.count(EventDB.reference).label('cnt'))
+            .group_by(EventDB.reference)
+            .having(func.count(EventDB.reference) > 1)
+        )
+        duplicates = duplicates_result.fetchall()
+
+        # Contar eventos únicos
+        unique_result = await db.session.execute(
+            select(func.count(func.distinct(EventDB.reference)))
+        )
+        unique_count = unique_result.scalar()
+
+        return {
+            "total_rows": total,
+            "unique_references": unique_count,
+            "duplicate_references": len(duplicates),
+            "duplicates": [{"reference": ref, "count": cnt} for ref, cnt in duplicates[:20]]
+        }
+
+
+@app.post("/api/database/cleanup")
+async def cleanup_database():
+    """
+    Remove eventos duplicados, mantendo apenas o mais recente.
+    """
+    from sqlalchemy import func, and_
+
+    async with get_db() as db:
+        # Encontrar duplicados
+        duplicates_result = await db.session.execute(
+            select(EventDB.reference, func.count(EventDB.reference).label('cnt'))
+            .group_by(EventDB.reference)
+            .having(func.count(EventDB.reference) > 1)
+        )
+        duplicates = duplicates_result.fetchall()
+
+        removed_count = 0
+        for ref, cnt in duplicates:
+            # Buscar todos os eventos com este reference, ordenados por updated_at desc
+            events_result = await db.session.execute(
+                select(EventDB)
+                .where(EventDB.reference == ref)
+                .order_by(EventDB.updated_at.desc())
+            )
+            events = events_result.scalars().all()
+
+            # Manter o primeiro (mais recente), remover os outros
+            for event in events[1:]:
+                await db.session.delete(event)
+                removed_count += 1
+
+        await db.session.commit()
+
+        return {
+            "message": f"Cleanup concluído: {removed_count} duplicados removidos",
+            "duplicates_found": len(duplicates),
+            "removed": removed_count
+        }
+
+
 @app.get("/api/stats")
 async def get_stats():
     """
