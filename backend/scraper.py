@@ -138,11 +138,7 @@ class EventScraper:
             else:
                 detalhes = detalhes_imovel
 
-            # Mapeia tipo específico para categoria (imovel/movel)
-            # imoveis → imovel, tudo resto (veiculos, direitos, etc.) → movel
-            tipo_evento_db = 'imovel' if tipo_evento == 'imoveis' else 'movel'
-
-            # Preserva o tipo específico no detalhes.tipo
+            # tipo_evento vem direto do Stage 1 (imoveis, veiculos, direitos, etc.)
             detalhes.tipo = tipo_evento
 
             # Confirma/atualiza valores na página individual (podem ser mais precisos)
@@ -170,7 +166,7 @@ class EventScraper:
             try:
                 return EventData(
                     reference=reference,
-                    tipoEvento=tipo_evento_db,
+                    tipoEvento=tipo_evento,
                     valores=valores_final,
                     gps=gps,
                     detalhes=detalhes,
@@ -1296,11 +1292,7 @@ class EventScraper:
             else:
                 detalhes = detalhes_imovel
 
-            # Mapeia tipo específico para categoria (imovel/movel)
-            # imoveis → imovel, tudo resto (veiculos, direitos, etc.) → movel
-            tipo_evento_db = 'imovel' if tipo_evento == 'imoveis' else 'movel'
-
-            # Preserva o tipo específico no detalhes.tipo
+            # tipo_evento vem direto do Stage 1 (imoveis, veiculos, direitos, etc.)
             detalhes.tipo = tipo_evento
 
             # Valores
@@ -1325,7 +1317,7 @@ class EventScraper:
             try:
                 return EventData(
                     reference=reference,
-                    tipoEvento=tipo_evento_db,
+                    tipoEvento=tipo_evento,
                     valores=valores_final,
                     gps=gps,
                     detalhes=detalhes,
