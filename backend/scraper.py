@@ -131,15 +131,21 @@ class EventScraper:
                 "motociclo" in (detalhes_movel.tipo or "").lower()
             )
 
-            # Usa is_movel apenas para determinar qual objeto de detalhes usar
-            # Mas PRESERVA o tipo_evento original (direitos, equipamentos, etc.)
+            # Usa is_movel para determinar tipoEvento (ENUM BD: imovel/movel)
+            # e qual objeto de detalhes usar
             if is_movel:
+                tipo_evento_db = "movel"
                 detalhes = detalhes_movel
                 gps = None  # Móveis não têm GPS (só têm distrito/concelho/freguesia)
             else:
+                tipo_evento_db = "imovel"
                 detalhes = detalhes_imovel
                 # GPS já foi extraído acima
-            # tipo_evento mantém o valor original passado como parâmetro
+
+            # Preserva o tipo específico (direitos, equipamentos, etc.) no detalhes.tipo
+            # O tipo_evento passado como parâmetro contém o tipo específico da listagem
+            if tipo_evento and tipo_evento not in ('imovel', 'movel'):
+                detalhes.tipo = tipo_evento
 
             # Confirma/atualiza valores na página individual (podem ser mais precisos)
             valores_pagina = await self._extract_valores_from_page(page)
@@ -166,7 +172,7 @@ class EventScraper:
             try:
                 return EventData(
                     reference=reference,
-                    tipoEvento=tipo_evento,
+                    tipoEvento=tipo_evento_db,
                     valores=valores_final,
                     gps=gps,
                     detalhes=detalhes,
@@ -1285,15 +1291,21 @@ class EventScraper:
                 "motociclo" in (detalhes_movel.tipo or "").lower()
             )
 
-            # Usa is_movel apenas para determinar qual objeto de detalhes usar
-            # Mas PRESERVA o tipo_evento original (direitos, equipamentos, etc.)
+            # Usa is_movel para determinar tipoEvento (ENUM BD: imovel/movel)
+            # e qual objeto de detalhes usar
             if is_movel:
+                tipo_evento_db = "movel"
                 detalhes = detalhes_movel
                 gps = None  # Móveis não têm GPS (só têm distrito/concelho/freguesia)
             else:
+                tipo_evento_db = "imovel"
                 detalhes = detalhes_imovel
                 # GPS já foi extraído acima
-            # tipo_evento mantém o valor original passado como parâmetro
+
+            # Preserva o tipo específico (direitos, equipamentos, etc.) no detalhes.tipo
+            # O tipo_evento passado como parâmetro contém o tipo específico da listagem
+            if tipo_evento and tipo_evento not in ('imovel', 'movel'):
+                detalhes.tipo = tipo_evento
 
             # Valores
             valores_pagina = await self._extract_valores_from_page(page)
@@ -1317,7 +1329,7 @@ class EventScraper:
             try:
                 return EventData(
                     reference=reference,
-                    tipoEvento=tipo_evento,
+                    tipoEvento=tipo_evento_db,
                     valores=valores_final,
                     gps=gps,
                     detalhes=detalhes,
