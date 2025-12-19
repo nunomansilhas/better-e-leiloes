@@ -1805,6 +1805,10 @@
                         <span class="stats-bar-value" id="stat-imoveis">-</span>
                         <span class="stats-bar-label">Imóveis</span>
                     </div>
+                    <div class="stats-bar-breakdown">
+                        <span class="lo" id="stat-imoveis-lo">-</span> LO
+                        <span class="np" id="stat-imoveis-np">-</span> NP
+                    </div>
                 </div>
                 <div class="stats-bar-divider"></div>
                 <div class="stats-bar-item">
@@ -1812,6 +1816,10 @@
                     <div class="stats-bar-content">
                         <span class="stats-bar-value" id="stat-veiculos">-</span>
                         <span class="stats-bar-label">Veículos</span>
+                    </div>
+                    <div class="stats-bar-breakdown">
+                        <span class="lo" id="stat-veiculos-lo">-</span> LO
+                        <span class="np" id="stat-veiculos-np">-</span> NP
                     </div>
                 </div>
                 <div class="stats-bar-divider"></div>
@@ -1821,6 +1829,10 @@
                         <span class="stats-bar-value" id="stat-direitos">-</span>
                         <span class="stats-bar-label">Direitos</span>
                     </div>
+                    <div class="stats-bar-breakdown">
+                        <span class="lo" id="stat-direitos-lo">-</span> LO
+                        <span class="np" id="stat-direitos-np">-</span> NP
+                    </div>
                 </div>
                 <div class="stats-bar-divider"></div>
                 <div class="stats-bar-item">
@@ -1828,6 +1840,10 @@
                     <div class="stats-bar-content">
                         <span class="stats-bar-value" id="stat-equipamentos">-</span>
                         <span class="stats-bar-label">Equipamentos</span>
+                    </div>
+                    <div class="stats-bar-breakdown">
+                        <span class="lo" id="stat-equipamentos-lo">-</span> LO
+                        <span class="np" id="stat-equipamentos-np">-</span> NP
                     </div>
                 </div>
                 <div class="stats-bar-divider"></div>
@@ -1837,6 +1853,10 @@
                         <span class="stats-bar-value" id="stat-mobiliario">-</span>
                         <span class="stats-bar-label">Mobiliário</span>
                     </div>
+                    <div class="stats-bar-breakdown">
+                        <span class="lo" id="stat-mobiliario-lo">-</span> LO
+                        <span class="np" id="stat-mobiliario-np">-</span> NP
+                    </div>
                 </div>
                 <div class="stats-bar-divider"></div>
                 <div class="stats-bar-item">
@@ -1844,6 +1864,10 @@
                     <div class="stats-bar-content">
                         <span class="stats-bar-value" id="stat-maquinas">-</span>
                         <span class="stats-bar-label">Máquinas</span>
+                    </div>
+                    <div class="stats-bar-breakdown">
+                        <span class="lo" id="stat-maquinas-lo">-</span> LO
+                        <span class="np" id="stat-maquinas-np">-</span> NP
                     </div>
                 </div>
             </div>
@@ -2302,30 +2326,55 @@
                 const eventsResponse = await fetch(`${API_BASE}/api/events?limit=100000`);
                 const eventsData = await eventsResponse.json();
 
-                const total = eventsData.events.length;
+                const events = eventsData.events;
+                const total = events.length;
 
-                // Count by tipoEvento (supports both old and new format)
-                const imoveis = eventsData.events.filter(e => e.tipoEvento === 'imoveis' || e.tipoEvento === 'imovel').length;
-                const veiculos = eventsData.events.filter(e => e.tipoEvento === 'veiculos' || e.tipoEvento === 'movel').length;
-                const direitos = eventsData.events.filter(e => e.tipoEvento === 'direitos').length;
-                const equipamentos = eventsData.events.filter(e => e.tipoEvento === 'equipamentos').length;
-                const mobiliario = eventsData.events.filter(e => e.tipoEvento === 'mobiliario').length;
-                const maquinas = eventsData.events.filter(e => e.tipoEvento === 'maquinas').length;
+                // Filter by type (supports both old and new format)
+                const imoveisEvents = events.filter(e => e.tipoEvento === 'imoveis' || e.tipoEvento === 'imovel');
+                const veiculosEvents = events.filter(e => e.tipoEvento === 'veiculos' || e.tipoEvento === 'movel');
+                const direitosEvents = events.filter(e => e.tipoEvento === 'direitos');
+                const equipamentosEvents = events.filter(e => e.tipoEvento === 'equipamentos');
+                const mobiliarioEvents = events.filter(e => e.tipoEvento === 'mobiliario');
+                const maquinasEvents = events.filter(e => e.tipoEvento === 'maquinas');
 
-                const totalLO = eventsData.events.filter(e => e.reference.startsWith('LO')).length;
-                const totalNP = eventsData.events.filter(e => e.reference.startsWith('NP')).length;
+                // Helper function to count LO/NP
+                const countLO = (arr) => arr.filter(e => e.reference.startsWith('LO')).length;
+                const countNP = (arr) => arr.filter(e => e.reference.startsWith('NP')).length;
 
-                // Update UI
+                // Total
                 document.getElementById('stat-total').textContent = total;
-                document.getElementById('stat-total-lo').textContent = totalLO;
-                document.getElementById('stat-total-np').textContent = totalNP;
+                document.getElementById('stat-total-lo').textContent = countLO(events);
+                document.getElementById('stat-total-np').textContent = countNP(events);
 
-                document.getElementById('stat-imoveis').textContent = imoveis;
-                document.getElementById('stat-veiculos').textContent = veiculos;
-                document.getElementById('stat-direitos').textContent = direitos;
-                document.getElementById('stat-equipamentos').textContent = equipamentos;
-                document.getElementById('stat-mobiliario').textContent = mobiliario;
-                document.getElementById('stat-maquinas').textContent = maquinas;
+                // Imóveis
+                document.getElementById('stat-imoveis').textContent = imoveisEvents.length;
+                document.getElementById('stat-imoveis-lo').textContent = countLO(imoveisEvents);
+                document.getElementById('stat-imoveis-np').textContent = countNP(imoveisEvents);
+
+                // Veículos
+                document.getElementById('stat-veiculos').textContent = veiculosEvents.length;
+                document.getElementById('stat-veiculos-lo').textContent = countLO(veiculosEvents);
+                document.getElementById('stat-veiculos-np').textContent = countNP(veiculosEvents);
+
+                // Direitos
+                document.getElementById('stat-direitos').textContent = direitosEvents.length;
+                document.getElementById('stat-direitos-lo').textContent = countLO(direitosEvents);
+                document.getElementById('stat-direitos-np').textContent = countNP(direitosEvents);
+
+                // Equipamentos
+                document.getElementById('stat-equipamentos').textContent = equipamentosEvents.length;
+                document.getElementById('stat-equipamentos-lo').textContent = countLO(equipamentosEvents);
+                document.getElementById('stat-equipamentos-np').textContent = countNP(equipamentosEvents);
+
+                // Mobiliário
+                document.getElementById('stat-mobiliario').textContent = mobiliarioEvents.length;
+                document.getElementById('stat-mobiliario-lo').textContent = countLO(mobiliarioEvents);
+                document.getElementById('stat-mobiliario-np').textContent = countNP(mobiliarioEvents);
+
+                // Máquinas
+                document.getElementById('stat-maquinas').textContent = maquinasEvents.length;
+                document.getElementById('stat-maquinas-lo').textContent = countLO(maquinasEvents);
+                document.getElementById('stat-maquinas-np').textContent = countNP(maquinasEvents);
 
             } catch (error) {
                 console.error('Erro ao atualizar stats:', error);
