@@ -1222,6 +1222,8 @@ async def run_full_pipeline(tipo: Optional[int], max_pages: Optional[int]):
         )
 
         references = [item['reference'] for item in ids_data]
+        # Mapa de referência -> tipo_evento para o Stage 2
+        tipo_map = {item['reference']: item.get('tipo_evento', 'imoveis') for item in ids_data}
 
         # ===== INSERIR IDs NA BD IMEDIATAMENTE =====
         # Isto garante que o tipo_evento é preservado mesmo se a pipeline for interrompida
