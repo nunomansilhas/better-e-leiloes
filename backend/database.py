@@ -227,8 +227,8 @@ class DatabaseManager:
         
         await self.session.commit()
 
-    async def insert_event_stub(self, reference: str, tipo_evento: str):
-        """Insere evento básico (apenas reference + tipo_evento) se não existir"""
+    async def insert_event_stub(self, reference: str, tipo_especifico: str):
+        """Insere evento básico (apenas reference + tipo) se não existir"""
         # Verifica se já existe
         result = await self.session.execute(
             select(EventDB).where(EventDB.reference == reference)
@@ -236,11 +236,15 @@ class DatabaseManager:
         existing = result.scalar_one_or_none()
 
         if not existing:
+            # Mapeia tipo específico para categoria (imovel/movel)
+            # imoveis → imovel, tudo resto → movel
+            tipo_evento_db = 'imovel' if tipo_especifico == 'imoveis' else 'movel'
+
             # Insere novo com dados mínimos
             new_event = EventDB(
                 reference=reference,
-                tipo_evento=tipo_evento,
-                tipo=tipo_evento,  # Também guarda no detalhes.tipo
+                tipo_evento=tipo_evento_db,  # ENUM: imovel ou movel
+                tipo=tipo_especifico,  # Tipo específico: veiculos, direitos, etc.
                 subtipo='N/A',
                 scraped_at=datetime.utcnow()
             )

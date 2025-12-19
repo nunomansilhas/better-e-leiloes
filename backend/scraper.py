@@ -132,14 +132,17 @@ class EventScraper:
             )
 
             # Usa is_movel apenas para escolher qual objeto de detalhes usar
-            # tipo_evento vem do Stage 1 e já está correto (direitos, equipamentos, etc.)
             if is_movel:
                 detalhes = detalhes_movel
                 gps = None  # Móveis não têm GPS
             else:
                 detalhes = detalhes_imovel
 
-            # Preserva o tipo específico no detalhes.tipo também
+            # Mapeia tipo específico para categoria (imovel/movel)
+            # imoveis → imovel, tudo resto (veiculos, direitos, etc.) → movel
+            tipo_evento_db = 'imovel' if tipo_evento == 'imoveis' else 'movel'
+
+            # Preserva o tipo específico no detalhes.tipo
             detalhes.tipo = tipo_evento
 
             # Confirma/atualiza valores na página individual (podem ser mais precisos)
@@ -167,7 +170,7 @@ class EventScraper:
             try:
                 return EventData(
                     reference=reference,
-                    tipoEvento=tipo_evento,
+                    tipoEvento=tipo_evento_db,
                     valores=valores_final,
                     gps=gps,
                     detalhes=detalhes,
@@ -1287,14 +1290,17 @@ class EventScraper:
             )
 
             # Usa is_movel apenas para escolher qual objeto de detalhes usar
-            # tipo_evento vem do Stage 1 e já está correto (direitos, equipamentos, etc.)
             if is_movel:
                 detalhes = detalhes_movel
                 gps = None  # Móveis não têm GPS
             else:
                 detalhes = detalhes_imovel
 
-            # Preserva o tipo específico no detalhes.tipo também
+            # Mapeia tipo específico para categoria (imovel/movel)
+            # imoveis → imovel, tudo resto (veiculos, direitos, etc.) → movel
+            tipo_evento_db = 'imovel' if tipo_evento == 'imoveis' else 'movel'
+
+            # Preserva o tipo específico no detalhes.tipo
             detalhes.tipo = tipo_evento
 
             # Valores
@@ -1319,7 +1325,7 @@ class EventScraper:
             try:
                 return EventData(
                     reference=reference,
-                    tipoEvento=tipo_evento,
+                    tipoEvento=tipo_evento_db,
                     valores=valores_final,
                     gps=gps,
                     detalhes=detalhes,
