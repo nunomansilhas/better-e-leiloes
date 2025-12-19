@@ -3397,8 +3397,10 @@
 
         // Run Full Pipeline
         async function runIndependentScraper(type) {
-            const tipo = document.getElementById('independent-tipo').value;
-            const pages = document.getElementById('independent-pages').value;
+            const tipoEl = document.getElementById('independent-tipo');
+            const pagesEl = document.getElementById('independent-pages');
+            const tipo = tipoEl ? tipoEl.value : '';
+            const pages = pagesEl ? pagesEl.value : '';
 
             try {
                 addLog(`▶ Executando scraper: ${type.toUpperCase()}`, 'info');
@@ -3424,8 +3426,8 @@
                         break;
 
                     case 'content':
-                        // Get all references from DB first
-                        const refsResponse = await fetch(`${API_BASE}/api/events?limit=1000`);
+                        // Get all references from DB first (no limit - fetch all)
+                        const refsResponse = await fetch(`${API_BASE}/api/events?limit=100000`);
                         const refsData = await refsResponse.json();
                         const references = refsData.events.map(e => e.reference);
 
@@ -3439,8 +3441,8 @@
                         break;
 
                     case 'images':
-                        // Get all references from DB first
-                        const imgRefsResponse = await fetch(`${API_BASE}/api/events?limit=1000`);
+                        // Get all references from DB first (no limit - fetch all)
+                        const imgRefsResponse = await fetch(`${API_BASE}/api/events?limit=100000`);
                         const imgRefsData = await imgRefsResponse.json();
                         const imgReferences = imgRefsData.events.map(e => e.reference);
 
@@ -3510,8 +3512,10 @@
 
         async function runPipeline() {
             const btn = document.getElementById('btn-pipeline');
-            const tipo = document.getElementById('independent-tipo').value;
-            const pages = document.getElementById('independent-pages').value;
+            const tipoEl = document.getElementById('independent-tipo');
+            const pagesEl = document.getElementById('independent-pages');
+            const tipo = tipoEl ? tipoEl.value : '';
+            const pages = pagesEl ? pagesEl.value : '';
 
             try {
                 // Set running state and create abort controller
@@ -3930,8 +3934,10 @@
         }
 
         function clearConsole() {
-            const console = document.getElementById('console-output');
-            console.innerHTML = '<div style="color: #6b7280;">🟢 Console limpo. A aguardar logs...</div>';
+            const consoleEl = document.getElementById('console-output');
+            if (consoleEl) {
+                consoleEl.innerHTML = '<div style="color: #6b7280;">🟢 Console limpo. A aguardar logs...</div>';
+            }
         }
 
         function addLog(message, level = 'info') {
@@ -3953,6 +3959,12 @@
             } else if (level === 'info') {
                 color = '#3b82f6';
                 icon = 'ℹ️';
+            }
+
+            // If console-output element doesn't exist, just log to browser console
+            if (!consoleOutput) {
+                console.log(`[${level.toUpperCase()}] ${message}`);
+                return;
             }
 
             const logEntry = document.createElement('div');

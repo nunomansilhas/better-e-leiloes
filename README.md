@@ -1,177 +1,212 @@
-# 🏠 betterE-Leiloes v12.4
+# E-Leiloes Dashboard & Scraper System
 
-Extensão Tampermonkey + API Backend para melhorar a experiência de navegação no **e-leiloes.pt** com dados completos de leilões (valores, GPS, detalhes).
+Sistema completo de monitorização e scraping para **e-leiloes.pt** com dashboard web, pipelines automáticas e alertas em tempo real.
 
-## 📦 Componentes
+## Componentes
 
-### 🎨 Frontend (Extensão Browser)
-- **Arquivo**: `betterE-Leiloes-v12.0-API.user.js`
-- **Versão**: 12.4
-- **Plataforma**: Tampermonkey (Chrome, Firefox, Edge)
-- **Features**:
-  - 🏷️ Badges nos cards: GPS, Valores, Detalhes
-  - 📊 Modal de visualização: Lista e grelha compacta
-  - 🔍 Filtros avançados: Tipo de evento (imóvel/móvel) e distrito
-  - 🗑️ Gestão de dados: Limpar base de dados
-  - 📈 Estatísticas: Total de eventos, tipos
-  - ⚡ Scraping em background com polling
+### Dashboard Web
+- **URL**: `http://localhost:8000`
+- Interface moderna com sidebar navegável
+- Visualização de todos os eventos em tempo real
+- Filtros avançados por tipo, distrito e estado
+- Estatísticas e métricas do sistema
 
-### 🚀 Backend (API)
-- **Diretório**: `backend/`
+### Backend API
 - **Framework**: FastAPI + Playwright
-- **Base de dados**: SQLite (async)
-- **Cache**: Redis ou memória
-- **Features**:
-  - ✅ REST API completa
-  - ✅ Two-phase scraping (listing + details)
-  - ✅ Suporte para imóveis e móveis
-  - ✅ Valores de leilão completos
-  - ✅ GPS para imóveis
-  - ✅ Filtros avançados
-  - ✅ Background tasks
+- **Base de dados**: MySQL (async com aiomysql)
+- **Cache**: Redis (opcional)
+- **Scheduler**: APScheduler para pipelines automáticas
 
-## 🚀 Quick Start
+### Extensao Browser (Tampermonkey)
+- **Arquivo**: `betterE-Leiloes-v12.0-API.user.js`
+- Badges nos cards: GPS, Valores, Detalhes
+- Modal de visualizacao integrado
 
-### 1. Backend API
+## Pipelines Automaticas
+
+O sistema inclui 5 pipelines automáticas configuráveis:
+
+| Pipeline | Intervalo | Target | Descricao |
+|----------|-----------|--------|-----------|
+| **Auto Pipeline** | 8 horas | Todos | Pipeline completa: IDs + Content + Images |
+| **X-Critical** | 5 segundos | < 5 min | Monitoriza precos de eventos a terminar |
+| **X-Urgent** | 1 minuto | < 1 hora | Precos de eventos urgentes |
+| **X-Soon** | 10 minutos | < 24 horas | Precos de eventos proximos |
+| **Y-Info** | 2 horas | Todos | Verificacao geral de informacoes |
+
+## Scrapers Independentes
+
+Executa cada fase separadamente:
+
+- **IDs** - Descobre novos eventos no site
+- **Recheck** - Verifica eventos novos (smart scraping)
+- **Content** - Extrai detalhes de todos os eventos
+- **Images** - Download de imagens dos eventos
+
+## Pipeline Completo (3 Stages)
+
+```
+Stage 1: IDs      Stage 2: Content      Stage 3: Images
+   [1] ────────────── [2] ────────────────── [3]
+   Descobrir IDs      Extrair detalhes       Download imagens
+```
+
+## Quick Start
+
+### 1. Instalar Dependencias
 
 ```bash
 cd backend
 pip install -r requirements.txt
 playwright install chromium
-python run.py
 ```
 
-API disponível em: **http://localhost:8000**
+### 2. Configurar Base de Dados
 
-### 2. Frontend (Extensão)
+Criar ficheiro `.env`:
 
-1. Instala [Tampermonkey](https://www.tampermonkey.net/)
-2. Abre `betterE-Leiloes-v12.0-API.user.js`
-3. Clica "Install"
-4. Navega para [e-leiloes.pt](https://www.e-leiloes.pt)
-
-### 3. Usar a Extensão
-
-1. **Recolher dados**: Clica "📥 Recolher Tudo (API)" (scraping automático)
-2. **Ver dados**: Clica "👁️ Ver Dados" (modal com filtros)
-3. **Alternar vista**: Usa botões `☰` (lista) e `▦` (grelha)
-4. **Filtrar**: Seleciona tipo (imóvel/móvel) e/ou distrito
-
-## 📊 Arquitetura
-
-```
-┌─────────────────────────┐
-│  Browser Extension      │
-│  (Tampermonkey)         │
-│  v12.4                  │
-└───────────┬─────────────┘
-            │ HTTP
-            ▼
-┌─────────────────────────┐
-│  FastAPI Backend        │
-│  Port 8000              │
-└───────────┬─────────────┘
-            │
-            ▼
-┌─────────────────────────┐      ┌──────────────────┐
-│  SQLite Database        │      │  Playwright      │
-│  (eleiloes.db)          │      │  (Scraper)       │
-└─────────────────────────┘      └──────────────────┘
-```
-
-## 🎯 Features v12.4
-
-### Backend
-- ✅ Endpoint `/api/events?tipo_evento=imovel` (filtro funcional)
-- ✅ Endpoint `DELETE /api/database` (gestão de dados)
-- ✅ Schema completo: `tipo_evento`, `valores`, `gps`, `detalhes`
-- ✅ Two-phase scraping otimizado
-- ✅ Suporte completo para móveis e imóveis
-
-### Frontend
-- 🎨 Ícones melhorados: `☰` lista, `▦` grelha
-- 🔍 Filtros funcionais por tipo de evento
-- 📊 Cards compactos responsivos em grelha
-- 🗑️ Limpar base de dados com dupla confirmação
-- ⚡ Auto-reload após operações
-
-## 📚 Documentação
-
-- **Backend API**: Ver [backend/README.md](backend/README.md)
-- **Instalação**: Ver [INSTALL.md](INSTALL.md)
-- **API Docs**: http://localhost:8000/docs (Swagger)
-
-## 🔧 Configuração
-
-### Backend (.env)
 ```env
+# API Configuration
 API_HOST=0.0.0.0
 API_PORT=8000
-DATABASE_URL=sqlite+aiosqlite:///./eleiloes.db
+
+# Database - MySQL
+DATABASE_URL=mysql+aiomysql://user:password@localhost:3306/eleiloes
+
+# Redis Cache (opcional)
+REDIS_URL=redis://localhost:6379
+
+# Scraping
 SCRAPE_DELAY=0.8
 CONCURRENT_REQUESTS=4
 ```
 
-### Frontend (JS)
-```javascript
-const CONFIG = {
-    API_BASE_URL: 'http://localhost:8000/api',
-    RETRY_ATTEMPTS: 3,
-    RETRY_DELAY: 1000,
-    POLL_INTERVAL: 2000
-};
-```
+### 3. Iniciar Servidor
 
-## 📈 Estatísticas de Scraping
-
-**Two-Phase Strategy:**
-- Fase 1 (Listing): ~4 páginas (2 imóveis + 2 móveis)
-- Fase 2 (Details): ~24 eventos em paralelo
-- Tempo total: ~2 minutos
-- Stop automático em páginas vazias
-
-## 🐛 Troubleshooting
-
-**Extensão não conecta à API:**
 ```bash
-# Verifica se o servidor está a correr
-curl http://localhost:8000/
-
-# Vê logs do servidor
-cd backend
 python run.py
 ```
 
-**Scraping não funciona:**
-```bash
-# Reinstala playwright
-playwright install chromium
+Dashboard disponivel em: **http://localhost:8000**
 
-# Testa manualmente
-curl -X POST http://localhost:8000/api/scrape/all
+## API Endpoints
+
+### Eventos
+| Metodo | Endpoint | Descricao |
+|--------|----------|-----------|
+| GET | `/api/events` | Lista eventos com paginacao |
+| GET | `/api/events/{reference}` | Detalhes de um evento |
+| GET | `/api/events/stream` | Stream SSE de eventos |
+| GET | `/api/stats` | Estatisticas gerais |
+
+### Scraping
+| Metodo | Endpoint | Descricao |
+|--------|----------|-----------|
+| POST | `/api/scrape/stage1/ids` | Descobrir IDs |
+| POST | `/api/scrape/stage2/details` | Extrair conteudo |
+| POST | `/api/scrape/stage3/images` | Download imagens |
+| POST | `/api/scrape/pipeline` | Pipeline completo |
+| POST | `/api/scrape/smart/new-events` | Smart scraping |
+| GET | `/api/scrape/status` | Estado do scraper |
+| POST | `/api/scrape/stop` | Parar scraping |
+
+### Pipelines Automaticas
+| Metodo | Endpoint | Descricao |
+|--------|----------|-----------|
+| GET | `/api/auto-pipelines/status` | Estado de todas as pipelines |
+| POST | `/api/auto-pipelines/{type}/toggle` | Ativar/desativar pipeline |
+| GET | `/api/auto-pipelines/prices/cache-info` | Info da cache de precos |
+
+### Sistema
+| Metodo | Endpoint | Descricao |
+|--------|----------|-----------|
+| GET | `/health` | Health check |
+| GET | `/api/logs` | Logs do sistema |
+| DELETE | `/api/database` | Limpar base de dados |
+| DELETE | `/api/cache` | Limpar cache |
+
+## Arquitetura
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Dashboard Web (Port 8000)                 │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
+│  │  Eventos    │  │  Pipelines  │  │  Scrapers           │  │
+│  │  Listagem   │  │  Automaticas│  │  Independentes      │  │
+│  └─────────────┘  └─────────────┘  └─────────────────────┘  │
+└───────────────────────────┬─────────────────────────────────┘
+                            │ REST API + SSE
+┌───────────────────────────┴─────────────────────────────────┐
+│                      FastAPI Backend                         │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
+│  │ APScheduler │  │  Playwright │  │  Auto Pipelines     │  │
+│  │  (Jobs)     │  │  (Scraper)  │  │  Manager            │  │
+│  └─────────────┘  └─────────────┘  └─────────────────────┘  │
+└───────────────────────────┬─────────────────────────────────┘
+                            │
+              ┌─────────────┴─────────────┐
+              │                           │
+      ┌───────┴───────┐           ┌───────┴───────┐
+      │    MySQL      │           │    Redis      │
+      │  (Eventos)    │           │   (Cache)     │
+      └───────────────┘           └───────────────┘
 ```
 
-**Filtros não funcionam:**
-- F5 no browser (força reload da extensão v12.4)
-- Verifica versão no painel: deve ser v12.4
-- Abre consola do browser (F12) e procura erros
+## Funcionalidades do Dashboard
 
-## 🤝 Contribuir
+### Visualizacao de Eventos
+- Cards com informacao completa
+- Imagens dos eventos
+- Valores base e actuais
+- Tempo restante ate fim do leilao
+- GPS e localizacao
 
-1. Fork o projeto
-2. Cria branch: `git checkout -b feature/nova-feature`
-3. Commit: `git commit -m 'Add nova feature'`
-4. Push: `git push origin feature/nova-feature`
-5. Abre Pull Request
+### Filtros
+- Tipo de evento (Imovel/Movel)
+- Distrito
+- Estado (Ativo/Terminado)
+- Pesquisa por texto
 
-## 📄 Licença
+### Gestao de Pipelines
+- Toggle on/off para cada pipeline
+- Visualizacao do estado em tempo real
+- Contador de execucoes
+- Proxima execucao agendada
+
+## Troubleshooting
+
+**Dashboard nao carrega:**
+```bash
+# Verificar se o servidor esta a correr
+curl http://localhost:8000/health
+```
+
+**Erros de base de dados:**
+```bash
+# Verificar conexao MySQL
+mysql -u user -p -h localhost eleiloes
+```
+
+**Scraping lento:**
+- Ajustar `SCRAPE_DELAY` no .env
+- Verificar `CONCURRENT_REQUESTS`
+
+## Tecnologias
+
+- **Backend**: Python 3.11, FastAPI, Playwright
+- **Database**: MySQL + aiomysql
+- **Cache**: Redis
+- **Scheduler**: APScheduler
+- **Frontend**: HTML5, CSS3, JavaScript (Vanilla)
+
+## Licenca
 
 MIT License
 
-## 👨‍💻 Autor
+## Autor
 
 **Nuno Mansilhas**
 
 ---
 
-⭐ **Se gostaste do projeto, dá uma estrela no GitHub!**
+Dashboard: **http://localhost:8000** | API Docs: **http://localhost:8000/docs**
