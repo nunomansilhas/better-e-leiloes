@@ -3693,11 +3693,11 @@
             }
         }
 
-        // Stop pipeline execution
+        // Stop pipeline execution (Kill)
         async function stopPipeline() {
             const btn = document.getElementById('btn-pipeline');
             btn.disabled = true;
-            btn.textContent = '⏳ A parar...';
+            btn.textContent = '⏳ A terminar...';
 
             try {
                 // Call backend kill endpoint to stop pipeline
@@ -3753,21 +3753,17 @@
             const pages = pagesEl ? pagesEl.value : '';
 
             try {
-                // Set running state and create abort controller
+                // Set running state
                 pipelineRunning = true;
-                pipelineAbortController = new AbortController();
 
-                // Update button to show "Stop" option
+                // Update button to show "Kill" option
                 btn.disabled = false;
-                btn.textContent = '⏹️ Parar Execução';
+                btn.textContent = '🛑 Kill Pipeline';
                 btn.className = 'scraper-btn stop';
                 btn.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
                 btn.style.color = 'white';
 
                 addLog('🚀 Pipeline: Iniciando pipeline completo...', 'info');
-
-                // Iniciar polling de feedback em tempo real
-                startPipelinePolling();
 
                 // Reset pipeline visualization
                 updatePipelineStage(1, 'active', 0);
@@ -3779,75 +3775,41 @@
                 const feedbackBox = document.getElementById('pipeline-feedback');
                 if (feedbackBox) {
                     feedbackBox.style.display = 'block';
-                    updateFeedback('Stage 1: Descobrindo IDs...', 0, 0);
+                    updateFeedback('A iniciar pipeline...', 0, 0);
                 }
 
+                // Build URL
                 let url = `${API_BASE}/api/scrape/pipeline?`;
                 if (tipo) url += `tipo=${tipo}&`;
                 if (pages) url += `max_pages=${pages}`;
 
-                const response = await fetch(url, {
-                    method: 'POST',
-                    signal: pipelineAbortController.signal
-                });
+                // Start the pipeline (runs in background)
+                const response = await fetch(url, { method: 'POST' });
                 const data = await response.json();
 
                 if (response.ok) {
-                    addLog(`🔍 Stage 1: ${data.stage1?.total || 0} IDs descobertos`, 'success');
-
-                    // Update Stage 1 with real data
-                    updatePipelineStage(1, 'completed', data.stage1?.total || 0);
-                    updatePipelineProgress(33);
-                    updatePipelineStage(2, 'active', 0);
-                    if (feedbackBox) updateFeedback('Stage 2: Extraindo detalhes...', 0, data.stage1?.total || 0);
-
-                    setTimeout(() => {
-                        addLog(`📋 Stage 2: ${data.stage2?.total || 0} eventos processados`, 'success');
-                        updatePipelineStage(2, 'completed', data.stage2?.total || 0);
-                        updatePipelineProgress(66);
-                        updatePipelineStage(3, 'active', 0);
-                        if (feedbackBox) updateFeedback('Stage 3: Download de imagens...', 0, data.stage2?.total || 0);
-                    }, 1000);
-
-                    setTimeout(() => {
-                        addLog(`🖼️ Stage 3: ${data.stage3?.total || 0} conjuntos de imagens`, 'success');
-                        updatePipelineStage(3, 'completed', data.stage3?.total || 0);
-                        updatePipelineProgress(100);
-                        if (feedbackBox) updateFeedback('✅ Pipeline concluído!', data.stage3?.total || 0, data.stage3?.total || 0);
-
-                        setTimeout(() => {
-                            if (feedbackBox) feedbackBox.style.display = 'none';
-                            loadDashboard();
-                            addLog('✅ Pipeline: Concluído com sucesso!', 'success');
-                            showModal('✅ Sucesso', data.message || 'Pipeline executado com sucesso!');
-                        }, 2000);
-                    }, 2000);
-
+                    // Pipeline started successfully - start polling for real-time updates
+                    addLog('✅ Pipeline iniciado em background', 'success');
+                    startPipelinePolling();
                 } else {
-                    throw new Error(data.detail || 'Erro desconhecido');
+                    throw new Error(data.detail || 'Erro ao iniciar pipeline');
                 }
 
             } catch (error) {
-                // Check if it was aborted by user
-                if (error.name === 'AbortError') {
-                    // Already handled by stopPipeline()
-                    return;
-                }
-
                 addLog(`❌ Pipeline: ${error.message}`, 'error');
-                showModal('❌ Erro', error.message);
-                const feedbackBox = document.getElementById('pipeline-feedback');
-                if (feedbackBox) feedbackBox.style.display = 'none';
-            } finally {
-                // Reset button and state
+
+                // Reset button state on error
                 pipelineRunning = false;
-                pipelineAbortController = null;
                 btn.disabled = false;
                 btn.textContent = '▶ Executar Pipeline';
                 btn.className = 'scraper-btn start';
                 btn.style.background = '';
                 btn.style.color = '';
+
+                const feedbackBox = document.getElementById('pipeline-feedback');
+                if (feedbackBox) feedbackBox.style.display = 'none';
             }
+            // Note: Don't reset button here - polling will handle it when pipeline completes
         }
 
         // Helper functions for pipeline visualization
@@ -3909,12 +3871,12 @@
                         console.log('🔄 Pipeline ativa detectada, retomando monitoring...');
                         addLog('🔄 Pipeline ativa detectada, retomando monitoring...', 'info');
 
-                        // Update button to show "Stop" state
+                        // Update button to show "Kill" state
                         pipelineRunning = true;
                         const btn = document.getElementById('btn-pipeline');
                         if (btn) {
                             btn.disabled = false;
-                            btn.textContent = '⏹️ Parar Execução';
+                            btn.textContent = '🛑 Kill Pipeline';
                             btn.className = 'scraper-btn stop';
                             btn.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
                             btn.style.color = 'white';
