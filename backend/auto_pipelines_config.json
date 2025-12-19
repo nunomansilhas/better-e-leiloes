@@ -1,0 +1,57 @@
+{
+  "full": {
+    "type": "full",
+    "name": "Pipeline Autom\u00e1tica Completa",
+    "description": "Recolhe novos IDs, conte\u00fados e imagens automaticamente",
+    "enabled": false,
+    "interval_hours": 8.0,
+    "last_run": "2025-12-18 10:36:26",
+    "next_run": null,
+    "runs_count": 1,
+    "is_running": false
+  },
+  "prices": {
+    "type": "prices",
+    "name": "Pipeline X-Critical - Pre\u00e7os (< 5 min)",
+    "description": "Verifica altera\u00e7\u00f5es de pre\u00e7os a cada 5 SEGUNDOS para eventos terminando em menos de 5 minutos",
+    "enabled": true,
+    "interval_hours": 0.001388888888888889,
+    "last_run": "2025-12-19 08:39:28",
+    "next_run": "2025-12-19 08:39:33",
+    "runs_count": 319,
+    "is_running": true
+  },
+  "prices_urgent": {
+    "type": "prices_urgent",
+    "name": "Pipeline X-Urgent - Pre\u00e7os (< 1 hora)",
+    "description": "Verifica altera\u00e7\u00f5es de pre\u00e7os a cada 1 MINUTO para eventos terminando em menos de 1 hora",
+    "enabled": true,
+    "interval_hours": 0.016666666666666666,
+    "last_run": "2025-12-19 08:39:30",
+    "next_run": "2025-12-19 08:40:30",
+    "runs_count": 126,
+    "is_running": true
+  },
+  "prices_soon": {
+    "type": "prices_soon",
+    "name": "Pipeline X-Soon - Pre\u00e7os (< 24 horas)",
+    "description": "Verifica altera\u00e7\u00f5es de pre\u00e7os a cada 10 MINUTOS para eventos terminando em menos de 24 horas",
+    "enabled": true,
+    "interval_hours": 0.16666666666666666,
+    "last_run": "2025-12-19 08:39:30",
+    "next_run": "2025-12-19 08:49:30",
+    "runs_count": 42,
+    "is_running": true
+  },
+  "info": {
+    "type": "info",
+    "name": "Pipeline Y - Verifica\u00e7\u00e3o de Informa\u00e7\u00f5es",
+    "description": "Verifica pre\u00e7os e datas de TODOS os eventos a cada 2 horas",
+    "enabled": false,
+    "interval_hours": 2.0,
+    "last_run": null,
+    "next_run": null,
+    "runs_count": 0,
+    "is_running": true
+  }
+}
