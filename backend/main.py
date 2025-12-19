@@ -902,6 +902,14 @@ async def scrape_full_pipeline(
 
     Executa em background e guarda tudo na BD.
     """
+    # Check if pipeline is already running
+    pipeline_state = get_pipeline_state()
+    if pipeline_state.is_active:
+        raise HTTPException(
+            status_code=409,
+            detail="Uma pipeline já está em execução. Use Kill Pipeline para parar primeiro."
+        )
+
     background_tasks.add_task(run_full_pipeline, tipo, max_pages)
 
     return {
