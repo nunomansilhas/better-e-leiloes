@@ -3426,8 +3426,8 @@
                         break;
 
                     case 'content':
-                        // Get all references from DB first
-                        const refsResponse = await fetch(`${API_BASE}/api/events?limit=1000`);
+                        // Get all references from DB first (no limit - fetch all)
+                        const refsResponse = await fetch(`${API_BASE}/api/events?limit=100000`);
                         const refsData = await refsResponse.json();
                         const references = refsData.events.map(e => e.reference);
 
@@ -3441,8 +3441,8 @@
                         break;
 
                     case 'images':
-                        // Get all references from DB first
-                        const imgRefsResponse = await fetch(`${API_BASE}/api/events?limit=1000`);
+                        // Get all references from DB first (no limit - fetch all)
+                        const imgRefsResponse = await fetch(`${API_BASE}/api/events?limit=100000`);
                         const imgRefsData = await imgRefsResponse.json();
                         const imgReferences = imgRefsData.events.map(e => e.reference);
 
