@@ -349,22 +349,9 @@ async def get_event(reference: str):
         if event:
             await cache_manager.set(reference, event)
             return event
-    
-    # Se não existe, faz scraping
-    try:
-        event_data = await scraper.scrape_event(reference)
-        
-        # Guarda na BD
-        async with get_db() as db:
-            await db.save_event(event_data)
-        
-        # Guarda no cache
-        await cache_manager.set(reference, event_data)
-        
-        return event_data
-        
-    except Exception as e:
-        raise HTTPException(status_code=404, detail=f"Evento não encontrado: {str(e)}")
+
+    # Evento não existe - retorna 404 (não faz auto-scraping)
+    raise HTTPException(status_code=404, detail=f"Evento não encontrado: {reference}")
 
 
 @app.get("/api/events", response_model=EventListResponse)
