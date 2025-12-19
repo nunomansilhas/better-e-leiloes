@@ -7,6 +7,29 @@ from typing import Optional, List
 from datetime import datetime
 
 
+# Mapeamento de tipos de evento
+TIPO_EVENTO_MAP = {
+    1: "imoveis",
+    2: "veiculos",
+    3: "direitos",
+    4: "equipamentos",
+    5: "mobiliario",
+    6: "maquinas"
+}
+
+TIPO_EVENTO_NAMES = {
+    1: "Imóveis",
+    2: "Veículos",
+    3: "Direitos",
+    4: "Equipamentos",
+    5: "Mobiliário",
+    6: "Máquinas"
+}
+
+# Reverso: string -> código
+TIPO_EVENTO_CODES = {v: k for k, v in TIPO_EVENTO_MAP.items()}
+
+
 class GPSCoordinates(BaseModel):
     """Coordenadas GPS do imóvel"""
     latitude: Optional[float] = None

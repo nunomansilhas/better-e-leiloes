@@ -535,7 +535,7 @@ async def get_schedule_info():
 
 @app.post("/api/scrape/stage1/ids")
 async def scrape_stage1_ids(
-    tipo: Optional[int] = Query(None, ge=1, le=2, description="1=imoveis, 2=moveis, None=ambos"),
+    tipo: Optional[int] = Query(None, ge=1, le=6, description="1=Imóveis, 2=Veículos, 3=Direitos, 4=Equipamentos, 5=Mobiliário, 6=Máquinas, None=todos"),
     max_pages: Optional[int] = Query(None, ge=1, description="Máximo de páginas por tipo"),
     save_to_db: bool = Query(True, description="Guardar na base de dados")
 ):
@@ -544,7 +544,7 @@ async def scrape_stage1_ids(
 
     AGORA COM INSERÇÃO NA BD: Guarda eventos básicos na BD com referência e valores.
 
-    - **tipo**: 1=imóveis, 2=móveis, None=ambos
+    - **tipo**: 1=Imóveis, 2=Veículos, 3=Direitos, 4=Equipamentos, 5=Mobiliário, 6=Máquinas, None=todos
     - **max_pages**: Máximo de páginas por tipo
     - **save_to_db**: Se True, guarda eventos na BD (default: True)
 
@@ -641,7 +641,7 @@ async def scrape_stage1_ids(
 
 @app.post("/api/scrape/smart/new-events")
 async def scrape_smart_new_events(
-    tipo: Optional[int] = Query(None, ge=1, le=2, description="1=imoveis, 2=moveis, None=ambos"),
+    tipo: Optional[int] = Query(None, ge=1, le=6, description="1=Imóveis, 2=Veículos, 3=Direitos, 4=Equipamentos, 5=Mobiliário, 6=Máquinas, None=todos"),
     max_pages: Optional[int] = Query(None, ge=1, description="Máximo de páginas por tipo")
 ):
     """
@@ -649,7 +649,7 @@ async def scrape_smart_new_events(
 
     Compara IDs scraped com os já existentes na BD e retorna apenas os novos.
 
-    - **tipo**: 1=imóveis, 2=móveis, None=ambos
+    - **tipo**: 1=Imóveis, 2=Veículos, 3=Direitos, 4=Equipamentos, 5=Mobiliário, 6=Máquinas, None=todos
     - **max_pages**: Máximo de páginas por tipo
 
     Retorna apenas IDs de eventos que ainda não estão na base de dados.
@@ -851,13 +851,13 @@ async def scrape_stage3_images(
 @app.post("/api/scrape/pipeline")
 async def scrape_full_pipeline(
     background_tasks: BackgroundTasks,
-    tipo: Optional[int] = Query(None, ge=1, le=2, description="1=imoveis, 2=moveis, None=ambos"),
+    tipo: Optional[int] = Query(None, ge=1, le=6, description="1=Imóveis, 2=Veículos, 3=Direitos, 4=Equipamentos, 5=Mobiliário, 6=Máquinas, None=todos"),
     max_pages: Optional[int] = Query(None, ge=1, description="Máximo de páginas por tipo")
 ):
     """
     PIPELINE COMPLETO: Executa os 3 stages sequencialmente em background.
 
-    1. Stage 1: Scrape IDs
+    1. Stage 1: Scrape IDs (todos os 6 tipos)
     2. Stage 2: Scrape detalhes
     3. Stage 3: Scrape imagens
 
@@ -973,6 +973,57 @@ async def cleanup_database():
             "message": f"Cleanup concluído: {removed_count} duplicados removidos",
             "duplicates_found": len(duplicates),
             "removed": removed_count
+        }
+
+
+@app.post("/api/database/migrate-tipos")
+async def migrate_event_types():
+    """
+    Migra tipos de evento antigos para o novo formato.
+
+    Conversões:
+    - "imovel" -> "imoveis"
+    - "movel" -> "veiculos"
+    """
+    from sqlalchemy import update
+
+    migrations = {
+        "imovel": "imoveis",
+        "movel": "veiculos"
+    }
+
+    async with get_db() as db:
+        total_updated = 0
+        details = []
+
+        for old_type, new_type in migrations.items():
+            # Contar quantos existem
+            count_result = await db.session.execute(
+                select(func.count()).select_from(EventDB).where(EventDB.tipo_evento == old_type)
+            )
+            count = count_result.scalar()
+
+            if count > 0:
+                # Atualizar
+                await db.session.execute(
+                    update(EventDB).where(EventDB.tipo_evento == old_type).values(tipo_evento=new_type)
+                )
+                total_updated += count
+                details.append(f"{old_type} -> {new_type}: {count} eventos")
+
+        await db.session.commit()
+
+        # Estatísticas finais por tipo
+        stats_result = await db.session.execute(
+            select(EventDB.tipo_evento, func.count(EventDB.tipo_evento))
+            .group_by(EventDB.tipo_evento)
+        )
+        stats = {tipo: count for tipo, count in stats_result.fetchall()}
+
+        return {
+            "message": f"Migração concluída: {total_updated} eventos atualizados",
+            "migrations": details,
+            "current_stats": stats
         }
 
 

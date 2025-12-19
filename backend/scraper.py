@@ -16,7 +16,7 @@ import re
 from playwright.async_api import async_playwright, Page, Browser
 import os
 
-from models import EventData, GPSCoordinates, EventDetails, ValoresLeilao, ScraperStatus
+from models import EventData, GPSCoordinates, EventDetails, ValoresLeilao, ScraperStatus, TIPO_EVENTO_MAP, TIPO_EVENTO_NAMES
 
 
 class EventScraper:
@@ -1084,7 +1084,8 @@ class EventScraper:
         STAGE 1: Scrape apenas referências e valores básicos da listagem (rápido).
 
         Args:
-            tipo: 1=imoveis, 2=moveis, None=ambos
+            tipo: 1-6 para tipo específico, None=todos os tipos
+                  1=Imóveis, 2=Veículos, 3=Direitos, 4=Equipamentos, 5=Mobiliário, 6=Máquinas
             max_pages: Máximo de páginas por tipo
 
         Returns:
@@ -1096,26 +1097,27 @@ class EventScraper:
 
         try:
             if tipo is None:
-                # Scrape ambos os tipos
-                print("🆔 Stage 1: Scraping IDs de IMÓVEIS...")
-                imoveis_ids = await self._extract_from_listing(tipo=1, max_pages=max_pages)
-                for item in imoveis_ids:
-                    item['tipo_evento'] = 'imovel'
-                all_ids.extend(imoveis_ids)
-
-                print("🆔 Stage 1: Scraping IDs de MÓVEIS...")
-                moveis_ids = await self._extract_from_listing(tipo=2, max_pages=max_pages)
-                for item in moveis_ids:
-                    item['tipo_evento'] = 'movel'
-                all_ids.extend(moveis_ids)
+                # Scrape TODOS os 6 tipos
+                for tipo_code, tipo_str in TIPO_EVENTO_MAP.items():
+                    tipo_nome = TIPO_EVENTO_NAMES[tipo_code]
+                    print(f"🆔 Stage 1: Scraping IDs de {tipo_nome} (tipo={tipo_code})...")
+                    ids = await self._extract_from_listing(tipo=tipo_code, max_pages=max_pages)
+                    for item in ids:
+                        item['tipo_evento'] = tipo_str
+                        item['tipo'] = tipo_str  # Alias para compatibilidade
+                    all_ids.extend(ids)
+                    print(f"  ✓ {len(ids)} {tipo_nome} encontrados")
             else:
                 # Scrape tipo específico
-                tipo_nome = "IMÓVEIS" if tipo == 1 else "MÓVEIS"
-                print(f"🆔 Stage 1: Scraping IDs de {tipo_nome}...")
+                if tipo not in TIPO_EVENTO_MAP:
+                    raise ValueError(f"Tipo inválido: {tipo}. Use 1-6.")
+                tipo_str = TIPO_EVENTO_MAP[tipo]
+                tipo_nome = TIPO_EVENTO_NAMES[tipo]
+                print(f"🆔 Stage 1: Scraping IDs de {tipo_nome} (tipo={tipo})...")
                 ids = await self._extract_from_listing(tipo=tipo, max_pages=max_pages)
-                tipo_evento = 'imovel' if tipo == 1 else 'movel'
                 for item in ids:
-                    item['tipo_evento'] = tipo_evento
+                    item['tipo_evento'] = tipo_str
+                    item['tipo'] = tipo_str
                 all_ids.extend(ids)
 
             print(f"✅ Stage 1 completo: {len(all_ids)} IDs recolhidos")
