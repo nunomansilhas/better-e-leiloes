@@ -4,12 +4,6 @@ Web Scraper para E-Leiloes.pt usando Playwright
 
 import sys
 import asyncio
-
-# Fix para Windows - asyncio subprocess com Playwright
-# CRÍTICO: WindowsProactorEventLoopPolicy suporta subprocessos
-if sys.platform == 'win32':
-    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
-
 from typing import List, Optional, Callable, Awaitable
 from datetime import datetime
 import re

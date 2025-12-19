@@ -6,10 +6,14 @@ Recolhe e serve dados dos leilões do e-leiloes.pt
 import sys
 import asyncio
 
-# Fix para Windows - asyncio subprocess com Playwright
-# CRÍTICO: WindowsProactorEventLoopPolicy suporta subprocessos
+# Fix para Windows - asyncio com Playwright
+# Python 3.13+ no Windows precisa de ProactorEventLoop para subprocessos
 if sys.platform == 'win32':
+    # ProactorEventLoop suporta subprocessos no Windows
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+    # Criar e definir um event loop explicitamente
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
 
 # CRITICAL: Load .env BEFORE importing database!
 from dotenv import load_dotenv
@@ -83,9 +87,7 @@ async def lifespan(app: FastAPI):
     """Startup e shutdown da aplicação"""
     global scraper, cache_manager, scheduler
 
-    # CRITICAL: Set Windows event loop policy for Playwright subprocess support
-    if sys.platform == 'win32':
-        asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+    # Nota: Event loop policy já definida no início do ficheiro
 
     # Startup
     print("🚀 Iniciando E-Leiloes API...")
