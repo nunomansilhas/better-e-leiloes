@@ -352,6 +352,13 @@ class AutoPipelinesManager:
             from scraper import EventScraper
             from database import get_db
             from cache import CacheManager
+            from pipeline_state import get_pipeline_state
+
+            # Skip if main pipeline is running
+            main_pipeline = get_pipeline_state()
+            if main_pipeline.is_active:
+                print(f"⏸️ Auto-pipeline 'full' skipped - main pipeline is running")
+                return
 
             # Mark as running
             self.pipelines['full'].is_running = True
@@ -435,6 +442,13 @@ class AutoPipelinesManager:
             from scraper import EventScraper
             from database import get_db
             from cache import CacheManager
+            from pipeline_state import get_pipeline_state
+
+            # Skip if main pipeline is running
+            main_pipeline = get_pipeline_state()
+            if main_pipeline.is_active:
+                print(f"⏸️ Auto-pipeline 'prices' skipped - main pipeline is running")
+                return
 
             # Mark as running
             self.pipelines['prices'].is_running = True
@@ -595,6 +609,13 @@ class AutoPipelinesManager:
             from scraper import EventScraper
             from database import get_db
             from cache import CacheManager
+            from pipeline_state import get_pipeline_state
+
+            # Skip if main pipeline is running
+            main_pipeline = get_pipeline_state()
+            if main_pipeline.is_active:
+                print(f"⏸️ Auto-pipeline 'info' skipped - main pipeline is running")
+                return
 
             # Mark as running
             self.pipelines['info'].is_running = True
@@ -697,6 +718,13 @@ class AutoPipelinesManager:
             from scraper import EventScraper
             from database import get_db
             from cache import CacheManager
+            from pipeline_state import get_pipeline_state
+
+            # Skip if main pipeline is running
+            main_pipeline = get_pipeline_state()
+            if main_pipeline.is_active:
+                print(f"⏸️ Auto-pipeline 'prices_urgent' skipped - main pipeline is running")
+                return
 
             # Mark as running
             self.pipelines['prices_urgent'].is_running = True
@@ -852,6 +880,13 @@ class AutoPipelinesManager:
             from scraper import EventScraper
             from database import get_db
             from cache import CacheManager
+            from pipeline_state import get_pipeline_state
+
+            # Skip if main pipeline is running
+            main_pipeline = get_pipeline_state()
+            if main_pipeline.is_active:
+                print(f"⏸️ Auto-pipeline 'prices_soon' skipped - main pipeline is running")
+                return
 
             # Mark as running
             self.pipelines['prices_soon'].is_running = True
