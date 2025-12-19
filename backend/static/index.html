@@ -17,6 +17,253 @@
             background: #f8fafc;
             display: flex;
             min-height: 100vh;
+            transition: background 0.3s ease;
+        }
+
+        /* ===== OPTION C: Animated Background Blobs ===== */
+        .bg-blobs {
+            position: fixed;
+            top: 0;
+            left: 70px;
+            right: 0;
+            bottom: 0;
+            overflow: hidden;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .bg-blob {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.4;
+            animation: blobFloat 20s ease-in-out infinite;
+        }
+
+        .bg-blob-1 {
+            width: 400px;
+            height: 400px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            top: -100px;
+            right: 10%;
+            animation-delay: 0s;
+        }
+
+        .bg-blob-2 {
+            width: 300px;
+            height: 300px;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            bottom: 10%;
+            left: 20%;
+            animation-delay: -7s;
+        }
+
+        .bg-blob-3 {
+            width: 350px;
+            height: 350px;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            top: 40%;
+            right: 30%;
+            animation-delay: -14s;
+        }
+
+        @keyframes blobFloat {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            25% { transform: translate(30px, -30px) scale(1.05); }
+            50% { transform: translate(-20px, 20px) scale(0.95); }
+            75% { transform: translate(20px, 10px) scale(1.02); }
+        }
+
+        /* ===== OPTION A: Dark Mode Styles ===== */
+        body.dark-mode {
+            background: #0f172a;
+        }
+
+        body.dark-mode .main-content {
+            background: #0f172a;
+        }
+
+        body.dark-mode .stats-card,
+        body.dark-mode .scraper-control-card,
+        body.dark-mode .page-header,
+        body.dark-mode .filters-bar {
+            background: rgba(30, 41, 59, 0.9);
+            border-color: rgba(71, 85, 105, 0.5);
+        }
+
+        body.dark-mode .stats-card-value,
+        body.dark-mode .stats-total-value,
+        body.dark-mode h2, body.dark-mode h3 {
+            color: #f1f5f9;
+        }
+
+        body.dark-mode .stats-card-label,
+        body.dark-mode .stats-total-label,
+        body.dark-mode p {
+            color: #94a3b8;
+        }
+
+        body.dark-mode .bg-blob {
+            opacity: 0.2;
+        }
+
+        /* Theme Toggle Button */
+        .theme-toggle {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+            z-index: 1000;
+            transition: all 0.3s ease;
+        }
+
+        .theme-toggle:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 30px rgba(102, 126, 234, 0.5);
+        }
+
+        .theme-toggle svg {
+            width: 24px;
+            height: 24px;
+            color: white;
+            transition: transform 0.3s ease;
+        }
+
+        body.dark-mode .theme-toggle svg {
+            transform: rotate(180deg);
+        }
+
+        /* ===== OPTION B: Notification Bell ===== */
+        .notification-bell {
+            position: relative;
+            padding: 8px;
+            margin-right: 8px;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+
+        .notification-bell:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .notification-bell svg {
+            width: 20px;
+            height: 20px;
+            color: #94a3b8;
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            min-width: 16px;
+            height: 16px;
+            padding: 0 4px;
+            background: #ef4444;
+            border-radius: 8px;
+            font-size: 10px;
+            font-weight: 600;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: badgePulse 2s ease-in-out infinite;
+        }
+
+        @keyframes badgePulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .notification-dropdown {
+            position: absolute;
+            bottom: 100%;
+            left: 0;
+            width: 280px;
+            background: #1e293b;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(10px);
+            transition: all 0.2s ease;
+            margin-bottom: 8px;
+            z-index: 100;
+        }
+
+        .notification-bell.open .notification-dropdown {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .notification-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .notification-header h4 {
+            color: #f1f5f9;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .notification-clear {
+            color: #3b82f6;
+            font-size: 11px;
+            cursor: pointer;
+        }
+
+        .notification-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .notification-item {
+            padding: 12px 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .notification-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .notification-item:last-child {
+            border-bottom: none;
+        }
+
+        .notification-item-title {
+            color: #f1f5f9;
+            font-size: 12px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .notification-item-time {
+            color: #64748b;
+            font-size: 10px;
+        }
+
+        .notification-empty {
+            padding: 24px;
+            text-align: center;
+            color: #64748b;
+            font-size: 12px;
         }
 
         /* Sidebar */
@@ -1957,6 +2204,13 @@
     </style>
 </head>
 <body>
+    <!-- Option C: Animated Background Blobs -->
+    <div class="bg-blobs">
+        <div class="bg-blob bg-blob-1"></div>
+        <div class="bg-blob bg-blob-2"></div>
+        <div class="bg-blob bg-blob-3"></div>
+    </div>
+
     <!-- Sidebar -->
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
@@ -2036,6 +2290,34 @@
 
         <!-- Bottom Section -->
         <div class="sidebar-bottom">
+            <!-- Option B: Notification Bell -->
+            <div class="notification-bell" id="notificationBell" onclick="toggleNotifications(event)">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                </svg>
+                <span class="notification-badge" id="notificationBadge">3</span>
+                <div class="notification-dropdown">
+                    <div class="notification-header">
+                        <h4>Notificações</h4>
+                        <span class="notification-clear" onclick="clearNotifications(event)">Limpar</span>
+                    </div>
+                    <div class="notification-list" id="notificationList">
+                        <div class="notification-item">
+                            <div class="notification-item-title">Pipeline concluída com sucesso</div>
+                            <div class="notification-item-time">Há 5 minutos</div>
+                        </div>
+                        <div class="notification-item">
+                            <div class="notification-item-title">15 novos eventos encontrados</div>
+                            <div class="notification-item-time">Há 12 minutos</div>
+                        </div>
+                        <div class="notification-item">
+                            <div class="notification-item-title">Scraper de preços atualizado</div>
+                            <div class="notification-item-time">Há 1 hora</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- User Card -->
             <div class="user-card" id="userCard" onclick="toggleUserDropdown()">
                 <div class="user-card-header">
@@ -4740,6 +5022,111 @@
                 cancelDeleteDatabase();
             }
         }
+
+        // ============== OPTION A: DARK MODE TOGGLE ==============
+        function toggleTheme() {
+            const body = document.body;
+            const themeIcon = document.getElementById('themeIcon');
+
+            body.classList.toggle('dark-mode');
+
+            // Save preference to localStorage
+            const isDarkMode = body.classList.contains('dark-mode');
+            localStorage.setItem('darkMode', isDarkMode);
+
+            // Update icon
+            if (isDarkMode) {
+                themeIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>';
+            } else {
+                themeIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>';
+            }
+        }
+
+        // Load theme preference on page load
+        (function() {
+            const savedDarkMode = localStorage.getItem('darkMode') === 'true';
+            if (savedDarkMode) {
+                document.body.classList.add('dark-mode');
+                const themeIcon = document.getElementById('themeIcon');
+                if (themeIcon) {
+                    themeIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>';
+                }
+            }
+        })();
+
+        // ============== OPTION B: NOTIFICATIONS ==============
+        let notifications = [
+            { id: 1, title: 'Pipeline concluída com sucesso', time: 'Há 5 minutos' },
+            { id: 2, title: '15 novos eventos encontrados', time: 'Há 12 minutos' },
+            { id: 3, title: 'Scraper de preços atualizado', time: 'Há 1 hora' }
+        ];
+
+        function toggleNotifications(event) {
+            event.stopPropagation();
+            const bell = document.getElementById('notificationBell');
+            bell.classList.toggle('open');
+
+            // Close user dropdown if open
+            const userCard = document.getElementById('userCard');
+            if (userCard) {
+                userCard.classList.remove('open');
+            }
+        }
+
+        function clearNotifications(event) {
+            event.stopPropagation();
+            notifications = [];
+            updateNotificationUI();
+        }
+
+        function addNotification(title) {
+            const now = new Date();
+            notifications.unshift({
+                id: Date.now(),
+                title: title,
+                time: 'Agora'
+            });
+            // Keep only last 10 notifications
+            if (notifications.length > 10) {
+                notifications.pop();
+            }
+            updateNotificationUI();
+        }
+
+        function updateNotificationUI() {
+            const badge = document.getElementById('notificationBadge');
+            const list = document.getElementById('notificationList');
+
+            if (badge) {
+                if (notifications.length > 0) {
+                    badge.textContent = notifications.length;
+                    badge.style.display = 'flex';
+                } else {
+                    badge.style.display = 'none';
+                }
+            }
+
+            if (list) {
+                if (notifications.length === 0) {
+                    list.innerHTML = '<div class="notification-empty">Sem notificações</div>';
+                } else {
+                    list.innerHTML = notifications.map(n => `
+                        <div class="notification-item">
+                            <div class="notification-item-title">${n.title}</div>
+                            <div class="notification-item-time">${n.time}</div>
+                        </div>
+                    `).join('');
+                }
+            }
+        }
+
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', function(event) {
+            const bell = document.getElementById('notificationBell');
+            if (bell && !bell.contains(event.target)) {
+                bell.classList.remove('open');
+            }
+        });
     </script>
 
     <!-- Generic Alert Modal -->
@@ -4793,6 +5180,13 @@
             </div>
         </div>
     </div>
+
+    <!-- Option A: Theme Toggle Button -->
+    <button class="theme-toggle" onclick="toggleTheme()" title="Alternar tema claro/escuro">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" id="themeIcon">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+        </svg>
+    </button>
 
 </body>
 </html>
