@@ -1169,6 +1169,14 @@ async def run_full_pipeline(tipo: Optional[int], max_pages: Optional[int]):
             details={"tipo": tipo, "max_pages": max_pages}
         )
 
+        # Set initial message showing "Total: 0"
+        await pipeline_state.update(
+            current=0,
+            total=0,
+            message="Total: 0",
+            details={"types_done": 0, "total_ids": 0, "breakdown": {}}
+        )
+
         add_dashboard_log("🔍 STAGE 1: SCRAPING IDs", "info")
 
         # Callback to log progress as each type completes
