@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      4.6
+// @version      6.9
 // @description  Design moderno com carousel de imagens e distinção visual de tipos de leilão
 // @author       Nuno Mansilhas
 // @match        https://www.e-leiloes.pt/*
@@ -21,27 +21,27 @@
     const CONFIG = {
         API_BASE: 'http://localhost:8000/api',
         DASHBOARD_URL: 'http://localhost:8000',
-        ENABLE_API_ENRICHMENT: true
+        ENABLE_API_ENRICHMENT: true,
+        MAX_CAROUSEL_IMAGES: 5
     };
 
     // ====================================
-    // ESTILOS CSS - DESIGN MODERNO
+    // ESTILOS CSS - MINIMAL CLEAN
     // ====================================
 
     const styles = document.createElement('style');
     styles.textContent = `
-        /* Override do card nativo */
+        /* ============================================ */
+        /* BASE STYLES (comum a todos os designs)      */
+        /* ============================================ */
+
         .p-evento {
-            border-radius: 12px !important;
-            overflow: hidden !important;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08) !important;
             transition: all 0.3s ease !important;
-            border: 1px solid #e5e7eb !important;
+            overflow: hidden !important;
         }
 
         .p-evento:hover {
-            box-shadow: 0 8px 24px rgba(0,0,0,0.12) !important;
-            transform: translateY(-2px) !important;
+            transform: translateY(-4px) !important;
         }
 
         /* Força remover bordas do div nativo */
@@ -50,190 +50,63 @@
             border-radius: 0 !important;
         }
 
-        /* Padroniza todas as fontes dentro do card, EXCETO ícones */
+        /* Padroniza fontes */
         .p-evento[data-better-enhanced="true"],
         .p-evento[data-better-enhanced="true"] *:not([class*="pi-"]):not(i) {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
         }
 
-        /* Esconde os elementos nativos que vamos substituir */
-        .p-evento[data-better-enhanced="true"] .flex.align-items-center.justify-content-between.mt-2 {
+        /* Hide custom context menu */
+        .p-contextmenu.p-component {
             display: none !important;
         }
 
-        /* Esconde os valores nativos na parte inferior */
-        .p-evento[data-better-enhanced="true"] .surface-100.border-round-bottom {
+        /* Force white backgrounds on hover for all card elements */
+        .p-evento[data-better-enhanced="true"] *:hover {
+            background-color: inherit;
+        }
+
+        .p-evento[data-better-enhanced="true"]:hover .better-valores-row {
+            background: white !important;
+        }
+        .p-evento[data-better-enhanced="true"]:hover .better-lance-row {
+            background: white !important;
+        }
+        .p-evento[data-better-enhanced="true"]:hover .better-countdown-row {
+            background: #f9fafb !important;
+        }
+        .p-evento[data-better-enhanced="true"]:hover .better-valor-item:not(.lance-atual) {
+            background: #f9fafb !important;
+        }
+
+        /* Esconde elementos nativos que substituímos */
+        .p-evento[data-better-enhanced="true"] .surface-100.border-round-bottom,
+        .p-evento[data-better-enhanced="true"] .p-tag.p-component {
             display: none !important;
         }
 
-        /* Centraliza o título do evento */
-        .p-evento[data-better-enhanced="true"] .flex.align-items-start.px-3.pt-1 {
-            text-align: center;
-            justify-content: center;
-        }
-
-        .p-evento[data-better-enhanced="true"] .text-sm.font-semibold {
-            text-align: center;
-            width: 100%;
-        }
-
-        /* Colorir primeira parte da referência nativa (LO, NP) */
-        .p-evento[data-better-enhanced="true"] .pi-tag + span .native-ref-prefix {
-            color: #10b981 !important;
-            font-weight: 900 !important;
-        }
-
-        .p-evento[data-better-enhanced="true"] .pi-tag + span .native-ref-prefix.lo {
-            color: #3b82f6 !important;
-        }
-
-        .p-evento[data-better-enhanced="true"] .pi-tag + span .native-ref-prefix.np {
-            color: #f59e0b !important;
-        }
-
-        /* Fix para links abrirem em nova aba */
+        /* Fix para links */
         .p-evento a[href*="/evento/"] {
             pointer-events: none !important;
         }
 
-        .p-evento a:not(.pi-map) {
-            cursor: default !important;
-        }
-
-        /* GPS icon - permitir clique */
-        .p-evento a.pi-map {
+        /* Map marker clickable */
+        .p-evento[data-better-enhanced="true"] .pi-map-marker.better-map-link {
+            color: #3b82f6 !important;
+            cursor: pointer !important;
             pointer-events: auto !important;
-            cursor: pointer !important;
-            transition: transform 0.2s ease;
+            transition: all 0.2s ease !important;
         }
 
-        .p-evento a.pi-map:hover {
-            transform: scale(1.1);
+        .p-evento[data-better-enhanced="true"] .pi-map-marker.better-map-link:hover {
+            transform: scale(1.2) !important;
         }
 
-        /* Header do card - Row 1 */
-        .better-card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 16px;
-            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-            border-bottom: 2px solid #e2e8f0;
-        }
-
-        .better-ref-badge {
-            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-            color: white;
-            padding: 6px 12px;
-            border-radius: 8px;
-            font-weight: 700;
-            font-size: 12px;
-            letter-spacing: 0.5px;
-            box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
-        }
-
-        .better-ref-badge .ref-prefix {
-            color: #fbbf24;
-            font-weight: 800;
-        }
-
-        .better-header-actions {
-            display: flex !important;
-            gap: 8px;
-            align-items: center;
-            flex-wrap: nowrap;
-            visibility: visible !important;
-        }
-
-        .better-tipo-badge {
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-            color: white;
-            padding: 6px 10px;
-            border-radius: 8px;
-            font-size: 11px;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .better-tipo-badge.movel {
-            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-        }
-
-        .better-btn {
-            background: white;
-            border: 1px solid #e5e7eb;
-            padding: 6px 12px;
-            border-radius: 8px;
-            font-size: 11px;
-            font-weight: 600;
-            cursor: pointer !important;
-            transition: all 0.2s ease;
-            display: inline-flex !important;
-            align-items: center;
-            gap: 4px;
-            color: #374151;
-            text-decoration: none;
-            white-space: nowrap;
-            visibility: visible !important;
-            opacity: 1 !important;
-            z-index: 2 !important;
-            position: relative !important;
-        }
-
-        .better-btn:hover {
-            background: #f9fafb;
-            border-color: #d1d5db;
-            transform: translateY(-1px);
-        }
-
-        .better-btn-map {
-            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
-            color: white !important;
-            border: none !important;
-            display: inline-flex !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-        }
-
-        .better-btn-map:hover {
-            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%) !important;
-        }
-
-        .better-btn-primary {
-            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-            color: white;
-            border: none;
-        }
-
-        .better-btn-primary:hover {
-            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-        }
-
-        /* Contador de imagens no carousel */
-        .better-image-badge {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: rgba(0, 0, 0, 0.75);
-            backdrop-filter: blur(8px);
-            color: white;
-            padding: 6px 10px;
-            border-radius: 8px;
-            font-size: 11px;
-            font-weight: 600;
-            z-index: 10;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        /* Carousel de imagens customizado */
+        /* Carousel base */
         .better-carousel {
             position: relative;
             width: 100%;
-            height: 240px;
+            height: 180px;
             overflow: hidden;
             background: #f1f5f9;
         }
@@ -247,15 +120,8 @@
         .better-carousel-slide {
             min-width: 100%;
             height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .better-carousel-slide img {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
+            background-size: cover;
+            background-position: center;
         }
 
         .better-carousel-nav {
@@ -263,47 +129,38 @@
             top: 50%;
             transform: translateY(-50%);
             background: rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(8px);
             color: white;
             border: none;
-            width: 40px;
-            height: 40px;
+            width: 28px;
+            height: 28px;
             border-radius: 50%;
             cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 18px;
+            font-size: 14px;
             z-index: 5;
+            opacity: 0;
             transition: all 0.2s ease;
         }
 
-        .better-carousel-nav:hover {
-            background: rgba(0, 0, 0, 0.7);
-            transform: translateY(-50%) scale(1.1);
+        .better-carousel:hover .better-carousel-nav {
+            opacity: 1;
         }
 
-        .better-carousel-nav.prev {
-            left: 10px;
-        }
-
-        .better-carousel-nav.next {
-            right: 10px;
-        }
+        .better-carousel-nav.prev { left: 6px; }
+        .better-carousel-nav.next { right: 6px; }
 
         .better-carousel-dots {
             position: absolute;
-            bottom: 10px;
+            bottom: 6px;
             left: 50%;
             transform: translateX(-50%);
             display: flex;
-            gap: 6px;
+            gap: 4px;
             z-index: 5;
         }
 
         .better-carousel-dot {
-            width: 8px;
-            height: 8px;
+            width: 6px;
+            height: 6px;
             border-radius: 50%;
             background: rgba(255, 255, 255, 0.5);
             cursor: pointer;
@@ -312,139 +169,164 @@
 
         .better-carousel-dot.active {
             background: white;
-            width: 24px;
-            border-radius: 4px;
+            width: 16px;
+            border-radius: 3px;
         }
 
-        /* Detalhes - Row 3 */
-        .better-details-row {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 12px 16px;
+        /* Dashboard button */
+        .better-dashboard-btn {
+            background: #3b82f6 !important;
+            border-color: #3b82f6 !important;
+        }
+
+        .better-dashboard-btn:hover {
+            background: #2563eb !important;
+            transform: scale(1.05) !important;
+        }
+
+        /* ============================================ */
+        /* MINIMAL CLEAN DESIGN                        */
+        /* ============================================ */
+
+        .p-evento[data-better-enhanced="true"] {
+            border-radius: 16px !important;
+            border: 1px solid #e5e7eb !important;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05) !important;
+            background: white !important;
+        }
+
+        .p-evento[data-better-enhanced="true"]:hover {
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1) !important;
+            border-color: #d1d5db !important;
+        }
+
+        .p-evento[data-better-enhanced="true"] .better-carousel {
+            border-radius: 12px;
+            margin: 8px;
+            height: 160px;
+        }
+
+        /* Zone: Values (VB/VA/VM) */
+        .p-evento[data-better-enhanced="true"] .better-valores-row {
             background: white;
-            border-bottom: 1px solid #f1f5f9;
-        }
-
-        .better-icon-box {
-            width: 48px;
-            height: 48px;
-            background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            flex-shrink: 0;
-        }
-
-        .better-details-info {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .better-detail-item {
-            font-size: 12px;
-            color: #64748b;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .better-detail-label {
-            font-weight: 600;
-            color: #374151;
-        }
-
-        .better-detail-value {
-            color: #1f2937;
-            font-weight: 500;
-        }
-
-        .better-matricula-badge {
-            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-            color: #92400e;
-            padding: 4px 10px;
-            border-radius: 6px;
-            font-weight: 700;
-            font-size: 11px;
-            border: 1px solid #fbbf24;
-        }
-
-        .better-tipologia-badge {
-            background: linear-gradient(135deg, #ddd6fe 0%, #c4b5fd 100%);
-            color: #5b21b6;
-            padding: 4px 10px;
-            border-radius: 6px;
-            font-weight: 700;
-            font-size: 11px;
-        }
-
-        /* Valores - Row 4 */
-        .better-valores-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
+            padding: 12px 16px 8px 16px;
             gap: 8px;
-            padding: 12px 16px;
-            background: white;
+            border-top: 1px solid #f3f4f6;
+        }
+
+        .p-evento[data-better-enhanced="true"] .better-valor-item {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 6px 12px;
+            flex: 1;
+            justify-content: center;
+        }
+
+        .p-evento[data-better-enhanced="true"] .better-valor-label {
+            color: #6b7280;
+            font-size: 8px;
+        }
+
+        .p-evento[data-better-enhanced="true"] .better-valor-amount {
+            color: #111827;
+            font-size: 10px;
+        }
+
+        /* Zone: Lance */
+        .p-evento[data-better-enhanced="true"] .better-lance-row {
+            padding: 8px 16px 12px 16px;
+        }
+
+        .p-evento[data-better-enhanced="true"] .better-valor-item.lance-atual {
+            background: #fef3c7;
+            border-color: #fcd34d;
+            flex: none;
+            padding: 8px 20px;
+        }
+
+        /* Zone: Countdown */
+        .p-evento[data-better-enhanced="true"] .better-countdown-row {
+            background: #f9fafb;
+            padding: 10px 16px;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .p-evento[data-better-enhanced="true"] .native-ref-prefix.lo { color: #3b82f6 !important; }
+        .p-evento[data-better-enhanced="true"] .native-ref-prefix.np { color: #f59e0b !important; }
+
+        /* ============================================ */
+        /* VALORES E COUNTDOWN                         */
+        /* ============================================ */
+
+        .better-valores-row {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
         }
 
         .better-valor-item {
             display: flex;
             align-items: center;
-            justify-content: center;
-            gap: 6px;
-            padding: 8px 12px;
-            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-            border-radius: 8px;
-            border: 1px solid #bae6fd;
-        }
-
-        .better-valor-item.lance-atual {
-            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-            border-color: #fbbf24;
-        }
-
-        .better-valor-item.lance-atual .better-valor-label {
-            color: #92400e;
-        }
-
-        .better-valor-item.lance-atual .better-valor-amount {
-            color: #78350f;
+            gap: 4px;
         }
 
         .better-valor-label {
-            font-size: 11px;
             font-weight: 600;
-            color: #0369a1;
         }
 
         .better-valor-amount {
-            font-size: 13px;
             font-weight: 700;
-            color: #0c4a6e;
         }
 
-        /* Countdown - Row 5 */
+        /* Lance row - separate centered row */
+        .better-lance-row {
+            display: flex;
+            justify-content: center;
+            padding: 8px 12px;
+            background: white;
+        }
+
+        /* Countdown - Row 5 (locked to bottom) */
         .better-countdown-row {
             padding: 10px 16px;
             background: white;
             display: flex;
             align-items: center;
             justify-content: center;
+            margin-top: auto;
+            border-radius: 0 0 16px 16px;
+        }
+
+        /* Card flex layout to push countdown to bottom */
+        .p-evento[data-better-enhanced="true"] {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Target only the card body container (not header) */
+        .p-evento[data-better-enhanced="true"] > .w-full:last-of-type {
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+        }
+
+        /* Card content wrapper - flex to push countdown down */
+        .better-card-content {
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
         }
 
         .better-countdown {
             display: flex;
             align-items: center;
-            gap: 8px;
-            font-size: 12px;
+            gap: 5px;
+            font-size: 9px;
         }
 
         .better-countdown-icon {
-            font-size: 16px;
+            font-size: 10px;
         }
 
         .better-countdown-text {
@@ -465,67 +347,6 @@
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
         }
-
-        /* Localização extra */
-        .better-location-row {
-            padding: 8px 16px;
-            background: #f9fafb;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-            align-items: center;
-            font-size: 10px;
-        }
-
-        .better-location-tag {
-            background: #e0f2fe;
-            color: #0369a1;
-            padding: 3px 8px;
-            border-radius: 4px;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 3px;
-        }
-
-        /* GPS Badge */
-        .better-gps-badge {
-            background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
-            color: #1e40af;
-            padding: 4px 8px;
-            border-radius: 6px;
-            font-size: 10px;
-            font-weight: 600;
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        /* Botão flutuante dashboard */
-        .better-dashboard-btn {
-            position: fixed;
-            bottom: 24px;
-            right: 24px;
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 56px;
-            height: 56px;
-            font-size: 24px;
-            cursor: pointer;
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
-            z-index: 9999;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .better-dashboard-btn:hover {
-            transform: scale(1.1);
-            box-shadow: 0 6px 16px rgba(16, 185, 129, 0.6);
-        }
     `;
     document.head.appendChild(styles);
 
@@ -535,12 +356,10 @@
 
     function formatCurrency(value) {
         if (!value) return '-';
+        const num = parseFloat(value);
         return new Intl.NumberFormat('pt-PT', {
-            style: 'currency',
-            currency: 'EUR',
-            minimumFractionDigits: 0,
             maximumFractionDigits: 0
-        }).format(value);
+        }).format(num) + ' €';
     }
 
     function calculateTimeRemaining(endDate) {
@@ -555,16 +374,19 @@
         const days = Math.floor(diff / (1000 * 60 * 60 * 24));
         const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
         const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
 
         let text = '';
         const isEnding = days === 0 && hours < 24;
 
         if (days > 0) {
-            text = `${days}d ${hours}h`;
+            text = `${days}d ${hours}h ${minutes}m`;
         } else if (hours > 0) {
-            text = `${hours}h ${minutes}m`;
+            text = `${hours}h ${minutes}m ${seconds}s`;
+        } else if (minutes > 0) {
+            text = `${minutes}m ${seconds}s`;
         } else {
-            text = `${minutes}m`;
+            text = `${seconds}s`;
         }
 
         return { text, isEnding };
@@ -578,15 +400,9 @@
         if (!CONFIG.ENABLE_API_ENRICHMENT) return null;
 
         try {
-            console.log(`🔍 Fetching data for ${reference} from ${CONFIG.API_BASE}/events/${reference}`);
             const response = await fetch(`${CONFIG.API_BASE}/events/${reference}`);
-            console.log(`📡 Response status: ${response.status}`);
             if (response.ok) {
-                const data = await response.json();
-                console.log(`✅ Data received for ${reference}:`, data);
-                return data;
-            } else {
-                console.warn(`⚠️ API returned ${response.status} for ${reference}`);
+                return await response.json();
             }
         } catch (error) {
             console.error(`❌ API error for ${reference}:`, error);
@@ -595,22 +411,33 @@
     }
 
     // ====================================
-    // BOTÃO DASHBOARD
+    // FLOATING BUTTON
     // ====================================
 
-    function createDashboardButton() {
+    function integrateWithNativeFloatingButtons() {
+        if (document.querySelector('.better-dashboard-btn')) return;
+
         const btn = document.createElement('button');
-        btn.className = 'better-dashboard-btn';
-        btn.innerHTML = '🏠';
-        btn.title = 'Abrir Dashboard Better E-Leilões';
-        btn.onclick = () => {
-            window.open(CONFIG.DASHBOARD_URL, '_blank');
-        };
+        btn.className = 'p-button p-component p-button-icon-only p-button-base fixed fadein animation-duration-400 right-0 z-999 better-dashboard-btn';
+        btn.type = 'button';
+        btn.title = 'Better E-Leilões Dashboard';
+        btn.style.cssText = 'margin-right: 5px; bottom: 137px; background: #3b82f6; border-color: #3b82f6;';
+        btn.innerHTML = `
+            <span class="p-button-icon pi pi-home" data-pc-section="icon"></span>
+            <span class="p-button-label" data-pc-section="label">&nbsp;</span>
+        `;
+
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            window.open(CONFIG.DASHBOARD_URL, '_blank', 'noopener,noreferrer');
+        });
+
         document.body.appendChild(btn);
     }
 
     // ====================================
-    // REDESENHAR CARD
+    // CARD ENHANCEMENT
     // ====================================
 
     function extractReferenceFromCard(card) {
@@ -625,413 +452,201 @@
         if (card.dataset.betterEnhanced) return;
         card.dataset.betterEnhanced = 'true';
 
-        // Extract reference before try block so it's accessible in catch
         const reference = extractReferenceFromCard(card);
 
         try {
-            console.log(`🎯 Enhancing card for reference: ${reference}`);
-            if (!reference) {
-                console.warn('⚠️ No reference found in card');
-                return;
-            }
+            if (!reference) return;
 
-            // Busca dados da API
             const apiData = await getEventFromAPI(reference);
-            if (!apiData) {
-                console.warn(`⚠️ No API data returned for ${reference} - card will not be enhanced`);
-                return;
-            }
-            console.log(`🎨 Starting card enhancement for ${reference}`);
+            if (!apiData) return;
 
-            // URL do evento
             const eventUrl = `https://www.e-leiloes.pt/evento/${reference}`;
-
-            // ===== LIMPA CARD E RECONSTRÓI =====
             card.style.position = 'relative';
 
-            // Remove COMPLETAMENTE os links nativos
-            const nativeLinks = card.querySelectorAll('a[href*="/evento/"]');
-            nativeLinks.forEach(link => {
+            // Remove native links
+            card.querySelectorAll('a[href*="/evento/"]').forEach(link => {
                 link.removeAttribute('href');
-                link.style.cursor = 'default';
                 link.style.pointerEvents = 'none';
-                // Previne navegação
-                link.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    return false;
-                });
             });
 
-            // ===== COLORIR PRIMEIRA PARTE DA REFERÊNCIA NATIVA (LO/NP) =====
+            // Color reference prefix
             const nativeRefSpan = card.querySelector('.pi-tag + span');
-            if (nativeRefSpan && reference) {
+            if (nativeRefSpan) {
                 const refText = nativeRefSpan.textContent.trim();
                 const prefix = refText.substring(0, 2);
                 const rest = refText.substring(2);
-                const prefixClass = prefix.toLowerCase();
-                nativeRefSpan.innerHTML = `<span class="native-ref-prefix ${prefixClass}">${prefix}</span>${rest}`;
-                console.log(`🎨 Native reference colored: ${prefix} (${prefixClass})`);
+                nativeRefSpan.innerHTML = `<span class="native-ref-prefix ${prefix.toLowerCase()}">${prefix}</span>${rest}`;
             }
 
-            // ===== REMOVE CLASSES DE BORDA DO DIV NATIVO =====
-            // Busca todos os divs com w-full e remove as classes de borda
-            const nativeCardBodies = card.querySelectorAll('.w-full');
-            nativeCardBodies.forEach(div => {
-                // Remove as classes de borda
+            // Remove borders from native divs
+            card.querySelectorAll('.w-full').forEach(div => {
                 div.classList.remove('border-1', 'surface-border', 'border-round');
-                // Força remover estilos inline se houver
                 div.style.border = 'none';
-                div.style.borderRadius = '0';
-                console.log('🔧 Border classes and styles removed from div:', div.className);
             });
 
-            // ===== ADICIONAR ÍCONE GPS AO HEADER NATIVO =====
-            // Encontra o header nativo existente (linha com tag e referência)
-            const nativeHeader = card.querySelector('.flex.w-full.flex-wrap.align-items-center.justify-content-between');
-            if (nativeHeader) {
-                console.log('🔧 Found native header:', nativeHeader);
-
-                // Encontra o container do lado direito (onde está o tag badge e star)
-                const rightContainer = nativeHeader.querySelector('.flex.align-items-center.gap-1:last-child');
-                if (rightContainer) {
-                    console.log('🔧 Found right container:', rightContainer);
-
-                    // Adiciona APENAS o ícone GPS se tiver coordenadas (mantém tag badge e star)
-                    const hasGPS = apiData.gps && apiData.gps.latitude;
-                    if (hasGPS) {
-                        const mapsUrl = `https://www.google.com/maps?q=${apiData.gps.latitude},${apiData.gps.longitude}`;
-                        console.log(`🗺️ Creating GPS icon with coords: ${apiData.gps.latitude}, ${apiData.gps.longitude}`);
-
-                        // Cria ícone GPS (só o ícone, sem texto)
-                        const gpsIcon = document.createElement('a');
-                        gpsIcon.href = '#'; // Dummy href
-                        gpsIcon.className = 'pi pi-map text-primary-800 text-xl cursor-pointer';
-                        gpsIcon.title = 'Ver no Google Maps';
-                        gpsIcon.style.textDecoration = 'none';
-
-                        // Adiciona click handler que abre em nova janela SEM mudar a atual
-                        gpsIcon.addEventListener('click', (e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            window.open(mapsUrl, '_blank', 'noopener,noreferrer');
-                            console.log('🗺️ GPS clicked - opening Maps in new tab');
-                            return false;
-                        });
-
-                        // Insere o ícone GPS ANTES da estrela de favoritos
-                        const starIcon = rightContainer.querySelector('.pi-star');
-                        if (starIcon) {
-                            rightContainer.insertBefore(gpsIcon, starIcon);
-                        } else {
-                            // Se não tiver estrela, adiciona no final
-                            rightContainer.appendChild(gpsIcon);
-                        }
-                        console.log('✅ GPS icon added to native header');
-                    }
-                }
+            // Style map marker
+            const hasGPS = apiData.gps && apiData.gps.latitude;
+            const nativeMapMarker = card.querySelector('.pi-map-marker');
+            if (nativeMapMarker && hasGPS) {
+                const mapsUrl = `https://www.google.com/maps?q=${apiData.gps.latitude},${apiData.gps.longitude}`;
+                nativeMapMarker.classList.add('better-map-link');
+                nativeMapMarker.title = 'Ver no Google Maps';
+                nativeMapMarker.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    window.open(mapsUrl, '_blank', 'noopener,noreferrer');
+                });
             }
 
-        // ===== ROW 2: CAROUSEL DE IMAGENS =====
-        const galleryContainer = card.querySelector('.p-galleria, .p-evento-header');
-        if (galleryContainer && apiData.imagens && apiData.imagens.length > 0) {
-            // Se houver múltiplas imagens, cria carousel customizado
-            if (apiData.imagens.length > 1) {
-                console.log(`🎠 Creating carousel with ${apiData.imagens.length} images`);
+            // Carousel - render even with 1 image
+            const nativeImageDiv = card.querySelector('.p-evento-image');
+            if (nativeImageDiv && apiData.imagens && apiData.imagens.length > 0) {
+                const images = apiData.imagens.slice(0, CONFIG.MAX_CAROUSEL_IMAGES);
 
-                // Esconde o gallery nativo
-                galleryContainer.style.display = 'none';
+                nativeImageDiv.style.display = 'none';
 
-                // Cria carousel customizado
-                const carouselHTML = `
-                    <div class="better-carousel" data-current="0">
-                        <div class="better-carousel-track">
-                            ${apiData.imagens.map(img => `
-                                <div class="better-carousel-slide">
-                                    <img src="${img}" alt="Imagem do evento">
-                                </div>
-                            `).join('')}
-                        </div>
+                const carousel = document.createElement('div');
+                carousel.className = 'better-carousel';
+                carousel.innerHTML = `
+                    <div class="better-carousel-track">
+                        ${images.map(img => `<div class="better-carousel-slide" style="background-image: url('${img}');"></div>`).join('')}
+                    </div>
+                    ${images.length > 1 ? `
                         <button class="better-carousel-nav prev">‹</button>
                         <button class="better-carousel-nav next">›</button>
                         <div class="better-carousel-dots">
-                            ${apiData.imagens.map((_, idx) => `
-                                <div class="better-carousel-dot ${idx === 0 ? 'active' : ''}" data-index="${idx}"></div>
-                            `).join('')}
+                            ${images.map((_, idx) => `<div class="better-carousel-dot ${idx === 0 ? 'active' : ''}" data-index="${idx}"></div>`).join('')}
                         </div>
-                        <div class="better-image-badge">📷 ${apiData.imagens.length}</div>
-                    </div>
+                    ` : ''}
                 `;
 
-                // Insere o carousel após o gallery nativo
-                const carouselDiv = document.createElement('div');
-                carouselDiv.innerHTML = carouselHTML;
-                galleryContainer.parentNode.insertBefore(carouselDiv.firstChild, galleryContainer.nextSibling);
+                nativeImageDiv.parentNode.insertBefore(carousel, nativeImageDiv.nextSibling);
 
-                // Adiciona event handlers para o carousel
-                const carousel = card.querySelector('.better-carousel');
-                const track = carousel.querySelector('.better-carousel-track');
-                const prevBtn = carousel.querySelector('.better-carousel-nav.prev');
-                const nextBtn = carousel.querySelector('.better-carousel-nav.next');
-                const dots = carousel.querySelectorAll('.better-carousel-dot');
+                if (images.length > 1) {
+                    const track = carousel.querySelector('.better-carousel-track');
+                    const dots = carousel.querySelectorAll('.better-carousel-dot');
+                    let currentSlide = 0;
 
-                let currentSlide = 0;
-                const totalSlides = apiData.imagens.length;
+                    function updateCarousel() {
+                        track.style.transform = `translateX(-${currentSlide * 100}%)`;
+                        dots.forEach((d, i) => d.classList.toggle('active', i === currentSlide));
+                    }
 
-                function updateCarousel() {
-                    track.style.transform = `translateX(-${currentSlide * 100}%)`;
-                    dots.forEach((dot, idx) => {
-                        dot.classList.toggle('active', idx === currentSlide);
-                    });
-                }
-
-                prevBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    currentSlide = (currentSlide - 1 + totalSlides) % totalSlides;
-                    updateCarousel();
-                });
-
-                nextBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    currentSlide = (currentSlide + 1) % totalSlides;
-                    updateCarousel();
-                });
-
-                dots.forEach((dot, idx) => {
-                    dot.addEventListener('click', (e) => {
+                    carousel.querySelector('.prev').addEventListener('click', (e) => {
                         e.stopPropagation();
-                        currentSlide = idx;
+                        currentSlide = (currentSlide - 1 + images.length) % images.length;
                         updateCarousel();
                     });
-                });
 
-                console.log('✅ Carousel created and configured');
-            } else {
-                // Uma só imagem - mantém nativo e adiciona badge
-                galleryContainer.style.position = 'relative';
-                const imageBadge = document.createElement('div');
-                imageBadge.className = 'better-image-badge';
-                imageBadge.innerHTML = `📷 1`;
-                galleryContainer.appendChild(imageBadge);
+                    carousel.querySelector('.next').addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        currentSlide = (currentSlide + 1) % images.length;
+                        updateCarousel();
+                    });
+
+                    dots.forEach((dot, idx) => {
+                        dot.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            currentSlide = idx;
+                            updateCarousel();
+                        });
+                    });
+                }
             }
-        }
 
-        // ===== ROW 3: DETALHES (APENAS MATRÍCULA PARA MÓVEIS, SEM ÍCONE) =====
-        const det = apiData.detalhes || {};
+            // Values - VB/VA/VM in one row, Lance in separate row
+            let valoresHTML = '';
+            if (apiData.valores) {
+                const v = apiData.valores;
+                const topItems = [];
+                if (v.valorBase) topItems.push(`<div class="better-valor-item"><span class="better-valor-label">VB:</span><span class="better-valor-amount">${formatCurrency(v.valorBase)}</span></div>`);
+                if (v.valorAbertura) topItems.push(`<div class="better-valor-item"><span class="better-valor-label">VA:</span><span class="better-valor-amount">${formatCurrency(v.valorAbertura)}</span></div>`);
+                if (v.valorMinimo) topItems.push(`<div class="better-valor-item"><span class="better-valor-label">VM:</span><span class="better-valor-amount">${formatCurrency(v.valorMinimo)}</span></div>`);
 
-        let detailsHTML = '';
-        // Só mostra detalhes para móveis (matrícula)
-        if (apiData.tipoEvento === 'movel' && det.matricula) {
-            detailsHTML = `
-                <div class="better-details-row">
-                    <div class="better-details-info">
-                        <div class="better-matricula-badge">🚙 ${det.matricula}</div>
-                    </div>
-                </div>
-            `;
-        }
+                const lanceHTML = `<div class="better-lance-row"><div class="better-valor-item lance-atual"><span class="better-valor-label">Lance:</span><span class="better-valor-amount">${v.lanceAtual ? formatCurrency(v.lanceAtual) : '0 €'}</span></div></div>`;
 
-        // ===== ROW 4: VALORES (COM LEGENDAS, 2x2 GRID) =====
-        let valoresHTML = '';
-        if (apiData.valores) {
-            const v = apiData.valores;
-            valoresHTML = `
-                <div class="better-valores-row">
-                    ${v.valorBase ? `
-                        <div class="better-valor-item">
-                            <div class="better-valor-label">Valor Base:</div>
-                            <div class="better-valor-amount">${formatCurrency(v.valorBase)}</div>
-                        </div>
-                    ` : ''}
-                    ${v.valorAbertura ? `
-                        <div class="better-valor-item">
-                            <div class="better-valor-label">Valor Abertura:</div>
-                            <div class="better-valor-amount">${formatCurrency(v.valorAbertura)}</div>
-                        </div>
-                    ` : ''}
-                    ${v.valorMinimo ? `
-                        <div class="better-valor-item">
-                            <div class="better-valor-label">Valor Mínimo:</div>
-                            <div class="better-valor-amount">${formatCurrency(v.valorMinimo)}</div>
-                        </div>
-                    ` : ''}
-                    <div class="better-valor-item lance-atual">
-                        <div class="better-valor-label">Lance Atual:</div>
-                        <div class="better-valor-amount">${v.lanceAtual ? formatCurrency(v.lanceAtual) : '0,00 €'}</div>
-                    </div>
-                </div>
-            `;
-        }
+                valoresHTML = `<div class="better-valores-row">${topItems.join('')}</div>${lanceHTML}`;
+            }
 
-        // ===== ROW 5: COUNTDOWN OU DATAS =====
-        let countdownHTML = '';
-        if (apiData.dataFim) {
-            const remaining = calculateTimeRemaining(apiData.dataFim);
-            if (remaining) {
-                const now = new Date();
-                const end = new Date(apiData.dataFim);
-                const start = apiData.dataInicio ? new Date(apiData.dataInicio) : null;
-                const diffDays = Math.floor((end - now) / (1000 * 60 * 60 * 24));
-
-                console.log('📅 Date info:', {
-                    dataFim: apiData.dataFim,
-                    dataInicio: apiData.dataInicio,
-                    diffDays,
-                    now: now.toISOString(),
-                    end: end.toISOString(),
-                    start: start ? start.toISOString() : 'null'
-                });
-
-                // Se mais de 1 dia, mostra as datas
-                if (diffDays > 1 && start) {
-                    const formatDate = (date) => {
-                        return new Intl.DateTimeFormat('pt-PT', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                        }).format(date);
-                    };
-
-                    countdownHTML = `
-                        <div class="better-countdown-row">
-                            <div class="better-countdown">
-                                <span class="better-countdown-icon">📅</span>
-                                <span class="better-countdown-text">De:</span>
-                                <span class="better-countdown-time">${formatDate(start)}</span>
-                                <span class="better-countdown-text">até:</span>
-                                <span class="better-countdown-time">${formatDate(end)}</span>
-                            </div>
-                        </div>
-                    `;
-                } else {
-                    // Menos de 1 dia, mostra countdown
+            // Countdown
+            let countdownHTML = '';
+            if (apiData.dataFim) {
+                const remaining = calculateTimeRemaining(apiData.dataFim);
+                if (remaining) {
+                    const countdownId = `countdown-${reference}`;
                     countdownHTML = `
                         <div class="better-countdown-row">
                             <div class="better-countdown">
                                 <span class="better-countdown-icon">⏱️</span>
-                                <span class="better-countdown-text">Termina em:</span>
-                                <span class="better-countdown-time ${remaining.isEnding ? 'ending-soon' : ''}">
-                                    ${remaining.text}
-                                </span>
+                                <span class="better-countdown-text">Termina:</span>
+                                <span class="better-countdown-time ${remaining.isEnding ? 'ending-soon' : ''}" id="${countdownId}" data-end="${apiData.dataFim}">${remaining.text}</span>
                             </div>
                         </div>
                     `;
                 }
             }
-        }
 
-        // Não adiciona localização - usa a nativa
-
-        // Insere rows no card - usa o primeiro div filho
-        const cardBody = card.querySelector('.w-full');
-        console.log('🔧 Card body found:', cardBody);
-        if (cardBody) {
-            const newContent = detailsHTML + valoresHTML + countdownHTML;
-            console.log('🔧 New content length:', newContent.length, 'chars');
-
-            // Adiciona o conteúdo DEPOIS do conteúdo nativo (não substitui)
-            const contentWrapper = document.createElement('div');
-            contentWrapper.className = 'better-card-content';
-            contentWrapper.innerHTML = newContent;
-            cardBody.appendChild(contentWrapper);
-            console.log('✅ Card body updated');
-        } else {
-            console.error('❌ Card body (.w-full.border-1) not found!');
-        }
-
-        // ===== EVENT HANDLERS =====
-        // Botão "Ver Mais"
-        const verMaisBtn = card.querySelector('.better-btn-primary');
-        if (verMaisBtn) {
-            verMaisBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                window.open(eventUrl, '_blank');
-            });
-        }
-
-        // GPS Map link - handled by anchor tag href (no need for event listener)
-
-        // Click no card inteiro abre em nova aba (SEM atualizar atual)
-        card.style.cursor = 'pointer';
-
-        // Handler para click normal (left-click)
-        card.addEventListener('click', (e) => {
-            console.log('🖱️ Card click detected, target:', e.target.className);
-
-            // PRIMEIRO verifica se clicou em algo que deve ignorar
-            if (e.target.closest('.pi-map')) {
-                console.log('🗺️ GPS click - ignoring card handler');
-                return;
-            }
-            if (e.target.closest('.pi-star')) {
-                console.log('⭐ Star click - ignoring card handler');
-                return;
-            }
-            if (e.target.closest('.better-btn')) {
-                console.log('🔘 Button click - ignoring card handler');
-                return;
+            // Insert content
+            const cardBody = card.querySelector('.w-full');
+            if (cardBody) {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'better-card-content';
+                wrapper.innerHTML = valoresHTML + countdownHTML;
+                cardBody.appendChild(wrapper);
             }
 
-            // Previne comportamento padrão
-            e.preventDefault();
-            e.stopPropagation();
-
-            // Abre em nova aba
-            const newWindow = window.open(eventUrl, '_blank', 'noopener,noreferrer');
-            console.log('🔗 Opening event in new tab:', eventUrl, 'Window:', newWindow);
-            return false;
-        }, true); // USE CAPTURE PHASE para interceptar antes
-
-        // Handler para middle-click e auxiliary button
-        card.addEventListener('auxclick', (e) => {
-            if (e.button === 1) { // Middle button
-                console.log('🖱️ Middle click detected');
+            // Click handlers
+            card.style.cursor = 'pointer';
+            card.addEventListener('click', (e) => {
+                if (e.target.closest('.pi-map-marker, .better-carousel-nav, .better-carousel-dot, .pi-star')) return;
                 e.preventDefault();
                 e.stopPropagation();
                 window.open(eventUrl, '_blank', 'noopener,noreferrer');
-                return false;
-            }
-        }, true);
+            }, true);
 
-        console.log(`✨ Card enhancement complete for ${reference}`);
+            // Restore native right-click context menu
+            card.addEventListener('contextmenu', (e) => {
+                e.stopPropagation();
+            }, true);
 
         } catch (error) {
             console.error(`❌ Error enhancing card for ${reference}:`, error);
-            console.error('Error stack:', error.stack);
         }
     }
 
     // ====================================
-    // OBSERVADOR
+    // OBSERVER & INIT
     // ====================================
 
     function enhanceAllCards() {
-        const cards = document.querySelectorAll('.p-evento');
-        cards.forEach(card => enhanceCard(card));
+        document.querySelectorAll('.p-evento').forEach(card => enhanceCard(card));
     }
 
     const observer = new MutationObserver(() => {
         enhanceAllCards();
     });
 
-    // ====================================
-    // INICIALIZAÇÃO
-    // ====================================
+    function updateAllCountdowns() {
+        document.querySelectorAll('[data-end]').forEach(el => {
+            const remaining = calculateTimeRemaining(el.dataset.end);
+            if (remaining) {
+                el.textContent = remaining.text;
+                el.classList.toggle('ending-soon', remaining.isEnding);
+            }
+        });
+    }
 
     function init() {
-        console.log('🚀 Better E-Leilões Card Enhancer v4.6');
+        console.log('🚀 Better E-Leilões Card Enhancer v6.1 - Minimal Clean');
 
-        createDashboardButton();
+        integrateWithNativeFloatingButtons();
         enhanceAllCards();
 
-        observer.observe(document.body, {
-            childList: true,
-            subtree: true
-        });
+        setInterval(updateAllCountdowns, 1000);
 
-        console.log('✅ Card enhancer v4.6 ativo - Capture phase + auxclick!');
+        observer.observe(document.body, { childList: true, subtree: true });
+
+        console.log('✅ Card enhancer v6.9 ativo - Minimal Clean!');
     }
 
     if (document.readyState === 'loading') {

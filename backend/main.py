@@ -17,11 +17,12 @@ load_dotenv()
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
-from typing import List, Optional
+from typing import List, Optional, Set
 import os
+import json
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from datetime import datetime
@@ -41,6 +42,9 @@ cache_manager = None
 scheduler = None
 scheduled_job_id = None
 
+# SSE: Set of queues for broadcasting price updates to connected clients
+sse_clients: Set[asyncio.Queue] = set()
+
 # Logging system for dashboard console
 log_buffer = deque(maxlen=100)  # Circular buffer, keeps last 100 logs
 log_lock = threading.Lock()
@@ -53,6 +57,26 @@ def add_dashboard_log(message: str, level: str = "info"):
             "level": level,
             "timestamp": datetime.now().isoformat()
         })
+
+
+async def broadcast_price_update(event_data: dict):
+    """Broadcast a price update to all connected SSE clients"""
+    dead_clients = set()
+    for queue in sse_clients:
+        try:
+            await queue.put(event_data)
+        except:
+            dead_clients.add(queue)
+
+    # Remove disconnected clients
+    for client in dead_clients:
+        sse_clients.discard(client)
+
+
+def get_sse_clients():
+    """Get the SSE clients set (for use in auto_pipelines)"""
+    return sse_clients
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -74,6 +98,18 @@ async def lifespan(app: FastAPI):
     scheduler = AsyncIOScheduler()
     scheduler.start()
     print("⏰ Scheduler iniciado")
+
+    # Auto-start enabled pipelines
+    from auto_pipelines import get_auto_pipelines_manager
+    pipelines_manager = get_auto_pipelines_manager()
+    enabled_count = 0
+    for pipeline_type, pipeline in pipelines_manager.pipelines.items():
+        if pipeline.enabled:
+            await pipelines_manager._schedule_pipeline(pipeline_type, scheduler)
+            enabled_count += 1
+            print(f"  ▶️ Auto-started: {pipeline.name}")
+    if enabled_count > 0:
+        print(f"🔄 {enabled_count} pipeline(s) auto-started from saved config")
 
     print("✅ API pronta!")
 
@@ -1069,6 +1105,103 @@ async def run_full_pipeline(tipo: Optional[int], max_pages: Optional[int]):
         await pipeline_state.add_error(msg)
         await asyncio.sleep(2)
         await pipeline_state.stop()
+
+
+# ============== SSE & STREAMING ENDPOINTS ==============
+
+@app.get("/api/events/stream")
+async def stream_events(
+    limit: int = Query(5000, ge=1, le=5000, description="Max events to stream"),
+    tipo_evento: Optional[str] = None,
+    distrito: Optional[str] = None
+):
+    """
+    Stream events one by one for progressive loading.
+    Each event is sent as a JSON line (NDJSON format).
+    Frontend can render each card as it arrives.
+    """
+    async def event_generator():
+        async with get_db() as db:
+            events, total = await db.list_events(
+                page=1,
+                limit=limit,
+                tipo_evento=tipo_evento,
+                distrito=distrito
+            )
+
+            # First, send metadata
+            yield json.dumps({"type": "meta", "total": total}) + "\n"
+
+            # Then stream events one by one
+            for event in events:
+                yield json.dumps({
+                    "type": "event",
+                    "data": event.model_dump(mode='json')
+                }) + "\n"
+                # Small delay to allow progressive rendering
+                await asyncio.sleep(0.01)
+
+            # Signal end of stream
+            yield json.dumps({"type": "done"}) + "\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="application/x-ndjson",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Access-Control-Allow-Origin": "*"
+        }
+    )
+
+
+@app.get("/api/events/live")
+async def live_price_updates():
+    """
+    Server-Sent Events (SSE) endpoint for real-time price updates.
+    Connect to this endpoint to receive live price changes as they happen.
+
+    Event format:
+    {
+        "reference": "LO1234567890",
+        "old_price": 100.0,
+        "new_price": 150.0,
+        "time_remaining": "5min",
+        "timestamp": "2025-01-01T12:00:00"
+    }
+    """
+    async def event_stream():
+        queue = asyncio.Queue()
+        sse_clients.add(queue)
+
+        try:
+            # Send initial connection message
+            yield f"data: {json.dumps({'type': 'connected', 'message': 'Connected to live price updates'})}\n\n"
+
+            # Keep connection alive and send updates
+            while True:
+                try:
+                    # Wait for update with timeout (for keepalive)
+                    update = await asyncio.wait_for(queue.get(), timeout=30)
+                    yield f"data: {json.dumps(update)}\n\n"
+                except asyncio.TimeoutError:
+                    # Send keepalive ping
+                    yield f"data: {json.dumps({'type': 'ping'})}\n\n"
+        except asyncio.CancelledError:
+            pass
+        finally:
+            sse_clients.discard(queue)
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Access-Control-Allow-Origin": "*",
+            "X-Accel-Buffering": "no"  # Disable nginx buffering
+        }
+    )
 
 
 # ============== ERRO HANDLERS ==============

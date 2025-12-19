@@ -267,9 +267,29 @@ class DatabaseManager:
         events_db = result.scalars().all()
         
         events = [event.to_model() for event in events_db]
-        
+
         return events, total
-    
+
+    async def get_upcoming_events(self, hours: int = 24) -> List[EventData]:
+        """Get events ending within the next X hours, ordered by end time"""
+        from datetime import timedelta
+
+        now = datetime.utcnow()
+        cutoff = now + timedelta(hours=hours)
+
+        query = (
+            select(EventDB)
+            .where(EventDB.data_fim.isnot(None))
+            .where(EventDB.data_fim > now)
+            .where(EventDB.data_fim <= cutoff)
+            .order_by(EventDB.data_fim.asc())
+        )
+
+        result = await self.session.execute(query)
+        events_db = result.scalars().all()
+
+        return [event.to_model() for event in events_db]
+
     async def get_stats(self) -> dict:
         """Estatísticas gerais"""
         # Total eventos

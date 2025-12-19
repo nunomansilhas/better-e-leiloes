@@ -71,6 +71,7 @@ class AutoPipelinesManager:
     def __init__(self):
         self.pipelines: Dict[str, PipelineConfig] = {}
         self.job_ids: Dict[str, str] = {}  # pipeline_type -> scheduler_job_id
+        self._scheduler = None  # Store scheduler reference for rescheduling
 
         # Cache for critical events (< 6 min) - refreshed every 5 minutes
         self._critical_events_cache = []
@@ -130,24 +131,28 @@ class AutoPipelinesManager:
         from database import get_db
 
         try:
-            # Get all events from database
+            # Get upcoming events (next 1 hour, ordered by end time)
             async with get_db() as db:
-                events, total = await db.list_events(limit=1000)
+                events = await db.get_upcoming_events(hours=1)
 
             if not events:
                 self._critical_events_cache = []
                 self._cache_last_refresh = datetime.now()
+                print(f"🔴 Critical cache: No upcoming events in next 1h")
                 return
 
             # Filter events ending in LESS THAN 6 MINUTES (360 seconds)
-            # This catches events that just got reset to 5:00
             now = datetime.now()
             critical_events = []
+
+            print(f"🔍 Critical cache: {len(events)} upcoming events (< 1h)")
 
             for event in events:
                 if event.dataFim:
                     time_until_end = event.dataFim - now
                     seconds_until_end = time_until_end.total_seconds()
+
+                    print(f"    {event.reference}: {int(seconds_until_end)}s")
 
                     # Cache events ending in < 6 minutes (1-minute buffer)
                     if 0 < seconds_until_end <= 360:
@@ -157,7 +162,7 @@ class AutoPipelinesManager:
             self._cache_last_refresh = datetime.now()
 
             if critical_events:
-                print(f"🔄 Critical events cache refreshed: {len(critical_events)} events (< 6 min)")
+                print(f"🔴 Critical cache: {len(critical_events)} events (< 6 min)")
 
         except Exception as e:
             print(f"⚠️ Error refreshing critical events cache: {e}")
@@ -167,15 +172,11 @@ class AutoPipelinesManager:
         from database import get_db
 
         try:
+            # Get upcoming events (next 2 hours, ordered by end time)
             async with get_db() as db:
-                events, total = await db.list_events(limit=1000)
+                events = await db.get_upcoming_events(hours=2)
 
-            if not events:
-                self._urgent_events_cache = []
-                self._urgent_cache_last_refresh = datetime.now()
-                return
-
-            # Filter events ending in LESS THAN 1.5 HOURS (5400 seconds)
+            # Filter events ending in < 1.5 hours
             now = datetime.now()
             urgent_events = []
 
@@ -183,8 +184,6 @@ class AutoPipelinesManager:
                 if event.dataFim:
                     time_until_end = event.dataFim - now
                     seconds_until_end = time_until_end.total_seconds()
-
-                    # Cache events ending in < 1.5 hours (30-min buffer)
                     if 0 < seconds_until_end <= 5400:
                         urgent_events.append(event)
 
@@ -192,7 +191,7 @@ class AutoPipelinesManager:
             self._urgent_cache_last_refresh = datetime.now()
 
             if urgent_events:
-                print(f"🟠 Urgent events cache refreshed: {len(urgent_events)} events (< 1.5h)")
+                print(f"🟠 Urgent cache: {len(urgent_events)} events (< 1.5h)")
 
         except Exception as e:
             print(f"⚠️ Error refreshing urgent events cache: {e}")
@@ -202,32 +201,15 @@ class AutoPipelinesManager:
         from database import get_db
 
         try:
+            # Get upcoming events (next 25 hours, ordered by end time)
             async with get_db() as db:
-                events, total = await db.list_events(limit=1000)
+                events = await db.get_upcoming_events(hours=25)
 
-            if not events:
-                self._soon_events_cache = []
-                self._soon_cache_last_refresh = datetime.now()
-                return
-
-            # Filter events ending in LESS THAN 25 HOURS (90000 seconds)
-            now = datetime.now()
-            soon_events = []
-
-            for event in events:
-                if event.dataFim:
-                    time_until_end = event.dataFim - now
-                    seconds_until_end = time_until_end.total_seconds()
-
-                    # Cache events ending in < 25 hours (1-hour buffer)
-                    if 0 < seconds_until_end <= 90000:
-                        soon_events.append(event)
-
-            self._soon_events_cache = soon_events
+            self._soon_events_cache = events
             self._soon_cache_last_refresh = datetime.now()
 
-            if soon_events:
-                print(f"🟡 Soon events cache refreshed: {len(soon_events)} events (< 25h)")
+            if events:
+                print(f"🟡 Soon cache: {len(events)} events (< 25h)")
 
         except Exception as e:
             print(f"⚠️ Error refreshing soon events cache: {e}")
@@ -285,14 +267,19 @@ class AutoPipelinesManager:
         """Schedule a pipeline to run automatically"""
         pipeline = self.pipelines[pipeline_type]
 
+        # Store scheduler reference for rescheduling after job completion
+        self._scheduler = scheduler
+
         # Define the job function
         job_id = f"auto_pipeline_{pipeline_type}"
 
         # Import here to avoid circular imports
-        from apscheduler.triggers.interval import IntervalTrigger
+        from apscheduler.triggers.date import DateTrigger
 
-        # Create trigger for interval
-        trigger = IntervalTrigger(hours=pipeline.interval_hours)
+        # Schedule to run immediately (or in 1 second to avoid race conditions)
+        from datetime import datetime, timedelta
+        run_time = datetime.now() + timedelta(seconds=1)
+        trigger = DateTrigger(run_date=run_time)
 
         # Get the task function based on type
         task_func = self._get_pipeline_task(pipeline_type)
@@ -308,6 +295,42 @@ class AutoPipelinesManager:
 
         self.job_ids[pipeline_type] = job_id
         print(f"📅 Scheduled {pipeline.name} every {pipeline.interval_hours}h")
+
+    def _reschedule_pipeline(self, pipeline_type: str):
+        """Reschedule a pipeline to run after the configured interval"""
+        if not self._scheduler or pipeline_type not in self.job_ids:
+            return
+
+        pipeline = self.pipelines.get(pipeline_type)
+        if not pipeline or not pipeline.enabled:
+            return
+
+        from apscheduler.triggers.date import DateTrigger
+        from datetime import datetime, timedelta
+
+        job_id = self.job_ids[pipeline_type]
+        task_func = self._get_pipeline_task(pipeline_type)
+
+        # Schedule next run after interval_hours from NOW (after completion)
+        next_run = datetime.now() + timedelta(hours=pipeline.interval_hours)
+
+        try:
+            # Remove old job and add new one with updated time
+            try:
+                self._scheduler.remove_job(job_id)
+            except:
+                pass
+
+            self._scheduler.add_job(
+                task_func,
+                trigger=DateTrigger(run_date=next_run),
+                id=job_id,
+                name=pipeline.name,
+                replace_existing=True
+            )
+            print(f"⏰ Next run of {pipeline.name} scheduled for {next_run.strftime('%H:%M:%S')}")
+        except Exception as e:
+            print(f"⚠️ Error rescheduling {pipeline.name}: {e}")
 
     async def _unschedule_pipeline(self, pipeline_type: str, scheduler):
         """Remove pipeline from scheduler"""
@@ -404,6 +427,8 @@ class AutoPipelinesManager:
                 # Mark as not running
                 self.pipelines['full'].is_running = False
                 self._save_config()
+                # Reschedule next run after completion
+                self._reschedule_pipeline('full')
 
         async def run_prices_pipeline():
             """Pipeline X: Price verification every 5 SECONDS for events < 5 minutes"""
@@ -478,40 +503,66 @@ class AutoPipelinesManager:
                     secs = int(seconds % 60)
 
                     try:
-                        # Re-scrape event details to get current price and end time
-                        new_events = await scraper.scrape_details_by_ids([event.reference])
+                        # LIGHTWEIGHT: Only scrape price + end time (fast)
+                        volatile_data = await scraper.scrape_volatile_by_ids([event.reference])
 
-                        if new_events and len(new_events) > 0:
-                            new_event = new_events[0]
-                            old_price = event.valores.lanceAtual or 0
-                            new_price = new_event.valores.lanceAtual or 0
+                        if volatile_data and len(volatile_data) > 0:
+                            data = volatile_data[0]
+                            old_price = event.valores.lanceAtual
+                            new_price = data['lanceAtual']
                             old_end = event.dataFim
-                            new_end = new_event.dataFim
+                            new_end = data['dataFim']
 
-                            # Check if price or time changed
-                            price_changed = old_price != new_price
+                            # Debug: show comparison
+                            print(f"    🔎 {event.reference}: DB={old_price} vs Scraped={new_price}")
+
+                            # Check if price changed (only if we got a valid new price)
+                            price_changed = False
+                            if new_price is not None:
+                                # Update if: DB is None OR values are different
+                                if old_price is None or old_price != new_price:
+                                    price_changed = True
+
+                            # Check if time was extended
                             time_extended = new_end > old_end if (old_end and new_end) else False
 
                             if price_changed or time_extended:
                                 msg_parts = []
 
                                 if price_changed:
-                                    msg_parts.append(f"{old_price}€ → {new_price}€")
+                                    msg_parts.append(f"{old_price or 0}€ → {new_price}€")
 
                                 if time_extended:
-                                    time_diff = (new_end - old_end).total_seconds()
-                                    msg_parts.append(f"timer reset (+{int(time_diff/60)}min)")
+                                    old_end_str = old_end.strftime('%d/%m/%Y %H:%M:%S') if old_end else 'N/A'
+                                    new_end_str = new_end.strftime('%d/%m/%Y %H:%M:%S') if new_end else 'N/A'
+                                    msg_parts.append(f"timer reset to {new_end_str} from {old_end_str}")
                                     time_extended_count += 1
 
                                 print(f"    💰 {event.reference}: {' | '.join(msg_parts)} ({minutes}m{secs}s remaining)")
 
-                                # Update event in database with new price AND new end time
-                                event.valores = new_event.valores
-                                event.dataFim = new_event.dataFim  # Update reset timer
+                                # Update event in database - only update price if we got a valid one
+                                if price_changed and new_price is not None:
+                                    event.valores.lanceAtual = new_price
+                                if time_extended and new_end is not None:
+                                    event.dataFim = new_end
 
                                 async with get_db() as db:
                                     await db.save_event(event)
                                     await cache_manager.set(event.reference, event)
+
+                                # Broadcast price update to SSE clients
+                                from main import broadcast_price_update
+                                await broadcast_price_update({
+                                    "type": "price_update",
+                                    "reference": event.reference,
+                                    "old_price": old_price or 0,
+                                    "new_price": new_price or 0,
+                                    "old_end": old_end.isoformat() if old_end else None,
+                                    "new_end": new_end.isoformat() if new_end else None,
+                                    "time_extended": time_extended,
+                                    "time_remaining": f"{minutes}m{secs}s",
+                                    "timestamp": datetime.now().isoformat()
+                                })
 
                                 updated_count += 1
 
@@ -536,6 +587,8 @@ class AutoPipelinesManager:
                 await cache_manager.close()
                 # Mark as not running
                 self.pipelines['prices'].is_running = False
+                # Reschedule next run after completion
+                self._reschedule_pipeline('prices')
 
         async def run_info_pipeline():
             """Pipeline Y: Quick info verification and update for ALL events"""
@@ -636,6 +689,8 @@ class AutoPipelinesManager:
                 # Mark as not running
                 self.pipelines['info'].is_running = False
                 self._save_config()
+                # Reschedule next run after completion
+                self._reschedule_pipeline('info')
 
         async def run_prices_urgent_pipeline():
             """Pipeline X-Urgent: Price verification every 1 MINUTE for events < 1 hour"""
@@ -707,37 +762,66 @@ class AutoPipelinesManager:
                     event = item['event']
                     seconds = item['seconds_until_end']
                     minutes = int(seconds / 60)
+                    secs = int(seconds % 60)
 
                     try:
-                        new_events = await scraper.scrape_details_by_ids([event.reference])
+                        # LIGHTWEIGHT: Only scrape price + end time (fast)
+                        volatile_data = await scraper.scrape_volatile_by_ids([event.reference])
 
-                        if new_events and len(new_events) > 0:
-                            new_event = new_events[0]
-                            old_price = event.valores.lanceAtual or 0
-                            new_price = new_event.valores.lanceAtual or 0
+                        if volatile_data and len(volatile_data) > 0:
+                            data = volatile_data[0]
+                            old_price = event.valores.lanceAtual
+                            new_price = data['lanceAtual']
                             old_end = event.dataFim
-                            new_end = new_event.dataFim
+                            new_end = data['dataFim']
 
-                            price_changed = old_price != new_price
+                            # Debug: show comparison
+                            print(f"    🔎 {event.reference}: DB={old_price} vs Scraped={new_price}")
+
+                            # Check if price changed (only if we got a valid new price)
+                            price_changed = False
+                            if new_price is not None:
+                                # Update if: DB is None OR values are different
+                                if old_price is None or old_price != new_price:
+                                    price_changed = True
+
                             time_extended = new_end > old_end if (old_end and new_end) else False
 
                             if price_changed or time_extended:
                                 msg_parts = []
                                 if price_changed:
-                                    msg_parts.append(f"{old_price}€ → {new_price}€")
+                                    msg_parts.append(f"{old_price or 0}€ → {new_price}€")
                                 if time_extended:
-                                    time_diff = (new_end - old_end).total_seconds()
-                                    msg_parts.append(f"timer reset (+{int(time_diff/60)}min)")
+                                    old_end_str = old_end.strftime('%d/%m/%Y %H:%M:%S') if old_end else 'N/A'
+                                    new_end_str = new_end.strftime('%d/%m/%Y %H:%M:%S') if new_end else 'N/A'
+                                    msg_parts.append(f"timer reset to {new_end_str} from {old_end_str}")
                                     time_extended_count += 1
 
-                                print(f"    🟠 {event.reference}: {' | '.join(msg_parts)} ({minutes}min remaining)")
+                                print(f"    🟠 {event.reference}: {' | '.join(msg_parts)} ({minutes}m{secs}s remaining)")
 
-                                event.valores = new_event.valores
-                                event.dataFim = new_event.dataFim
+                                # Update event - only update price if we got a valid one
+                                if price_changed and new_price is not None:
+                                    event.valores.lanceAtual = new_price
+                                if time_extended and new_end is not None:
+                                    event.dataFim = new_end
 
                                 async with get_db() as db:
                                     await db.save_event(event)
                                     await cache_manager.set(event.reference, event)
+
+                                # Broadcast price update to SSE clients
+                                from main import broadcast_price_update
+                                await broadcast_price_update({
+                                    "type": "price_update",
+                                    "reference": event.reference,
+                                    "old_price": old_price or 0,
+                                    "new_price": new_price or 0,
+                                    "old_end": old_end.isoformat() if old_end else None,
+                                    "new_end": new_end.isoformat() if new_end else None,
+                                    "time_extended": time_extended,
+                                    "time_remaining": f"{minutes}m{secs}s",
+                                    "timestamp": datetime.now().isoformat()
+                                })
 
                                 updated_count += 1
 
@@ -760,6 +844,8 @@ class AutoPipelinesManager:
                 await scraper.close()
                 await cache_manager.close()
                 self.pipelines['prices_urgent'].is_running = False
+                # Reschedule next run after completion
+                self._reschedule_pipeline('prices_urgent')
 
         async def run_prices_soon_pipeline():
             """Pipeline X-Soon: Price verification every 10 MINUTES for events < 24 hours"""
@@ -832,37 +918,66 @@ class AutoPipelinesManager:
                     seconds = item['seconds_until_end']
                     hours = int(seconds / 3600)
                     minutes = int((seconds % 3600) / 60)
+                    secs = int(seconds % 60)
 
                     try:
-                        new_events = await scraper.scrape_details_by_ids([event.reference])
+                        # LIGHTWEIGHT: Only scrape price + end time (fast)
+                        volatile_data = await scraper.scrape_volatile_by_ids([event.reference])
 
-                        if new_events and len(new_events) > 0:
-                            new_event = new_events[0]
-                            old_price = event.valores.lanceAtual or 0
-                            new_price = new_event.valores.lanceAtual or 0
+                        if volatile_data and len(volatile_data) > 0:
+                            data = volatile_data[0]
+                            old_price = event.valores.lanceAtual
+                            new_price = data['lanceAtual']
                             old_end = event.dataFim
-                            new_end = new_event.dataFim
+                            new_end = data['dataFim']
 
-                            price_changed = old_price != new_price
+                            # Debug: show comparison
+                            print(f"    🔎 {event.reference}: DB={old_price} vs Scraped={new_price}")
+
+                            # Check if price changed (only if we got a valid new price)
+                            price_changed = False
+                            if new_price is not None:
+                                # Update if: DB is None OR values are different
+                                if old_price is None or old_price != new_price:
+                                    price_changed = True
+
                             time_extended = new_end > old_end if (old_end and new_end) else False
 
                             if price_changed or time_extended:
                                 msg_parts = []
                                 if price_changed:
-                                    msg_parts.append(f"{old_price}€ → {new_price}€")
+                                    msg_parts.append(f"{old_price or 0}€ → {new_price}€")
                                 if time_extended:
-                                    time_diff = (new_end - old_end).total_seconds()
-                                    msg_parts.append(f"timer reset (+{int(time_diff/60)}min)")
+                                    old_end_str = old_end.strftime('%d/%m/%Y %H:%M:%S') if old_end else 'N/A'
+                                    new_end_str = new_end.strftime('%d/%m/%Y %H:%M:%S') if new_end else 'N/A'
+                                    msg_parts.append(f"timer reset to {new_end_str} from {old_end_str}")
                                     time_extended_count += 1
 
-                                print(f"    🟡 {event.reference}: {' | '.join(msg_parts)} ({hours}h{minutes}m remaining)")
+                                print(f"    🟡 {event.reference}: {' | '.join(msg_parts)} ({hours}h{minutes}m{secs}s remaining)")
 
-                                event.valores = new_event.valores
-                                event.dataFim = new_event.dataFim
+                                # Update event - only update price if we got a valid one
+                                if price_changed and new_price is not None:
+                                    event.valores.lanceAtual = new_price
+                                if time_extended and new_end is not None:
+                                    event.dataFim = new_end
 
                                 async with get_db() as db:
                                     await db.save_event(event)
                                     await cache_manager.set(event.reference, event)
+
+                                # Broadcast price update to SSE clients
+                                from main import broadcast_price_update
+                                await broadcast_price_update({
+                                    "type": "price_update",
+                                    "reference": event.reference,
+                                    "old_price": old_price or 0,
+                                    "new_price": new_price or 0,
+                                    "old_end": old_end.isoformat() if old_end else None,
+                                    "new_end": new_end.isoformat() if new_end else None,
+                                    "time_extended": time_extended,
+                                    "time_remaining": f"{hours}h{minutes}m{secs}s",
+                                    "timestamp": datetime.now().isoformat()
+                                })
 
                                 updated_count += 1
 
@@ -885,6 +1000,8 @@ class AutoPipelinesManager:
                 await scraper.close()
                 await cache_manager.close()
                 self.pipelines['prices_soon'].is_running = False
+                # Reschedule next run after completion
+                self._reschedule_pipeline('prices_soon')
 
         # Return the appropriate function
         tasks = {
