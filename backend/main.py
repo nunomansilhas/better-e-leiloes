@@ -779,6 +779,7 @@ async def scrape_stage3_images(
     Retorna mapa {reference: [image_urls]}.
     """
     pipeline_state = get_pipeline_state()
+    progress_counter = {"count": 0}
 
     try:
         # Iniciar pipeline state
@@ -789,7 +790,15 @@ async def scrape_stage3_images(
             details={"update_db": update_db}
         )
 
-        images_map = await scraper.scrape_images_by_ids(references)
+        # Callback para atualizar progresso durante o scraping
+        async def on_images_progress(ref: str, images: List[str]):
+            progress_counter["count"] += 1
+            await pipeline_state.update(
+                current=progress_counter["count"],
+                message=f"Scraping {progress_counter['count']}/{len(references)} - {ref} ({len(images)} imagens)"
+            )
+
+        images_map = await scraper.scrape_images_by_ids(references, on_images_scraped=on_images_progress)
 
         # Atualiza eventos na BD se solicitado
         updated_count = 0
