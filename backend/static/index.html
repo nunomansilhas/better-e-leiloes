@@ -3694,24 +3694,55 @@
         }
 
         // Stop pipeline execution
-        function stopPipeline() {
+        async function stopPipeline() {
+            const btn = document.getElementById('btn-pipeline');
+            btn.disabled = true;
+            btn.textContent = '⏳ A parar...';
+
+            try {
+                // Call backend kill endpoint to stop pipeline
+                const response = await fetch(`${API_BASE}/api/pipeline/kill`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                    addLog('🛑 Pipeline: Terminada com sucesso', 'warning');
+                    if (data.killed_stage) {
+                        addLog(`  └─ Stage ${data.killed_stage} (${data.killed_stage_name}) foi interrompida`, 'info');
+                    }
+                } else {
+                    addLog(`⚠️ Erro ao parar pipeline: ${data.detail || 'Erro desconhecido'}`, 'error');
+                }
+            } catch (error) {
+                addLog(`⚠️ Erro ao parar pipeline: ${error.message}`, 'error');
+            }
+
+            // Abort client-side request if exists
             if (pipelineAbortController) {
                 pipelineAbortController.abort();
                 pipelineAbortController = null;
             }
 
+            // Stop polling
+            stopPipelinePolling();
+
             pipelineRunning = false;
-            const btn = document.getElementById('btn-pipeline');
             btn.textContent = '▶ Executar Pipeline';
             btn.className = 'scraper-btn start';
             btn.disabled = false;
+            btn.style.background = '';
+            btn.style.color = '';
 
             // Hide feedback box
             const feedbackBox = document.getElementById('pipeline-feedback');
             if (feedbackBox) feedbackBox.style.display = 'none';
 
-            addLog('⏹️ Pipeline: Execução cancelada pelo utilizador', 'warning');
-            showModal('⏹️ Pipeline Cancelado', 'A execução do pipeline foi interrompida.');
+            // Reset pipeline visualization
+            updatePipelineStage(1, 'pending', 0);
+            updatePipelineStage(2, 'pending', 0);
+            updatePipelineStage(3, 'pending', 0);
+            updatePipelineProgress(0);
         }
 
         async function runPipeline() {
@@ -3877,6 +3908,27 @@
                         // Pipeline está ativa, retomar monitoring
                         console.log('🔄 Pipeline ativa detectada, retomando monitoring...');
                         addLog('🔄 Pipeline ativa detectada, retomando monitoring...', 'info');
+
+                        // Update button to show "Stop" state
+                        pipelineRunning = true;
+                        const btn = document.getElementById('btn-pipeline');
+                        if (btn) {
+                            btn.disabled = false;
+                            btn.textContent = '⏹️ Parar Execução';
+                            btn.className = 'scraper-btn stop';
+                            btn.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+                            btn.style.color = 'white';
+                        }
+
+                        // Show feedback box and update from state
+                        const feedbackBox = document.getElementById('pipeline-feedback');
+                        if (feedbackBox) {
+                            feedbackBox.style.display = 'block';
+                        }
+
+                        // Update visualization from current state
+                        updatePipelineFromState(state);
+
                         startPipelinePolling();
                     }
                 }
@@ -3924,12 +3976,25 @@
                 pipelinePollingInterval = null;
             }
 
+            // Reset button state
+            pipelineRunning = false;
+            const btn = document.getElementById('btn-pipeline');
+            if (btn) {
+                btn.textContent = '▶ Executar Pipeline';
+                btn.className = 'scraper-btn start';
+                btn.disabled = false;
+                btn.style.background = '';
+                btn.style.color = '';
+            }
+
             // Esconder feedback box após 2 segundos
             setTimeout(() => {
                 const feedbackBox = document.getElementById('pipeline-feedback');
                 if (feedbackBox) {
                     feedbackBox.style.display = 'none';
                 }
+                // Refresh dashboard stats
+                loadDashboard();
             }, 2000);
         }
 
