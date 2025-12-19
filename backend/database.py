@@ -226,7 +226,29 @@ class DatabaseManager:
             self.session.add(new_event)
         
         await self.session.commit()
-    
+
+    async def insert_event_stub(self, reference: str, tipo_evento: str):
+        """Insere evento básico (apenas reference + tipo_evento) se não existir"""
+        # Verifica se já existe
+        result = await self.session.execute(
+            select(EventDB).where(EventDB.reference == reference)
+        )
+        existing = result.scalar_one_or_none()
+
+        if not existing:
+            # Insere novo com dados mínimos
+            new_event = EventDB(
+                reference=reference,
+                tipo_evento=tipo_evento,
+                tipo=tipo_evento,  # Também guarda no detalhes.tipo
+                subtipo='N/A',
+                scraped_at=datetime.utcnow()
+            )
+            self.session.add(new_event)
+            await self.session.commit()
+            return True  # Novo inserido
+        return False  # Já existia
+
     async def get_event(self, reference: str) -> Optional[EventData]:
         """Busca um evento por referência"""
         result = await self.session.execute(

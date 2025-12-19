@@ -1222,8 +1222,19 @@ async def run_full_pipeline(tipo: Optional[int], max_pages: Optional[int]):
         )
 
         references = [item['reference'] for item in ids_data]
-        # Criar mapa de referência -> tipo_evento para preservar tipos específicos
-        tipo_map = {item['reference']: item.get('tipo_evento', 'imovel') for item in ids_data}
+
+        # ===== INSERIR IDs NA BD IMEDIATAMENTE =====
+        # Isto garante que o tipo_evento é preservado mesmo se a pipeline for interrompida
+        new_count = 0
+        async with get_db() as db:
+            for item in ids_data:
+                ref = item['reference']
+                tipo_ev = item.get('tipo_evento', 'imovel')
+                was_new = await db.insert_event_stub(ref, tipo_ev)
+                if was_new:
+                    new_count += 1
+
+        add_dashboard_log(f"💾 {new_count} novos IDs inseridos na BD ({len(references) - new_count} já existiam)", "info")
 
         # Check if stopped during scraping - but still report what we got
         if scraper.stop_requested:
