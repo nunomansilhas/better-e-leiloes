@@ -145,18 +145,46 @@
             padding-bottom: 16px;
         }
 
-        /* User Card */
-        .user-card {
-            padding: 12px 16px;
-            margin: 8px 12px;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 10px;
+        /* ===== USER CARD - 3 DESIGN OPTIONS ===== */
+
+        /* Design Switcher Button */
+        .design-switcher {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #94a3b8;
+            font-size: 10px;
             cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
             transition: all 0.2s;
         }
 
-        .user-card:hover {
-            background: rgba(255, 255, 255, 0.1);
+        .sidebar:hover .design-switcher,
+        .sidebar.locked .design-switcher {
+            opacity: 1;
+        }
+
+        .design-switcher:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: #f1f5f9;
+        }
+
+        /* Base User Card Styles */
+        .user-card {
+            position: relative;
+            padding: 12px 16px;
+            margin: 8px 12px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
         }
 
         .user-card-header {
@@ -169,7 +197,6 @@
             width: 36px;
             height: 36px;
             border-radius: 8px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -177,6 +204,7 @@
             font-weight: 600;
             font-size: 14px;
             flex-shrink: 0;
+            transition: all 0.3s ease;
         }
 
         .user-card-info {
@@ -195,24 +223,23 @@
         }
 
         .user-card-name {
-            color: #f1f5f9;
             font-size: 13px;
             font-weight: 600;
             white-space: nowrap;
+            transition: color 0.3s;
         }
 
         .user-card-email {
-            color: #94a3b8;
             font-size: 11px;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            transition: color 0.3s;
         }
 
         .user-card-toggle {
             margin-left: auto;
-            color: #64748b;
-            transition: transform 0.2s;
+            transition: transform 0.2s, color 0.3s;
             opacity: 0;
         }
 
@@ -241,16 +268,10 @@
             gap: 8px;
             padding: 8px 12px;
             margin-top: 4px;
-            color: #94a3b8;
             font-size: 12px;
             border-radius: 6px;
             cursor: pointer;
             transition: all 0.15s;
-        }
-
-        .user-dropdown-item:hover {
-            background: rgba(255, 255, 255, 0.1);
-            color: #f1f5f9;
         }
 
         .user-dropdown-item svg {
@@ -258,9 +279,130 @@
             height: 14px;
         }
 
-        .user-dropdown-item.logout:hover {
+        /* ===== DESIGN A: GLASSMORPHISM ===== */
+        .user-card.design-a {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .user-card.design-a:hover {
+            background: rgba(255, 255, 255, 0.12);
+            border-color: rgba(255, 255, 255, 0.25);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .user-card.design-a .user-card-avatar {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.8) 0%, rgba(168, 85, 247, 0.8) 100%);
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+        }
+
+        .user-card.design-a .user-card-name { color: #f1f5f9; }
+        .user-card.design-a .user-card-email { color: #94a3b8; }
+        .user-card.design-a .user-card-toggle { color: #64748b; }
+        .user-card.design-a .user-dropdown-item { color: #94a3b8; }
+        .user-card.design-a .user-dropdown-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #f1f5f9;
+        }
+        .user-card.design-a .user-dropdown-item.logout:hover {
             background: rgba(239, 68, 68, 0.2);
             color: #fca5a5;
+        }
+
+        /* ===== DESIGN B: NEON GLOW ===== */
+        .user-card.design-b {
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.9) 0%, rgba(30, 41, 59, 0.9) 100%);
+            border: 2px solid transparent;
+            background-clip: padding-box;
+            position: relative;
+        }
+
+        .user-card.design-b::before {
+            content: '';
+            position: absolute;
+            inset: -2px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #667eea, #764ba2, #f093fb, #667eea);
+            background-size: 300% 300%;
+            z-index: -1;
+            opacity: 0.6;
+            animation: neonPulse 3s ease infinite;
+        }
+
+        @keyframes neonPulse {
+            0%, 100% { background-position: 0% 50%; opacity: 0.6; }
+            50% { background-position: 100% 50%; opacity: 1; }
+        }
+
+        .user-card.design-b:hover::before {
+            opacity: 1;
+            animation: neonPulse 1.5s ease infinite;
+        }
+
+        .user-card.design-b:hover {
+            transform: scale(1.02);
+            box-shadow: 0 0 30px rgba(102, 126, 234, 0.4);
+        }
+
+        .user-card.design-b .user-card-avatar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 0 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .user-card.design-b .user-card-name { color: #f1f5f9; }
+        .user-card.design-b .user-card-email { color: #a78bfa; }
+        .user-card.design-b .user-card-toggle { color: #a78bfa; }
+        .user-card.design-b .user-dropdown-item { color: #a78bfa; }
+        .user-card.design-b .user-dropdown-item:hover {
+            background: rgba(167, 139, 250, 0.15);
+            color: #f1f5f9;
+        }
+        .user-card.design-b .user-dropdown-item.logout:hover {
+            background: rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+        }
+
+        /* ===== DESIGN C: MINIMAL OUTLINE ===== */
+        .user-card.design-c {
+            background: transparent;
+            border: 1px solid rgba(148, 163, 184, 0.3);
+        }
+
+        .user-card.design-c:hover {
+            border-color: #6366f1;
+            background: rgba(99, 102, 241, 0.05);
+        }
+
+        .user-card.design-c:hover .user-card-avatar {
+            transform: scale(1.1);
+        }
+
+        .user-card.design-c .user-card-avatar {
+            background: transparent;
+            border: 2px solid #6366f1;
+            color: #6366f1;
+        }
+
+        .user-card.design-c:hover .user-card-avatar {
+            background: #6366f1;
+            color: white;
+        }
+
+        .user-card.design-c .user-card-name { color: #e2e8f0; }
+        .user-card.design-c .user-card-email { color: #64748b; }
+        .user-card.design-c .user-card-toggle { color: #64748b; }
+        .user-card.design-c .user-dropdown-item { color: #94a3b8; }
+        .user-card.design-c .user-dropdown-item:hover {
+            background: rgba(99, 102, 241, 0.1);
+            color: #f1f5f9;
+        }
+        .user-card.design-c .user-dropdown-item.logout:hover {
+            background: rgba(239, 68, 68, 0.15);
+            color: #f87171;
         }
 
         .nav-item {
@@ -2036,8 +2178,11 @@
 
         <!-- Bottom Section -->
         <div class="sidebar-bottom">
-            <!-- User Card -->
-            <div class="user-card" id="userCard" onclick="toggleUserDropdown()">
+            <!-- User Card (3 designs: design-a, design-b, design-c) -->
+            <div class="user-card design-a" id="userCard" onclick="toggleUserDropdown()">
+                <button class="design-switcher" onclick="cycleUserCardDesign(event)" title="Mudar design (A/B/C)">
+                    <span id="designLabel">A</span>
+                </button>
                 <div class="user-card-header">
                     <div class="user-card-avatar">JD</div>
                     <div class="user-card-info">
@@ -2675,6 +2820,46 @@
         function toggleUserDropdown() {
             const userCard = document.getElementById('userCard');
             userCard.classList.toggle('open');
+        }
+
+        // Cycle through user card designs (A, B, C)
+        const designs = ['design-a', 'design-b', 'design-c'];
+        let currentDesignIndex = 0;
+
+        function cycleUserCardDesign(event) {
+            event.stopPropagation();
+            const userCard = document.getElementById('userCard');
+            const label = document.getElementById('designLabel');
+
+            // Remove current design
+            userCard.classList.remove(designs[currentDesignIndex]);
+
+            // Move to next design
+            currentDesignIndex = (currentDesignIndex + 1) % designs.length;
+
+            // Add new design
+            userCard.classList.add(designs[currentDesignIndex]);
+
+            // Update label
+            label.textContent = ['A', 'B', 'C'][currentDesignIndex];
+
+            // Save preference
+            localStorage.setItem('userCardDesign', designs[currentDesignIndex]);
+        }
+
+        // Restore user card design on load
+        function restoreUserCardDesign() {
+            const savedDesign = localStorage.getItem('userCardDesign');
+            if (savedDesign && designs.includes(savedDesign)) {
+                const userCard = document.getElementById('userCard');
+                const label = document.getElementById('designLabel');
+
+                userCard.classList.remove('design-a', 'design-b', 'design-c');
+                userCard.classList.add(savedDesign);
+
+                currentDesignIndex = designs.indexOf(savedDesign);
+                label.textContent = ['A', 'B', 'C'][currentDesignIndex];
+            }
         }
 
         // Restore sidebar state on load
@@ -3714,6 +3899,7 @@
 
         // Initial load
         restoreSidebarState();
+        restoreUserCardDesign();
         loadDashboard();
         startConsolePolling();
         checkPipelineStatusOnLoad(); // Retomar pipeline se ativa
