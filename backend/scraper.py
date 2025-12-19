@@ -1133,21 +1133,23 @@ class EventScraper:
                     print(f"🆔 Stage 1: Scraping IDs de {tipo_nome} (tipo={tipo_code})...")
                     ids = await self._extract_from_listing(tipo=tipo_code, max_pages=max_pages)
 
-                    # Check stop flag after extraction
-                    if self.stop_requested:
-                        print(f"🛑 Scraping interrompido pelo utilizador")
-                        break
-
+                    # ALWAYS add collected IDs, even if interrupted
                     for item in ids:
                         item['tipo_evento'] = tipo_str
                         item['tipo'] = tipo_str  # Alias para compatibilidade
                     all_ids.extend(ids)
                     totals[tipo_str] = len(ids)
-                    print(f"  ✓ {len(ids)} {tipo_nome} encontrados")
 
-                    # Call progress callback
-                    if on_type_complete:
-                        await on_type_complete(tipo_nome, len(ids), totals.copy())
+                    if len(ids) > 0:
+                        print(f"  ✓ {len(ids)} {tipo_nome} encontrados")
+                        # Call progress callback
+                        if on_type_complete:
+                            await on_type_complete(tipo_nome, len(ids), totals.copy())
+
+                    # Check stop flag AFTER saving the partial results
+                    if self.stop_requested:
+                        print(f"🛑 Scraping interrompido - {len(all_ids)} IDs recolhidos até agora")
+                        break
             else:
                 # Scrape tipo específico
                 if tipo not in TIPO_EVENTO_MAP:
@@ -1156,15 +1158,18 @@ class EventScraper:
                 tipo_nome = TIPO_EVENTO_NAMES[tipo]
                 print(f"🆔 Stage 1: Scraping IDs de {tipo_nome} (tipo={tipo})...")
                 ids = await self._extract_from_listing(tipo=tipo, max_pages=max_pages)
+
+                # ALWAYS add collected IDs, even if interrupted
                 for item in ids:
                     item['tipo_evento'] = tipo_str
                     item['tipo'] = tipo_str
                 all_ids.extend(ids)
                 totals[tipo_str] = len(ids)
 
-                # Call progress callback
-                if on_type_complete:
-                    await on_type_complete(tipo_nome, len(ids), totals.copy())
+                if len(ids) > 0:
+                    # Call progress callback
+                    if on_type_complete:
+                        await on_type_complete(tipo_nome, len(ids), totals.copy())
 
             print(f"✅ Stage 1 completo: {len(all_ids)} IDs recolhidos")
             return all_ids

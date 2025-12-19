@@ -1215,14 +1215,20 @@ async def run_full_pipeline(tipo: Optional[int], max_pages: Optional[int]):
             on_type_complete=on_type_complete
         )
 
-        # Check if stopped during scraping
+        references = [item['reference'] for item in ids_data]
+
+        # Check if stopped during scraping - but still report what we got
         if scraper.stop_requested:
-            add_dashboard_log("🛑 Pipeline interrompida pelo utilizador", "warning")
+            if len(references) > 0:
+                msg = f"🛑 Pipeline interrompida - {len(references)} IDs recolhidos parcialmente"
+                add_dashboard_log(msg, "warning")
+                # Update state to show what we collected
+                await pipeline_state.update(total=len(references), message=msg)
+            else:
+                add_dashboard_log("🛑 Pipeline interrompida pelo utilizador", "warning")
             await pipeline_state.stop()
             scraper.stop_requested = False  # Reset flag
             return
-
-        references = [item['reference'] for item in ids_data]
 
         # Update total after scraping
         await pipeline_state.update(total=len(references), message=f"{len(references)} IDs recolhidos")
