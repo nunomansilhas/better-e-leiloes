@@ -4463,6 +4463,11 @@
                 updatePipelineStage(2, 'pending', 0);
                 updatePipelineStage(3, 'pending', 0);
                 updatePipelineProgress((typesDone / 6) * 33);
+
+                // Display collected IDs in independent scraper section
+                if (details?.ids && details.ids.length > 0) {
+                    displayCollectedIds(details.ids);
+                }
             } else if (stage === 2) {
                 if (countEl) countEl.textContent = `${current} / ${total}`;
                 if (progressBar) progressBar.style.width = total > 0 ? `${(current / total) * 100}%` : '0%';

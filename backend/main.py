@@ -580,6 +580,7 @@ async def scrape_stage1_ids(
     Ideal para descobrir rapidamente o que existe e popular a BD.
     """
     pipeline_state = get_pipeline_state()
+    collected_ids = []  # Store IDs as they're collected
 
     try:
         add_dashboard_log("🔍 STAGE 1: A obter IDs...", "info")
@@ -590,13 +591,33 @@ async def scrape_stage1_ids(
             stage=1,
             stage_name=f"Stage 1 - IDs ({tipo_str})",
             total=0,  # Será atualizado conforme scraping
-            details={"tipo": tipo, "max_pages": max_pages}
+            details={"tipo": tipo, "max_pages": max_pages, "ids": [], "types_done": 0}
         )
 
-        ids = await scraper.scrape_ids_only(tipo=tipo, max_pages=max_pages)
+        # Callback to update pipeline state as each type completes
+        async def on_type_complete(tipo_nome: str, count: int, totals: dict):
+            nonlocal collected_ids
+            types_done = len(totals)
+            total_ids = sum(totals.values())
+            await pipeline_state.update(
+                total=total_ids,
+                message=f"✓ {tipo_nome}: {count} IDs",
+                details={
+                    "types_done": types_done,
+                    "total_ids": total_ids,
+                    "totals_by_type": totals
+                }
+            )
 
-        # Atualizar total após scraping
-        await pipeline_state.update(total=len(ids), message=f"{len(ids)} IDs recolhidos")
+        ids = await scraper.scrape_ids_only(tipo=tipo, max_pages=max_pages, on_type_complete=on_type_complete)
+        collected_ids = ids
+
+        # Store all IDs in pipeline state for frontend access
+        await pipeline_state.update(
+            total=len(ids),
+            message=f"{len(ids)} IDs recolhidos",
+            details={"ids": ids, "total_ids": len(ids)}
+        )
 
         # Guardar na BD se solicitado
         saved_count = 0
