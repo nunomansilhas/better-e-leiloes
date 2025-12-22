@@ -2231,128 +2231,98 @@
             </div>
 
             <div id="dashboard-content">
-                <!-- ========== MANUTENÇÃO DA BASE DE DADOS ========== -->
+                <!-- ========== SCRAPER TOOLS ========== -->
                 <div class="scraper-control-card" style="margin-bottom: 16px;">
                     <!-- Header -->
-                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
-                        <h3 style="font-size: 14px; margin: 0; display: flex; align-items: center; gap: 8px;">
-                            <span style="width: 28px; height: 28px; background: linear-gradient(135deg, #6366f1, #8b5cf6); border-radius: 6px; display: flex; align-items: center; justify-content: center;">🛠️</span>
-                            Manutenção da Base de Dados
-                        </h3>
-                        <button onclick="refreshDbStats()" style="padding: 6px 12px; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px;" title="Atualizar estatísticas">
-                            <span id="db-stats-spinner" style="display: none;">⏳</span>
-                            <span>🔄 Atualizar</span>
-                        </button>
-                    </div>
-
-                    <!-- DB Stats Cards -->
-                    <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 16px;">
-                        <div style="padding: 12px; background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 1px solid #bfdbfe; border-radius: 10px; text-align: center;">
-                            <div id="db-stat-total" style="font-size: 20px; font-weight: 700; color: #1e40af;">-</div>
-                            <div style="font-size: 10px; color: #3b82f6; font-weight: 500; margin-top: 2px;">Total</div>
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 16px;">🔧</span>
+                            <span style="font-weight: 600; color: #1e293b;">Scraper Tools</span>
+                            <button onclick="refreshDbStats()" style="padding: 4px 8px; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 10px; cursor: pointer; color: #64748b;" title="Atualizar estatísticas">
+                                <span id="db-stats-spinner" style="display: none;">⏳</span>🔄
+                            </button>
                         </div>
-                        <div style="padding: 12px; background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border: 1px solid #6ee7b7; border-radius: 10px; text-align: center;">
-                            <div id="db-stat-content" style="font-size: 20px; font-weight: 700; color: #047857;">-</div>
-                            <div style="font-size: 10px; color: #10b981; font-weight: 500; margin-top: 2px;">C/ Conteúdo</div>
-                        </div>
-                        <div style="padding: 12px; background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%); border: 1px solid #fdba74; border-radius: 10px; text-align: center;">
-                            <div id="db-stat-images" style="font-size: 20px; font-weight: 700; color: #c2410c;">-</div>
-                            <div style="font-size: 10px; color: #f97316; font-weight: 500; margin-top: 2px;">C/ Imagens</div>
-                        </div>
-                        <div style="padding: 12px; background: linear-gradient(135deg, #fef2f2 0%, #fecaca 100%); border: 1px solid #fca5a5; border-radius: 10px; text-align: center;">
-                            <div id="db-stat-incomplete" style="font-size: 20px; font-weight: 700; color: #dc2626;">-</div>
-                            <div style="font-size: 10px; color: #ef4444; font-weight: 500; margin-top: 2px;">Incompletos</div>
-                        </div>
-                        <div style="padding: 12px; background: linear-gradient(135deg, #faf5ff 0%, #e9d5ff 100%); border: 1px solid #c4b5fd; border-radius: 10px; text-align: center;">
-                            <div id="db-stat-nulls" style="font-size: 20px; font-weight: 700; color: #7c3aed;">-</div>
-                            <div style="font-size: 10px; color: #8b5cf6; font-weight: 500; margin-top: 2px;">NULL Preço</div>
+                        <!-- Mini Stats -->
+                        <div style="display: flex; gap: 12px; font-size: 11px;">
+                            <span style="color: #1e40af;"><strong id="db-stat-total">-</strong> total</span>
+                            <span style="color: #047857;"><strong id="db-stat-content">-</strong> completos</span>
+                            <span style="color: #dc2626;"><strong id="db-stat-incomplete">-</strong> incompletos</span>
+                            <span style="color: #7c3aed;"><strong id="db-stat-nulls">-</strong> nulls</span>
                         </div>
                     </div>
 
-                    <!-- Actions Grid -->
-                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px;">
+                    <!-- Compact Actions Grid -->
+                    <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 10px;">
                         <!-- Descobrir Novos IDs -->
-                        <button onclick="runIndependentScraper('ids')" class="maintenance-btn" style="padding: 14px 12px; background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 1px solid #bfdbfe; border-radius: 10px; cursor: pointer; text-align: center; transition: all 0.2s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(59,130,246,0.2)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
-                            <div style="font-size: 22px; margin-bottom: 6px;">🔍</div>
-                            <div style="font-size: 12px; font-weight: 600; color: #1e40af;">Descobrir Novos</div>
-                            <div style="font-size: 10px; color: #3b82f6; margin-top: 2px;">Scrape IDs do site</div>
+                        <button onclick="runIndependentScraper('ids')" style="padding: 10px 8px; background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 1px solid #bfdbfe; border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.2s; font-size: 11px;" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 2px 8px rgba(59,130,246,0.15)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
+                            <div style="font-size: 16px; margin-bottom: 4px;">🔍</div>
+                            <div style="font-weight: 600; color: #1e40af;">Descobrir IDs</div>
                         </button>
 
-                        <!-- Completar Conteúdo -->
-                        <button onclick="runIndependentScraper('content')" class="maintenance-btn" style="padding: 14px 12px; background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border: 1px solid #6ee7b7; border-radius: 10px; cursor: pointer; text-align: center; transition: all 0.2s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(16,185,129,0.2)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
-                            <div style="font-size: 22px; margin-bottom: 6px;">📋</div>
-                            <div style="font-size: 12px; font-weight: 600; color: #047857;">Completar Info</div>
-                            <div style="font-size: 10px; color: #10b981; margin-top: 2px;">Detalhes em falta</div>
-                        </button>
-
-                        <!-- Completar Imagens -->
-                        <button onclick="runIndependentScraper('images')" class="maintenance-btn" style="padding: 14px 12px; background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%); border: 1px solid #fdba74; border-radius: 10px; cursor: pointer; text-align: center; transition: all 0.2s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(251,146,60,0.2)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
-                            <div style="font-size: 22px; margin-bottom: 6px;">🖼️</div>
-                            <div style="font-size: 12px; font-weight: 600; color: #c2410c;">Completar Imagens</div>
-                            <div style="font-size: 10px; color: #f97316; margin-top: 2px;">Download de fotos</div>
+                        <!-- Completar Info -->
+                        <button onclick="runIndependentScraper('content')" style="padding: 10px 8px; background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border: 1px solid #6ee7b7; border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.2s; font-size: 11px;" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 2px 8px rgba(16,185,129,0.15)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
+                            <div style="font-size: 16px; margin-bottom: 4px;">📋</div>
+                            <div style="font-weight: 600; color: #047857;">Completar Info</div>
                         </button>
 
                         <!-- Atualizar Preços -->
-                        <button onclick="runUpdatePrices()" class="maintenance-btn" style="padding: 14px 12px; background: linear-gradient(135deg, #fefce8 0%, #fef08a 100%); border: 1px solid #fde047; border-radius: 10px; cursor: pointer; text-align: center; transition: all 0.2s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(234,179,8,0.2)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
-                            <div style="font-size: 22px; margin-bottom: 6px;">💰</div>
-                            <div style="font-size: 12px; font-weight: 600; color: #a16207;">Atualizar Preços</div>
-                            <div style="font-size: 10px; color: #ca8a04; margin-top: 2px;">Re-scrape lances</div>
+                        <button onclick="runUpdatePrices()" style="padding: 10px 8px; background: linear-gradient(135deg, #fefce8 0%, #fef08a 100%); border: 1px solid #fde047; border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.2s; font-size: 11px;" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 2px 8px rgba(234,179,8,0.15)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
+                            <div style="font-size: 16px; margin-bottom: 4px;">💰</div>
+                            <div style="font-weight: 600; color: #a16207;">Preços</div>
                         </button>
 
                         <!-- Corrigir NULLs -->
-                        <button onclick="runFixNulls()" class="maintenance-btn" style="padding: 14px 12px; background: linear-gradient(135deg, #faf5ff 0%, #e9d5ff 100%); border: 1px solid #c4b5fd; border-radius: 10px; cursor: pointer; text-align: center; transition: all 0.2s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(139,92,246,0.2)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
-                            <div style="font-size: 22px; margin-bottom: 6px;">🔧</div>
-                            <div style="font-size: 12px; font-weight: 600; color: #7c3aed;">Corrigir NULLs</div>
-                            <div style="font-size: 10px; color: #8b5cf6; margin-top: 2px;">NULL → 0</div>
+                        <button onclick="runFixNulls()" style="padding: 10px 8px; background: linear-gradient(135deg, #faf5ff 0%, #e9d5ff 100%); border: 1px solid #c4b5fd; border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.2s; font-size: 11px;" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 2px 8px rgba(139,92,246,0.15)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
+                            <div style="font-size: 16px; margin-bottom: 4px;">🔧</div>
+                            <div style="font-weight: 600; color: #7c3aed;">Fix NULLs</div>
                         </button>
 
                         <!-- IDs Específicos -->
-                        <button onclick="document.getElementById('specific-ids-input').focus()" class="maintenance-btn" style="padding: 14px 12px; background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%); border: 1px solid #cbd5e1; border-radius: 10px; cursor: pointer; text-align: center; transition: all 0.2s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(100,116,139,0.2)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
-                            <div style="font-size: 22px; margin-bottom: 6px;">🎯</div>
-                            <div style="font-size: 12px; font-weight: 600; color: #475569;">IDs Específicos</div>
-                            <div style="font-size: 10px; color: #64748b; margin-top: 2px;">Lista personalizada</div>
+                        <button onclick="document.getElementById('specific-ids-section').style.display = document.getElementById('specific-ids-section').style.display === 'none' ? 'block' : 'none'" style="padding: 10px 8px; background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%); border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.2s; font-size: 11px;" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 2px 8px rgba(100,116,139,0.15)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
+                            <div style="font-size: 16px; margin-bottom: 4px;">🎯</div>
+                            <div style="font-weight: 600; color: #475569;">IDs Manual</div>
                         </button>
                     </div>
 
-                    <!-- Specific IDs Input -->
-                    <div style="margin-bottom: 12px;">
-                        <div style="display: flex; gap: 8px; align-items: center;">
-                            <select id="independent-tipo" class="filter-select" style="padding: 10px 12px; font-size: 11px; min-width: 130px; border-radius: 8px;">
-                                <option value="">📦 Todos os Tipos</option>
+                    <!-- Specific IDs Input (collapsible) -->
+                    <div id="specific-ids-section" style="display: none; margin-bottom: 10px; padding: 10px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                        <div style="display: flex; gap: 6px; align-items: center;">
+                            <select id="independent-tipo" class="filter-select" style="padding: 8px 10px; font-size: 11px; min-width: 110px; border-radius: 6px;">
+                                <option value="">Todos</option>
                                 <option value="1">🏠 Imóveis</option>
                                 <option value="2">🚗 Veículos</option>
                                 <option value="3">📜 Direitos</option>
-                                <option value="4">🔧 Equipamentos</option>
-                                <option value="5">🪑 Mobiliário</option>
+                                <option value="4">🔧 Equip.</option>
+                                <option value="5">🪑 Mobil.</option>
                                 <option value="6">⚙️ Máquinas</option>
                             </select>
-                            <input type="text" id="specific-ids-input" placeholder="LO-2024-001, NP-2024-002..." style="flex: 1; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 12px; outline: none; transition: border 0.2s;" onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='#e2e8f0'">
-                            <button onclick="runSpecificIds()" style="padding: 10px 16px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border: none; border-radius: 8px; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s; white-space: nowrap;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform=''">Executar</button>
+                            <input type="text" id="specific-ids-input" placeholder="LO1234562024, NP9876542024..." style="flex: 1; padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 11px; outline: none;" onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='#e2e8f0'">
+                            <button onclick="runSpecificIds()" style="padding: 8px 14px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border: none; border-radius: 6px; font-size: 11px; font-weight: 500; cursor: pointer;">Executar</button>
                         </div>
                     </div>
 
                     <!-- IDs Results Section -->
-                    <div id="ids-results-section" style="display: none; margin-top: 12px;">
-                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 1px solid #86efac; border-radius: 10px 10px 0 0;">
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <span style="font-size: 13px; font-weight: 600; color: #166534;">✓ IDs Recolhidos</span>
-                                <span id="ids-count-badge" style="background: linear-gradient(135deg, #22c55e, #16a34a); color: white; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600;">0</span>
+                    <div id="ids-results-section" style="display: none; margin-bottom: 10px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 1px solid #86efac; border-radius: 8px 8px 0 0;">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span style="font-size: 11px; font-weight: 600; color: #166534;">IDs Recolhidos</span>
+                                <span id="ids-count-badge" style="background: #22c55e; color: white; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600;">0</span>
                             </div>
-                            <div style="display: flex; gap: 6px;">
-                                <button onclick="copyIdsToClipboard()" style="padding: 5px 10px; font-size: 11px; background: white; border: 1px solid #86efac; border-radius: 6px; cursor: pointer; color: #166534; font-weight: 500;">📋 Copiar</button>
-                                <button onclick="clearCollectedIds()" style="padding: 5px 10px; font-size: 11px; background: white; border: 1px solid #fca5a5; border-radius: 6px; cursor: pointer; color: #dc2626; font-weight: 500;">✕</button>
+                            <div style="display: flex; gap: 4px;">
+                                <button onclick="copyIdsToClipboard()" style="padding: 4px 8px; font-size: 10px; background: white; border: 1px solid #86efac; border-radius: 4px; cursor: pointer; color: #166534;">📋</button>
+                                <button onclick="clearCollectedIds()" style="padding: 4px 8px; font-size: 10px; background: white; border: 1px solid #fca5a5; border-radius: 4px; cursor: pointer; color: #dc2626;">✕</button>
                             </div>
                         </div>
-                        <div id="ids-results-list" style="max-height: 180px; overflow-y: auto; background: #fafafa; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 10px 10px; padding: 10px;"></div>
+                        <div id="ids-results-list" style="max-height: 120px; overflow-y: auto; background: #fafafa; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 8px 8px; padding: 8px; font-size: 11px;"></div>
                     </div>
 
                     <!-- Maintenance Progress -->
-                    <div id="maintenance-progress" style="display: none; margin-top: 12px; padding: 12px; background: #f8fafc; border-radius: 10px; border: 1px solid #e2e8f0;">
-                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-                            <span id="maintenance-message" style="font-size: 12px; color: #475569;">A processar...</span>
-                            <span id="maintenance-count" style="font-size: 11px; color: #64748b;">0/0</span>
+                    <div id="maintenance-progress" style="display: none; padding: 10px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                            <span id="maintenance-message" style="font-size: 11px; color: #475569;">A processar...</span>
+                            <span id="maintenance-count" style="font-size: 10px; color: #64748b;">0/0</span>
                         </div>
-                        <div style="height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden;">
+                        <div style="height: 4px; background: #e2e8f0; border-radius: 2px; overflow: hidden;">
                             <div id="maintenance-progress-bar" style="height: 100%; width: 0%; background: linear-gradient(135deg, #6366f1, #8b5cf6); transition: width 0.3s;"></div>
                         </div>
                     </div>
@@ -4054,11 +4024,14 @@
                 const response = await fetch(`${API_BASE}/api/db/stats`);
                 const data = await response.json();
 
-                document.getElementById('db-stat-total').textContent = data.total || 0;
-                document.getElementById('db-stat-content').textContent = data.with_content || 0;
-                document.getElementById('db-stat-images').textContent = data.with_images || 0;
-                document.getElementById('db-stat-incomplete').textContent = data.incomplete || 0;
-                document.getElementById('db-stat-nulls').textContent = data.null_lance_atual || 0;
+                const setEl = (id, val) => {
+                    const el = document.getElementById(id);
+                    if (el) el.textContent = val || 0;
+                };
+                setEl('db-stat-total', data.total);
+                setEl('db-stat-content', data.with_content);
+                setEl('db-stat-incomplete', data.incomplete);
+                setEl('db-stat-nulls', data.null_lance_atual);
 
                 addLog('📊 Estatísticas da BD atualizadas', 'info');
             } catch (e) {
