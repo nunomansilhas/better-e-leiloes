@@ -33,36 +33,22 @@ class AutoPipelinesManager:
     DEFAULT_PIPELINES = {
         "full": PipelineConfig(
             type="full",
-            name="Pipeline Automática Completa",
-            description="Recolhe novos IDs, conteúdos e imagens automaticamente",
+            name="Auto Pipeline",
+            description="Pipeline completa (IDs + API) a cada 8 horas",
             enabled=False,
             interval_hours=8.0  # A cada 8 horas
         ),
-        "prices": PipelineConfig(
-            type="prices",
-            name="Pipeline X-Critical - Preços (< 5 min)",
-            description="Verifica alterações de preços a cada 5 SEGUNDOS para eventos terminando em menos de 5 minutos",
+        "xmonitor": PipelineConfig(
+            type="xmonitor",
+            name="X-Monitor",
+            description="Monitoriza eventos nas próximas 24h - atualiza lance_atual e dataFim",
             enabled=False,
-            interval_hours=5/3600  # A cada 5 segundos
+            interval_hours=5/3600  # Base interval: 5 seconds for critical events
         ),
-        "prices_urgent": PipelineConfig(
-            type="prices_urgent",
-            name="Pipeline X-Urgent - Preços (< 1 hora)",
-            description="Verifica alterações de preços a cada 1 MINUTO para eventos terminando em menos de 1 hora",
-            enabled=False,
-            interval_hours=1/60  # A cada 1 minuto
-        ),
-        "prices_soon": PipelineConfig(
-            type="prices_soon",
-            name="Pipeline X-Soon - Preços (< 24 horas)",
-            description="Verifica alterações de preços a cada 10 MINUTOS para eventos terminando em menos de 24 horas",
-            enabled=False,
-            interval_hours=10/60  # A cada 10 minutos
-        ),
-        "info": PipelineConfig(
-            type="info",
-            name="Pipeline Y - Verificação de Informações",
-            description="Verifica preços e datas de TODOS os eventos a cada 2 horas",
+        "ysync": PipelineConfig(
+            type="ysync",
+            name="Y-Sync",
+            description="Sincroniza novos IDs e marca eventos terminados (ativo=0)",
             enabled=False,
             interval_hours=2.0  # A cada 2 horas
         )
@@ -216,10 +202,21 @@ class AutoPipelinesManager:
 
     def get_status(self) -> Dict[str, Any]:
         """Get status of all pipelines"""
+        # Calculate X-Monitor stats from cached events
+        critical_count = len(self._critical_events_cache) if self._critical_events_cache else 0
+        urgent_count = len(self._urgent_events_cache) if self._urgent_events_cache else 0
+        soon_count = len(self._soon_events_cache) if self._soon_events_cache else 0
+
         return {
             "pipelines": {k: asdict(v) for k, v in self.pipelines.items()},
             "total": len(self.pipelines),
-            "enabled": sum(1 for p in self.pipelines.values() if p.enabled)
+            "enabled": sum(1 for p in self.pipelines.values() if p.enabled),
+            "xmonitor_stats": {
+                "total": critical_count + urgent_count + soon_count,
+                "critical": critical_count,
+                "urgent": urgent_count,
+                "soon": soon_count
+            }
         }
 
     async def toggle_pipeline(self, pipeline_type: str, enabled: bool, scheduler=None) -> Dict[str, Any]:
@@ -1038,9 +1035,238 @@ class AutoPipelinesManager:
                 # Reschedule next run after completion
                 self._reschedule_pipeline('prices_soon')
 
+        async def run_xmonitor_pipeline():
+            """X-Monitor: Unified monitoring of events in next 24h with tiered intervals"""
+            from scraper import EventScraper
+            from database import get_db
+            from cache import CacheManager
+            from pipeline_state import get_pipeline_state
+
+            # Skip if main pipeline is running
+            main_pipeline = get_pipeline_state()
+            if main_pipeline.is_active:
+                print(f"⏸️ X-Monitor skipped - main pipeline is running")
+                return
+
+            # Mark as running
+            self.pipelines['xmonitor'].is_running = True
+
+            # Refresh all caches
+            now = datetime.now()
+            await self.refresh_critical_events_cache()
+            await self.refresh_urgent_events_cache()
+            await self.refresh_soon_events_cache()
+
+            # Collect all events to process with their tier
+            events_to_process = []
+
+            # Critical tier: < 5 min (process every 5 seconds)
+            for event in self._critical_events_cache or []:
+                if event.dataFim:
+                    seconds = (event.dataFim - now).total_seconds()
+                    if 0 < seconds <= 300:
+                        events_to_process.append({'event': event, 'tier': 'critical', 'seconds': seconds})
+
+            # Urgent tier: < 1 hour (process every 1 minute)
+            for event in self._urgent_events_cache or []:
+                if event.dataFim:
+                    seconds = (event.dataFim - now).total_seconds()
+                    if 300 < seconds <= 3600:
+                        events_to_process.append({'event': event, 'tier': 'urgent', 'seconds': seconds})
+
+            # Soon tier: < 24 hours (process every 10 minutes)
+            for event in self._soon_events_cache or []:
+                if event.dataFim:
+                    seconds = (event.dataFim - now).total_seconds()
+                    if 3600 < seconds <= 86400:
+                        events_to_process.append({'event': event, 'tier': 'soon', 'seconds': seconds})
+
+            if not events_to_process:
+                print(f"🔴 X-Monitor: No events in next 24h to monitor")
+                self.pipelines['xmonitor'].is_running = False
+                return
+
+            # Sort by urgency
+            events_to_process.sort(key=lambda x: x['seconds'])
+
+            print(f"🔴 X-Monitor: {len(events_to_process)} events (🔴{len([e for e in events_to_process if e['tier']=='critical'])} 🟠{len([e for e in events_to_process if e['tier']=='urgent'])} 🟡{len([e for e in events_to_process if e['tier']=='soon'])})")
+
+            scraper = EventScraper()
+            cache_manager = CacheManager()
+
+            try:
+                updated_count = 0
+
+                for item in events_to_process:
+                    event = item['event']
+                    tier = item['tier']
+                    seconds = item['seconds']
+
+                    tier_emoji = {'critical': '🔴', 'urgent': '🟠', 'soon': '🟡'}[tier]
+
+                    try:
+                        # Use API to get volatile data (lance_atual, dataFim)
+                        volatile_data = await scraper.scrape_volatile_by_ids([event.reference])
+
+                        if volatile_data and len(volatile_data) > 0:
+                            data = volatile_data[0]
+                            old_price = event.valores.lanceAtual if hasattr(event, 'valores') else event.lance_atual
+                            new_price = data.get('lanceAtual') or data.get('lance_atual')
+                            old_end = event.dataFim if hasattr(event, 'dataFim') else event.data_fim
+                            new_end = data.get('dataFim') or data.get('data_fim')
+
+                            price_changed = new_price is not None and old_price != new_price
+                            time_extended = new_end and old_end and new_end > old_end
+
+                            if price_changed or time_extended:
+                                # Update database
+                                if hasattr(event, 'valores'):
+                                    if price_changed:
+                                        event.valores.lanceAtual = new_price
+                                    if time_extended:
+                                        event.dataFim = new_end
+                                else:
+                                    if price_changed:
+                                        event.lance_atual = new_price
+                                    if time_extended:
+                                        event.data_fim = new_end
+
+                                async with get_db() as db:
+                                    await db.save_event(event)
+                                    await cache_manager.set(event.reference, event)
+
+                                mins = int(seconds / 60)
+                                secs = int(seconds % 60)
+                                print(f"    {tier_emoji} {event.reference}: {old_price or 0}€ → {new_price}€ ({mins}m{secs}s)")
+                                updated_count += 1
+
+                    except Exception as e:
+                        print(f"    ⚠️ Error {event.reference}: {e}")
+
+                if updated_count > 0:
+                    print(f"  ✅ X-Monitor: {updated_count} events updated")
+
+                # Update pipeline stats
+                pipeline = self.pipelines['xmonitor']
+                now = datetime.now()
+                pipeline.last_run = now.strftime("%Y-%m-%d %H:%M:%S")
+                pipeline.runs_count += 1
+                pipeline.next_run = (now + timedelta(hours=pipeline.interval_hours)).strftime("%Y-%m-%d %H:%M:%S")
+                self._save_config()
+
+            finally:
+                await scraper.close()
+                await cache_manager.close()
+                self.pipelines['xmonitor'].is_running = False
+                self._reschedule_pipeline('xmonitor')
+
+        async def run_ysync_pipeline():
+            """Y-Sync: Discover new IDs and mark terminated events"""
+            from scraper import EventScraper
+            from database import get_db
+            from cache import CacheManager
+            from pipeline_state import get_pipeline_state
+
+            # Skip if main pipeline is running
+            main_pipeline = get_pipeline_state()
+            if main_pipeline.is_active:
+                print(f"⏸️ Y-Sync skipped - main pipeline is running")
+                return
+
+            # Mark as running
+            self.pipelines['ysync'].is_running = True
+            self._save_config()
+
+            print(f"🔄 Y-Sync: Starting synchronization...")
+
+            scraper = EventScraper()
+            cache_manager = CacheManager()
+
+            try:
+                new_ids_count = 0
+                terminated_count = 0
+
+                # Stage 1: Discover new IDs from website
+                print(f"  🔍 Stage 1: Discovering new IDs...")
+                ids = await scraper.scrape_ids_only(tipo=None, max_pages=3)
+
+                if ids:
+                    async with get_db() as db:
+                        for item in ids:
+                            existing = await db.get_event(item['reference'])
+                            if not existing:
+                                # New event - use API to get full data
+                                try:
+                                    events = await scraper.scrape_details_by_ids([item['reference']])
+                                    if events and len(events) > 0:
+                                        await db.save_event(events[0])
+                                        await cache_manager.set(item['reference'], events[0])
+                                        new_ids_count += 1
+                                        print(f"    ✅ New: {item['reference']}")
+                                except Exception as e:
+                                    print(f"    ⚠️ Error scraping {item['reference']}: {e}")
+
+                print(f"  📊 Stage 1: {new_ids_count} new events discovered")
+
+                # Stage 2: Check for terminated events using API
+                print(f"  🔄 Stage 2: Checking for terminated events...")
+                async with get_db() as db:
+                    # Get active events
+                    events, total = await db.list_events(limit=500, cancelado=False)
+
+                    for event in events:
+                        try:
+                            # Check API for terminado status
+                            api_data = await scraper.scrape_details_by_ids([event.reference])
+
+                            if api_data and len(api_data) > 0:
+                                api_event = api_data[0]
+                                # Check if event is terminated
+                                is_terminated = getattr(api_event, 'terminado', None)
+
+                                if is_terminated:
+                                    # Mark as inactive
+                                    if hasattr(event, 'ativo'):
+                                        event.ativo = False
+                                    if hasattr(event, 'cancelado'):
+                                        event.cancelado = True
+                                    await db.save_event(event)
+                                    await cache_manager.set(event.reference, event)
+                                    terminated_count += 1
+                                    print(f"    🔴 Terminated: {event.reference}")
+
+                        except Exception as e:
+                            # If API returns 404 or similar, event is likely terminated
+                            if "404" in str(e) or "not found" in str(e).lower():
+                                if hasattr(event, 'ativo'):
+                                    event.ativo = False
+                                await db.save_event(event)
+                                terminated_count += 1
+                                print(f"    🔴 Not found: {event.reference}")
+
+                print(f"  ✅ Y-Sync complete: {new_ids_count} new, {terminated_count} terminated")
+
+                # Update pipeline stats
+                pipeline = self.pipelines['ysync']
+                now = datetime.now()
+                pipeline.last_run = now.strftime("%Y-%m-%d %H:%M:%S")
+                pipeline.runs_count += 1
+                pipeline.next_run = (now + timedelta(hours=pipeline.interval_hours)).strftime("%Y-%m-%d %H:%M:%S")
+                self._save_config()
+
+            finally:
+                await scraper.close()
+                await cache_manager.close()
+                self.pipelines['ysync'].is_running = False
+                self._save_config()
+                self._reschedule_pipeline('ysync')
+
         # Return the appropriate function
         tasks = {
             "full": run_full_pipeline,
+            "xmonitor": run_xmonitor_pipeline,
+            "ysync": run_ysync_pipeline,
+            # Legacy support
             "prices": run_prices_pipeline,
             "prices_urgent": run_prices_urgent_pipeline,
             "prices_soon": run_prices_soon_pipeline,
