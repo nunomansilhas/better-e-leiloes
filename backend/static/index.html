@@ -2354,8 +2354,8 @@
                                 </label>
                             </div>
                             <div style="font-size: 10px; color: #64748b; line-height: 1.4;">
-                                <div>⏱️ A cada <strong>8 horas</strong></div>
                                 <div>📦 Pipeline completa (IDs + API)</div>
+                                <div id="pipeline-timer-full" style="margin-top: 4px; font-weight: 600; color: #059669;">⏱️ --:--:--</div>
                             </div>
                         </div>
 
@@ -2373,12 +2373,12 @@
                                 </label>
                             </div>
                             <div style="font-size: 10px; color: #7f1d1d; line-height: 1.4;">
-                                <div>📊 Eventos próximas <strong>24h</strong></div>
-                                <div style="display: flex; gap: 8px; margin-top: 4px;">
+                                <div style="display: flex; gap: 8px;">
                                     <span title="< 5min: cada 5s">🔴 <span id="x-critical-count">0</span></span>
                                     <span title="< 1h: cada 1min">🟠 <span id="x-urgent-count">0</span></span>
                                     <span title="< 24h: cada 10min">🟡 <span id="x-soon-count">0</span></span>
                                 </div>
+                                <div id="pipeline-timer-xmonitor" style="margin-top: 4px; font-weight: 600; color: #dc2626;">⏱️ --:--</div>
                             </div>
                         </div>
 
@@ -2395,8 +2395,8 @@
                                 </label>
                             </div>
                             <div style="font-size: 10px; color: #1e3a8a; line-height: 1.4;">
-                                <div>⏱️ A cada <strong>2 horas</strong></div>
                                 <div>🔍 Novos IDs + Terminados</div>
+                                <div id="pipeline-timer-ysync" style="margin-top: 4px; font-weight: 600; color: #1e40af;">⏱️ --:--:--</div>
                             </div>
                         </div>
                     </div>
@@ -4833,17 +4833,90 @@
             }
         }
 
+        // Pipeline countdown timers storage
+        let pipelineNextRuns = {};
+        let pipelineCountdownInterval = null;
+
+        function formatCountdown(seconds) {
+            if (seconds <= 0) return '🔄 A executar...';
+
+            const hours = Math.floor(seconds / 3600);
+            const mins = Math.floor((seconds % 3600) / 60);
+            const secs = Math.floor(seconds % 60);
+
+            if (hours > 0) {
+                return `⏱️ ${hours}h ${mins.toString().padStart(2, '0')}m ${secs.toString().padStart(2, '0')}s`;
+            } else if (mins > 0) {
+                return `⏱️ ${mins}m ${secs.toString().padStart(2, '0')}s`;
+            } else {
+                return `⏱️ ${secs}s`;
+            }
+        }
+
+        function updatePipelineTimers() {
+            const now = new Date();
+
+            for (const [type, nextRunStr] of Object.entries(pipelineNextRuns)) {
+                const timerEl = document.getElementById(`pipeline-timer-${type}`);
+                if (!timerEl) continue;
+
+                const checkbox = document.getElementById(`auto-pipeline-${type}`);
+                const isEnabled = checkbox && checkbox.checked;
+
+                if (!isEnabled) {
+                    timerEl.textContent = '⏸️ Desativada';
+                    timerEl.style.color = '#94a3b8';
+                    continue;
+                }
+
+                if (!nextRunStr) {
+                    timerEl.textContent = '⏱️ A aguardar...';
+                    continue;
+                }
+
+                const nextRun = new Date(nextRunStr);
+                const diffSeconds = (nextRun - now) / 1000;
+
+                if (diffSeconds <= 0) {
+                    timerEl.textContent = '🔄 A executar...';
+                    timerEl.style.color = '#f59e0b';
+                } else {
+                    timerEl.textContent = formatCountdown(diffSeconds);
+                    // Reset color based on pipeline type
+                    if (type === 'full') timerEl.style.color = '#059669';
+                    else if (type === 'xmonitor') timerEl.style.color = '#dc2626';
+                    else if (type === 'ysync') timerEl.style.color = '#1e40af';
+                }
+            }
+        }
+
+        // Start countdown timer interval
+        function startPipelineCountdowns() {
+            if (pipelineCountdownInterval) clearInterval(pipelineCountdownInterval);
+            pipelineCountdownInterval = setInterval(updatePipelineTimers, 1000);
+        }
+
         async function loadAutoPipelinesStatus() {
             try {
                 const response = await fetch(`${API_BASE}/api/auto-pipelines/status`);
                 if (response.ok) {
                     const data = await response.json();
 
-                    // Update UI with current status
+                    // Update UI with current status and store next_run times
                     for (const [type, config] of Object.entries(data.pipelines || {})) {
                         const checkbox = document.getElementById(`auto-pipeline-${type}`);
                         if (checkbox) {
                             checkbox.checked = config.enabled;
+                        }
+
+                        // Store next_run for countdown timer
+                        pipelineNextRuns[type] = config.next_run;
+
+                        // If pipeline is running, show running state
+                        const timerEl = document.getElementById(`pipeline-timer-${type}`);
+                        if (timerEl && config.is_running) {
+                            timerEl.textContent = '🔄 A executar...';
+                            timerEl.style.color = '#f59e0b';
                         }
                     }
 
@@ -4859,11 +4932,17 @@
                         setCount('x-urgent-count', stats.urgent);
                         setCount('x-soon-count', stats.soon);
                     }
+
+                    // Update timers immediately
+                    updatePipelineTimers();
                 }
             } catch (error) {
                 console.error('Erro ao carregar status das pipelines automáticas:', error);
             }
         }
+
+        // Start countdown timers
+        startPipelineCountdowns();
 
         // Poll pipeline status every 3 seconds to update "is_running" state
         setInterval(loadAutoPipelinesStatus, 3000);

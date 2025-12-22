@@ -311,6 +311,10 @@ class AutoPipelinesManager:
         # Schedule next run after interval_hours from NOW (after completion)
         next_run = datetime.now() + timedelta(hours=pipeline.interval_hours)
 
+        # Update pipeline.next_run for API/UI display
+        pipeline.next_run = next_run.strftime("%Y-%m-%d %H:%M:%S")
+        self._save_config()
+
         try:
             # Remove old job and add new one with updated time
             try:
