@@ -1590,6 +1590,228 @@ async def run_full_pipeline(tipo: Optional[int], max_pages: Optional[int]):
         await pipeline_state.stop()
 
 
+# ============== API-BASED PIPELINE (FAST!) ==============
+
+@app.post("/api/pipeline/api")
+async def start_api_pipeline(
+    background_tasks: BackgroundTasks,
+    tipo: Optional[int] = Query(None, description="1=Imóveis, 2=Veículos, etc."),
+    max_pages: Optional[int] = Query(None, description="Limite de páginas por tipo")
+):
+    """
+    Pipeline RÁPIDO usando a API oficial do e-leiloes.pt!
+
+    Diferenças do pipeline normal:
+    - Stage 2+3 combinados: API retorna detalhes E imagens num só request
+    - ~5x mais rápido que HTML scraping
+    - Dados mais completos e estruturados
+    """
+    if scraper.is_running:
+        raise HTTPException(status_code=409, detail="Scraper já em execução")
+
+    background_tasks.add_task(run_api_pipeline, tipo, max_pages)
+
+    return {
+        "message": "🚀 API Pipeline iniciado!",
+        "tipo": tipo,
+        "max_pages": max_pages,
+        "mode": "api"
+    }
+
+
+async def run_api_pipeline(tipo: Optional[int], max_pages: Optional[int]):
+    """
+    Pipeline RÁPIDO usando a API oficial do e-leiloes.pt!
+
+    Stage 1: Scrape IDs das listagens (igual ao pipeline normal)
+    Stage 2: Usa API para obter TUDO (detalhes + imagens) - SEM Stage 3!
+    """
+    pipeline_state = get_pipeline_state()
+
+    try:
+        # CRITICAL: Clean pipeline state at start
+        await pipeline_state.stop()
+
+        msg = f"🚀 Iniciando API Pipeline (tipo={tipo}, max_pages={max_pages})..."
+        print(msg)
+        add_dashboard_log(msg, "info")
+        add_dashboard_log("💡 Usando API oficial - muito mais rápido!", "info")
+
+        # ===== STAGE 1: Scrape IDs (igual ao pipeline normal) =====
+        tipo_str = "Imóveis" if tipo == 1 else "Veículos" if tipo == 2 else "Todos"
+        await pipeline_state.start(
+            stage=1,
+            stage_name=f"Stage 1 - IDs ({tipo_str})",
+            total=6 if tipo is None else 1,
+            details={"tipo": tipo, "max_pages": max_pages, "mode": "api"}
+        )
+
+        await pipeline_state.update(
+            current=0,
+            total=0,
+            message="Total: 0",
+            details={"types_done": 0, "total_ids": 0, "breakdown": {}}
+        )
+
+        add_dashboard_log("🔍 STAGE 1: SCRAPING IDs", "info")
+
+        type_counter = {"count": 0}
+
+        async def on_type_complete(tipo_nome: str, count: int, totals: dict):
+            type_counter["count"] += 1
+            total_ids = sum(totals.values())
+
+            totals_parts = [f"Total: {total_ids}"]
+            tipo_names_map = {
+                "imoveis": "Imóveis",
+                "veiculos": "Veículos",
+                "direitos": "Direitos",
+                "equipamentos": "Equipamentos",
+                "mobiliario": "Mobiliário",
+                "maquinas": "Máquinas"
+            }
+            for tipo_key, tipo_count in totals.items():
+                display_name = tipo_names_map.get(tipo_key, tipo_key)
+                totals_parts.append(f"{display_name}: {tipo_count}")
+
+            msg = " | ".join(totals_parts)
+            add_dashboard_log(f"✓ {tipo_nome}: {count} IDs | {msg}", "info")
+
+            await pipeline_state.update(
+                current=total_ids,
+                total=total_ids,
+                message=msg,
+                details={"types_done": type_counter["count"], "total_ids": total_ids, "breakdown": totals}
+            )
+
+        if scraper.stop_requested:
+            add_dashboard_log("🛑 Pipeline cancelada antes de iniciar", "warning")
+            await pipeline_state.stop()
+            return
+
+        ids_data = await scraper.scrape_ids_only(
+            tipo=tipo,
+            max_pages=max_pages,
+            on_type_complete=on_type_complete
+        )
+
+        references = [item['reference'] for item in ids_data]
+        tipo_map = {item['reference']: item.get('tipo_evento', 'imoveis') for item in ids_data}
+
+        # Inserir IDs na BD imediatamente
+        new_count = 0
+        async with get_db() as db:
+            for item in ids_data:
+                ref = item['reference']
+                tipo_ev = item.get('tipo_evento', 'imovel')
+                was_new = await db.insert_event_stub(ref, tipo_ev)
+                if was_new:
+                    new_count += 1
+
+        add_dashboard_log(f"💾 {new_count} novos IDs inseridos na BD ({len(references) - new_count} já existiam)", "info")
+
+        if scraper.stop_requested:
+            if len(references) > 0:
+                msg = f"🛑 Pipeline interrompida - {len(references)} IDs recolhidos parcialmente"
+                add_dashboard_log(msg, "warning")
+                await pipeline_state.update(total=len(references), message=msg)
+            else:
+                add_dashboard_log("🛑 Pipeline interrompida pelo utilizador", "warning")
+            await pipeline_state.stop()
+            scraper.stop_requested = False
+            return
+
+        await pipeline_state.update(total=len(references), message=f"{len(references)} IDs recolhidos")
+        await pipeline_state.complete(message=f"✅ Stage 1: {len(references)} IDs recolhidos")
+
+        msg = f"✅ Stage 1: {len(references)} IDs recolhidos"
+        print(msg)
+        add_dashboard_log(msg, "success")
+
+        if not references:
+            msg = "⚠️ Nenhum ID encontrado. Pipeline terminado."
+            print(msg)
+            add_dashboard_log(msg, "warning")
+            await asyncio.sleep(2)
+            await pipeline_state.stop()
+            return
+
+        # ===== STAGE 2: API Scraping (Detalhes + Imagens em um só!) =====
+        if scraper.stop_requested:
+            add_dashboard_log("🛑 Pipeline interrompida pelo utilizador", "warning")
+            await pipeline_state.stop()
+            scraper.stop_requested = False
+            return
+
+        await pipeline_state.start(
+            stage=2,
+            stage_name="Stage 2 - API (Detalhes + Imagens)",
+            total=len(references),
+            details={"save_to_db": True, "mode": "api"}
+        )
+
+        add_dashboard_log("🚀 STAGE 2: API SCRAPING (detalhes + imagens)", "info")
+
+        scraped_count = 0
+        success_count = 0
+
+        async def on_progress(current: int, total: int, ref: str):
+            nonlocal scraped_count
+            scraped_count = current
+            await pipeline_state.update(
+                current=current,
+                message=f"🚀 API: {current}/{total} - {ref}"
+            )
+
+        # Use API-based scraping - gets EVERYTHING in one call!
+        events = await scraper.scrape_details_via_api(references, on_progress)
+
+        if scraper.stop_requested:
+            add_dashboard_log("🛑 Pipeline interrompida pelo utilizador", "warning")
+            await pipeline_state.stop()
+            scraper.stop_requested = False
+            return
+
+        # Save all events to database
+        add_dashboard_log(f"💾 Guardando {len(events)} eventos na BD...", "info")
+        async with get_db() as db:
+            for event in events:
+                try:
+                    await db.save_event(event)
+                    await cache_manager.set(event.reference, event)
+                    success_count += 1
+                except Exception as e:
+                    add_dashboard_log(f"⚠️ Erro ao guardar {event.reference}: {e}", "warning")
+
+        # Count images
+        total_images = sum(len(event.imagens) for event in events)
+
+        await pipeline_state.complete(
+            message=f"✅ Stage 2: {success_count} eventos + {total_images} imagens"
+        )
+
+        msg = f"✅ Stage 2: {success_count} eventos processados com {total_images} imagens"
+        print(msg)
+        add_dashboard_log(msg, "success")
+
+        # Final message - NO Stage 3 needed!
+        msg = f"🎉 API PIPELINE COMPLETO! IDs: {len(references)} | Eventos: {success_count} | Imagens: {total_images}"
+        print(msg)
+        add_dashboard_log(msg, "success")
+        add_dashboard_log("💡 Sem Stage 3 - API já incluiu as imagens!", "info")
+
+        await asyncio.sleep(3)
+        await pipeline_state.stop()
+
+    except Exception as e:
+        msg = f"❌ Erro no API pipeline: {e}"
+        print(msg)
+        add_dashboard_log(msg, "error")
+        await pipeline_state.add_error(msg)
+        await asyncio.sleep(2)
+        await pipeline_state.stop()
+
+
 # ============== SSE & STREAMING ENDPOINTS ==============
 
 @app.get("/api/events/stream")

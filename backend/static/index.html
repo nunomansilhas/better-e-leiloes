@@ -2434,6 +2434,16 @@
 
                 <!-- Pipeline Completo - Stepper Minimalista -->
                 <div class="scraper-control-card" style="margin-top: 16px;">
+                    <!-- Pipeline Mode Selector -->
+                    <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                        <button id="btn-mode-normal" onclick="selectPipelineMode('normal')" style="flex: 1; padding: 8px 12px; border: 2px solid #e2e8f0; border-radius: 8px; background: white; cursor: pointer; font-size: 12px; font-weight: 500; color: #64748b; transition: all 0.2s;">
+                            🐢 Normal (3 Stages)
+                        </button>
+                        <button id="btn-mode-api" onclick="selectPipelineMode('api')" style="flex: 1; padding: 8px 12px; border: 2px solid #10b981; border-radius: 8px; background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); cursor: pointer; font-size: 12px; font-weight: 600; color: #047857; transition: all 0.2s;">
+                            🚀 API (2 Stages - RÁPIDO!)
+                        </button>
+                    </div>
+
                     <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
                         <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
                             <!-- Step 1 -->
@@ -2446,12 +2456,12 @@
                             <!-- Step 2 -->
                             <div style="display: flex; align-items: center; gap: 6px;">
                                 <div id="stage2-circle" style="width: 28px; height: 28px; border-radius: 50%; background: #f1f5f9; color: #94a3b8; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; transition: all 0.3s ease;">2</div>
-                                <span style="font-size: 13px; font-weight: 500; color: #64748b;">Content</span>
+                                <span id="stage2-label" style="font-size: 13px; font-weight: 500; color: #64748b;">Content</span>
                                 <span id="stage2-count" style="font-size: 11px; color: #94a3b8; font-weight: 600;"></span>
                             </div>
                             <div id="pipeline-line2" style="flex: 1; height: 2px; background: #e2e8f0; border-radius: 1px; transition: background 0.3s ease;"></div>
-                            <!-- Step 3 -->
-                            <div style="display: flex; align-items: center; gap: 6px;">
+                            <!-- Step 3 (hidden in API mode) -->
+                            <div id="stage3-container" style="display: flex; align-items: center; gap: 6px;">
                                 <div id="stage3-circle" style="width: 28px; height: 28px; border-radius: 50%; background: #f1f5f9; color: #94a3b8; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; transition: all 0.3s ease;">3</div>
                                 <span style="font-size: 13px; font-weight: 500; color: #64748b;">Images</span>
                                 <span id="stage3-count" style="font-size: 11px; color: #94a3b8; font-weight: 600;"></span>
@@ -2784,6 +2794,56 @@
         // Manual Pipeline control variables
         let pipelineRunning = false;
         let pipelineAbortController = null;
+        let pipelineMode = 'api'; // 'normal' or 'api' - default to API (faster!)
+
+        // Pipeline Mode Selection
+        function selectPipelineMode(mode) {
+            pipelineMode = mode;
+
+            const btnNormal = document.getElementById('btn-mode-normal');
+            const btnApi = document.getElementById('btn-mode-api');
+            const stage3Container = document.getElementById('stage3-container');
+            const pipelineLine2 = document.getElementById('pipeline-line2');
+            const stage2Label = document.getElementById('stage2-label');
+
+            if (mode === 'api') {
+                // API mode - 2 stages only
+                btnApi.style.border = '2px solid #10b981';
+                btnApi.style.background = 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)';
+                btnApi.style.color = '#047857';
+                btnApi.style.fontWeight = '600';
+
+                btnNormal.style.border = '2px solid #e2e8f0';
+                btnNormal.style.background = 'white';
+                btnNormal.style.color = '#64748b';
+                btnNormal.style.fontWeight = '500';
+
+                // Hide Stage 3
+                if (stage3Container) stage3Container.style.display = 'none';
+                if (pipelineLine2) pipelineLine2.style.display = 'none';
+                if (stage2Label) stage2Label.textContent = 'API (All)';
+
+                addLog('🚀 Modo API selecionado - 2 stages, mais rápido!', 'info');
+            } else {
+                // Normal mode - 3 stages
+                btnNormal.style.border = '2px solid #3b82f6';
+                btnNormal.style.background = 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)';
+                btnNormal.style.color = '#1e40af';
+                btnNormal.style.fontWeight = '600';
+
+                btnApi.style.border = '2px solid #e2e8f0';
+                btnApi.style.background = 'white';
+                btnApi.style.color = '#64748b';
+                btnApi.style.fontWeight = '500';
+
+                // Show Stage 3
+                if (stage3Container) stage3Container.style.display = 'flex';
+                if (pipelineLine2) pipelineLine2.style.display = 'block';
+                if (stage2Label) stage2Label.textContent = 'Content';
+
+                addLog('🐢 Modo Normal selecionado - 3 stages, HTML scraping', 'info');
+            }
+        }
 
         // Sidebar Lock
         function toggleSidebarLock() {
@@ -4437,12 +4497,15 @@
                 btn.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
                 btn.style.color = 'white';
 
-                addLog('🚀 Pipeline: Iniciando pipeline completo...', 'info');
+                const modeLabel = pipelineMode === 'api' ? '🚀 API Pipeline' : '🐢 Normal Pipeline';
+                addLog(`${modeLabel}: Iniciando...`, 'info');
 
                 // Reset pipeline visualization
                 updatePipelineStage(1, 'active', 0);
                 updatePipelineStage(2, 'pending', 0);
-                updatePipelineStage(3, 'pending', 0);
+                if (pipelineMode === 'normal') {
+                    updatePipelineStage(3, 'pending', 0);
+                }
                 updatePipelineProgress(0);
 
                 // Show feedback box
@@ -4452,8 +4515,13 @@
                     updateFeedback('A iniciar pipeline...', 0, 0);
                 }
 
-                // Build URL
-                let url = `${API_BASE}/api/scrape/pipeline?`;
+                // Build URL based on mode
+                let url;
+                if (pipelineMode === 'api') {
+                    url = `${API_BASE}/api/pipeline/api?`;
+                } else {
+                    url = `${API_BASE}/api/scrape/pipeline?`;
+                }
                 if (tipo) url += `tipo=${tipo}&`;
                 if (pages) url += `max_pages=${pages}`;
 
