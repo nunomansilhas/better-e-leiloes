@@ -814,6 +814,79 @@ async def scrape_stage2_details(
         raise HTTPException(status_code=500, detail=msg)
 
 
+@app.post("/api/scrape/stage2/api")
+async def scrape_stage2_via_api(
+    references: List[str] = Query(..., description="Lista de referências para scrape"),
+    save_to_db: bool = Query(True, description="Guardar na base de dados")
+):
+    """
+    STAGE 2 VIA API: Scrape detalhes usando a API interna do e-leiloes.pt (MUITO MAIS RÁPIDO!)
+
+    Esta versão usa a API descoberta em /api/eventos/{reference} que retorna
+    dados JSON estruturados, eliminando a necessidade de parsing HTML.
+
+    - **references**: Lista de referências (ex: ["LO-2024-001", "NP-2024-002"])
+    - **save_to_db**: Se True, guarda eventos na BD em tempo real
+
+    Retorna eventos com todos os detalhes incluindo imagens (URLs já inclusas na API).
+    """
+    pipeline_state = get_pipeline_state()
+    scraped_count = 0
+
+    try:
+        # Iniciar pipeline state
+        await pipeline_state.start(
+            stage=2,
+            stage_name="Stage 2 - API (Fast!)",
+            total=len(references),
+            details={"save_to_db": save_to_db, "mode": "api"}
+        )
+
+        # Progress callback
+        async def on_progress(current, total, ref):
+            nonlocal scraped_count
+            scraped_count = current
+            await pipeline_state.update(
+                current=current,
+                message=f"🚀 API: {current}/{total} - {ref}"
+            )
+
+        # Use API-based scraping
+        events = await scraper.scrape_details_via_api(references, on_progress)
+
+        # Save to DB if requested
+        if save_to_db:
+            async with get_db() as db:
+                for event in events:
+                    await db.save_event(event)
+                    await cache_manager.set(event.reference, event)
+
+        # Mark as complete
+        await pipeline_state.complete(
+            message=f"✅ {len(events)} eventos via API{' e guardados' if save_to_db else ''}"
+        )
+
+        # Small delay for UI
+        await asyncio.sleep(1)
+        await pipeline_state.stop()
+
+        return {
+            "stage": 2,
+            "mode": "api",
+            "total_requested": len(references),
+            "total_scraped": len(events),
+            "events": [event.model_dump() for event in events],
+            "saved_to_db": save_to_db,
+            "message": f"Stage 2 (API) completo: {len(events)} eventos processados {'e guardados' if save_to_db else ''}"
+        }
+
+    except Exception as e:
+        msg = f"Erro no Stage 2 (API): {str(e)}"
+        await pipeline_state.add_error(msg)
+        await pipeline_state.stop()
+        raise HTTPException(status_code=500, detail=msg)
+
+
 @app.post("/api/scrape/stage3/images")
 async def scrape_stage3_images(
     references: List[str] = Query(..., description="Lista de referências para scrape"),
@@ -1142,7 +1215,7 @@ async def get_events_without_images():
 async def update_prices_batch(background_tasks: BackgroundTasks):
     """
     Trigger price update for all events.
-    Uses scraper.scrape_prices() to get current prices from the website.
+    Uses the discovered e-leiloes.pt API for fast price updates!
     """
     if scraper.is_running:
         raise HTTPException(status_code=409, detail="Scraper já em execução")
@@ -1150,20 +1223,31 @@ async def update_prices_batch(background_tasks: BackgroundTasks):
     async def update_prices_task():
         pipeline_state = get_pipeline_state()
         try:
-            add_dashboard_log("Iniciando atualização de preços...", "info")
+            add_dashboard_log("💰 Iniciando atualização de preços via API...", "info")
 
             async with get_db() as db:
                 # Get all references
                 refs = await db.get_all_references()
 
+            if not refs:
+                add_dashboard_log("⚠️ Nenhum evento na BD para atualizar", "warning")
+                return
+
             await pipeline_state.start(
                 stage=0,
-                stage_name="Atualizar Preços",
+                stage_name="Atualizar Preços (API)",
                 total=len(refs)
             )
 
-            # Scrape prices in batches
-            results = await scraper.scrape_prices(refs)
+            # Progress callback
+            async def on_progress(current, total, ref):
+                await pipeline_state.update(
+                    current=current,
+                    message=f"💰 {ref}: a verificar..."
+                )
+
+            # Scrape prices via API (FAST!)
+            results = await scraper.scrape_volatile_via_api(refs, on_progress)
 
             # Update database
             updated = 0
@@ -1177,16 +1261,13 @@ async def update_prices_batch(background_tasks: BackgroundTasks):
                         )
                         if success:
                             updated += 1
-                            await pipeline_state.increment(
-                                message=f"Atualizado: {result['reference']}"
-                            )
 
             await pipeline_state.complete(f"Preços atualizados: {updated}/{len(refs)}")
-            add_dashboard_log(f"Atualização de preços concluída: {updated}/{len(refs)}", "success")
+            add_dashboard_log(f"✅ Atualização de preços concluída: {updated}/{len(refs)}", "success")
 
         except Exception as e:
             await pipeline_state.add_error(str(e))
-            add_dashboard_log(f"Erro na atualização de preços: {e}", "error")
+            add_dashboard_log(f"❌ Erro na atualização de preços: {e}", "error")
         finally:
             await pipeline_state.stop()
 

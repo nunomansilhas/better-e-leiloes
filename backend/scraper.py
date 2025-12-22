@@ -1633,3 +1633,318 @@ class EventScraper:
         finally:
             await page.close()
             await context.close()
+
+    # ============== API-BASED SCRAPING (MUCH FASTER!) ==============
+
+    async def scrape_event_via_api(self, reference: str) -> Optional[EventData]:
+        """
+        Scrape evento usando a API interna do e-leiloes.pt
+        MUITO mais rápido que HTML scraping - dados JSON estruturados!
+
+        API: https://www.e-leiloes.pt/api/eventos/{reference}
+        """
+        await self.init_browser()
+
+        api_url = f"https://www.e-leiloes.pt/api/eventos/{reference}"
+
+        context = await self.browser.new_context(
+            user_agent=self.user_agent,
+            viewport={'width': 1920, 'height': 1080},
+            ignore_https_errors=True
+        )
+
+        page = await context.new_page()
+
+        try:
+            # First navigate to the main site to get cookies/session
+            await page.goto("https://www.e-leiloes.pt", wait_until='domcontentloaded', timeout=15000)
+            await asyncio.sleep(0.3)
+
+            # Now call the API
+            response = await page.goto(api_url, wait_until='domcontentloaded', timeout=15000)
+
+            if response.status != 200:
+                print(f"  ❌ API error {response.status} for {reference}")
+                return None
+
+            # Get JSON content
+            body = await page.query_selector('body')
+            json_str = await body.inner_text() if body else ''
+
+            import json
+            data = json.loads(json_str)
+
+            if data.get('errors') or data.get('exception'):
+                print(f"  ❌ API returned error for {reference}")
+                return None
+
+            item = data.get('item', {})
+            if not item:
+                return None
+
+            # Map API response to EventData model
+            return self._api_response_to_event_data(item, reference)
+
+        except Exception as e:
+            print(f"  ❌ API scrape failed for {reference}: {e}")
+            return None
+        finally:
+            await page.close()
+            await context.close()
+
+    def _api_response_to_event_data(self, item: dict, reference: str) -> EventData:
+        """Convert API JSON response to EventData model"""
+        import json as json_module
+
+        # Determine tipoEvento from tipoId
+        tipo_id = item.get('tipoId', 1)
+        tipo_evento_map = {
+            1: 'imoveis',
+            2: 'veiculos',
+            3: 'equipamentos',
+            4: 'mobiliario',
+            5: 'maquinas',
+            6: 'direitos'
+        }
+        tipo_evento = tipo_evento_map.get(tipo_id, 'imoveis')
+
+        # Parse dates
+        data_inicio = None
+        data_fim = None
+        try:
+            if item.get('dataInicio'):
+                data_inicio = datetime.fromisoformat(item['dataInicio'].replace('Z', '+00:00').replace('+00:00', ''))
+            if item.get('dataFim'):
+                data_fim = datetime.fromisoformat(item['dataFim'].replace('Z', '+00:00').replace('+00:00', ''))
+        except:
+            pass
+
+        # Extract images from fotos array
+        images = []
+        base_url = "https://www.e-leiloes.pt/"
+        for foto in item.get('fotos', []):
+            if foto.get('image'):
+                images.append(base_url + foto['image'])
+
+        # Build description from descricao + observacoes
+        descricao = item.get('descricao', '')
+        observacoes = item.get('observacoes', '')
+
+        # Build onus/limitacoes HTML
+        onus_list = item.get('onus', [])
+        onus_html = ""
+        if onus_list:
+            onus_html = "<ul>"
+            for o in onus_list:
+                onus_html += f"<li><strong>{o.get('tipoDesc', '')}:</strong> {o.get('descricao', '')}</li>"
+            onus_html += "</ul>"
+
+        # Build descrição predial HTML
+        desc_predial_list = item.get('descPredial', [])
+        desc_predial_html = ""
+        if desc_predial_list:
+            for dp in desc_predial_list:
+                desc_predial_html += f"Descrição: {dp.get('numero', '')} Fração: {dp.get('fracao', '')}<br>"
+                desc_predial_html += f"Distrito: {dp.get('distritoDesc', '')} Concelho: {dp.get('concelhoDesc', '')} Freguesia: {dp.get('freguesiaDesc', '')}<br>"
+                for artigo in dp.get('artigos', []):
+                    desc_predial_html += f"Artigo {artigo.get('numero', '')} ({artigo.get('tipo', '')}) Fração {artigo.get('fracao', '')}<br>"
+
+        # Build cerimónia HTML
+        cerimonia_html = ""
+        if item.get('cerimoniaData'):
+            cerimonia_html = f"Data: {item.get('cerimoniaData', '')}<br>"
+            cerimonia_html += f"Local: {item.get('cerimoniaLocal', '')}<br>"
+            cerimonia_html += f"Morada: {item.get('cerimoniaMorada', '')}"
+
+        # Build agente HTML
+        agente_html = ""
+        if item.get('gestorNome'):
+            agente_html = f"Nome: {item.get('gestorNome', '')}<br>"
+            agente_html += f"Email: {item.get('gestorEmail', '')}<br>"
+            agente_html += f"Cédula: {item.get('gestorCedula', '')}<br>"
+            agente_html += f"Tipo: {item.get('gestorTipo', '')}"
+
+        # Build dados processo HTML
+        processo_html = ""
+        if item.get('processoNumero'):
+            processo_html = f"Processo: {item.get('processoNumero', '')}<br>"
+            processo_html += f"Comarca: {item.get('processoComarca', '')}<br>"
+            processo_html += f"Tribunal: {item.get('processoTribunal', '')}"
+            # Add executados if available
+            executados_str = item.get('executados', '')
+            if executados_str:
+                try:
+                    executados = json_module.loads(executados_str)
+                    if executados:
+                        processo_html += "<br>Executados:<ul>"
+                        for ex in executados:
+                            processo_html += f"<li>{ex.get('nome', '')} (NIF: {ex.get('nif', '')})</li>"
+                        processo_html += "</ul>"
+                except:
+                    pass
+
+        # GPS coordinates
+        gps = None
+        try:
+            lat = float(item.get('coordenadasLAT', 0))
+            lon = float(item.get('coordenadasLON', 0))
+            if lat and lon:
+                gps = GPSCoordinates(latitude=lat, longitude=lon)
+        except:
+            pass
+
+        return EventData(
+            reference=reference,
+            tipoEvento=tipo_evento,
+            valores=ValoresLeilao(
+                valorBase=item.get('valorBase'),
+                valorAbertura=item.get('valorAbertura'),
+                valorMinimo=item.get('valorMinimo'),
+                lanceAtual=item.get('lanceAtual', 0)
+            ),
+            gps=gps,
+            detalhes=EventDetails(
+                tipo=item.get('tipo', 'N/A'),
+                subtipo=item.get('subtipo', 'N/A'),
+                tipologia=item.get('tipologia'),
+                areaPrivativa=item.get('areaUtilPrivativa'),
+                areaDependente=item.get('areaUtilDependente'),
+                areaTotal=item.get('areaTotal'),
+                distrito=item.get('moradaDistrito'),
+                concelho=item.get('moradaConcelho'),
+                freguesia=item.get('moradaFreguesia'),
+                matricula=item.get('matricula')
+            ),
+            dataInicio=data_inicio,
+            dataFim=data_fim,
+            imagens=images,
+            descricao=descricao,
+            observacoes=observacoes,
+            onuselimitacoes=onus_html if onus_html else None,
+            descricaoPredial=desc_predial_html if desc_predial_html else None,
+            cerimoniaEncerramento=cerimonia_html if cerimonia_html else None,
+            agenteExecucao=agente_html if agente_html else None,
+            dadosProcesso=processo_html if processo_html else None,
+            scraped_at=datetime.utcnow()
+        )
+
+    async def scrape_details_via_api(
+        self,
+        references: List[str],
+        on_progress: Optional[Callable[[int, int, str], Awaitable[None]]] = None
+    ) -> List[EventData]:
+        """
+        Bulk scrape event details using the API (FAST!)
+        Returns list of successfully scraped EventData objects.
+        """
+        await self.init_browser()
+
+        results = []
+        total = len(references)
+
+        print(f"🚀 API Scraping: {total} eventos via API...")
+
+        for i, ref in enumerate(references):
+            if self.stop_requested:
+                print("🛑 Scraping interrompido pelo utilizador")
+                break
+
+            try:
+                event = await self.scrape_event_via_api(ref)
+                if event:
+                    results.append(event)
+                    print(f"  ✅ [{i+1}/{total}] {ref}")
+                else:
+                    print(f"  ⚠️ [{i+1}/{total}] {ref} - sem dados")
+                    self.events_failed += 1
+
+                self.events_processed += 1
+
+                if on_progress:
+                    await on_progress(i + 1, total, ref)
+
+            except Exception as e:
+                print(f"  ❌ [{i+1}/{total}] {ref}: {e}")
+                self.events_failed += 1
+
+            # Small delay to avoid overwhelming the server
+            await asyncio.sleep(self.delay * 0.5)  # Half the normal delay since API is lighter
+
+        print(f"✅ API Scraping concluído: {len(results)}/{total} eventos")
+        return results
+
+    async def scrape_volatile_via_api(
+        self,
+        references: List[str],
+        on_progress: Optional[Callable[[int, int, str], Awaitable[None]]] = None
+    ) -> List[dict]:
+        """
+        Scrape only volatile data (lanceAtual, dataFim) via API - VERY FAST!
+        Used for price updates.
+        """
+        await self.init_browser()
+
+        results = []
+        total = len(references)
+
+        print(f"💰 API Volatile Scrape: {total} eventos...")
+
+        # Create single context for all requests
+        context = await self.browser.new_context(
+            user_agent=self.user_agent,
+            viewport={'width': 1920, 'height': 1080},
+            ignore_https_errors=True
+        )
+
+        page = await context.new_page()
+
+        try:
+            # Initialize session by visiting main site
+            await page.goto("https://www.e-leiloes.pt", wait_until='domcontentloaded', timeout=15000)
+            await asyncio.sleep(0.5)
+
+            for i, ref in enumerate(references):
+                if self.stop_requested:
+                    break
+
+                try:
+                    api_url = f"https://www.e-leiloes.pt/api/eventos/{ref}"
+                    response = await page.goto(api_url, wait_until='domcontentloaded', timeout=10000)
+
+                    if response.status == 200:
+                        import json
+                        body = await page.query_selector('body')
+                        json_str = await body.inner_text() if body else ''
+                        data = json.loads(json_str)
+
+                        item = data.get('item', {})
+                        if item:
+                            data_fim = None
+                            try:
+                                if item.get('dataFim'):
+                                    data_fim = datetime.fromisoformat(item['dataFim'].replace('Z', ''))
+                            except:
+                                pass
+
+                            results.append({
+                                'reference': ref,
+                                'lanceAtual': item.get('lanceAtual', 0),
+                                'dataFim': data_fim
+                            })
+                            print(f"  💰 [{i+1}/{total}] {ref}: {item.get('lanceAtual', 0)}€")
+
+                    if on_progress:
+                        await on_progress(i + 1, total, ref)
+
+                except Exception as e:
+                    print(f"  ❌ [{i+1}/{total}] {ref}: {e}")
+
+                # Very small delay for volatile data
+                await asyncio.sleep(0.2)
+
+        finally:
+            await page.close()
+            await context.close()
+
+        print(f"✅ API Volatile concluído: {len(results)}/{total}")
+        return results
