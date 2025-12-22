@@ -528,14 +528,31 @@ class DatabaseManager:
         page: int = 1,
         limit: int = 50,
         tipo_id: Optional[int] = None,
+        tipo: Optional[str] = None,  # Legacy: filter by tipo name (Imóvel, Apartamento)
+        tipo_evento: Optional[str] = None,  # Legacy: filter by tipo_evento string
         distrito: Optional[str] = None,
         cancelado: Optional[bool] = None
     ) -> Tuple[List[EventData], int]:
         """Lista eventos com paginação e filtros"""
         query = select(EventDB)
 
+        # tipo_id takes priority
         if tipo_id:
             query = query.where(EventDB.tipo_id == tipo_id)
+        elif tipo_evento:
+            # Legacy: convert tipo_evento string to tipo_id
+            tipo_str_to_id = {
+                'imoveis': 1, 'veiculos': 2, 'equipamentos': 3,
+                'mobiliario': 4, 'maquinas': 5, 'direitos': 6,
+                'imovel': 1, 'movel': 2  # Old format
+            }
+            mapped_id = tipo_str_to_id.get(tipo_evento.lower())
+            if mapped_id:
+                query = query.where(EventDB.tipo_id == mapped_id)
+
+        # Filter by tipo name (Imóvel, Apartamento, etc)
+        if tipo:
+            query = query.where(EventDB.tipo == tipo)
         if distrito:
             query = query.where(EventDB.distrito == distrito)
         if cancelado is not None:
