@@ -2231,44 +2231,206 @@
             </div>
 
             <div id="dashboard-content">
-                <!-- Scrapers Independentes - Linha Compacta -->
-                <div class="scraper-control-card" style="margin-bottom: 16px;">
-                    <div class="scraper-control-header" style="margin-bottom: 12px;">
-                        <h3 style="font-size: 14px; margin: 0;">🛠️ Scrapers Independentes</h3>
+                <!-- ========== SCRAPERS INDEPENDENTES - 3 DESIGN OPTIONS ========== -->
+                <!-- Design switcher (temporary - remove after choosing) -->
+                <div style="margin-bottom: 8px; display: flex; gap: 4px; justify-content: flex-end;">
+                    <button onclick="switchScraperDesign('a')" class="design-opt-btn" data-design="a" style="padding: 4px 10px; font-size: 10px; border: 1px solid #e2e8f0; border-radius: 4px; cursor: pointer; background: #6366f1; color: white;">A</button>
+                    <button onclick="switchScraperDesign('b')" class="design-opt-btn" data-design="b" style="padding: 4px 10px; font-size: 10px; border: 1px solid #e2e8f0; border-radius: 4px; cursor: pointer; background: #f8fafc;">B</button>
+                    <button onclick="switchScraperDesign('c')" class="design-opt-btn" data-design="c" style="padding: 4px 10px; font-size: 10px; border: 1px solid #e2e8f0; border-radius: 4px; cursor: pointer; background: #f8fafc;">C</button>
+                </div>
+
+                <!-- ===== DESIGN A: Tabs + Cards ===== -->
+                <div id="scraper-design-a" class="scraper-control-card" style="margin-bottom: 16px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+                        <h3 style="font-size: 14px; margin: 0; display: flex; align-items: center; gap: 8px;">
+                            <span style="width: 28px; height: 28px; background: linear-gradient(135deg, #6366f1, #8b5cf6); border-radius: 6px; display: flex; align-items: center; justify-content: center;">🛠️</span>
+                            Scrapers Independentes
+                        </h3>
+                        <select class="filter-select" id="independent-tipo-a" style="padding: 6px 10px; font-size: 11px; min-width: 130px;">
+                            <option value="">📦 Todos os Tipos</option>
+                            <option value="1">🏠 Imóveis</option>
+                            <option value="2">🚗 Veículos</option>
+                            <option value="3">📜 Direitos</option>
+                            <option value="4">🔧 Equipamentos</option>
+                            <option value="5">🪑 Mobiliário</option>
+                            <option value="6">⚙️ Máquinas</option>
+                        </select>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                        <span style="font-size: 12px; color: #64748b; font-weight: 500;">Run:</span>
-                        <button class="scraper-btn start" id="btn-ids-scraper" onclick="runIndependentScraper('ids')" style="padding: 6px 12px; font-size: 12px;">🔍 IDs</button>
-                        <button class="scraper-btn start" onclick="runIndependentScraper('recheck')" style="padding: 6px 12px; font-size: 12px;">🔄 Recheck</button>
-                        <button class="scraper-btn start" onclick="runIndependentScraper('content')" style="padding: 6px 12px; font-size: 12px;">📋 Content</button>
-                        <button class="scraper-btn start" onclick="runIndependentScraper('images')" style="padding: 6px 12px; font-size: 12px;">🖼️ Images</button>
-                        <div style="margin-left: auto; display: flex; gap: 8px;">
-                            <select class="filter-select" id="independent-tipo" style="padding: 6px 10px; font-size: 11px; min-width: 120px;">
-                                <option value="">📦 Todos</option>
-                                <option value="1">🏠 Imóveis</option>
-                                <option value="2">🚗 Veículos</option>
-                                <option value="3">📜 Direitos</option>
-                                <option value="4">🔧 Equipamentos</option>
-                                <option value="5">🪑 Mobiliário</option>
-                                <option value="6">⚙️ Máquinas</option>
-                            </select>
+
+                    <!-- Tabs -->
+                    <div style="display: flex; gap: 4px; margin-bottom: 16px; background: #f1f5f9; padding: 4px; border-radius: 8px;">
+                        <button onclick="switchScraperTab('ids')" class="scraper-tab active" data-tab="ids" style="flex: 1; padding: 8px 12px; border: none; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer; background: white; color: #1e293b; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">🔍 Recolher IDs</button>
+                        <button onclick="switchScraperTab('process')" class="scraper-tab" data-tab="process" style="flex: 1; padding: 8px 12px; border: none; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer; background: transparent; color: #64748b;">📋 Processar</button>
+                    </div>
+
+                    <!-- Tab Content: IDs -->
+                    <div id="tab-ids" class="tab-content">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                            <!-- Card: Todos -->
+                            <div onclick="runIndependentScraper('ids')" style="padding: 16px; background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 1px solid #bfdbfe; border-radius: 10px; cursor: pointer; transition: all 0.2s; text-align: center;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(59,130,246,0.2)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
+                                <div style="font-size: 24px; margin-bottom: 8px;">🌐</div>
+                                <div style="font-size: 13px; font-weight: 600; color: #1e40af;">Todos os IDs</div>
+                                <div style="font-size: 11px; color: #3b82f6; margin-top: 4px;">Scrape completo</div>
+                            </div>
+                            <!-- Card: Específicos -->
+                            <div onclick="document.getElementById('specific-ids-input').focus()" style="padding: 16px; background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%); border: 1px solid #c4b5fd; border-radius: 10px; cursor: pointer; transition: all 0.2s; text-align: center;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(139,92,246,0.2)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
+                                <div style="font-size: 24px; margin-bottom: 8px;">🎯</div>
+                                <div style="font-size: 13px; font-weight: 600; color: #5b21b6;">IDs Específicos</div>
+                                <div style="font-size: 11px; color: #8b5cf6; margin-top: 4px;">Lista personalizada</div>
+                            </div>
+                        </div>
+                        <!-- Input for specific IDs -->
+                        <div style="margin-top: 12px;">
+                            <div style="display: flex; gap: 8px;">
+                                <input type="text" id="specific-ids-input" placeholder="LO-2024-001, NP-2024-002..." style="flex: 1; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 12px; outline: none; transition: border 0.2s;" onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='#e2e8f0'">
+                                <button onclick="runSpecificIds()" style="padding: 10px 16px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border: none; border-radius: 8px; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform=''">Executar</button>
+                            </div>
                         </div>
                     </div>
+
+                    <!-- Tab Content: Process -->
+                    <div id="tab-process" class="tab-content" style="display: none;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                            <button onclick="runIndependentScraper('content')" style="padding: 16px; background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border: 1px solid #6ee7b7; border-radius: 10px; cursor: pointer; transition: all 0.2s; text-align: center;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(16,185,129,0.2)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
+                                <div style="font-size: 24px; margin-bottom: 8px;">📋</div>
+                                <div style="font-size: 13px; font-weight: 600; color: #047857;">Conteúdo</div>
+                                <div style="font-size: 11px; color: #10b981; margin-top: 4px;">Detalhes dos eventos</div>
+                            </button>
+                            <button onclick="runIndependentScraper('images')" style="padding: 16px; background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%); border: 1px solid #fdba74; border-radius: 10px; cursor: pointer; transition: all 0.2s; text-align: center;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(251,146,60,0.2)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
+                                <div style="font-size: 24px; margin-bottom: 8px;">🖼️</div>
+                                <div style="font-size: 13px; font-weight: 600; color: #c2410c;">Imagens</div>
+                                <div style="font-size: 11px; color: #f97316; margin-top: 4px;">Download de fotos</div>
+                            </button>
+                        </div>
+                    </div>
+
                     <!-- IDs Results Section -->
-                    <div id="ids-results-section" style="display: none; margin-top: 12px;">
-                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px 8px 0 0;">
+                    <div id="ids-results-section-a" style="display: none; margin-top: 16px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 1px solid #86efac; border-radius: 10px 10px 0 0;">
                             <div style="display: flex; align-items: center; gap: 8px;">
                                 <span style="font-size: 13px; font-weight: 600; color: #166534;">✓ IDs Recolhidos</span>
-                                <span id="ids-count-badge" style="background: #22c55e; color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600;">0</span>
+                                <span id="ids-count-badge-a" style="background: linear-gradient(135deg, #22c55e, #16a34a); color: white; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600;">0</span>
                             </div>
                             <div style="display: flex; gap: 6px;">
-                                <button onclick="copyIdsToClipboard()" style="padding: 4px 8px; font-size: 11px; background: #dcfce7; border: 1px solid #86efac; border-radius: 4px; cursor: pointer; color: #166534;">📋 Copiar</button>
-                                <button onclick="clearCollectedIds()" style="padding: 4px 8px; font-size: 11px; background: #fee2e2; border: 1px solid #fca5a5; border-radius: 4px; cursor: pointer; color: #dc2626;">✕ Limpar</button>
+                                <button onclick="copyIdsToClipboard()" style="padding: 5px 10px; font-size: 11px; background: white; border: 1px solid #86efac; border-radius: 6px; cursor: pointer; color: #166534; font-weight: 500;">📋 Copiar</button>
+                                <button onclick="clearCollectedIds()" style="padding: 5px 10px; font-size: 11px; background: white; border: 1px solid #fca5a5; border-radius: 6px; cursor: pointer; color: #dc2626; font-weight: 500;">✕</button>
                             </div>
                         </div>
-                        <div id="ids-results-list" style="max-height: 200px; overflow-y: auto; background: #f8fafc; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 8px 8px; padding: 8px;">
-                            <!-- IDs will be populated here -->
+                        <div id="ids-results-list-a" style="max-height: 180px; overflow-y: auto; background: #fafafa; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 10px 10px; padding: 10px;"></div>
+                    </div>
+                </div>
+
+                <!-- ===== DESIGN B: Compact Inline ===== -->
+                <div id="scraper-design-b" class="scraper-control-card" style="margin-bottom: 16px; display: none;">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                        <div style="width: 36px; height: 36px; background: linear-gradient(135deg, #0ea5e9, #06b6d4); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px;">🛠️</div>
+                        <div style="flex: 1;">
+                            <h3 style="font-size: 14px; margin: 0; color: #1e293b;">Scrapers Independentes</h3>
+                            <p style="font-size: 11px; color: #64748b; margin: 2px 0 0 0;">Executar operações individuais</p>
                         </div>
+                        <select class="filter-select" id="independent-tipo-b" style="padding: 8px 12px; font-size: 11px; min-width: 130px; border-radius: 8px;">
+                            <option value="">📦 Todos</option>
+                            <option value="1">🏠 Imóveis</option>
+                            <option value="2">🚗 Veículos</option>
+                            <option value="3">📜 Direitos</option>
+                            <option value="4">🔧 Equipamentos</option>
+                            <option value="5">🪑 Mobiliário</option>
+                            <option value="6">⚙️ Máquinas</option>
+                        </select>
+                    </div>
+
+                    <!-- Segmented Actions -->
+                    <div style="background: #f8fafc; border-radius: 10px; padding: 12px;">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+                            <span style="font-size: 11px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">IDs:</span>
+                            <button onclick="runIndependentScraper('ids')" style="padding: 7px 14px; background: #0ea5e9; color: white; border: none; border-radius: 6px; font-size: 11px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                                <span>🌐</span> Todos
+                            </button>
+                            <div style="flex: 1; display: flex; gap: 6px;">
+                                <input type="text" id="specific-ids-input-b" placeholder="IDs específicos..." style="flex: 1; padding: 7px 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 11px;">
+                                <button onclick="runSpecificIdsB()" style="padding: 7px 12px; background: #8b5cf6; color: white; border: none; border-radius: 6px; font-size: 11px; cursor: pointer;">🎯</button>
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 11px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Processar:</span>
+                            <button onclick="runIndependentScraper('content')" style="padding: 7px 14px; background: #10b981; color: white; border: none; border-radius: 6px; font-size: 11px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                                <span>📋</span> Conteúdo
+                            </button>
+                            <button onclick="runIndependentScraper('images')" style="padding: 7px 14px; background: #f97316; color: white; border: none; border-radius: 6px; font-size: 11px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                                <span>🖼️</span> Imagens
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- IDs Results -->
+                    <div id="ids-results-section-b" style="display: none; margin-top: 12px; background: #ecfdf5; border-radius: 8px; padding: 10px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                            <span style="font-size: 12px; font-weight: 600; color: #166534;">✓ <span id="ids-count-badge-b">0</span> IDs recolhidos</span>
+                            <div style="display: flex; gap: 4px;">
+                                <button onclick="copyIdsToClipboard()" style="padding: 4px 8px; font-size: 10px; background: white; border: 1px solid #86efac; border-radius: 4px; cursor: pointer;">📋</button>
+                                <button onclick="clearCollectedIds()" style="padding: 4px 8px; font-size: 10px; background: white; border: 1px solid #fca5a5; border-radius: 4px; cursor: pointer;">✕</button>
+                            </div>
+                        </div>
+                        <div id="ids-results-list-b" style="max-height: 150px; overflow-y: auto; background: white; border-radius: 6px; padding: 8px;"></div>
+                    </div>
+                </div>
+
+                <!-- ===== DESIGN C: Minimal Cards ===== -->
+                <div id="scraper-design-c" class="scraper-control-card" style="margin-bottom: 16px; display: none; background: linear-gradient(135deg, #1e293b 0%, #334155 100%); color: white;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+                        <h3 style="font-size: 14px; margin: 0; display: flex; align-items: center; gap: 10px; color: white;">
+                            <span style="font-size: 20px;">🛠️</span>
+                            Scrapers
+                        </h3>
+                        <select id="independent-tipo-c" style="padding: 8px 12px; font-size: 11px; min-width: 120px; border-radius: 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white;">
+                            <option value="" style="color: #1e293b;">📦 Todos</option>
+                            <option value="1" style="color: #1e293b;">🏠 Imóveis</option>
+                            <option value="2" style="color: #1e293b;">🚗 Veículos</option>
+                            <option value="3" style="color: #1e293b;">📜 Direitos</option>
+                            <option value="4" style="color: #1e293b;">🔧 Equipamentos</option>
+                            <option value="5" style="color: #1e293b;">🪑 Mobiliário</option>
+                            <option value="6" style="color: #1e293b;">⚙️ Máquinas</option>
+                        </select>
+                    </div>
+
+                    <!-- Action Grid -->
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px;">
+                        <button onclick="runIndependentScraper('ids')" style="padding: 14px 8px; background: rgba(99, 102, 241, 0.2); border: 1px solid rgba(99, 102, 241, 0.4); border-radius: 10px; cursor: pointer; text-align: center; transition: all 0.2s;" onmouseover="this.style.background='rgba(99, 102, 241, 0.3)'" onmouseout="this.style.background='rgba(99, 102, 241, 0.2)'">
+                            <div style="font-size: 20px; margin-bottom: 4px;">🌐</div>
+                            <div style="font-size: 11px; color: #a5b4fc; font-weight: 500;">All IDs</div>
+                        </button>
+                        <button onclick="showSpecificIdsInput()" style="padding: 14px 8px; background: rgba(139, 92, 246, 0.2); border: 1px solid rgba(139, 92, 246, 0.4); border-radius: 10px; cursor: pointer; text-align: center; transition: all 0.2s;" onmouseover="this.style.background='rgba(139, 92, 246, 0.3)'" onmouseout="this.style.background='rgba(139, 92, 246, 0.2)'">
+                            <div style="font-size: 20px; margin-bottom: 4px;">🎯</div>
+                            <div style="font-size: 11px; color: #c4b5fd; font-weight: 500;">Specific</div>
+                        </button>
+                        <button onclick="runIndependentScraper('content')" style="padding: 14px 8px; background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.4); border-radius: 10px; cursor: pointer; text-align: center; transition: all 0.2s;" onmouseover="this.style.background='rgba(16, 185, 129, 0.3)'" onmouseout="this.style.background='rgba(16, 185, 129, 0.2)'">
+                            <div style="font-size: 20px; margin-bottom: 4px;">📋</div>
+                            <div style="font-size: 11px; color: #6ee7b7; font-weight: 500;">Content</div>
+                        </button>
+                        <button onclick="runIndependentScraper('images')" style="padding: 14px 8px; background: rgba(249, 115, 22, 0.2); border: 1px solid rgba(249, 115, 22, 0.4); border-radius: 10px; cursor: pointer; text-align: center; transition: all 0.2s;" onmouseover="this.style.background='rgba(249, 115, 22, 0.3)'" onmouseout="this.style.background='rgba(249, 115, 22, 0.2)'">
+                            <div style="font-size: 20px; margin-bottom: 4px;">🖼️</div>
+                            <div style="font-size: 11px; color: #fdba74; font-weight: 500;">Images</div>
+                        </button>
+                    </div>
+
+                    <!-- Specific IDs Input (hidden by default) -->
+                    <div id="specific-ids-panel-c" style="display: none; margin-bottom: 12px;">
+                        <div style="display: flex; gap: 8px;">
+                            <input type="text" id="specific-ids-input-c" placeholder="LO-2024-001, NP-2024-002..." style="flex: 1; padding: 10px 12px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; font-size: 12px; color: white; outline: none;" onfocus="this.style.borderColor='#8b5cf6'" onblur="this.style.borderColor='rgba(255,255,255,0.2)'">
+                            <button onclick="runSpecificIdsC()" style="padding: 10px 16px; background: #8b5cf6; color: white; border: none; border-radius: 8px; font-size: 12px; font-weight: 500; cursor: pointer;">Run</button>
+                        </div>
+                    </div>
+
+                    <!-- IDs Results -->
+                    <div id="ids-results-section-c" style="display: none; background: rgba(255,255,255,0.05); border-radius: 8px; padding: 10px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                            <span style="font-size: 12px; color: #86efac;">✓ <span id="ids-count-badge-c" style="font-weight: 600;">0</span> IDs</span>
+                            <div style="display: flex; gap: 4px;">
+                                <button onclick="copyIdsToClipboard()" style="padding: 4px 8px; font-size: 10px; background: rgba(255,255,255,0.1); border: none; border-radius: 4px; cursor: pointer; color: white;">📋</button>
+                                <button onclick="clearCollectedIds()" style="padding: 4px 8px; font-size: 10px; background: rgba(255,255,255,0.1); border: none; border-radius: 4px; cursor: pointer; color: white;">✕</button>
+                            </div>
+                        </div>
+                        <div id="ids-results-list-c" style="max-height: 150px; overflow-y: auto; background: rgba(0,0,0,0.2); border-radius: 6px; padding: 8px;"></div>
                     </div>
                 </div>
 
@@ -3775,21 +3937,98 @@
         let stage1Results = [];
         let stage2Results = [];
         let collectedIds = []; // IDs from independent scraper
+        let currentScraperDesign = 'a'; // Current active design
 
-        // Display collected IDs in the results section
-        function displayCollectedIds(ids) {
-            collectedIds = ids;
-            const section = document.getElementById('ids-results-section');
-            const list = document.getElementById('ids-results-list');
-            const badge = document.getElementById('ids-count-badge');
+        // ===== SCRAPER DESIGN FUNCTIONS =====
+        function switchScraperDesign(design) {
+            currentScraperDesign = design;
+            ['a', 'b', 'c'].forEach(d => {
+                const el = document.getElementById(`scraper-design-${d}`);
+                if (el) el.style.display = d === design ? 'block' : 'none';
+            });
+            // Update switcher buttons
+            document.querySelectorAll('.design-opt-btn').forEach(btn => {
+                if (btn.dataset.design === design) {
+                    btn.style.background = '#6366f1';
+                    btn.style.color = 'white';
+                } else {
+                    btn.style.background = '#f8fafc';
+                    btn.style.color = '#1e293b';
+                }
+            });
+        }
 
-            if (!ids || ids.length === 0) {
-                section.style.display = 'none';
+        function switchScraperTab(tab) {
+            document.getElementById('tab-ids').style.display = tab === 'ids' ? 'block' : 'none';
+            document.getElementById('tab-process').style.display = tab === 'process' ? 'block' : 'none';
+            document.querySelectorAll('.scraper-tab').forEach(btn => {
+                if (btn.dataset.tab === tab) {
+                    btn.style.background = 'white';
+                    btn.style.color = '#1e293b';
+                    btn.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+                } else {
+                    btn.style.background = 'transparent';
+                    btn.style.color = '#64748b';
+                    btn.style.boxShadow = 'none';
+                }
+            });
+        }
+
+        function showSpecificIdsInput() {
+            const panel = document.getElementById('specific-ids-panel-c');
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+            if (panel.style.display === 'block') {
+                document.getElementById('specific-ids-input-c').focus();
+            }
+        }
+
+        function runSpecificIds() {
+            const input = document.getElementById('specific-ids-input').value;
+            if (!input.trim()) {
+                showModal('⚠️ Aviso', 'Introduz pelo menos um ID');
                 return;
             }
+            runIndependentScraperWithIds(input);
+        }
 
-            // Update badge count
-            badge.textContent = ids.length;
+        function runSpecificIdsB() {
+            const input = document.getElementById('specific-ids-input-b').value;
+            if (!input.trim()) {
+                showModal('⚠️ Aviso', 'Introduz pelo menos um ID');
+                return;
+            }
+            runIndependentScraperWithIds(input);
+        }
+
+        function runSpecificIdsC() {
+            const input = document.getElementById('specific-ids-input-c').value;
+            if (!input.trim()) {
+                showModal('⚠️ Aviso', 'Introduz pelo menos um ID');
+                return;
+            }
+            runIndependentScraperWithIds(input);
+        }
+
+        async function runIndependentScraperWithIds(idsString) {
+            const ids = idsString.split(/[,\s\n]+/).map(s => s.trim()).filter(s => s);
+            if (ids.length === 0) return;
+
+            addLog(`🎯 A processar ${ids.length} IDs específicos...`, 'info');
+            // TODO: Implement specific IDs scraping endpoint
+            showModal('🎯 IDs Específicos', `${ids.length} IDs prontos para processar:\n${ids.join(', ')}`);
+        }
+
+        // Display collected IDs in all design versions
+        function displayCollectedIds(ids) {
+            collectedIds = ids;
+
+            if (!ids || ids.length === 0) {
+                ['a', 'b', 'c'].forEach(d => {
+                    const section = document.getElementById(`ids-results-section-${d}`);
+                    if (section) section.style.display = 'none';
+                });
+                return;
+            }
 
             // Group IDs by tipo_evento
             const grouped = {};
@@ -3800,7 +4039,6 @@
             });
 
             // Build HTML
-            let html = '';
             const tipoLabels = {
                 'imoveis': '🏠 Imóveis',
                 'veiculos': '🚗 Veículos',
@@ -3811,6 +4049,7 @@
                 'outros': '📦 Outros'
             };
 
+            let html = '';
             Object.keys(grouped).forEach(tipo => {
                 const label = tipoLabels[tipo] || tipo;
                 const refs = grouped[tipo];
@@ -3822,8 +4061,15 @@
                 </div>`;
             });
 
-            list.innerHTML = html;
-            section.style.display = 'block';
+            // Update all design versions
+            ['a', 'b', 'c'].forEach(d => {
+                const section = document.getElementById(`ids-results-section-${d}`);
+                const list = document.getElementById(`ids-results-list-${d}`);
+                const badge = document.getElementById(`ids-count-badge-${d}`);
+                if (section) section.style.display = 'block';
+                if (list) list.innerHTML = html;
+                if (badge) badge.textContent = ids.length;
+            });
         }
 
         // Copy IDs to clipboard
@@ -3838,7 +4084,10 @@
         // Clear collected IDs
         function clearCollectedIds() {
             collectedIds = [];
-            document.getElementById('ids-results-section').style.display = 'none';
+            ['a', 'b', 'c'].forEach(d => {
+                const section = document.getElementById(`ids-results-section-${d}`);
+                if (section) section.style.display = 'none';
+            });
             addLog('🗑️ IDs limpos', 'info');
         }
 
@@ -4066,9 +4315,17 @@
 
         // Run Full Pipeline
         async function runIndependentScraper(type) {
-            const tipoEl = document.getElementById('independent-tipo');
+            // Get tipo from the active design's selector
+            const tipoSelectors = ['independent-tipo-a', 'independent-tipo-b', 'independent-tipo-c', 'independent-tipo'];
+            let tipo = '';
+            for (const id of tipoSelectors) {
+                const el = document.getElementById(id);
+                if (el && el.value) {
+                    tipo = el.value;
+                    break;
+                }
+            }
             const pagesEl = document.getElementById('independent-pages');
-            const tipo = tipoEl ? tipoEl.value : '';
             const pages = pagesEl ? pagesEl.value : '';
 
             try {
