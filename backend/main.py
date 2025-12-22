@@ -1097,6 +1097,103 @@ async def get_stats():
         return stats
 
 
+@app.get("/api/db/stats")
+async def get_db_extended_stats():
+    """
+    Extended database statistics for maintenance dashboard.
+    Returns: total, with_content, with_images, null_lance_atual, incomplete, by_type
+    """
+    async with get_db() as db:
+        stats = await db.get_extended_stats()
+        return stats
+
+
+@app.post("/api/db/fix-nulls")
+async def fix_null_lance_atual():
+    """
+    Fix all NULL lance_atual values to 0.
+    """
+    async with get_db() as db:
+        count = await db.fix_null_lance_atual()
+        return {"fixed": count, "message": f"Corrigidos {count} eventos com lance_atual NULL"}
+
+
+@app.get("/api/db/incomplete")
+async def get_incomplete_events():
+    """
+    Get references of events without content (for re-scraping).
+    """
+    async with get_db() as db:
+        refs = await db.get_references_without_content()
+        return {"count": len(refs), "references": refs}
+
+
+@app.get("/api/db/no-images")
+async def get_events_without_images():
+    """
+    Get references of events without images (for re-scraping).
+    """
+    async with get_db() as db:
+        refs = await db.get_references_without_images()
+        return {"count": len(refs), "references": refs}
+
+
+@app.post("/api/db/update-prices")
+async def update_prices_batch(background_tasks: BackgroundTasks):
+    """
+    Trigger price update for all events.
+    Uses scraper.scrape_prices() to get current prices from the website.
+    """
+    if scraper.is_running:
+        raise HTTPException(status_code=409, detail="Scraper já em execução")
+
+    async def update_prices_task():
+        pipeline_state = get_pipeline_state()
+        try:
+            add_dashboard_log("Iniciando atualização de preços...", "info")
+
+            async with get_db() as db:
+                # Get all references
+                refs = await db.get_all_references()
+
+            await pipeline_state.start(
+                stage=0,
+                stage_name="Atualizar Preços",
+                total=len(refs)
+            )
+
+            # Scrape prices in batches
+            results = await scraper.scrape_prices(refs)
+
+            # Update database
+            updated = 0
+            async with get_db() as db:
+                for result in results:
+                    if result.get('lanceAtual') is not None:
+                        success = await db.update_event_price(
+                            result['reference'],
+                            result['lanceAtual'],
+                            result.get('dataFim')
+                        )
+                        if success:
+                            updated += 1
+                            await pipeline_state.increment(
+                                message=f"Atualizado: {result['reference']}"
+                            )
+
+            await pipeline_state.complete(f"Preços atualizados: {updated}/{len(refs)}")
+            add_dashboard_log(f"Atualização de preços concluída: {updated}/{len(refs)}", "success")
+
+        except Exception as e:
+            await pipeline_state.add_error(str(e))
+            add_dashboard_log(f"Erro na atualização de preços: {e}", "error")
+        finally:
+            await pipeline_state.stop()
+
+    background_tasks.add_task(update_prices_task)
+    return {"message": "Atualização de preços iniciada em background"}
+
+
 @app.get("/api/logs")
 async def get_logs():
     """

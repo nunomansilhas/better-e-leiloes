@@ -162,7 +162,7 @@ class DatabaseManager:
             existing.valor_base = event.valores.valorBase
             existing.valor_abertura = event.valores.valorAbertura
             existing.valor_minimo = event.valores.valorMinimo
-            existing.lance_atual = event.valores.lanceAtual
+            existing.lance_atual = event.valores.lanceAtual if event.valores.lanceAtual is not None else 0
             existing.latitude = event.gps.latitude if event.gps else None
             existing.longitude = event.gps.longitude if event.gps else None
             existing.tipo = event.detalhes.tipo
@@ -197,7 +197,7 @@ class DatabaseManager:
                 valor_base=event.valores.valorBase,
                 valor_abertura=event.valores.valorAbertura,
                 valor_minimo=event.valores.valorMinimo,
-                lance_atual=event.valores.lanceAtual,
+                lance_atual=event.valores.lanceAtual if event.valores.lanceAtual is not None else 0,
                 latitude=event.gps.latitude if event.gps else None,
                 longitude=event.gps.longitude if event.gps else None,
                 tipo=event.detalhes.tipo,
@@ -243,6 +243,7 @@ class DatabaseManager:
                 tipo_evento=tipo_evento,
                 tipo=tipo_evento,
                 subtipo='N/A',
+                lance_atual=0,  # Default to 0 instead of NULL
                 scraped_at=datetime.utcnow()
             )
             self.session.add(new_event)
@@ -372,6 +373,125 @@ class DatabaseManager:
         await self.session.commit()
 
         return count
+
+    async def get_extended_stats(self) -> dict:
+        """Extended statistics for maintenance dashboard"""
+        from sqlalchemy import and_, or_
+
+        # Total events
+        total_result = await self.session.execute(select(func.count(EventDB.reference)))
+        total = total_result.scalar()
+
+        # Events with content (descricao not null)
+        with_content_result = await self.session.execute(
+            select(func.count(EventDB.reference))
+            .where(EventDB.descricao.isnot(None))
+        )
+        with_content = with_content_result.scalar()
+
+        # Events with images
+        with_images_result = await self.session.execute(
+            select(func.count(EventDB.reference))
+            .where(EventDB.imagens.isnot(None))
+            .where(EventDB.imagens != '[]')
+            .where(EventDB.imagens != '')
+        )
+        with_images = with_images_result.scalar()
+
+        # Events with NULL lance_atual
+        null_lance_result = await self.session.execute(
+            select(func.count(EventDB.reference))
+            .where(EventDB.lance_atual.is_(None))
+        )
+        null_lance = null_lance_result.scalar()
+
+        # Incomplete events (no content)
+        incomplete = total - with_content
+
+        # Count by tipo_evento
+        by_type_result = await self.session.execute(
+            select(EventDB.tipo_evento, func.count(EventDB.reference))
+            .group_by(EventDB.tipo_evento)
+        )
+        by_type = dict(by_type_result.all())
+
+        return {
+            "total": total,
+            "with_content": with_content,
+            "with_images": with_images,
+            "null_lance_atual": null_lance,
+            "incomplete": incomplete,
+            "by_type": by_type
+        }
+
+    async def fix_null_lance_atual(self) -> int:
+        """Fix all NULL lance_atual values to 0"""
+        from sqlalchemy import update
+
+        result = await self.session.execute(
+            update(EventDB)
+            .where(EventDB.lance_atual.is_(None))
+            .values(lance_atual=0)
+        )
+        await self.session.commit()
+        return result.rowcount
+
+    async def get_references_without_content(self) -> List[str]:
+        """Get references of events without content (descricao is NULL)"""
+        result = await self.session.execute(
+            select(EventDB.reference)
+            .where(EventDB.descricao.is_(None))
+        )
+        return list(result.scalars().all())
+
+    async def get_references_without_images(self) -> List[str]:
+        """Get references of events without images"""
+        result = await self.session.execute(
+            select(EventDB.reference)
+            .where(or_(
+                EventDB.imagens.is_(None),
+                EventDB.imagens == '[]',
+                EventDB.imagens == ''
+            ))
+        )
+        return list(result.scalars().all())
+
+    async def find_duplicates(self) -> List[str]:
+        """Find duplicate references (shouldn't happen, but check anyway)"""
+        # Since reference is primary key, true duplicates are impossible
+        # But we can check for similar references (e.g., with extra spaces)
+        result = await self.session.execute(
+            select(EventDB.reference)
+        )
+        refs = list(result.scalars().all())
+
+        # Check for normalized duplicates
+        normalized = {}
+        duplicates = []
+        for ref in refs:
+            norm = ref.strip().upper()
+            if norm in normalized:
+                duplicates.append(ref)
+            else:
+                normalized[norm] = ref
+
+        return duplicates
+
+    async def update_event_price(self, reference: str, lance_atual: float, data_fim: Optional[datetime] = None):
+        """Update only the price and optionally data_fim for an event"""
+        result = await self.session.execute(
+            select(EventDB).where(EventDB.reference == reference)
+        )
+        existing = result.scalar_one_or_none()
+
+        if existing:
+            existing.lance_atual = lance_atual if lance_atual is not None else 0
+            if data_fim is not None:
+                existing.data_fim = data_fim
+            existing.updated_at = datetime.utcnow()
+            await self.session.commit()
+            return True
+        return False
 
 
 @asynccontextmanager
