@@ -31,17 +31,10 @@ class AutoPipelinesManager:
     CONFIG_FILE = Path(__file__).parent / "auto_pipelines_config.json"
 
     DEFAULT_PIPELINES = {
-        "full": PipelineConfig(
-            type="full",
-            name="Auto Pipeline",
-            description="Pipeline completa (IDs + API) a cada 8 horas",
-            enabled=False,
-            interval_hours=8.0  # A cada 8 horas
-        ),
         "xmonitor": PipelineConfig(
             type="xmonitor",
             name="X-Monitor",
-            description="Monitoriza eventos nas próximas 24h - atualiza lance_atual e dataFim",
+            description="Monitoriza eventos nas próximas 24h - atualiza lance_atual e data_fim",
             enabled=False,
             interval_hours=5/3600  # Base interval: 5 seconds for critical events
         ),
@@ -387,78 +380,6 @@ class AutoPipelinesManager:
 
     def _get_pipeline_task(self, pipeline_type: str) -> Callable:
         """Get the async task function for a pipeline type"""
-
-        async def run_full_pipeline():
-            """Auto Pipeline: Recolhe TODOS os IDs + dados via API"""
-            from scraper import EventScraper
-            from database import get_db
-            from cache import CacheManager
-            from pipeline_state import get_pipeline_state
-
-            # Skip if main pipeline is running
-            main_pipeline = get_pipeline_state()
-            if main_pipeline.is_active:
-                print(f"⏸️ Auto-pipeline 'full' skipped - main pipeline is running")
-                return
-
-            # Mark as running
-            self.pipelines['full'].is_running = True
-            self._save_config()
-
-            print(f"🤖 Running Auto Pipeline (Full)...")
-
-            scraper = EventScraper()
-            cache_manager = CacheManager()
-
-            try:
-                # Stage 1: Get ALL IDs (no page limit!)
-                ids = await scraper.scrape_ids_only(tipo=None, max_pages=None)
-                print(f"  📊 Stage 1: {len(ids)} IDs encontrados")
-
-                # Find new IDs that don't exist in DB
-                new_ids = []
-                async with get_db() as db:
-                    for item in ids:
-                        existing = await db.get_event(item['reference'])
-                        if not existing:
-                            new_ids.append(item)
-
-                print(f"  🆕 {len(new_ids)} novos IDs para processar")
-
-                # Stage 2: Get full data via API for ALL new IDs
-                if new_ids:
-                    new_refs = [item['reference'] for item in new_ids]
-                    print(f"  🚀 Stage 2: Scraping {len(new_refs)} eventos via API...")
-                    events = await scraper.scrape_details_via_api(new_refs)
-
-                    # Save events to DB
-                    async with get_db() as db:
-                        for event in events:
-                            await db.save_event(event)
-                            await cache_manager.set(event.reference, event)
-
-                    print(f"✅ Auto Pipeline: {len(ids)} total, {len(events)} novos processados")
-                else:
-                    print(f"✅ Auto Pipeline: {len(ids)} total, 0 novos (todos já na BD)")
-
-                # Update last run and next run
-                pipeline = self.pipelines['full']
-                now = datetime.now()
-                pipeline.last_run = now.strftime("%Y-%m-%d %H:%M:%S")
-                pipeline.runs_count += 1
-                # Calculate next run time
-                next_run_time = now + timedelta(hours=pipeline.interval_hours)
-                pipeline.next_run = next_run_time.strftime("%Y-%m-%d %H:%M:%S")
-                self._save_config()
-
-            finally:
-                await scraper.close()
-                await cache_manager.close()
-                # Mark as not running
-                self.pipelines['full'].is_running = False
-                self._save_config()
-                # Reschedule next run after completion
-                self._reschedule_pipeline('full')
 
         async def run_prices_pipeline():
             """Pipeline X: Price verification every 5 SECONDS for events < 5 minutes"""
@@ -1304,7 +1225,6 @@ class AutoPipelinesManager:
 
         # Return the appropriate function
         tasks = {
-            "full": run_full_pipeline,
             "xmonitor": run_xmonitor_pipeline,
             "ysync": run_ysync_pipeline,
             # Legacy support
