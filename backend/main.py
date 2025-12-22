@@ -35,7 +35,7 @@ from models import EventData, EventListResponse, ScraperStatus, ValoresLeilao
 from database import init_db, get_db
 from scraper import EventScraper
 from cache import CacheManager
-from pipeline_state import get_pipeline_state
+from pipeline_state import get_pipeline_state, SafeJSONEncoder
 from auto_pipelines import get_auto_pipelines_manager
 from collections import deque
 import threading
@@ -176,7 +176,9 @@ async def get_pipeline_status():
     """Get current pipeline state for real-time feedback"""
     pipeline_state = get_pipeline_state()
     state = await pipeline_state.get_state()
-    return JSONResponse(state)
+    # Use SafeJSONEncoder to handle Pydantic models and dataclasses
+    content = json.dumps(state, ensure_ascii=False, cls=SafeJSONEncoder)
+    return JSONResponse(content=json.loads(content))
 
 
 @app.post("/api/pipeline/kill")
