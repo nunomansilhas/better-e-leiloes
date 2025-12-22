@@ -10,7 +10,13 @@ import re
 from playwright.async_api import async_playwright, Page, Browser
 import os
 
-from models import EventData, GPSCoordinates, EventDetails, ValoresLeilao, ScraperStatus, TIPO_EVENTO_MAP, TIPO_EVENTO_NAMES, TIPO_TO_WEBSITE
+from models import (
+    EventData, ScraperStatus,
+    TIPO_EVENTO_MAP, TIPO_EVENTO_NAMES, TIPO_TO_WEBSITE,
+    FotoItem, OnusItem, DescPredialItem, ArtigoItem, ExecutadoItem,
+    # Legacy imports (for HTML scraper compatibility)
+    GPSCoordinates, EventDetails, ValoresLeilao
+)
 
 
 class EventScraper:
@@ -1693,139 +1699,223 @@ class EventScraper:
             await context.close()
 
     def _api_response_to_event_data(self, item: dict, reference: str) -> EventData:
-        """Convert API JSON response to EventData model"""
+        """
+        Convert API JSON response to EventData model (Schema v2)
+        Maps ALL fields from the official e-leiloes.pt API
+        """
         import json as json_module
+        from models import FotoItem, OnusItem, DescPredialItem, ArtigoItem, ExecutadoItem
 
-        # Determine tipoEvento from tipoId
-        tipo_id = item.get('tipoId', 1)
-        tipo_evento_map = {
-            1: 'imoveis',
-            2: 'veiculos',
-            3: 'equipamentos',
-            4: 'mobiliario',
-            5: 'maquinas',
-            6: 'direitos'
-        }
-        tipo_evento = tipo_evento_map.get(tipo_id, 'imoveis')
+        # ========== PARSE DATES ==========
+        def parse_date(date_str):
+            if not date_str:
+                return None
+            try:
+                # Handle ISO format with or without timezone
+                clean = date_str.replace('Z', '').replace('+00:00', '')
+                return datetime.fromisoformat(clean)
+            except:
+                return None
 
-        # Parse dates
-        data_inicio = None
-        data_fim = None
+        data_inicio = parse_date(item.get('dataInicio'))
+        data_fim_inicial = parse_date(item.get('dataFimInicial'))
+        data_fim = parse_date(item.get('dataFim'))
+        cerimonia_data = parse_date(item.get('cerimoniaData'))
+        data_servidor = parse_date(item.get('dataServidor'))
+        data_atualizacao = parse_date(item.get('dataAtualizacao'))
+
+        # ========== PARSE GPS ==========
+        latitude = None
+        longitude = None
         try:
-            if item.get('dataInicio'):
-                data_inicio = datetime.fromisoformat(item['dataInicio'].replace('Z', '+00:00').replace('+00:00', ''))
-            if item.get('dataFim'):
-                data_fim = datetime.fromisoformat(item['dataFim'].replace('Z', '+00:00').replace('+00:00', ''))
+            lat_str = item.get('coordenadasLAT')
+            lon_str = item.get('coordenadasLON')
+            if lat_str:
+                latitude = float(lat_str)
+            if lon_str:
+                longitude = float(lon_str)
         except:
             pass
 
-        # Extract images from fotos array
-        images = []
-        base_url = "https://www.e-leiloes.pt/"
-        for foto in item.get('fotos', []):
-            if foto.get('image'):
-                images.append(base_url + foto['image'])
+        # ========== PARSE FOTOS ==========
+        fotos_list = None
+        fotos_raw = item.get('fotos', [])
+        if fotos_raw:
+            base_url = "https://www.e-leiloes.pt/"
+            fotos_list = []
+            for f in fotos_raw:
+                fotos_list.append(FotoItem(
+                    legenda=f.get('legenda'),
+                    image=base_url + f.get('image', '') if f.get('image') else None,
+                    thumbnail=base_url + f.get('thumbnail', '') if f.get('thumbnail') else None
+                ))
 
-        # Build description from descricao + observacoes
-        descricao = item.get('descricao', '')
-        observacoes = item.get('observacoes', '')
+        # ========== PARSE ONUS ==========
+        onus_list = None
+        onus_raw = item.get('onus', [])
+        if onus_raw:
+            onus_list = []
+            for o in onus_raw:
+                onus_list.append(OnusItem(
+                    tipo=o.get('tipo'),
+                    descricao=o.get('descricao'),
+                    tipoDesc=o.get('tipoDesc')
+                ))
 
-        # Build onus/limitacoes HTML
-        onus_list = item.get('onus', [])
-        onus_html = ""
-        if onus_list:
-            onus_html = "<ul>"
-            for o in onus_list:
-                onus_html += f"<li><strong>{o.get('tipoDesc', '')}:</strong> {o.get('descricao', '')}</li>"
-            onus_html += "</ul>"
+        # ========== PARSE DESC PREDIAL ==========
+        desc_predial_list = None
+        dp_raw = item.get('descPredial', [])
+        if dp_raw:
+            desc_predial_list = []
+            for dp in dp_raw:
+                artigos = []
+                for a in dp.get('artigos', []):
+                    artigos.append(ArtigoItem(
+                        numero=a.get('numero'),
+                        tipo=a.get('tipo'),
+                        fracao=a.get('fracao'),
+                        distritoDesc=a.get('distritoDesc'),
+                        concelhoDesc=a.get('concelhoDesc'),
+                        freguesiaDesc=a.get('freguesiaDesc')
+                    ))
+                desc_predial_list.append(DescPredialItem(
+                    id=dp.get('id'),
+                    numero=dp.get('numero'),
+                    fracao=dp.get('fracao'),
+                    distritoDesc=dp.get('distritoDesc'),
+                    concelhoDesc=dp.get('concelhoDesc'),
+                    freguesiaDesc=dp.get('freguesiaDesc'),
+                    artigos=artigos
+                ))
 
-        # Build descrição predial HTML
-        desc_predial_list = item.get('descPredial', [])
-        desc_predial_html = ""
-        if desc_predial_list:
-            for dp in desc_predial_list:
-                desc_predial_html += f"Descrição: {dp.get('numero', '')} Fração: {dp.get('fracao', '')}<br>"
-                desc_predial_html += f"Distrito: {dp.get('distritoDesc', '')} Concelho: {dp.get('concelhoDesc', '')} Freguesia: {dp.get('freguesiaDesc', '')}<br>"
-                for artigo in dp.get('artigos', []):
-                    desc_predial_html += f"Artigo {artigo.get('numero', '')} ({artigo.get('tipo', '')}) Fração {artigo.get('fracao', '')}<br>"
+        # ========== PARSE EXECUTADOS ==========
+        executados_list = None
+        executados_str = item.get('executados', '')
+        if executados_str:
+            try:
+                exec_raw = json_module.loads(executados_str) if isinstance(executados_str, str) else executados_str
+                if exec_raw:
+                    executados_list = []
+                    for ex in exec_raw:
+                        executados_list.append(ExecutadoItem(
+                            nif=ex.get('nif'),
+                            nome=ex.get('nome'),
+                            requerido=ex.get('requerido')
+                        ))
+            except:
+                pass
 
-        # Build cerimónia HTML
-        cerimonia_html = ""
-        if item.get('cerimoniaData'):
-            cerimonia_html = f"Data: {item.get('cerimoniaData', '')}<br>"
-            cerimonia_html += f"Local: {item.get('cerimoniaLocal', '')}<br>"
-            cerimonia_html += f"Morada: {item.get('cerimoniaMorada', '')}"
-
-        # Build agente HTML
-        agente_html = ""
-        if item.get('gestorNome'):
-            agente_html = f"Nome: {item.get('gestorNome', '')}<br>"
-            agente_html += f"Email: {item.get('gestorEmail', '')}<br>"
-            agente_html += f"Cédula: {item.get('gestorCedula', '')}<br>"
-            agente_html += f"Tipo: {item.get('gestorTipo', '')}"
-
-        # Build dados processo HTML
-        processo_html = ""
-        if item.get('processoNumero'):
-            processo_html = f"Processo: {item.get('processoNumero', '')}<br>"
-            processo_html += f"Comarca: {item.get('processoComarca', '')}<br>"
-            processo_html += f"Tribunal: {item.get('processoTribunal', '')}"
-            # Add executados if available
-            executados_str = item.get('executados', '')
-            if executados_str:
-                try:
-                    executados = json_module.loads(executados_str)
-                    if executados:
-                        processo_html += "<br>Executados:<ul>"
-                        for ex in executados:
-                            processo_html += f"<li>{ex.get('nome', '')} (NIF: {ex.get('nif', '')})</li>"
-                        processo_html += "</ul>"
-                except:
-                    pass
-
-        # GPS coordinates
-        gps = None
-        try:
-            lat = float(item.get('coordenadasLAT', 0))
-            lon = float(item.get('coordenadasLON', 0))
-            if lat and lon:
-                gps = GPSCoordinates(latitude=lat, longitude=lon)
-        except:
-            pass
-
+        # ========== BUILD EVENT DATA ==========
         return EventData(
+            # Identificação
             reference=reference,
-            tipoEvento=tipo_evento,
-            valores=ValoresLeilao(
-                valorBase=item.get('valorBase'),
-                valorAbertura=item.get('valorAbertura'),
-                valorMinimo=item.get('valorMinimo'),
-                lanceAtual=item.get('lanceAtual', 0)
-            ),
-            gps=gps,
-            detalhes=EventDetails(
-                tipo=item.get('tipo', 'N/A'),
-                subtipo=item.get('subtipo', 'N/A'),
-                tipologia=item.get('tipologia'),
-                areaPrivativa=item.get('areaUtilPrivativa'),
-                areaDependente=item.get('areaUtilDependente'),
-                areaTotal=item.get('areaTotal'),
-                distrito=item.get('moradaDistrito'),
-                concelho=item.get('moradaConcelho'),
-                freguesia=item.get('moradaFreguesia'),
-                matricula=item.get('matricula')
-            ),
-            dataInicio=data_inicio,
-            dataFim=data_fim,
-            imagens=images,
-            descricao=descricao,
-            observacoes=observacoes,
-            onuselimitacoes=onus_html if onus_html else None,
-            descricaoPredial=desc_predial_html if desc_predial_html else None,
-            cerimoniaEncerramento=cerimonia_html if cerimonia_html else None,
-            agenteExecucao=agente_html if agente_html else None,
-            dadosProcesso=processo_html if processo_html else None,
-            scraped_at=datetime.utcnow()
+            id_api=item.get('id'),
+            origem=item.get('origem'),
+            verba_id=item.get('verbaId'),
+
+            # Título e Capa
+            titulo=item.get('titulo'),
+            capa="https://www.e-leiloes.pt/" + item.get('capa') if item.get('capa') else None,
+
+            # Tipo/Categoria
+            tipo_id=item.get('tipoId'),
+            subtipo_id=item.get('subtipoId'),
+            tipologia_id=item.get('tipologiaId'),
+            tipo=item.get('tipo'),
+            subtipo=item.get('subtipo'),
+            tipologia=item.get('tipologia'),
+            modalidade_id=item.get('modalidadeId'),
+
+            # Valores
+            valor_base=item.get('valorBase'),
+            valor_abertura=item.get('valorAbertura'),
+            valor_minimo=item.get('valorMinimo'),
+            lance_atual=item.get('lanceAtual') or 0,
+            lance_atual_id=item.get('lanceAtualId'),
+
+            # IVA
+            iva_cobrar=item.get('ivaCobrar', False),
+            iva_percentagem=item.get('ivaPercentagem', 23),
+
+            # Datas
+            data_inicio=data_inicio,
+            data_fim_inicial=data_fim_inicial,
+            data_fim=data_fim,
+
+            # Status
+            cancelado=item.get('cancelado', False),
+            iniciado=item.get('iniciado', False),
+            terminado=item.get('terminado', False),
+            ultimos_5m=item.get('ultimos5m', False),
+
+            # Áreas
+            area_privativa=item.get('areaUtilPrivativa'),
+            area_dependente=item.get('areaUtilDependente'),
+            area_total=item.get('areaTotal'),
+
+            # Morada
+            morada=item.get('morada'),
+            morada_numero=item.get('moradaNumero'),
+            morada_andar=item.get('moradaAndar'),
+            morada_cp=item.get('moradaCP'),
+            distrito=item.get('moradaDistrito'),
+            concelho=item.get('moradaConcelho'),
+            freguesia=item.get('moradaFreguesia'),
+
+            # GPS
+            latitude=latitude,
+            longitude=longitude,
+
+            # Veículos
+            matricula=item.get('matricula') or None,
+            osae360=item.get('osae360') or None,
+
+            # Descrições
+            descricao=item.get('descricao'),
+            observacoes=item.get('observacoes'),
+
+            # Processo
+            processo_id=item.get('processoId'),
+            processo_numero=item.get('processoNumero'),
+            processo_comarca=item.get('processoComarca'),
+            processo_comarca_codigo=item.get('processoComarcaCodigo'),
+            processo_tribunal=item.get('processoTribunal'),
+
+            # Executados
+            executados=executados_list,
+
+            # Cerimónia
+            cerimonia_id=item.get('cerimoniaId'),
+            cerimonia_data=cerimonia_data,
+            cerimonia_local=item.get('cerimoniaLocal'),
+            cerimonia_morada=item.get('cerimoniaMorada'),
+
+            # Gestor/Agente
+            gestor_id=item.get('gestorId'),
+            gestor_tipo=item.get('gestorTipo'),
+            gestor_tipo_id=item.get('gestorTipoId'),
+            gestor_cedula=item.get('gestorCedula'),
+            gestor_nome=item.get('gestorNome'),
+            gestor_email=item.get('gestorEmail'),
+            gestor_comarca=item.get('gestorComarca') or None,
+            gestor_tribunal=item.get('gestorTribunal') or None,
+            gestor_telefone=item.get('gestorTelefone') or None,
+            gestor_fax=item.get('gestorFax') or None,
+            gestor_morada=item.get('gestorMorada') or None,
+            gestor_horario=item.get('gestorHorario') or None,
+
+            # Arrays JSON
+            fotos=fotos_list,
+            onus=onus_list,
+            desc_predial=desc_predial_list,
+            visitas=item.get('visitas'),
+            anexos=item.get('anexos'),
+
+            # Metadados
+            data_servidor=data_servidor,
+            data_atualizacao=data_atualizacao,
+            scraped_at=datetime.utcnow(),
+            ativo=True
         )
 
     async def scrape_details_via_api(

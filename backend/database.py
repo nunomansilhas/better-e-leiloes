@@ -1,24 +1,21 @@
 """
 Database layer usando SQLAlchemy + MySQL/MariaDB
-APENAS MySQL/MariaDB - SQLite foi removido
+Schema v2 - Baseado na API oficial e-leiloes.pt
 """
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy import select, func, String, Float, DateTime, Text
+from sqlalchemy import select, func, String, Float, DateTime, Text, Integer, Boolean, JSON
+from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from typing import List, Tuple, Optional
 from datetime import datetime
 from contextlib import asynccontextmanager
 import os
 import json
 
-from models import (
-    EventData, GPSCoordinates, EventDetails, ValoresLeilao,
-    DescricaoPredial, CerimoniaEncerramento, AgenteExecucao, DadosProcesso
-)
+from models import EventData, FotoItem, OnusItem, DescPredialItem, ArtigoItem, ExecutadoItem
 
 # Database URL - MUST be set in .env file
-# MySQL:  mysql+aiomysql://user:password@localhost:3306/eleiloes
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 if not DATABASE_URL:
@@ -38,100 +35,260 @@ class Base(DeclarativeBase):
 
 
 class EventDB(Base):
-    """Tabela de eventos"""
+    """
+    Tabela de eventos - Schema v2
+    Baseado na API oficial e-leiloes.pt
+    """
     __tablename__ = "events"
-    
-    reference: Mapped[str] = mapped_column(String, primary_key=True)
-    tipo_evento: Mapped[str] = mapped_column(String)  # "imovel" ou "movel"
-    
-    # Valores do leilão
+
+    # ========== IDENTIFICAÇÃO ==========
+    reference: Mapped[str] = mapped_column(String(50), primary_key=True)
+    id_api: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    origem: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    verba_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+
+    # ========== TÍTULO E CAPA ==========
+    titulo: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    capa: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+
+    # ========== TIPO/CATEGORIA ==========
+    tipo_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    subtipo_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    tipologia_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    tipo: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    subtipo: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    tipologia: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    modalidade_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+
+    # ========== VALORES (€) ==========
     valor_base: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     valor_abertura: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     valor_minimo: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    lance_atual: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    
-    # GPS (apenas imóveis)
-    latitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    longitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    
-    # Detalhes comuns
-    tipo: Mapped[str] = mapped_column(String, default="N/A")
-    subtipo: Mapped[str] = mapped_column(String, default="N/A")
-    
-    # Detalhes IMOVEIS
-    tipologia: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    lance_atual: Mapped[float] = mapped_column(Float, default=0)
+    lance_atual_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+
+    # ========== IVA ==========
+    iva_cobrar: Mapped[bool] = mapped_column(Boolean, default=False)
+    iva_percentagem: Mapped[int] = mapped_column(Integer, default=23)
+
+    # ========== DATAS ==========
+    data_inicio: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    data_fim_inicial: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    data_fim: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+    # ========== STATUS ==========
+    cancelado: Mapped[bool] = mapped_column(Boolean, default=False)
+    iniciado: Mapped[bool] = mapped_column(Boolean, default=False)
+    terminado: Mapped[bool] = mapped_column(Boolean, default=False)
+    ultimos_5m: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # ========== ÁREAS (m²) ==========
     area_privativa: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     area_dependente: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     area_total: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    distrito: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    concelho: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    freguesia: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    
-    # Detalhes MOVEIS
-    matricula: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
-    # Datas do evento
-    data_inicio: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    data_fim: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    # ========== MORADA COMPLETA ==========
+    morada: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    morada_numero: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    morada_andar: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    morada_cp: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    distrito: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    concelho: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    freguesia: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
 
-    # Galeria e textos descritivos (HTML)
-    imagens: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON list of URLs
-    descricao: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # HTML
-    observacoes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # HTML
-    onuselimitacoes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # HTML - NOVO
+    # ========== GPS ==========
+    latitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    longitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
 
-    # Informações adicionais (HTML completo)
-    descricao_predial: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # HTML
-    cerimonia_encerramento: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # HTML
-    agente_execucao: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # HTML
-    dados_processo: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # HTML
+    # ========== VEÍCULOS ==========
+    matricula: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    osae360: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
 
-    # Metadados
+    # ========== DESCRIÇÕES (texto) ==========
+    descricao: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    observacoes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # ========== PROCESSO JUDICIAL ==========
+    processo_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    processo_numero: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    processo_comarca: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    processo_comarca_codigo: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    processo_tribunal: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+
+    # ========== EXECUTADOS (JSON) ==========
+    executados: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # ========== CERIMÓNIA ==========
+    cerimonia_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    cerimonia_data: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    cerimonia_local: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    cerimonia_morada: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # ========== AGENTE/GESTOR ==========
+    gestor_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    gestor_tipo: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    gestor_tipo_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    gestor_cedula: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    gestor_nome: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    gestor_email: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    gestor_comarca: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    gestor_tribunal: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    gestor_telefone: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    gestor_fax: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    gestor_morada: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    gestor_horario: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # ========== ARRAYS JSON ==========
+    fotos: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    onus: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    desc_predial: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    visitas: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    anexos: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # ========== METADADOS ==========
+    data_servidor: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    data_atualizacao: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     scraped_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    
+    ativo: Mapped[bool] = mapped_column(Boolean, default=True)
+
     def to_model(self) -> EventData:
         """Converte DB model para Pydantic model"""
-        # Deserializa apenas imagens (JSON)
-        imagens_list = json.loads(self.imagens) if self.imagens else []
+
+        # Parse JSON arrays
+        fotos_list = None
+        if self.fotos:
+            try:
+                fotos_raw = json.loads(self.fotos)
+                fotos_list = [FotoItem(**f) for f in fotos_raw] if fotos_raw else None
+            except:
+                pass
+
+        onus_list = None
+        if self.onus:
+            try:
+                onus_raw = json.loads(self.onus)
+                onus_list = [OnusItem(**o) for o in onus_raw] if onus_raw else None
+            except:
+                pass
+
+        desc_predial_list = None
+        if self.desc_predial:
+            try:
+                dp_raw = json.loads(self.desc_predial)
+                desc_predial_list = []
+                for dp in dp_raw:
+                    artigos = [ArtigoItem(**a) for a in dp.get('artigos', [])]
+                    desc_predial_list.append(DescPredialItem(
+                        id=dp.get('id'),
+                        numero=dp.get('numero'),
+                        fracao=dp.get('fracao'),
+                        distritoDesc=dp.get('distritoDesc'),
+                        concelhoDesc=dp.get('concelhoDesc'),
+                        freguesiaDesc=dp.get('freguesiaDesc'),
+                        artigos=artigos
+                    ))
+            except:
+                pass
+
+        executados_list = None
+        if self.executados:
+            try:
+                exec_raw = json.loads(self.executados)
+                executados_list = [ExecutadoItem(**e) for e in exec_raw] if exec_raw else None
+            except:
+                pass
+
+        visitas_list = None
+        if self.visitas:
+            try:
+                visitas_list = json.loads(self.visitas)
+            except:
+                pass
+
+        anexos_list = None
+        if self.anexos:
+            try:
+                anexos_list = json.loads(self.anexos)
+            except:
+                pass
 
         return EventData(
             reference=self.reference,
-            tipoEvento=self.tipo_evento,
-            valores=ValoresLeilao(
-                valorBase=self.valor_base,
-                valorAbertura=self.valor_abertura,
-                valorMinimo=self.valor_minimo,
-                lanceAtual=self.lance_atual
-            ),
-            gps=GPSCoordinates(
-                latitude=self.latitude,
-                longitude=self.longitude
-            ) if self.latitude and self.longitude else None,
-            detalhes=EventDetails(
-                tipo=self.tipo,
-                subtipo=self.subtipo,
-                tipologia=self.tipologia,
-                areaPrivativa=self.area_privativa,
-                areaDependente=self.area_dependente,
-                areaTotal=self.area_total,
-                distrito=self.distrito,
-                concelho=self.concelho,
-                freguesia=self.freguesia,
-                matricula=self.matricula
-            ),
-            dataInicio=self.data_inicio,
-            dataFim=self.data_fim,
-            imagens=imagens_list,
-            descricao=self.descricao,  # HTML string
-            observacoes=self.observacoes,  # HTML string
-            onuselimitacoes=self.onuselimitacoes,  # HTML string - NOVO
-            descricaoPredial=self.descricao_predial,  # HTML string
-            cerimoniaEncerramento=self.cerimonia_encerramento,  # HTML string
-            agenteExecucao=self.agente_execucao,  # HTML string
-            dadosProcesso=self.dados_processo,  # HTML string
+            id_api=self.id_api,
+            origem=self.origem,
+            verba_id=self.verba_id,
+            titulo=self.titulo,
+            capa=self.capa,
+            tipo_id=self.tipo_id,
+            subtipo_id=self.subtipo_id,
+            tipologia_id=self.tipologia_id,
+            tipo=self.tipo,
+            subtipo=self.subtipo,
+            tipologia=self.tipologia,
+            modalidade_id=self.modalidade_id,
+            valor_base=self.valor_base,
+            valor_abertura=self.valor_abertura,
+            valor_minimo=self.valor_minimo,
+            lance_atual=self.lance_atual or 0,
+            lance_atual_id=self.lance_atual_id,
+            iva_cobrar=self.iva_cobrar or False,
+            iva_percentagem=self.iva_percentagem or 23,
+            data_inicio=self.data_inicio,
+            data_fim_inicial=self.data_fim_inicial,
+            data_fim=self.data_fim,
+            cancelado=self.cancelado or False,
+            iniciado=self.iniciado or False,
+            terminado=self.terminado or False,
+            ultimos_5m=self.ultimos_5m or False,
+            area_privativa=self.area_privativa,
+            area_dependente=self.area_dependente,
+            area_total=self.area_total,
+            morada=self.morada,
+            morada_numero=self.morada_numero,
+            morada_andar=self.morada_andar,
+            morada_cp=self.morada_cp,
+            distrito=self.distrito,
+            concelho=self.concelho,
+            freguesia=self.freguesia,
+            latitude=self.latitude,
+            longitude=self.longitude,
+            matricula=self.matricula,
+            osae360=self.osae360,
+            descricao=self.descricao,
+            observacoes=self.observacoes,
+            processo_id=self.processo_id,
+            processo_numero=self.processo_numero,
+            processo_comarca=self.processo_comarca,
+            processo_comarca_codigo=self.processo_comarca_codigo,
+            processo_tribunal=self.processo_tribunal,
+            executados=executados_list,
+            cerimonia_id=self.cerimonia_id,
+            cerimonia_data=self.cerimonia_data,
+            cerimonia_local=self.cerimonia_local,
+            cerimonia_morada=self.cerimonia_morada,
+            gestor_id=self.gestor_id,
+            gestor_tipo=self.gestor_tipo,
+            gestor_tipo_id=self.gestor_tipo_id,
+            gestor_cedula=self.gestor_cedula,
+            gestor_nome=self.gestor_nome,
+            gestor_email=self.gestor_email,
+            gestor_comarca=self.gestor_comarca,
+            gestor_tribunal=self.gestor_tribunal,
+            gestor_telefone=self.gestor_telefone,
+            gestor_fax=self.gestor_fax,
+            gestor_morada=self.gestor_morada,
+            gestor_horario=self.gestor_horario,
+            fotos=fotos_list,
+            onus=onus_list,
+            desc_predial=desc_predial_list,
+            visitas=visitas_list,
+            anexos=anexos_list,
+            data_servidor=self.data_servidor,
+            data_atualizacao=self.data_atualizacao,
             scraped_at=self.scraped_at,
-            updated_at=self.updated_at
+            updated_at=self.updated_at,
+            ativo=self.ativo if self.ativo is not None else True
         )
 
 
@@ -144,112 +301,219 @@ async def init_db():
 
 class DatabaseManager:
     """Manager para operações de BD"""
-    
+
     def __init__(self, session: AsyncSession):
         self.session = session
-    
+
     async def save_event(self, event: EventData):
-        """Guarda ou atualiza um evento"""
+        """Guarda ou atualiza um evento (schema v2)"""
+
+        # Serializa arrays para JSON
+        fotos_json = None
+        if event.fotos:
+            fotos_json = json.dumps([f.model_dump() for f in event.fotos])
+
+        onus_json = None
+        if event.onus:
+            onus_json = json.dumps([o.model_dump() for o in event.onus])
+
+        desc_predial_json = None
+        if event.desc_predial:
+            desc_predial_json = json.dumps([dp.model_dump() for dp in event.desc_predial])
+
+        executados_json = None
+        if event.executados:
+            executados_json = json.dumps([e.model_dump() for e in event.executados])
+
+        visitas_json = None
+        if event.visitas:
+            visitas_json = json.dumps(event.visitas)
+
+        anexos_json = None
+        if event.anexos:
+            anexos_json = json.dumps(event.anexos)
+
         # Verifica se já existe
         result = await self.session.execute(
             select(EventDB).where(EventDB.reference == event.reference)
         )
         existing = result.scalar_one_or_none()
-        
+
         if existing:
-            # Atualiza
-            existing.tipo_evento = event.tipoEvento
-            existing.valor_base = event.valores.valorBase
-            existing.valor_abertura = event.valores.valorAbertura
-            existing.valor_minimo = event.valores.valorMinimo
-            existing.lance_atual = event.valores.lanceAtual if event.valores.lanceAtual is not None else 0
-            existing.latitude = event.gps.latitude if event.gps else None
-            existing.longitude = event.gps.longitude if event.gps else None
-            existing.tipo = event.detalhes.tipo
-            existing.subtipo = event.detalhes.subtipo
-            existing.tipologia = event.detalhes.tipologia
-            existing.area_privativa = event.detalhes.areaPrivativa
-            existing.area_dependente = event.detalhes.areaDependente
-            existing.area_total = event.detalhes.areaTotal
-            existing.distrito = event.detalhes.distrito
-            existing.concelho = event.detalhes.concelho
-            existing.freguesia = event.detalhes.freguesia
-            existing.matricula = event.detalhes.matricula
-            existing.data_inicio = event.dataInicio
-            existing.data_fim = event.dataFim
-
-            # Campos de conteúdo
-            existing.imagens = json.dumps(event.imagens) if event.imagens else None
-            existing.descricao = event.descricao  # HTML string
-            existing.observacoes = event.observacoes  # HTML string
-            existing.onuselimitacoes = event.onuselimitacoes  # HTML string - NOVO
-            existing.descricao_predial = event.descricaoPredial  # HTML string
-            existing.cerimonia_encerramento = event.cerimoniaEncerramento  # HTML string
-            existing.agente_execucao = event.agenteExecucao  # HTML string
-            existing.dados_processo = event.dadosProcesso  # HTML string
-
+            # Atualiza todos os campos
+            existing.id_api = event.id_api
+            existing.origem = event.origem
+            existing.verba_id = event.verba_id
+            existing.titulo = event.titulo
+            existing.capa = event.capa
+            existing.tipo_id = event.tipo_id
+            existing.subtipo_id = event.subtipo_id
+            existing.tipologia_id = event.tipologia_id
+            existing.tipo = event.tipo
+            existing.subtipo = event.subtipo
+            existing.tipologia = event.tipologia
+            existing.modalidade_id = event.modalidade_id
+            existing.valor_base = event.valor_base
+            existing.valor_abertura = event.valor_abertura
+            existing.valor_minimo = event.valor_minimo
+            existing.lance_atual = event.lance_atual or 0
+            existing.lance_atual_id = event.lance_atual_id
+            existing.iva_cobrar = event.iva_cobrar
+            existing.iva_percentagem = event.iva_percentagem
+            existing.data_inicio = event.data_inicio
+            existing.data_fim_inicial = event.data_fim_inicial
+            existing.data_fim = event.data_fim
+            existing.cancelado = event.cancelado
+            existing.iniciado = event.iniciado
+            existing.terminado = event.terminado
+            existing.ultimos_5m = event.ultimos_5m
+            existing.area_privativa = event.area_privativa
+            existing.area_dependente = event.area_dependente
+            existing.area_total = event.area_total
+            existing.morada = event.morada
+            existing.morada_numero = event.morada_numero
+            existing.morada_andar = event.morada_andar
+            existing.morada_cp = event.morada_cp
+            existing.distrito = event.distrito
+            existing.concelho = event.concelho
+            existing.freguesia = event.freguesia
+            existing.latitude = event.latitude
+            existing.longitude = event.longitude
+            existing.matricula = event.matricula
+            existing.osae360 = event.osae360
+            existing.descricao = event.descricao
+            existing.observacoes = event.observacoes
+            existing.processo_id = event.processo_id
+            existing.processo_numero = event.processo_numero
+            existing.processo_comarca = event.processo_comarca
+            existing.processo_comarca_codigo = event.processo_comarca_codigo
+            existing.processo_tribunal = event.processo_tribunal
+            existing.executados = executados_json
+            existing.cerimonia_id = event.cerimonia_id
+            existing.cerimonia_data = event.cerimonia_data
+            existing.cerimonia_local = event.cerimonia_local
+            existing.cerimonia_morada = event.cerimonia_morada
+            existing.gestor_id = event.gestor_id
+            existing.gestor_tipo = event.gestor_tipo
+            existing.gestor_tipo_id = event.gestor_tipo_id
+            existing.gestor_cedula = event.gestor_cedula
+            existing.gestor_nome = event.gestor_nome
+            existing.gestor_email = event.gestor_email
+            existing.gestor_comarca = event.gestor_comarca
+            existing.gestor_tribunal = event.gestor_tribunal
+            existing.gestor_telefone = event.gestor_telefone
+            existing.gestor_fax = event.gestor_fax
+            existing.gestor_morada = event.gestor_morada
+            existing.gestor_horario = event.gestor_horario
+            existing.fotos = fotos_json
+            existing.onus = onus_json
+            existing.desc_predial = desc_predial_json
+            existing.visitas = visitas_json
+            existing.anexos = anexos_json
+            existing.data_servidor = event.data_servidor
+            existing.data_atualizacao = event.data_atualizacao
+            existing.ativo = event.ativo
             existing.updated_at = datetime.utcnow()
         else:
             # Insere novo
             new_event = EventDB(
                 reference=event.reference,
-                tipo_evento=event.tipoEvento,
-                valor_base=event.valores.valorBase,
-                valor_abertura=event.valores.valorAbertura,
-                valor_minimo=event.valores.valorMinimo,
-                lance_atual=event.valores.lanceAtual if event.valores.lanceAtual is not None else 0,
-                latitude=event.gps.latitude if event.gps else None,
-                longitude=event.gps.longitude if event.gps else None,
-                tipo=event.detalhes.tipo,
-                subtipo=event.detalhes.subtipo,
-                tipologia=event.detalhes.tipologia,
-                area_privativa=event.detalhes.areaPrivativa,
-                area_dependente=event.detalhes.areaDependente,
-                area_total=event.detalhes.areaTotal,
-                distrito=event.detalhes.distrito,
-                concelho=event.detalhes.concelho,
-                freguesia=event.detalhes.freguesia,
-                matricula=event.detalhes.matricula,
-                data_inicio=event.dataInicio,
-                data_fim=event.dataFim,
-                # Campos de conteúdo
-                imagens=json.dumps(event.imagens) if event.imagens else None,
-                descricao=event.descricao,  # HTML string
-                observacoes=event.observacoes,  # HTML string
-                onuselimitacoes=event.onuselimitacoes,  # HTML string - NOVO
-                descricao_predial=event.descricaoPredial,  # HTML string
-                cerimonia_encerramento=event.cerimoniaEncerramento,  # HTML string
-                agente_execucao=event.agenteExecucao,  # HTML string
-                dados_processo=event.dadosProcesso,  # HTML string
-                scraped_at=event.scraped_at
+                id_api=event.id_api,
+                origem=event.origem,
+                verba_id=event.verba_id,
+                titulo=event.titulo,
+                capa=event.capa,
+                tipo_id=event.tipo_id,
+                subtipo_id=event.subtipo_id,
+                tipologia_id=event.tipologia_id,
+                tipo=event.tipo,
+                subtipo=event.subtipo,
+                tipologia=event.tipologia,
+                modalidade_id=event.modalidade_id,
+                valor_base=event.valor_base,
+                valor_abertura=event.valor_abertura,
+                valor_minimo=event.valor_minimo,
+                lance_atual=event.lance_atual or 0,
+                lance_atual_id=event.lance_atual_id,
+                iva_cobrar=event.iva_cobrar,
+                iva_percentagem=event.iva_percentagem,
+                data_inicio=event.data_inicio,
+                data_fim_inicial=event.data_fim_inicial,
+                data_fim=event.data_fim,
+                cancelado=event.cancelado,
+                iniciado=event.iniciado,
+                terminado=event.terminado,
+                ultimos_5m=event.ultimos_5m,
+                area_privativa=event.area_privativa,
+                area_dependente=event.area_dependente,
+                area_total=event.area_total,
+                morada=event.morada,
+                morada_numero=event.morada_numero,
+                morada_andar=event.morada_andar,
+                morada_cp=event.morada_cp,
+                distrito=event.distrito,
+                concelho=event.concelho,
+                freguesia=event.freguesia,
+                latitude=event.latitude,
+                longitude=event.longitude,
+                matricula=event.matricula,
+                osae360=event.osae360,
+                descricao=event.descricao,
+                observacoes=event.observacoes,
+                processo_id=event.processo_id,
+                processo_numero=event.processo_numero,
+                processo_comarca=event.processo_comarca,
+                processo_comarca_codigo=event.processo_comarca_codigo,
+                processo_tribunal=event.processo_tribunal,
+                executados=executados_json,
+                cerimonia_id=event.cerimonia_id,
+                cerimonia_data=event.cerimonia_data,
+                cerimonia_local=event.cerimonia_local,
+                cerimonia_morada=event.cerimonia_morada,
+                gestor_id=event.gestor_id,
+                gestor_tipo=event.gestor_tipo,
+                gestor_tipo_id=event.gestor_tipo_id,
+                gestor_cedula=event.gestor_cedula,
+                gestor_nome=event.gestor_nome,
+                gestor_email=event.gestor_email,
+                gestor_comarca=event.gestor_comarca,
+                gestor_tribunal=event.gestor_tribunal,
+                gestor_telefone=event.gestor_telefone,
+                gestor_fax=event.gestor_fax,
+                gestor_morada=event.gestor_morada,
+                gestor_horario=event.gestor_horario,
+                fotos=fotos_json,
+                onus=onus_json,
+                desc_predial=desc_predial_json,
+                visitas=visitas_json,
+                anexos=anexos_json,
+                data_servidor=event.data_servidor,
+                data_atualizacao=event.data_atualizacao,
+                scraped_at=event.scraped_at,
+                ativo=event.ativo
             )
             self.session.add(new_event)
-        
+
         await self.session.commit()
 
-    async def insert_event_stub(self, reference: str, tipo_evento: str):
-        """Insere evento básico (apenas reference + tipo_evento) se não existir"""
-        # Verifica se já existe
+    async def insert_event_stub(self, reference: str, tipo_id: int = 1):
+        """Insere evento básico (apenas reference + tipo) se não existir"""
         result = await self.session.execute(
             select(EventDB).where(EventDB.reference == reference)
         )
         existing = result.scalar_one_or_none()
 
         if not existing:
-            # Insere novo com dados mínimos
-            # tipo_evento vai direto: imoveis, veiculos, direitos, equipamentos, mobiliario, maquinas
             new_event = EventDB(
                 reference=reference,
-                tipo_evento=tipo_evento,
-                tipo=tipo_evento,
-                subtipo='N/A',
-                lance_atual=0,  # Default to 0 instead of NULL
+                tipo_id=tipo_id,
+                lance_atual=0,
                 scraped_at=datetime.utcnow()
             )
             self.session.add(new_event)
             await self.session.commit()
-            return True  # Novo inserido
-        return False  # Já existia
+            return True
+        return False
 
     async def get_event(self, reference: str) -> Optional[EventData]:
         """Busca um evento por referência"""
@@ -257,45 +521,43 @@ class DatabaseManager:
             select(EventDB).where(EventDB.reference == reference)
         )
         event_db = result.scalar_one_or_none()
-        
         return event_db.to_model() if event_db else None
-    
+
     async def list_events(
         self,
         page: int = 1,
         limit: int = 50,
-        tipo: Optional[str] = None,
-        tipo_evento: Optional[str] = None,
-        distrito: Optional[str] = None
+        tipo_id: Optional[int] = None,
+        distrito: Optional[str] = None,
+        cancelado: Optional[bool] = None
     ) -> Tuple[List[EventData], int]:
         """Lista eventos com paginação e filtros"""
         query = select(EventDB)
-        
-        # Filtros
-        if tipo:
-            query = query.where(EventDB.tipo == tipo)
-        if tipo_evento:
-            query = query.where(EventDB.tipo_evento == tipo_evento)
+
+        if tipo_id:
+            query = query.where(EventDB.tipo_id == tipo_id)
         if distrito:
             query = query.where(EventDB.distrito == distrito)
-        
+        if cancelado is not None:
+            query = query.where(EventDB.cancelado == cancelado)
+
         # Total count
         count_query = select(func.count()).select_from(query.subquery())
         total_result = await self.session.execute(count_query)
         total = total_result.scalar()
-        
-        # Paginação
+
+        # Ordenar por data_fim e paginar
+        query = query.order_by(EventDB.data_fim.asc())
         query = query.offset((page - 1) * limit).limit(limit)
-        
+
         result = await self.session.execute(query)
         events_db = result.scalars().all()
-        
-        events = [event.to_model() for event in events_db]
 
+        events = [event.to_model() for event in events_db]
         return events, total
 
     async def get_upcoming_events(self, hours: int = 24) -> List[EventData]:
-        """Get events ending within the next X hours, ordered by end time"""
+        """Get events ending within the next X hours"""
         from datetime import timedelta
 
         now = datetime.utcnow()
@@ -306,112 +568,97 @@ class DatabaseManager:
             .where(EventDB.data_fim.isnot(None))
             .where(EventDB.data_fim > now)
             .where(EventDB.data_fim <= cutoff)
+            .where(EventDB.cancelado == False)
             .order_by(EventDB.data_fim.asc())
         )
 
         result = await self.session.execute(query)
         events_db = result.scalars().all()
-
         return [event.to_model() for event in events_db]
 
     async def get_stats(self) -> dict:
         """Estatísticas gerais"""
-        # Total eventos
         total_result = await self.session.execute(select(func.count(EventDB.reference)))
         total = total_result.scalar()
-        
+
         # Com GPS
         gps_result = await self.session.execute(
             select(func.count(EventDB.reference))
             .where(EventDB.latitude.isnot(None))
         )
         with_gps = gps_result.scalar()
-        
+
+        # Cancelados
+        cancelados_result = await self.session.execute(
+            select(func.count(EventDB.reference))
+            .where(EventDB.cancelado == True)
+        )
+        cancelados = cancelados_result.scalar()
+
         # Por tipo
         tipos_result = await self.session.execute(
-            select(EventDB.tipo, func.count(EventDB.reference))
-            .group_by(EventDB.tipo)
+            select(EventDB.tipo_id, func.count(EventDB.reference))
+            .group_by(EventDB.tipo_id)
         )
         tipos = dict(tipos_result.all())
-        
+
         return {
             "total_events": total,
             "events_with_gps": with_gps,
-            "by_type": tipos
+            "events_cancelados": cancelados,
+            "by_type_id": tipos
         }
-    
-    async def get_all_references(self) -> List[str]:
-        """
-        Retorna todas as referências de eventos já armazenadas na BD.
-        Útil para comparar com novos scrapes e identificar eventos novos.
 
-        Returns:
-            Lista de referências (e.g., ["NP-2024-12345", "LO-2024-67890"])
-        """
-        result = await self.session.execute(
-            select(EventDB.reference)
-        )
-        references = result.scalars().all()
-        return list(references)
+    async def get_all_references(self) -> List[str]:
+        """Retorna todas as referências de eventos"""
+        result = await self.session.execute(select(EventDB.reference))
+        return list(result.scalars().all())
 
     async def delete_all_events(self) -> int:
-        """
-        Apaga TODOS os eventos da base de dados.
-        ATENÇÃO: Esta operação é irreversível!
-
-        Returns:
-            Número de eventos apagados
-        """
+        """Apaga TODOS os eventos"""
         from sqlalchemy import delete
 
-        # Conta quantos eventos existem
         count_result = await self.session.execute(select(func.count(EventDB.reference)))
         count = count_result.scalar()
 
-        # Apaga todos
         await self.session.execute(delete(EventDB))
         await self.session.commit()
-
         return count
 
     async def get_extended_stats(self) -> dict:
         """Extended statistics for maintenance dashboard"""
         from sqlalchemy import and_, or_
 
-        # Total events
         total_result = await self.session.execute(select(func.count(EventDB.reference)))
         total = total_result.scalar()
 
-        # Events with content (descricao not null)
+        # Com descricao
         with_content_result = await self.session.execute(
             select(func.count(EventDB.reference))
             .where(EventDB.descricao.isnot(None))
         )
         with_content = with_content_result.scalar()
 
-        # Events with images
+        # Com fotos
         with_images_result = await self.session.execute(
             select(func.count(EventDB.reference))
-            .where(EventDB.imagens.isnot(None))
-            .where(EventDB.imagens != '[]')
-            .where(EventDB.imagens != '')
+            .where(EventDB.fotos.isnot(None))
+            .where(EventDB.fotos != '[]')
+            .where(EventDB.fotos != '')
         )
         with_images = with_images_result.scalar()
 
-        # Events with NULL lance_atual
-        null_lance_result = await self.session.execute(
+        # Cancelados
+        cancelados_result = await self.session.execute(
             select(func.count(EventDB.reference))
-            .where(EventDB.lance_atual.is_(None))
+            .where(EventDB.cancelado == True)
         )
-        null_lance = null_lance_result.scalar()
+        cancelados = cancelados_result.scalar()
 
-        # Incomplete events (no content)
-        incomplete = total - with_content
-
-        # Count by tipo_evento
+        # Por tipo_id
         by_type_result = await self.session.execute(
-            select(EventDB.tipo_evento, func.count(EventDB.reference))
-            .group_by(EventDB.tipo_evento)
+            select(EventDB.tipo_id, func.count(EventDB.reference))
+            .group_by(EventDB.tipo_id)
         )
         by_type = dict(by_type_result.all())
 
@@ -419,66 +666,13 @@ class DatabaseManager:
             "total": total,
             "with_content": with_content,
             "with_images": with_images,
-            "null_lance_atual": null_lance,
-            "incomplete": incomplete,
+            "cancelados": cancelados,
+            "incomplete": total - with_content,
             "by_type": by_type
         }
 
-    async def fix_null_lance_atual(self) -> int:
-        """Fix all NULL lance_atual values to 0"""
-        from sqlalchemy import update
-
-        result = await self.session.execute(
-            update(EventDB)
-            .where(EventDB.lance_atual.is_(None))
-            .values(lance_atual=0)
-        )
-        await self.session.commit()
-        return result.rowcount
-
-    async def get_references_without_content(self) -> List[str]:
-        """Get references of events without content (descricao is NULL)"""
-        result = await self.session.execute(
-            select(EventDB.reference)
-            .where(EventDB.descricao.is_(None))
-        )
-        return list(result.scalars().all())
-
-    async def get_references_without_images(self) -> List[str]:
-        """Get references of events without images"""
-        result = await self.session.execute(
-            select(EventDB.reference)
-            .where(or_(
-                EventDB.imagens.is_(None),
-                EventDB.imagens == '[]',
-                EventDB.imagens == ''
-            ))
-        )
-        return list(result.scalars().all())
-
-    async def find_duplicates(self) -> List[str]:
-        """Find duplicate references (shouldn't happen, but check anyway)"""
-        # Since reference is primary key, true duplicates are impossible
-        # But we can check for similar references (e.g., with extra spaces)
-        result = await self.session.execute(
-            select(EventDB.reference)
-        )
-        refs = list(result.scalars().all())
-
-        # Check for normalized duplicates
-        normalized = {}
-        duplicates = []
-        for ref in refs:
-            norm = ref.strip().upper()
-            if norm in normalized:
-                duplicates.append(ref)
-            else:
-                normalized[norm] = ref
-
-        return duplicates
-
     async def update_event_price(self, reference: str, lance_atual: float, data_fim: Optional[datetime] = None):
-        """Update only the price and optionally data_fim for an event"""
+        """Update only price and optionally data_fim"""
         result = await self.session.execute(
             select(EventDB).where(EventDB.reference == reference)
         )
@@ -492,6 +686,14 @@ class DatabaseManager:
             await self.session.commit()
             return True
         return False
+
+    async def get_references_without_content(self) -> List[str]:
+        """Get references of events without content"""
+        result = await self.session.execute(
+            select(EventDB.reference)
+            .where(EventDB.descricao.is_(None))
+        )
+        return list(result.scalars().all())
 
 
 @asynccontextmanager

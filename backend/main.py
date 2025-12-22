@@ -1699,12 +1699,19 @@ async def run_api_pipeline(tipo: Optional[int], max_pages: Optional[int]):
         tipo_map = {item['reference']: item.get('tipo_evento', 'imoveis') for item in ids_data}
 
         # Inserir IDs na BD imediatamente
+        # Mapeamento tipo_evento (string) para tipo_id (int)
+        tipo_str_to_id = {
+            'imoveis': 1, 'veiculos': 2, 'equipamentos': 3,
+            'mobiliario': 4, 'maquinas': 5, 'direitos': 6,
+            'imovel': 1, 'movel': 2  # Legacy compatibility
+        }
         new_count = 0
         async with get_db() as db:
             for item in ids_data:
                 ref = item['reference']
-                tipo_ev = item.get('tipo_evento', 'imovel')
-                was_new = await db.insert_event_stub(ref, tipo_ev)
+                tipo_ev = item.get('tipo_evento', 'imoveis')
+                tipo_id = tipo_str_to_id.get(tipo_ev, 1)
+                was_new = await db.insert_event_stub(ref, tipo_id)
                 if was_new:
                     new_count += 1
 
@@ -1783,8 +1790,8 @@ async def run_api_pipeline(tipo: Optional[int], max_pages: Optional[int]):
                 except Exception as e:
                     add_dashboard_log(f"⚠️ Erro ao guardar {event.reference}: {e}", "warning")
 
-        # Count images
-        total_images = sum(len(event.imagens) for event in events)
+        # Count images (fotos is a list of FotoItem or None)
+        total_images = sum(len(event.fotos) if event.fotos else 0 for event in events)
 
         await pipeline_state.complete(
             message=f"✅ Stage 2: {success_count} eventos + {total_images} imagens"
