@@ -749,64 +749,61 @@ async def scrape_stage2_details(
     save_to_db: bool = Query(True, description="Guardar na base de dados")
 ):
     """
-    STAGE 2: Scrape detalhes completos (SEM imagens) para lista de IDs.
+    STAGE 2: Scrape detalhes completos via API oficial (RÁPIDO!)
 
-    INSERÇÃO EM TEMPO REAL: Cada evento é guardado na BD assim que é scraped.
+    Usa a API interna do e-leiloes.pt para obter dados JSON estruturados.
+    Muito mais rápido que HTML scraping.
 
     - **references**: Lista de referências (ex: ["LO-2024-001", "NP-2024-002"])
-    - **save_to_db**: Se True, guarda eventos na BD em tempo real
+    - **save_to_db**: Se True, guarda eventos na BD
 
-    Retorna eventos com todos os detalhes exceto imagens.
+    Retorna eventos com todos os detalhes incluindo URLs de imagens.
     """
     pipeline_state = get_pipeline_state()
-    scraped_count = 0
 
     try:
         # Iniciar pipeline state
         await pipeline_state.start(
             stage=2,
-            stage_name="Stage 2 - Detalhes",
+            stage_name="Stage 2 - API (Fast!)",
             total=len(references),
-            details={"save_to_db": save_to_db}
+            details={"save_to_db": save_to_db, "mode": "api"}
         )
 
-        # Callback para inserir cada evento assim que é scraped (TEMPO REAL)
-        async def save_event_callback(event: EventData):
-            """Salva evento na BD em tempo real"""
-            nonlocal scraped_count
-            scraped_count += 1
-
-            async with get_db() as db:
-                await db.save_event(event)
-                await cache_manager.set(event.reference, event)
-                print(f"  💾 {event.reference} guardado em tempo real")
-
-            # Atualizar progresso da pipeline
+        # Progress callback for real-time UI updates
+        async def on_progress(current, total, ref):
             await pipeline_state.update(
-                current=scraped_count,
-                message=f"Scraping {scraped_count}/{len(references)} - {event.reference}"
+                current=current,
+                message=f"🚀 API: {current}/{total} - {ref}"
             )
 
-        # Se save_to_db=True, passa callback; senão, None
-        callback = save_event_callback if save_to_db else None
-        events = await scraper.scrape_details_by_ids(references, on_event_scraped=callback)
+        # Use API-based scraping (MUCH FASTER!)
+        events = await scraper.scrape_details_via_api(references, on_progress)
+
+        # Save to DB if requested
+        if save_to_db and events:
+            async with get_db() as db:
+                for event in events:
+                    await db.save_event(event)
+                    await cache_manager.set(event.reference, event)
 
         # Marcar como completo
         await pipeline_state.complete(
-            message=f"✅ {len(events)} eventos processados{' e guardados' if save_to_db else ''}"
+            message=f"✅ {len(events)} eventos via API{' e guardados' if save_to_db else ''}"
         )
 
         # Parar pipeline após pequeno delay para UI mostrar
-        await asyncio.sleep(2)
+        await asyncio.sleep(1)
         await pipeline_state.stop()
 
         return {
             "stage": 2,
+            "mode": "api",
             "total_requested": len(references),
             "total_scraped": len(events),
             "events": [event.model_dump() for event in events],
             "saved_to_db": save_to_db,
-            "message": f"Stage 2 completo: {len(events)} eventos processados {'e guardados em tempo real' if save_to_db else ''}"
+            "message": f"Stage 2 completo: {len(events)} eventos via API {'e guardados' if save_to_db else ''}"
         }
 
     except Exception as e:
@@ -1478,33 +1475,22 @@ async def run_full_pipeline(tipo: Optional[int], max_pages: Optional[int]):
 
         await pipeline_state.start(
             stage=2,
-            stage_name="Stage 2 - Detalhes",
+            stage_name="Stage 2 - API (Fast!)",
             total=len(references),
-            details={"save_to_db": True}
+            details={"save_to_db": True, "mode": "api"}
         )
 
-        add_dashboard_log("📋 STAGE 2: SCRAPING DETALHES", "info")
+        add_dashboard_log("🚀 STAGE 2: SCRAPING VIA API (FAST!)", "info")
 
-        # Counter for tracking progress
-        scraped_count = 0
-
-        # Callback para inserir cada evento assim que é scraped
-        async def save_event_callback(event: EventData):
-            """Salva evento na BD em tempo real"""
-            nonlocal scraped_count
-            scraped_count += 1
-
-            async with get_db() as db:
-                await db.save_event(event)
-                await cache_manager.set(event.reference, event)
-
-            # Update pipeline state in real-time
+        # Progress callback for real-time UI updates
+        async def on_progress(current, total, ref):
             await pipeline_state.update(
-                current=scraped_count,
-                message=f"Scraping {scraped_count}/{len(references)} - {event.reference}"
+                current=current,
+                message=f"🚀 API: {current}/{total} - {ref}"
             )
 
-        events = await scraper.scrape_details_by_ids(references, on_event_scraped=save_event_callback, tipo_map=tipo_map)
+        # Use API-based scraping (includes images!)
+        events = await scraper.scrape_details_via_api(references, on_progress)
 
         # Check if stopped during scraping
         if scraper.stop_requested:
@@ -1513,69 +1499,23 @@ async def run_full_pipeline(tipo: Optional[int], max_pages: Optional[int]):
             scraper.stop_requested = False
             return
 
-        await pipeline_state.complete(message=f"✅ Stage 2: {len(events)} eventos processados e salvos")
-
-        msg = f"✅ Stage 2: {len(events)} eventos processados e salvos em tempo real"
-        print(msg)
-        add_dashboard_log(msg, "success")
-
-        # ===== STAGE 3: Scrape Imagens =====
-        # Check if stopped
-        if scraper.stop_requested:
-            add_dashboard_log("🛑 Pipeline interrompida pelo utilizador", "warning")
-            await pipeline_state.stop()
-            scraper.stop_requested = False
-            return
-
-        await pipeline_state.start(
-            stage=3,
-            stage_name="Stage 3 - Imagens",
-            total=len(references),
-            details={"update_db": True}
-        )
-
-        add_dashboard_log("🖼️ STAGE 3: SCRAPING IMAGENS", "info")
-
-        # Counter for tracking progress
-        images_count = 0
-
-        # Callback para atualizar imagens assim que são scraped
-        async def update_images_callback(ref: str, images: List[str]):
-            """Atualiza imagens do evento em tempo real"""
-            nonlocal images_count
-            images_count += 1
-
+        # Save events to database
+        if events:
             async with get_db() as db:
-                event = await db.get_event(ref)
-                if event:
-                    event.imagens = images
-                    event.updated_at = datetime.utcnow()
+                for event in events:
                     await db.save_event(event)
-                    await cache_manager.set(ref, event)
+                    await cache_manager.set(event.reference, event)
 
-            # Update pipeline state in real-time
-            await pipeline_state.update(
-                current=images_count,
-                message=f"Atualizando {images_count}/{len(references)} - {ref} ({len(images)} imagens)"
-            )
+        await pipeline_state.complete(message=f"✅ Stage 2: {len(events)} eventos via API (com imagens)")
 
-        images_map = await scraper.scrape_images_by_ids(references, on_images_scraped=update_images_callback)
-
-        # Check if stopped during scraping
-        if scraper.stop_requested:
-            add_dashboard_log("🛑 Pipeline interrompida pelo utilizador", "warning")
-            await pipeline_state.stop()
-            scraper.stop_requested = False
-            return
-
-        await pipeline_state.complete(message=f"✅ Stage 3: {len(images_map)} eventos com imagens atualizadas")
-
-        msg = f"✅ Stage 3: {len(images_map)} eventos com imagens atualizadas em tempo real"
+        msg = f"✅ Stage 2: {len(events)} eventos via API (com imagens incluídas)"
         print(msg)
         add_dashboard_log(msg, "success")
+
+        # NOTE: Stage 3 (images) is no longer needed - API includes image URLs!
 
         # Final message
-        msg = f"🎉 PIPELINE COMPLETO! IDs: {len(references)} | Detalhes: {len(events)} | Imagens: {len(images_map)}"
+        msg = f"🎉 PIPELINE COMPLETO! IDs: {len(references)} | Eventos: {len(events)}"
         print(msg)
         add_dashboard_log(msg, "success")
 

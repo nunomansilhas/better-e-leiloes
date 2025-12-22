@@ -395,23 +395,17 @@ class AutoPipelinesManager:
                             await db.save_event(event)
                             await cache_manager.set(event.reference, event)
 
-                # Stage 2 & 3: Get content and images for new events
+                # Stage 2: Get content via API (includes images!)
                 new_refs = [item['reference'] for item in ids[:10]]  # Limit to 10 per run
                 if new_refs:
-                    print(f"  📋 Stage 2: Scraping {len(new_refs)} events...")
-                    events = await scraper.scrape_details_by_ids(new_refs)
+                    print(f"  🚀 Stage 2: Scraping {len(new_refs)} events via API...")
+                    events = await scraper.scrape_details_via_api(new_refs)
 
-                    print(f"  🖼️ Stage 3: Scraping images for {len(new_refs)} events...")
-                    images_map = await scraper.scrape_images_by_ids(new_refs)
-
-                    # Update DB with images
+                    # Save events to DB (images already included from API)
                     async with get_db() as db:
-                        for ref, images in images_map.items():
-                            event = await db.get_event(ref)
-                            if event:
-                                event.imagens = images
-                                await db.save_event(event)
-                                await cache_manager.set(ref, event)
+                        for event in events:
+                            await db.save_event(event)
+                            await cache_manager.set(event.reference, event)
 
                 print(f"✅ Full Auto-Pipeline completed: {len(ids)} total, {len(new_refs)} processed")
 
@@ -514,8 +508,8 @@ class AutoPipelinesManager:
                     secs = int(seconds % 60)
 
                     try:
-                        # LIGHTWEIGHT: Only scrape price + end time (fast)
-                        volatile_data = await scraper.scrape_volatile_by_ids([event.reference])
+                        # Use API for fast volatile data (price + end time)
+                        volatile_data = await scraper.scrape_volatile_via_api([event.reference])
 
                         if volatile_data and len(volatile_data) > 0:
                             data = volatile_data[0]
@@ -648,8 +642,8 @@ class AutoPipelinesManager:
 
                 for event in events:
                     try:
-                        # Re-scrape event details
-                        new_events = await scraper.scrape_details_by_ids([event.reference])
+                        # Re-scrape event details via API (FAST!)
+                        new_events = await scraper.scrape_details_via_api([event.reference])
 
                         if new_events and len(new_events) > 0:
                             new_event = new_events[0]
@@ -790,8 +784,8 @@ class AutoPipelinesManager:
                     secs = int(seconds % 60)
 
                     try:
-                        # LIGHTWEIGHT: Only scrape price + end time (fast)
-                        volatile_data = await scraper.scrape_volatile_by_ids([event.reference])
+                        # Use API for fast volatile data (price + end time)
+                        volatile_data = await scraper.scrape_volatile_via_api([event.reference])
 
                         if volatile_data and len(volatile_data) > 0:
                             data = volatile_data[0]
@@ -953,8 +947,8 @@ class AutoPipelinesManager:
                     secs = int(seconds % 60)
 
                     try:
-                        # LIGHTWEIGHT: Only scrape price + end time (fast)
-                        volatile_data = await scraper.scrape_volatile_by_ids([event.reference])
+                        # Use API for fast volatile data (price + end time)
+                        volatile_data = await scraper.scrape_volatile_via_api([event.reference])
 
                         if volatile_data and len(volatile_data) > 0:
                             data = volatile_data[0]
@@ -1105,8 +1099,8 @@ class AutoPipelinesManager:
                     tier_emoji = {'critical': '🔴', 'urgent': '🟠', 'soon': '🟡'}[tier]
 
                     try:
-                        # Use API to get volatile data (lance_atual, dataFim)
-                        volatile_data = await scraper.scrape_volatile_by_ids([event.reference])
+                        # Use API for fast volatile data (lance_atual, dataFim)
+                        volatile_data = await scraper.scrape_volatile_via_api([event.reference])
 
                         if volatile_data and len(volatile_data) > 0:
                             data = volatile_data[0]
@@ -1195,9 +1189,9 @@ class AutoPipelinesManager:
                         for item in ids:
                             existing = await db.get_event(item['reference'])
                             if not existing:
-                                # New event - use API to get full data
+                                # New event - use API to get full data (FAST!)
                                 try:
-                                    events = await scraper.scrape_details_by_ids([item['reference']])
+                                    events = await scraper.scrape_details_via_api([item['reference']])
                                     if events and len(events) > 0:
                                         await db.save_event(events[0])
                                         await cache_manager.set(item['reference'], events[0])
@@ -1216,8 +1210,8 @@ class AutoPipelinesManager:
 
                     for event in events:
                         try:
-                            # Check API for terminado status
-                            api_data = await scraper.scrape_details_by_ids([event.reference])
+                            # Check API for terminado status (FAST!)
+                            api_data = await scraper.scrape_details_via_api([event.reference])
 
                             if api_data and len(api_data) > 0:
                                 api_event = api_data[0]
