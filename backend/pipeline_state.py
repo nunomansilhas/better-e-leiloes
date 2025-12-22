@@ -10,6 +10,28 @@ from typing import Optional, Dict, Any
 from pathlib import Path
 import asyncio
 from contextlib import asynccontextmanager
+from dataclasses import asdict, is_dataclass
+
+
+class SafeJSONEncoder(json.JSONEncoder):
+    """JSON encoder that handles Pydantic models and dataclasses"""
+    def default(self, obj):
+        # Handle dataclasses
+        if is_dataclass(obj) and not isinstance(obj, type):
+            return asdict(obj)
+        # Handle Pydantic models
+        if hasattr(obj, 'model_dump'):
+            return obj.model_dump()
+        if hasattr(obj, 'dict'):
+            return obj.dict()
+        # Handle datetime
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        # For any other object, try to get __dict__ or convert to string
+        try:
+            return obj.__dict__
+        except AttributeError:
+            return str(obj)
 
 
 class PipelineState:
@@ -48,7 +70,7 @@ class PipelineState:
         """Save state to file"""
         try:
             with open(self.STATE_FILE, 'w', encoding='utf-8') as f:
-                json.dump(self._state, f, indent=2, ensure_ascii=False)
+                json.dump(self._state, f, indent=2, ensure_ascii=False, cls=SafeJSONEncoder)
         except Exception as e:
             print(f"⚠️ Error saving pipeline state: {e}")
 
