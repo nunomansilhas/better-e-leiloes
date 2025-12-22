@@ -2432,16 +2432,15 @@
                     </table>
                 </div>
 
-                <!-- Pipeline Completo - Stepper Minimalista -->
+                <!-- Pipeline Completo - API Only -->
                 <div class="scraper-control-card" style="margin-top: 16px;">
-                    <!-- Pipeline Mode Selector -->
-                    <div style="display: flex; gap: 8px; margin-bottom: 12px;">
-                        <button id="btn-mode-normal" onclick="selectPipelineMode('normal')" style="flex: 1; padding: 8px 12px; border: 2px solid #e2e8f0; border-radius: 8px; background: white; cursor: pointer; font-size: 12px; font-weight: 500; color: #64748b; transition: all 0.2s;">
-                            🐢 Normal (3 Stages)
-                        </button>
-                        <button id="btn-mode-api" onclick="selectPipelineMode('api')" style="flex: 1; padding: 8px 12px; border: 2px solid #10b981; border-radius: 8px; background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); cursor: pointer; font-size: 12px; font-weight: 600; color: #047857; transition: all 0.2s;">
-                            🚀 API (2 Stages - RÁPIDO!)
-                        </button>
+                    <!-- Pipeline Header -->
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 16px;">🚀</span>
+                            <span style="font-weight: 600; color: #1e293b;">Pipeline API</span>
+                            <span style="font-size: 11px; padding: 2px 8px; background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); color: #047857; border-radius: 10px; font-weight: 600;">RÁPIDO</span>
+                        </div>
                     </div>
 
                     <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
@@ -2456,15 +2455,14 @@
                             <!-- Step 2 -->
                             <div style="display: flex; align-items: center; gap: 6px;">
                                 <div id="stage2-circle" style="width: 28px; height: 28px; border-radius: 50%; background: #f1f5f9; color: #94a3b8; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; transition: all 0.3s ease;">2</div>
-                                <span id="stage2-label" style="font-size: 13px; font-weight: 500; color: #64748b;">Content</span>
+                                <span id="stage2-label" style="font-size: 13px; font-weight: 500; color: #64748b;">API (All)</span>
                                 <span id="stage2-count" style="font-size: 11px; color: #94a3b8; font-weight: 600;"></span>
                             </div>
-                            <div id="pipeline-line2" style="flex: 1; height: 2px; background: #e2e8f0; border-radius: 1px; transition: background 0.3s ease;"></div>
-                            <!-- Step 3 (hidden in API mode) -->
-                            <div id="stage3-container" style="display: flex; align-items: center; gap: 6px;">
-                                <div id="stage3-circle" style="width: 28px; height: 28px; border-radius: 50%; background: #f1f5f9; color: #94a3b8; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; transition: all 0.3s ease;">3</div>
-                                <span style="font-size: 13px; font-weight: 500; color: #64748b;">Images</span>
-                                <span id="stage3-count" style="font-size: 11px; color: #94a3b8; font-weight: 600;"></span>
+                            <!-- Hidden: Stage 3 not needed for API -->
+                            <div id="pipeline-line2" style="display: none;"></div>
+                            <div id="stage3-container" style="display: none;">
+                                <div id="stage3-circle"></div>
+                                <span id="stage3-count"></span>
                             </div>
                         </div>
                         <button class="scraper-btn primary" id="btn-pipeline" onclick="togglePipeline()" style="padding: 10px 20px; font-size: 13px; white-space: nowrap;">
@@ -2759,6 +2757,72 @@
 
     <script>
         const API_BASE = 'http://localhost:8000';
+
+        // Normalize event data - handles both old nested and new flat model formats
+        function normalizeEvent(event) {
+            // Check if already in old format (has nested objects)
+            if (event.valores && event.detalhes) {
+                return event; // Already normalized
+            }
+
+            // Transform new flat format to old nested format for frontend compatibility
+            const tipoIdToEvento = {
+                1: 'imoveis', 2: 'veiculos', 3: 'equipamentos',
+                4: 'mobiliario', 5: 'maquinas', 6: 'direitos'
+            };
+
+            // Extract images from fotos array
+            let imagens = [];
+            if (event.fotos && Array.isArray(event.fotos)) {
+                imagens = event.fotos.map(f => f.image || f).filter(Boolean);
+            }
+
+            return {
+                reference: event.reference,
+                tipoEvento: tipoIdToEvento[event.tipo_id] || 'imoveis',
+                titulo: event.titulo,
+                capa: event.capa,
+                valores: {
+                    valorBase: event.valor_base,
+                    valorAbertura: event.valor_abertura,
+                    valorMinimo: event.valor_minimo,
+                    lanceAtual: event.lance_atual || 0
+                },
+                gps: (event.latitude && event.longitude) ? {
+                    latitude: event.latitude,
+                    longitude: event.longitude
+                } : null,
+                detalhes: {
+                    tipo: event.tipo || 'N/A',
+                    subtipo: event.subtipo || 'N/A',
+                    tipologia: event.tipologia,
+                    areaPrivativa: event.area_privativa,
+                    areaDependente: event.area_dependente,
+                    areaTotal: event.area_total,
+                    distrito: event.distrito,
+                    concelho: event.concelho,
+                    freguesia: event.freguesia,
+                    matricula: event.matricula
+                },
+                dataInicio: event.data_inicio,
+                dataFim: event.data_fim,
+                imagens: imagens,
+                descricao: event.descricao,
+                observacoes: event.observacoes,
+                cancelado: event.cancelado || false,
+                // New fields from API
+                gestor_nome: event.gestor_nome,
+                gestor_email: event.gestor_email,
+                processo_numero: event.processo_numero,
+                processo_tribunal: event.processo_tribunal
+            };
+        }
+
+        // Normalize array of events
+        function normalizeEvents(events) {
+            return events.map(normalizeEvent);
+        }
+
         let currentPageData = { imoveis: 1, veiculos: 1, direitos: 1, equipamentos: 1, mobiliario: 1, maquinas: 1 };
         let totalPagesData = { imoveis: 1, veiculos: 1, direitos: 1, equipamentos: 1, mobiliario: 1, maquinas: 1 };
         let allDistritos = new Set();
@@ -2794,56 +2858,7 @@
         // Manual Pipeline control variables
         let pipelineRunning = false;
         let pipelineAbortController = null;
-        let pipelineMode = 'api'; // 'normal' or 'api' - default to API (faster!)
-
-        // Pipeline Mode Selection
-        function selectPipelineMode(mode) {
-            pipelineMode = mode;
-
-            const btnNormal = document.getElementById('btn-mode-normal');
-            const btnApi = document.getElementById('btn-mode-api');
-            const stage3Container = document.getElementById('stage3-container');
-            const pipelineLine2 = document.getElementById('pipeline-line2');
-            const stage2Label = document.getElementById('stage2-label');
-
-            if (mode === 'api') {
-                // API mode - 2 stages only
-                btnApi.style.border = '2px solid #10b981';
-                btnApi.style.background = 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)';
-                btnApi.style.color = '#047857';
-                btnApi.style.fontWeight = '600';
-
-                btnNormal.style.border = '2px solid #e2e8f0';
-                btnNormal.style.background = 'white';
-                btnNormal.style.color = '#64748b';
-                btnNormal.style.fontWeight = '500';
-
-                // Hide Stage 3
-                if (stage3Container) stage3Container.style.display = 'none';
-                if (pipelineLine2) pipelineLine2.style.display = 'none';
-                if (stage2Label) stage2Label.textContent = 'API (All)';
-
-                addLog('🚀 Modo API selecionado - 2 stages, mais rápido!', 'info');
-            } else {
-                // Normal mode - 3 stages
-                btnNormal.style.border = '2px solid #3b82f6';
-                btnNormal.style.background = 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)';
-                btnNormal.style.color = '#1e40af';
-                btnNormal.style.fontWeight = '600';
-
-                btnApi.style.border = '2px solid #e2e8f0';
-                btnApi.style.background = 'white';
-                btnApi.style.color = '#64748b';
-                btnApi.style.fontWeight = '500';
-
-                // Show Stage 3
-                if (stage3Container) stage3Container.style.display = 'flex';
-                if (pipelineLine2) pipelineLine2.style.display = 'block';
-                if (stage2Label) stage2Label.textContent = 'Content';
-
-                addLog('🐢 Modo Normal selecionado - 3 stages, HTML scraping', 'info');
-            }
-        }
+        // API mode is now the only mode - faster and more complete!
 
         // Sidebar Lock
         function toggleSidebarLock() {
@@ -3232,12 +3247,13 @@
                     const response = await fetch(url);
                     const data = await response.json();
 
-                    allLoadedEvents[type] = data.events;
+                    // Normalize events to handle both old and new API formats
+                    allLoadedEvents[type] = normalizeEvents(data.events);
 
-                    // Collect distritos
+                    // Collect distritos (using normalized data)
                     if (type === 'imoveis') {
-                        data.events.forEach(event => {
-                            if (event.detalhes.distrito) {
+                        allLoadedEvents[type].forEach(event => {
+                            if (event.detalhes && event.detalhes.distrito) {
                                 allDistritos.add(event.detalhes.distrito);
                             }
                         });
@@ -4497,15 +4513,11 @@
                 btn.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
                 btn.style.color = 'white';
 
-                const modeLabel = pipelineMode === 'api' ? '🚀 API Pipeline' : '🐢 Normal Pipeline';
-                addLog(`${modeLabel}: Iniciando...`, 'info');
+                addLog('🚀 API Pipeline: Iniciando...', 'info');
 
-                // Reset pipeline visualization
+                // Reset pipeline visualization (only 2 stages for API)
                 updatePipelineStage(1, 'active', 0);
                 updatePipelineStage(2, 'pending', 0);
-                if (pipelineMode === 'normal') {
-                    updatePipelineStage(3, 'pending', 0);
-                }
                 updatePipelineProgress(0);
 
                 // Show feedback box
@@ -4515,13 +4527,8 @@
                     updateFeedback('A iniciar pipeline...', 0, 0);
                 }
 
-                // Build URL based on mode
-                let url;
-                if (pipelineMode === 'api') {
-                    url = `${API_BASE}/api/pipeline/api?`;
-                } else {
-                    url = `${API_BASE}/api/scrape/pipeline?`;
-                }
+                // Build URL - always use API endpoint
+                let url = `${API_BASE}/api/pipeline/api?`;
                 if (tipo) url += `tipo=${tipo}&`;
                 if (pages) url += `max_pages=${pages}`;
 
