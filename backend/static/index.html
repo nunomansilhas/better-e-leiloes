@@ -2994,12 +2994,13 @@
                 const eventsResponse = await fetch(`${API_BASE}/api/events?limit=100000`);
                 const eventsData = await eventsResponse.json();
 
-                const events = eventsData.events;
+                // Normalize events to handle new API format
+                const events = normalizeEvents(eventsData.events);
                 const total = events.length;
 
-                // Filter by type (supports both old and new format)
-                const imoveisEvents = events.filter(e => e.tipoEvento === 'imoveis' || e.tipoEvento === 'imovel');
-                const veiculosEvents = events.filter(e => e.tipoEvento === 'veiculos' || e.tipoEvento === 'movel');
+                // Filter by type (using normalized tipoEvento)
+                const imoveisEvents = events.filter(e => e.tipoEvento === 'imoveis');
+                const veiculosEvents = events.filter(e => e.tipoEvento === 'veiculos');
                 const direitosEvents = events.filter(e => e.tipoEvento === 'direitos');
                 const equipamentosEvents = events.filter(e => e.tipoEvento === 'equipamentos');
                 const mobiliarioEvents = events.filter(e => e.tipoEvento === 'mobiliario');
@@ -3009,40 +3010,57 @@
                 const countLO = (arr) => arr.filter(e => e.reference.startsWith('LO')).length;
                 const countNP = (arr) => arr.filter(e => e.reference.startsWith('NP')).length;
 
+                // Helper to update stat with animation on change
+                const updateStat = (id, value) => {
+                    const el = document.getElementById(id);
+                    if (!el) return;
+                    const oldValue = parseInt(el.textContent) || 0;
+                    if (oldValue !== value) {
+                        el.textContent = value;
+                        el.style.transition = 'transform 0.2s ease, color 0.3s ease';
+                        el.style.transform = 'scale(1.15)';
+                        el.style.color = value > oldValue ? '#10b981' : '#ef4444';
+                        setTimeout(() => {
+                            el.style.transform = 'scale(1)';
+                            el.style.color = '';
+                        }, 300);
+                    }
+                };
+
                 // Total
-                document.getElementById('stat-total').textContent = total;
-                document.getElementById('stat-total-lo').textContent = countLO(events);
-                document.getElementById('stat-total-np').textContent = countNP(events);
+                updateStat('stat-total', total);
+                updateStat('stat-total-lo', countLO(events));
+                updateStat('stat-total-np', countNP(events));
 
                 // Imóveis
-                document.getElementById('stat-imoveis').textContent = imoveisEvents.length;
-                document.getElementById('stat-imoveis-lo').textContent = countLO(imoveisEvents);
-                document.getElementById('stat-imoveis-np').textContent = countNP(imoveisEvents);
+                updateStat('stat-imoveis', imoveisEvents.length);
+                updateStat('stat-imoveis-lo', countLO(imoveisEvents));
+                updateStat('stat-imoveis-np', countNP(imoveisEvents));
 
                 // Veículos
-                document.getElementById('stat-veiculos').textContent = veiculosEvents.length;
-                document.getElementById('stat-veiculos-lo').textContent = countLO(veiculosEvents);
-                document.getElementById('stat-veiculos-np').textContent = countNP(veiculosEvents);
+                updateStat('stat-veiculos', veiculosEvents.length);
+                updateStat('stat-veiculos-lo', countLO(veiculosEvents));
+                updateStat('stat-veiculos-np', countNP(veiculosEvents));
 
                 // Direitos
-                document.getElementById('stat-direitos').textContent = direitosEvents.length;
-                document.getElementById('stat-direitos-lo').textContent = countLO(direitosEvents);
-                document.getElementById('stat-direitos-np').textContent = countNP(direitosEvents);
+                updateStat('stat-direitos', direitosEvents.length);
+                updateStat('stat-direitos-lo', countLO(direitosEvents));
+                updateStat('stat-direitos-np', countNP(direitosEvents));
 
                 // Equipamentos
-                document.getElementById('stat-equipamentos').textContent = equipamentosEvents.length;
-                document.getElementById('stat-equipamentos-lo').textContent = countLO(equipamentosEvents);
-                document.getElementById('stat-equipamentos-np').textContent = countNP(equipamentosEvents);
+                updateStat('stat-equipamentos', equipamentosEvents.length);
+                updateStat('stat-equipamentos-lo', countLO(equipamentosEvents));
+                updateStat('stat-equipamentos-np', countNP(equipamentosEvents));
 
                 // Mobiliário
-                document.getElementById('stat-mobiliario').textContent = mobiliarioEvents.length;
-                document.getElementById('stat-mobiliario-lo').textContent = countLO(mobiliarioEvents);
-                document.getElementById('stat-mobiliario-np').textContent = countNP(mobiliarioEvents);
+                updateStat('stat-mobiliario', mobiliarioEvents.length);
+                updateStat('stat-mobiliario-lo', countLO(mobiliarioEvents));
+                updateStat('stat-mobiliario-np', countNP(mobiliarioEvents));
 
                 // Máquinas
-                document.getElementById('stat-maquinas').textContent = maquinasEvents.length;
-                document.getElementById('stat-maquinas-lo').textContent = countLO(maquinasEvents);
-                document.getElementById('stat-maquinas-np').textContent = countNP(maquinasEvents);
+                updateStat('stat-maquinas', maquinasEvents.length);
+                updateStat('stat-maquinas-lo', countLO(maquinasEvents));
+                updateStat('stat-maquinas-np', countNP(maquinasEvents));
 
             } catch (error) {
                 console.error('Erro ao atualizar stats:', error);
