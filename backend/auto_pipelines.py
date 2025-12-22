@@ -48,7 +48,7 @@ class AutoPipelinesManager:
         "ysync": PipelineConfig(
             type="ysync",
             name="Y-Sync",
-            description="Sincroniza novos IDs e marca eventos terminados (ativo=0)",
+            description="Sincronização completa: todos os IDs + marca terminados",
             enabled=False,
             interval_hours=2.0  # A cada 2 horas
         )
@@ -1207,7 +1207,7 @@ class AutoPipelinesManager:
             self.pipelines['ysync'].is_running = True
             self._save_config()
 
-            print(f"🔄 Y-Sync: A iniciar sincronização...")
+            print(f"🔄 Y-Sync: A iniciar sincronização completa...")
 
             scraper = EventScraper()
             cache_manager = CacheManager()
@@ -1216,9 +1216,10 @@ class AutoPipelinesManager:
                 new_ids_count = 0
                 terminated_count = 0
 
-                # Stage 1: Discover new IDs (scan first 10 pages = ~120 eventos recentes)
-                print(f"  🔍 Stage 1: A descobrir novos IDs...")
-                ids = await scraper.scrape_ids_only(tipo=None, max_pages=10)
+                # Stage 1: Discover ALL IDs (full scan, no page limit)
+                print(f"  🔍 Stage 1: A descobrir TODOS os IDs...")
+                ids = await scraper.scrape_ids_only(tipo=None, max_pages=None)
+                print(f"  📊 {len(ids)} IDs encontrados no site")
 
                 # Find only NEW ids
                 new_ids = []
@@ -1229,7 +1230,7 @@ class AutoPipelinesManager:
                             new_ids.append(item)
 
                 if new_ids:
-                    print(f"  🆕 {len(new_ids)} novos IDs encontrados, a obter dados...")
+                    print(f"  🆕 {len(new_ids)} novos IDs, a obter dados via API...")
                     new_refs = [item['reference'] for item in new_ids]
                     events = await scraper.scrape_details_via_api(new_refs)
 
@@ -1238,54 +1239,60 @@ class AutoPipelinesManager:
                             await db.save_event(event)
                             await cache_manager.set(event.reference, event)
                             new_ids_count += 1
+                else:
+                    print(f"  ✓ Nenhum ID novo encontrado")
 
-                print(f"  📊 Stage 1: {new_ids_count} novos eventos adicionados")
+                print(f"  📊 Stage 1 completo: {new_ids_count} novos eventos adicionados")
 
-                # Stage 2: Check ONLY events that have passed their dataFim
+                # Stage 2: Check events that have passed their dataFim
                 print(f"  🔄 Stage 2: A verificar eventos terminados...")
                 now = datetime.now()
 
                 async with get_db() as db:
-                    # Get events where dataFim < now and still active
-                    events, total = await db.list_events(limit=100, cancelado=False)
+                    # Get active events
+                    events, total = await db.list_events(limit=500, cancelado=False)
 
                     candidates = []
                     for event in events:
                         if event.data_fim and event.data_fim < now:
                             candidates.append(event)
 
-                    print(f"    📋 {len(candidates)} candidatos a terminado")
+                    if candidates:
+                        print(f"    📋 {len(candidates)} candidatos a terminado")
 
-                    for event in candidates:
-                        try:
-                            # Quick check via API
-                            api_data = await scraper.scrape_volatile_via_api([event.reference])
+                        for event in candidates:
+                            try:
+                                # Quick check via API
+                                api_data = await scraper.scrape_volatile_via_api([event.reference])
 
-                            if api_data and len(api_data) > 0:
-                                data = api_data[0]
-                                # If dataFim passed and no new price activity, mark as terminated
-                                new_end = data.get('dataFim')
-                                if new_end and new_end < now:
-                                    if hasattr(event, 'ativo'):
-                                        event.ativo = False
-                                    if hasattr(event, 'cancelado'):
+                                if api_data and len(api_data) > 0:
+                                    data = api_data[0]
+                                    new_end = data.get('dataFim')
+                                    if new_end and new_end < now:
+                                        event.terminado = True
                                         event.cancelado = True
-                                    await db.save_event(event)
-                                    await cache_manager.set(event.reference, event)
-                                    terminated_count += 1
-                                    print(f"    🔴 Terminado: {event.reference}")
+                                        await db.save_event(event)
+                                        await cache_manager.set(event.reference, event)
+                                        terminated_count += 1
+                                        print(f"    🔴 Terminado: {event.reference}")
 
-                        except Exception as e:
-                            if "404" in str(e) or "not found" in str(e).lower():
-                                if hasattr(event, 'ativo'):
-                                    event.ativo = False
-                                await db.save_event(event)
-                                terminated_count += 1
-                                print(f"    🔴 Não encontrado: {event.reference}")
+                            except Exception as e:
+                                if "404" in str(e) or "not found" in str(e).lower():
+                                    event.terminado = True
+                                    await db.save_event(event)
+                                    terminated_count += 1
+                                    print(f"    🔴 Não encontrado: {event.reference}")
+                    else:
+                        print(f"    ✓ Nenhum evento terminado")
 
                 print(f"  ✅ Y-Sync completo: {new_ids_count} novos, {terminated_count} terminados")
 
-                # Update pipeline stats
+            finally:
+                await scraper.close()
+                await cache_manager.close()
+                self.pipelines['ysync'].is_running = False
+
+                # Update pipeline stats AFTER completion (timer starts now)
                 pipeline = self.pipelines['ysync']
                 now = datetime.now()
                 pipeline.last_run = now.strftime("%Y-%m-%d %H:%M:%S")
@@ -1293,11 +1300,6 @@ class AutoPipelinesManager:
                 pipeline.next_run = (now + timedelta(hours=pipeline.interval_hours)).strftime("%Y-%m-%d %H:%M:%S")
                 self._save_config()
 
-            finally:
-                await scraper.close()
-                await cache_manager.close()
-                self.pipelines['ysync'].is_running = False
-                self._save_config()
                 self._reschedule_pipeline('ysync')
 
         # Return the appropriate function
