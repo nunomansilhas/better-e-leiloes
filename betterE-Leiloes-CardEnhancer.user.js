@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      6.9
-// @description  Design moderno com carousel de imagens e distinção visual de tipos de leilão
+// @version      7.0
+// @description  Design moderno com carousel de imagens - compatível com API v2
 // @author       Nuno Mansilhas
 // @match        https://www.e-leiloes.pt/*
 // @icon         https://www.e-leiloes.pt/favicon.ico
@@ -485,10 +485,10 @@
             });
 
             // Style map marker
-            const hasGPS = apiData.gps && apiData.gps.latitude;
+            const hasGPS = apiData.latitude && apiData.longitude;
             const nativeMapMarker = card.querySelector('.pi-map-marker');
             if (nativeMapMarker && hasGPS) {
-                const mapsUrl = `https://www.google.com/maps?q=${apiData.gps.latitude},${apiData.gps.longitude}`;
+                const mapsUrl = `https://www.google.com/maps?q=${apiData.latitude},${apiData.longitude}`;
                 nativeMapMarker.classList.add('better-map-link');
                 nativeMapMarker.title = 'Ver no Google Maps';
                 nativeMapMarker.addEventListener('click', (e) => {
@@ -554,24 +554,25 @@
                 }
             }
 
-            // Values - VB/VA/VM in one row, Lance in separate row
+            // Values - VB/VA/VM in one row, Lance in separate row (API v2 format)
             let valoresHTML = '';
-            if (apiData.valores) {
-                const v = apiData.valores;
-                const topItems = [];
-                if (v.valorBase) topItems.push(`<div class="better-valor-item"><span class="better-valor-label">VB:</span><span class="better-valor-amount">${formatCurrency(v.valorBase)}</span></div>`);
-                if (v.valorAbertura) topItems.push(`<div class="better-valor-item"><span class="better-valor-label">VA:</span><span class="better-valor-amount">${formatCurrency(v.valorAbertura)}</span></div>`);
-                if (v.valorMinimo) topItems.push(`<div class="better-valor-item"><span class="better-valor-label">VM:</span><span class="better-valor-amount">${formatCurrency(v.valorMinimo)}</span></div>`);
+            const topItems = [];
+            if (apiData.valor_base) topItems.push(`<div class="better-valor-item"><span class="better-valor-label">VB:</span><span class="better-valor-amount">${formatCurrency(apiData.valor_base)}</span></div>`);
+            if (apiData.valor_abertura) topItems.push(`<div class="better-valor-item"><span class="better-valor-label">VA:</span><span class="better-valor-amount">${formatCurrency(apiData.valor_abertura)}</span></div>`);
+            if (apiData.valor_minimo) topItems.push(`<div class="better-valor-item"><span class="better-valor-label">VM:</span><span class="better-valor-amount">${formatCurrency(apiData.valor_minimo)}</span></div>`);
 
-                const lanceHTML = `<div class="better-lance-row"><div class="better-valor-item lance-atual"><span class="better-valor-label">Lance:</span><span class="better-valor-amount">${v.lanceAtual ? formatCurrency(v.lanceAtual) : '0 €'}</span></div></div>`;
+            const lanceHTML = `<div class="better-lance-row"><div class="better-valor-item lance-atual"><span class="better-valor-label">Lance:</span><span class="better-valor-amount">${apiData.lance_atual ? formatCurrency(apiData.lance_atual) : '0 €'}</span></div></div>`;
 
+            if (topItems.length > 0) {
                 valoresHTML = `<div class="better-valores-row">${topItems.join('')}</div>${lanceHTML}`;
+            } else {
+                valoresHTML = lanceHTML;
             }
 
-            // Countdown
+            // Countdown (API v2: data_fim)
             let countdownHTML = '';
-            if (apiData.dataFim) {
-                const remaining = calculateTimeRemaining(apiData.dataFim);
+            if (apiData.data_fim) {
+                const remaining = calculateTimeRemaining(apiData.data_fim);
                 if (remaining) {
                     const countdownId = `countdown-${reference}`;
                     countdownHTML = `
@@ -579,7 +580,7 @@
                             <div class="better-countdown">
                                 <span class="better-countdown-icon">⏱️</span>
                                 <span class="better-countdown-text">Termina:</span>
-                                <span class="better-countdown-time ${remaining.isEnding ? 'ending-soon' : ''}" id="${countdownId}" data-end="${apiData.dataFim}">${remaining.text}</span>
+                                <span class="better-countdown-time ${remaining.isEnding ? 'ending-soon' : ''}" id="${countdownId}" data-end="${apiData.data_fim}">${remaining.text}</span>
                             </div>
                         </div>
                     `;
@@ -637,7 +638,7 @@
     }
 
     function init() {
-        console.log('🚀 Better E-Leilões Card Enhancer v6.1 - Minimal Clean');
+        console.log('🚀 Better E-Leilões Card Enhancer v7.0 - API v2');
 
         integrateWithNativeFloatingButtons();
         enhanceAllCards();
@@ -646,7 +647,7 @@
 
         observer.observe(document.body, { childList: true, subtree: true });
 
-        console.log('✅ Card enhancer v6.9 ativo - Minimal Clean!');
+        console.log('✅ Card enhancer v7.0 ativo - compatível com API v2!');
     }
 
     if (document.readyState === 'loading') {
