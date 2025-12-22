@@ -134,8 +134,8 @@ class AutoPipelinesManager:
             print(f"🔍 Critical cache: {len(events)} upcoming events (< 1h)")
 
             for event in events:
-                if event.dataFim:
-                    time_until_end = event.dataFim - now
+                if event.data_fim:
+                    time_until_end = event.data_fim - now
                     seconds_until_end = time_until_end.total_seconds()
 
                     print(f"    {event.reference}: {int(seconds_until_end)}s")
@@ -167,8 +167,8 @@ class AutoPipelinesManager:
             urgent_events = []
 
             for event in events:
-                if event.dataFim:
-                    time_until_end = event.dataFim - now
+                if event.data_fim:
+                    time_until_end = event.data_fim - now
                     seconds_until_end = time_until_end.total_seconds()
                     if 0 < seconds_until_end <= 5400:
                         urgent_events.append(event)
@@ -510,8 +510,8 @@ class AutoPipelinesManager:
                 now = datetime.now()
 
                 for event in self._critical_events_cache:
-                    if event.dataFim:
-                        time_until_end = event.dataFim - now
+                    if event.data_fim:
+                        time_until_end = event.data_fim - now
                         seconds_until_end = time_until_end.total_seconds()
 
                         # Only scrape events < 5 minutes (300 seconds)
@@ -545,9 +545,9 @@ class AutoPipelinesManager:
 
                         if volatile_data and len(volatile_data) > 0:
                             data = volatile_data[0]
-                            old_price = event.valores.lanceAtual
+                            old_price = event.lance_atual
                             new_price = data['lanceAtual']
-                            old_end = event.dataFim
+                            old_end = event.data_fim
                             new_end = data['dataFim']
 
                             # Debug: show comparison
@@ -579,9 +579,9 @@ class AutoPipelinesManager:
 
                                 # Update event in database - only update price if we got a valid one
                                 if price_changed and new_price is not None:
-                                    event.valores.lanceAtual = new_price
+                                    event.lance_atual = new_price
                                 if time_extended and new_end is not None:
-                                    event.dataFim = new_end
+                                    event.data_fim = new_end
 
                                 async with get_db() as db:
                                     await db.save_event(event)
@@ -681,21 +681,21 @@ class AutoPipelinesManager:
                             new_event = new_events[0]
                             changed_fields = []
 
-                            # Compare valores (prices) - ONLY
-                            if event.valores.valorBase != new_event.valores.valorBase:
-                                changed_fields.append(f"valorBase: {event.valores.valorBase}€ → {new_event.valores.valorBase}€")
-                            if event.valores.valorAbertura != new_event.valores.valorAbertura:
-                                changed_fields.append(f"valorAbertura: {event.valores.valorAbertura}€ → {new_event.valores.valorAbertura}€")
-                            if event.valores.valorMinimo != new_event.valores.valorMinimo:
-                                changed_fields.append(f"valorMinimo: {event.valores.valorMinimo}€ → {new_event.valores.valorMinimo}€")
-                            if event.valores.lanceAtual != new_event.valores.lanceAtual:
-                                changed_fields.append(f"lanceAtual: {event.valores.lanceAtual}€ → {new_event.valores.lanceAtual}€")
+                            # Compare values (prices)
+                            if event.valor_base != new_event.valor_base:
+                                changed_fields.append(f"valor_base: {event.valor_base}€ → {new_event.valor_base}€")
+                            if event.valor_abertura != new_event.valor_abertura:
+                                changed_fields.append(f"valor_abertura: {event.valor_abertura}€ → {new_event.valor_abertura}€")
+                            if event.valor_minimo != new_event.valor_minimo:
+                                changed_fields.append(f"valor_minimo: {event.valor_minimo}€ → {new_event.valor_minimo}€")
+                            if event.lance_atual != new_event.lance_atual:
+                                changed_fields.append(f"lance_atual: {event.lance_atual}€ → {new_event.lance_atual}€")
 
-                            # Compare dates - ONLY
-                            if event.dataInicio != new_event.dataInicio:
-                                changed_fields.append(f"dataInicio changed")
-                            if event.dataFim != new_event.dataFim:
-                                changed_fields.append(f"dataFim changed")
+                            # Compare dates
+                            if event.data_inicio != new_event.data_inicio:
+                                changed_fields.append(f"data_inicio changed")
+                            if event.data_fim != new_event.data_fim:
+                                changed_fields.append(f"data_fim changed")
 
                             # If changes detected, update event
                             if changed_fields:
@@ -786,8 +786,8 @@ class AutoPipelinesManager:
                 now = datetime.now()
 
                 for event in self._urgent_events_cache:
-                    if event.dataFim:
-                        time_until_end = event.dataFim - now
+                    if event.data_fim:
+                        time_until_end = event.data_fim - now
                         seconds_until_end = time_until_end.total_seconds()
 
                         # Only scrape events < 1 hour (3600 seconds)
@@ -821,9 +821,9 @@ class AutoPipelinesManager:
 
                         if volatile_data and len(volatile_data) > 0:
                             data = volatile_data[0]
-                            old_price = event.valores.lanceAtual
+                            old_price = event.lance_atual
                             new_price = data['lanceAtual']
-                            old_end = event.dataFim
+                            old_end = event.data_fim
                             new_end = data['dataFim']
 
                             # Debug: show comparison
@@ -852,9 +852,9 @@ class AutoPipelinesManager:
 
                                 # Update event - only update price if we got a valid one
                                 if price_changed and new_price is not None:
-                                    event.valores.lanceAtual = new_price
+                                    event.lance_atual = new_price
                                 if time_extended and new_end is not None:
-                                    event.dataFim = new_end
+                                    event.data_fim = new_end
 
                                 async with get_db() as db:
                                     await db.save_event(event)
@@ -948,8 +948,8 @@ class AutoPipelinesManager:
                 now = datetime.now()
 
                 for event in self._soon_events_cache:
-                    if event.dataFim:
-                        time_until_end = event.dataFim - now
+                    if event.data_fim:
+                        time_until_end = event.data_fim - now
                         seconds_until_end = time_until_end.total_seconds()
 
                         # Only scrape events < 24 hours (86400 seconds)
@@ -984,9 +984,9 @@ class AutoPipelinesManager:
 
                         if volatile_data and len(volatile_data) > 0:
                             data = volatile_data[0]
-                            old_price = event.valores.lanceAtual
+                            old_price = event.lance_atual
                             new_price = data['lanceAtual']
-                            old_end = event.dataFim
+                            old_end = event.data_fim
                             new_end = data['dataFim']
 
                             # Debug: show comparison
@@ -1015,9 +1015,9 @@ class AutoPipelinesManager:
 
                                 # Update event - only update price if we got a valid one
                                 if price_changed and new_price is not None:
-                                    event.valores.lanceAtual = new_price
+                                    event.lance_atual = new_price
                                 if time_extended and new_end is not None:
-                                    event.dataFim = new_end
+                                    event.data_fim = new_end
 
                                 async with get_db() as db:
                                     await db.save_event(event)
@@ -1089,20 +1089,20 @@ class AutoPipelinesManager:
             soon_events = []
 
             for event in self._critical_events_cache or []:
-                if event.dataFim:
-                    seconds = (event.dataFim - now).total_seconds()
+                if event.data_fim:
+                    seconds = (event.data_fim - now).total_seconds()
                     if 0 < seconds <= 300:
                         critical_events.append({'event': event, 'tier': 'critical', 'seconds': seconds})
 
             for event in self._urgent_events_cache or []:
-                if event.dataFim:
-                    seconds = (event.dataFim - now).total_seconds()
+                if event.data_fim:
+                    seconds = (event.data_fim - now).total_seconds()
                     if 300 < seconds <= 3600:
                         urgent_events.append({'event': event, 'tier': 'urgent', 'seconds': seconds})
 
             for event in self._soon_events_cache or []:
-                if event.dataFim:
-                    seconds = (event.dataFim - now).total_seconds()
+                if event.data_fim:
+                    seconds = (event.data_fim - now).total_seconds()
                     if 3600 < seconds <= 86400:
                         soon_events.append({'event': event, 'tier': 'soon', 'seconds': seconds})
 
@@ -1147,25 +1147,19 @@ class AutoPipelinesManager:
 
                         if volatile_data and len(volatile_data) > 0:
                             data = volatile_data[0]
-                            old_price = event.valores.lanceAtual if hasattr(event, 'valores') else event.lance_atual
+                            old_price = event.lance_atual
                             new_price = data.get('lanceAtual') or data.get('lance_atual')
-                            old_end = event.dataFim if hasattr(event, 'dataFim') else event.data_fim
+                            old_end = event.data_fim
                             new_end = data.get('dataFim') or data.get('data_fim')
 
                             price_changed = new_price is not None and old_price != new_price
                             time_extended = new_end and old_end and new_end > old_end
 
                             if price_changed or time_extended:
-                                if hasattr(event, 'valores'):
-                                    if price_changed:
-                                        event.valores.lanceAtual = new_price
-                                    if time_extended:
-                                        event.dataFim = new_end
-                                else:
-                                    if price_changed:
-                                        event.lance_atual = new_price
-                                    if time_extended:
-                                        event.data_fim = new_end
+                                if price_changed:
+                                    event.lance_atual = new_price
+                                if time_extended:
+                                    event.data_fim = new_end
 
                                 async with get_db() as db:
                                     await db.save_event(event)
@@ -1257,7 +1251,7 @@ class AutoPipelinesManager:
 
                     candidates = []
                     for event in events:
-                        if event.dataFim and event.dataFim < now:
+                        if event.data_fim and event.data_fim < now:
                             candidates.append(event)
 
                     print(f"    📋 {len(candidates)} candidatos a terminado")
