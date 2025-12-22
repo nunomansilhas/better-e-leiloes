@@ -1836,6 +1836,8 @@ class EventScraper:
         """
         Bulk scrape event details using the API (FAST!)
         Returns list of successfully scraped EventData objects.
+
+        OPTIMIZED: Creates ONE browser context and reuses it for ALL requests.
         """
         await self.init_browser()
 
@@ -1844,31 +1846,68 @@ class EventScraper:
 
         print(f"🚀 API Scraping: {total} eventos via API...")
 
-        for i, ref in enumerate(references):
-            if self.stop_requested:
-                print("🛑 Scraping interrompido pelo utilizador")
-                break
+        # Create SINGLE context for ALL requests (much more efficient!)
+        context = await self.browser.new_context(
+            user_agent=self.user_agent,
+            viewport={'width': 1920, 'height': 1080},
+            ignore_https_errors=True
+        )
 
-            try:
-                event = await self.scrape_event_via_api(ref)
-                if event:
-                    results.append(event)
-                    print(f"  ✅ [{i+1}/{total}] {ref}")
-                else:
-                    print(f"  ⚠️ [{i+1}/{total}] {ref} - sem dados")
+        page = await context.new_page()
+
+        try:
+            # Initialize session by visiting main site ONCE
+            print("🌐 Estabelecendo sessão com e-leiloes.pt...")
+            await page.goto("https://www.e-leiloes.pt", wait_until='domcontentloaded', timeout=30000)
+            await asyncio.sleep(0.5)
+            print("✓ Sessão estabelecida!")
+
+            for i, ref in enumerate(references):
+                if self.stop_requested:
+                    print("🛑 Scraping interrompido pelo utilizador")
+                    break
+
+                try:
+                    api_url = f"https://www.e-leiloes.pt/api/eventos/{ref}"
+                    response = await page.goto(api_url, wait_until='domcontentloaded', timeout=15000)
+
+                    if response.status == 200:
+                        import json
+                        body = await page.query_selector('body')
+                        json_str = await body.inner_text() if body else ''
+                        data = json.loads(json_str)
+
+                        if data.get('errors') or data.get('exception'):
+                            print(f"  ⚠️ [{i+1}/{total}] {ref} - API error")
+                            self.events_failed += 1
+                        else:
+                            item = data.get('item', {})
+                            if item:
+                                event = self._api_response_to_event_data(item, ref)
+                                results.append(event)
+                                print(f"  ✅ [{i+1}/{total}] {ref}")
+                            else:
+                                print(f"  ⚠️ [{i+1}/{total}] {ref} - sem dados")
+                                self.events_failed += 1
+                    else:
+                        print(f"  ❌ [{i+1}/{total}] {ref}: HTTP {response.status}")
+                        self.events_failed += 1
+
+                    self.events_processed += 1
+
+                    if on_progress:
+                        await on_progress(i + 1, total, ref)
+
+                except Exception as e:
+                    print(f"  ❌ [{i+1}/{total}] {ref}: {e}")
                     self.events_failed += 1
 
-                self.events_processed += 1
+                # Small delay to avoid overwhelming the server
+                await asyncio.sleep(self.delay * 0.3)  # Even faster since we reuse context
 
-                if on_progress:
-                    await on_progress(i + 1, total, ref)
-
-            except Exception as e:
-                print(f"  ❌ [{i+1}/{total}] {ref}: {e}")
-                self.events_failed += 1
-
-            # Small delay to avoid overwhelming the server
-            await asyncio.sleep(self.delay * 0.5)  # Half the normal delay since API is lighter
+        finally:
+            await page.close()
+            await context.close()
 
         print(f"✅ API Scraping concluído: {len(results)}/{total} eventos")
         return results
