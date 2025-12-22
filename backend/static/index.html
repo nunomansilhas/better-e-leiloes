@@ -2328,78 +2328,97 @@
                     </div>
                 </div>
 
-                <!-- Pipelines Automáticas - Tabela -->
+                <!-- ========== PIPELINES AUTOMÁTICAS ========== -->
                 <div class="scraper-control-card" style="margin-bottom: 16px;">
-                    <div class="scraper-control-header" style="margin-bottom: 12px;">
-                        <h3 style="font-size: 14px; margin: 0;">⚡ Pipelines Automáticas</h3>
+                    <!-- Header -->
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 16px;">⚡</span>
+                            <span style="font-weight: 600; color: #1e293b;">Pipelines Automáticas</span>
+                        </div>
                     </div>
-                    <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-                        <thead>
-                            <tr style="border-bottom: 2px solid #e2e8f0;">
-                                <th style="text-align: left; padding: 8px; color: #64748b; font-weight: 600;">Pipeline</th>
-                                <th style="text-align: center; padding: 8px; color: #64748b; font-weight: 600;">Intervalo</th>
-                                <th style="text-align: center; padding: 8px; color: #64748b; font-weight: 600;">Target</th>
-                                <th style="text-align: right; padding: 8px; color: #64748b; font-weight: 600;">Ativo</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr style="border-bottom: 1px solid #f1f5f9;">
-                                <td style="padding: 10px 8px;"><span style="margin-right: 6px;">🤖</span>Auto Pipeline</td>
-                                <td style="text-align: center; padding: 10px 8px; color: #64748b;">8 horas</td>
-                                <td style="text-align: center; padding: 10px 8px; color: #64748b;">Todos</td>
-                                <td style="text-align: right; padding: 10px 8px;">
-                                    <label class="toggle-switch">
-                                        <input type="checkbox" id="auto-pipeline-full" onchange="toggleAutoPipeline('full', this.checked)">
-                                        <span class="toggle-slider"></span>
-                                    </label>
-                                </td>
-                            </tr>
-                            <tr style="border-bottom: 1px solid #f1f5f9; background: #fef2f2;">
-                                <td style="padding: 10px 8px; color: #dc2626; font-weight: 500;"><span style="margin-right: 6px;">🔴</span>X-Critical</td>
-                                <td style="text-align: center; padding: 10px 8px; color: #dc2626; font-weight: 600;">5 seg</td>
-                                <td style="text-align: center; padding: 10px 8px; color: #dc2626;">< 5 min</td>
-                                <td style="text-align: right; padding: 10px 8px;">
-                                    <label class="toggle-switch">
-                                        <input type="checkbox" id="auto-pipeline-prices" onchange="toggleAutoPipeline('prices', this.checked)">
-                                        <span class="toggle-slider"></span>
-                                    </label>
-                                </td>
-                            </tr>
-                            <tr style="border-bottom: 1px solid #f1f5f9; background: #fff7ed;">
-                                <td style="padding: 10px 8px; color: #ea580c; font-weight: 500;"><span style="margin-right: 6px;">🟠</span>X-Urgent</td>
-                                <td style="text-align: center; padding: 10px 8px; color: #ea580c; font-weight: 600;">1 min</td>
-                                <td style="text-align: center; padding: 10px 8px; color: #ea580c;">< 1 hora</td>
-                                <td style="text-align: right; padding: 10px 8px;">
-                                    <label class="toggle-switch">
-                                        <input type="checkbox" id="auto-pipeline-prices_urgent" onchange="toggleAutoPipeline('prices_urgent', this.checked)">
-                                        <span class="toggle-slider"></span>
-                                    </label>
-                                </td>
-                            </tr>
-                            <tr style="border-bottom: 1px solid #f1f5f9; background: #fefce8;">
-                                <td style="padding: 10px 8px; color: #ca8a04; font-weight: 500;"><span style="margin-right: 6px;">🟡</span>X-Soon</td>
-                                <td style="text-align: center; padding: 10px 8px; color: #ca8a04; font-weight: 600;">10 min</td>
-                                <td style="text-align: center; padding: 10px 8px; color: #ca8a04;">< 24h</td>
-                                <td style="text-align: right; padding: 10px 8px;">
-                                    <label class="toggle-switch">
-                                        <input type="checkbox" id="auto-pipeline-prices_soon" onchange="toggleAutoPipeline('prices_soon', this.checked)">
-                                        <span class="toggle-slider"></span>
-                                    </label>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td style="padding: 10px 8px;"><span style="margin-right: 6px;">🔄</span>Y-Info</td>
-                                <td style="text-align: center; padding: 10px 8px; color: #64748b;">2 horas</td>
-                                <td style="text-align: center; padding: 10px 8px; color: #64748b;">Todos</td>
-                                <td style="text-align: right; padding: 10px 8px;">
-                                    <label class="toggle-switch">
-                                        <input type="checkbox" id="auto-pipeline-info" onchange="toggleAutoPipeline('info', this.checked)">
-                                        <span class="toggle-slider"></span>
-                                    </label>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+
+                    <!-- Pipeline Grid -->
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+
+                        <!-- Auto Pipeline -->
+                        <div style="padding: 12px; background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border: 1px solid #e2e8f0; border-radius: 10px;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <span style="font-size: 14px;">🤖</span>
+                                    <span style="font-weight: 600; font-size: 12px; color: #1e293b;">Auto Pipeline</span>
+                                </div>
+                                <label class="toggle-switch" style="transform: scale(0.85);">
+                                    <input type="checkbox" id="auto-pipeline-full" onchange="toggleAutoPipeline('full', this.checked)">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div style="font-size: 10px; color: #64748b; line-height: 1.4;">
+                                <div>⏱️ A cada <strong>8 horas</strong></div>
+                                <div>📦 Pipeline completa (IDs + API)</div>
+                            </div>
+                        </div>
+
+                        <!-- X-Monitor (Combined Critical/Urgent/Soon) -->
+                        <div style="padding: 12px; background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border: 1px solid #fca5a5; border-radius: 10px;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <span style="font-size: 14px;">🔴</span>
+                                    <span style="font-weight: 600; font-size: 12px; color: #dc2626;">X-Monitor</span>
+                                    <span id="x-monitor-count" style="font-size: 9px; padding: 1px 6px; background: #dc2626; color: white; border-radius: 8px; font-weight: 600;">0</span>
+                                </div>
+                                <label class="toggle-switch" style="transform: scale(0.85);">
+                                    <input type="checkbox" id="auto-pipeline-xmonitor" onchange="toggleAutoPipeline('xmonitor', this.checked)">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div style="font-size: 10px; color: #7f1d1d; line-height: 1.4;">
+                                <div>📊 Eventos próximas <strong>24h</strong></div>
+                                <div style="display: flex; gap: 8px; margin-top: 4px;">
+                                    <span title="< 5min: cada 5s">🔴 <span id="x-critical-count">0</span></span>
+                                    <span title="< 1h: cada 1min">🟠 <span id="x-urgent-count">0</span></span>
+                                    <span title="< 24h: cada 10min">🟡 <span id="x-soon-count">0</span></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Y-Sync -->
+                        <div style="padding: 12px; background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 1px solid #93c5fd; border-radius: 10px;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <span style="font-size: 14px;">🔄</span>
+                                    <span style="font-weight: 600; font-size: 12px; color: #1e40af;">Y-Sync</span>
+                                </div>
+                                <label class="toggle-switch" style="transform: scale(0.85);">
+                                    <input type="checkbox" id="auto-pipeline-ysync" onchange="toggleAutoPipeline('ysync', this.checked)">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div style="font-size: 10px; color: #1e3a8a; line-height: 1.4;">
+                                <div>⏱️ A cada <strong>2 horas</strong></div>
+                                <div>🔍 Novos IDs + Terminados</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- X-Monitor Details (collapsible) -->
+                    <div id="x-monitor-details" style="display: none; margin-top: 10px; padding: 10px; background: #fafafa; border-radius: 8px; border: 1px solid #e2e8f0;">
+                        <div style="font-size: 10px; color: #475569; margin-bottom: 6px; font-weight: 600;">Intervalos de Monitorização:</div>
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; font-size: 10px;">
+                            <div style="padding: 6px 8px; background: #fef2f2; border-radius: 6px; text-align: center;">
+                                <div style="color: #dc2626; font-weight: 600;">🔴 Critical</div>
+                                <div style="color: #7f1d1d;">< 5min → 5s</div>
+                            </div>
+                            <div style="padding: 6px 8px; background: #fff7ed; border-radius: 6px; text-align: center;">
+                                <div style="color: #ea580c; font-weight: 600;">🟠 Urgent</div>
+                                <div style="color: #9a3412;">< 1h → 1min</div>
+                            </div>
+                            <div style="padding: 6px 8px; background: #fefce8; border-radius: 6px; text-align: center;">
+                                <div style="color: #ca8a04; font-weight: 600;">🟡 Soon</div>
+                                <div style="color: #854d0e;">< 24h → 10min</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Pipeline Completo - API Only -->
@@ -4832,33 +4851,22 @@
                     // Update UI with current status
                     for (const [type, config] of Object.entries(data.pipelines || {})) {
                         const checkbox = document.getElementById(`auto-pipeline-${type}`);
-                        const statusDiv = document.getElementById(`auto-pipeline-${type}-status`);
-
                         if (checkbox) {
                             checkbox.checked = config.enabled;
                         }
+                    }
 
-                        if (statusDiv && config.enabled) {
-                            statusDiv.style.display = 'block';
-                            const statusText = statusDiv.querySelector('.status-text');
-                            if (statusText) {
-                                // Special message for Pipeline X (5-second interval with countdown)
-                                if (type === 'prices') {
-                                    startPipelineXCountdown();
-                                } else {
-                                    // Show "Running..." if is_running, otherwise show next_run
-                                    if (config.is_running) {
-                                        statusText.textContent = '🔄 A executar agora...';
-                                        statusText.style.fontWeight = '600';
-                                        statusText.style.color = '#3b82f6';
-                                    } else {
-                                        statusText.textContent = `Próxima execução: ${config.next_run || 'Calculando...'}`;
-                                        statusText.style.fontWeight = '';
-                                        statusText.style.color = '';
-                                    }
-                                }
-                            }
-                        }
+                    // Update X-Monitor counts if available
+                    if (data.xmonitor_stats) {
+                        const stats = data.xmonitor_stats;
+                        const setCount = (id, val) => {
+                            const el = document.getElementById(id);
+                            if (el) el.textContent = val || 0;
+                        };
+                        setCount('x-monitor-count', stats.total);
+                        setCount('x-critical-count', stats.critical);
+                        setCount('x-urgent-count', stats.urgent);
+                        setCount('x-soon-count', stats.soon);
                     }
                 }
             } catch (error) {
@@ -4870,8 +4878,15 @@
         setInterval(loadAutoPipelinesStatus, 3000);
 
         async function toggleAutoPipeline(type, enabled) {
+            const pipelineNames = {
+                'full': 'Auto Pipeline',
+                'xmonitor': 'X-Monitor',
+                'ysync': 'Y-Sync'
+            };
+            const name = pipelineNames[type] || type;
+
             try {
-                addLog(`${enabled ? '🟢' : '🔴'} Auto-Pipeline ${type}: ${enabled ? 'Ativada' : 'Desativada'}`, 'info');
+                addLog(`${enabled ? '🟢' : '🔴'} ${name}: ${enabled ? 'Ativada' : 'Desativada'}`, 'info');
 
                 const response = await fetch(`${API_BASE}/api/auto-pipelines/${type}/toggle?enabled=${enabled}`, {
                     method: 'POST',
@@ -4881,39 +4896,12 @@
                 const data = await response.json();
 
                 if (response.ok) {
-                    const statusDiv = document.getElementById(`auto-pipeline-${type}-status`);
-
-                    if (enabled) {
-                        statusDiv.style.display = 'block';
-                        const statusText = statusDiv.querySelector('.status-text');
-                        if (statusText) {
-                            // Special message for Pipeline X (5-second interval with countdown)
-                            if (type === 'prices') {
-                                startPipelineXCountdown();
-                            } else {
-                                statusText.textContent = data.next_run ?
-                                    `Próxima execução: ${data.next_run}` :
-                                    'Agendamento ativo';
-                            }
-                        }
-
-                        showModal('✅ Pipeline Ativada', `Pipeline ${type} foi ativada com sucesso!\n${data.message || ''}`);
-                    } else {
-                        statusDiv.style.display = 'none';
-                        // Stop countdown if Pipeline X is disabled
-                        if (type === 'prices') {
-                            stopPipelineXCountdown();
-                        }
-                        showModal('⏸️ Pipeline Desativada', `Pipeline ${type} foi desativada.`);
-                    }
-
-                    addLog(`✅ Auto-Pipeline ${type}: ${data.message}`, 'success');
+                    addLog(`✅ ${name}: ${data.message}`, 'success');
                 } else {
                     throw new Error(data.detail || 'Erro ao alterar estado da pipeline');
                 }
             } catch (error) {
-                addLog(`❌ Erro ao alterar pipeline ${type}: ${error.message}`, 'error');
-                showModal('❌ Erro', error.message);
+                addLog(`❌ Erro ao alterar ${name}: ${error.message}`, 'error');
 
                 // Revert checkbox
                 const checkbox = document.getElementById(`auto-pipeline-${type}`);
