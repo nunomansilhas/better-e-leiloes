@@ -1357,6 +1357,82 @@
             gap: 12px;
         }
 
+        /* Location badge for cards */
+        .event-location-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 12px;
+            color: #64748b;
+        }
+        .event-location-badge svg {
+            width: 14px;
+            height: 14px;
+            flex-shrink: 0;
+            color: #94a3b8;
+        }
+        .event-location-badge span {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Responsive Filters */
+        @media (max-width: 768px) {
+            .filters-bar-compact {
+                padding: 10px 12px;
+            }
+            .filters-main-row {
+                gap: 8px;
+            }
+            .filter-search-wrapper {
+                min-width: 100%;
+                max-width: 100%;
+                order: -1;
+            }
+            .filter-select {
+                flex: 1;
+                min-width: 0;
+                font-size: 12px;
+                padding: 8px 10px;
+            }
+            .btn-icon {
+                width: 36px;
+                height: 36px;
+            }
+            .btn-icon svg {
+                width: 16px;
+                height: 16px;
+            }
+            .advanced-filters-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
+            }
+            .filter-group {
+                min-width: 0;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .filters-main-row {
+                gap: 6px;
+            }
+            .filter-select {
+                font-size: 11px;
+                padding: 6px 8px;
+            }
+            .btn-icon {
+                width: 34px;
+                height: 34px;
+            }
+            .advanced-filters-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
         /* Inspection Modal */
         .inspection-modal {
             display: none;
@@ -3035,24 +3111,58 @@
                 <div class="type-badge lo" onclick="toggleTypeFilter('LO', this)"><span>LO</span><span>Leilão Online</span></div>
                 <div class="type-badge np" onclick="toggleTypeFilter('NP', this)"><span>NP</span><span>Negociação Particular</span></div>
             </div>
-            <div class="filters-bar">
-                <div class="filter-group">
-                    <label class="filter-label">Pesquisar</label>
-                    <input type="text" class="filter-input" id="search-veiculos" placeholder="🔍 Referência do evento...">
-                </div>
-                <div class="filter-group">
-                    <label class="filter-label">Ordenar por</label>
-                    <select class="filter-select" id="sort-veiculos">
-                        <option value="">Selecione...</option>
-                        <option value="dataFim_asc">Data fim: mais próxima</option>
-                        <option value="dataFim_desc">Data fim: mais distante</option>
-                        <option value="valorBase_asc">Valor base: mais baixo</option>
-                        <option value="valorBase_desc">Valor base: mais alto</option>
+            <div class="filters-bar filters-bar-compact">
+                <div class="filters-main-row">
+                    <div class="filter-search-wrapper">
+                        <svg class="search-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                        <input type="text" class="filter-input filter-search" id="search-veiculos" placeholder="Pesquisar...">
+                    </div>
+                    <select class="filter-select" id="sort-veiculos" title="Ordenar">
+                        <option value="">Ordenar...</option>
+                        <option value="dataFim_asc">Data fim (proxima)</option>
+                        <option value="dataFim_desc">Data fim (distante)</option>
+                        <option value="valorBase_asc">Valor base (baixo)</option>
+                        <option value="valorBase_desc">Valor base (alto)</option>
+                        <option value="lanceAtual_desc">Lance atual (alto)</option>
                     </select>
+                    <select class="filter-select" id="subtipo-veiculos" title="Subtipo">
+                        <option value="">Subtipo...</option>
+                    </select>
+                    <button class="btn-icon" onclick="toggleAdvancedFilters('veiculos')" title="Filtros Avançados" id="btn-advanced-veiculos">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+                        </svg>
+                    </button>
+                    <button class="btn-icon" onclick="reloadAllData('veiculos')" title="Atualizar Tudo">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                    </button>
+                    <button class="btn-icon" onclick="clearFilters('veiculos')" title="Limpar Filtros">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
                 </div>
-                <div class="filter-buttons">
-                    <button class="btn btn-primary" onclick="reloadAllData('veiculos')">🔄 Atualizar</button>
-                    <button class="btn btn-secondary" onclick="clearFilters('veiculos')">✕ Limpar</button>
+                <div class="advanced-filters-content" id="advanced-filters-veiculos">
+                    <div class="advanced-filters-grid">
+                        <div class="filter-group">
+                            <label class="filter-label">Marca</label>
+                            <select class="filter-select" id="marca-veiculos">
+                                <option value="">Todas</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label class="filter-label">Valor Min</label>
+                            <input type="number" class="filter-input" id="valor-min-veiculos" placeholder="Min">
+                        </div>
+                        <div class="filter-group">
+                            <label class="filter-label">Valor Max</label>
+                            <input type="number" class="filter-input" id="valor-max-veiculos" placeholder="Max">
+                        </div>
+                    </div>
                 </div>
             </div>
             <div id="veiculos-content"><div class="loading"><div class="loading-spinner"></div><div class="loading-text">A carregar veículos...</div></div></div>
@@ -3069,24 +3179,52 @@
                 <div class="type-badge lo" onclick="toggleTypeFilter('LO', this)"><span>LO</span><span>Leilão Online</span></div>
                 <div class="type-badge np" onclick="toggleTypeFilter('NP', this)"><span>NP</span><span>Negociação Particular</span></div>
             </div>
-            <div class="filters-bar">
-                <div class="filter-group">
-                    <label class="filter-label">Pesquisar</label>
-                    <input type="text" class="filter-input" id="search-direitos" placeholder="🔍 Referência do evento...">
-                </div>
-                <div class="filter-group">
-                    <label class="filter-label">Ordenar por</label>
-                    <select class="filter-select" id="sort-direitos">
-                        <option value="">Selecione...</option>
-                        <option value="dataFim_asc">Data fim: mais próxima</option>
-                        <option value="dataFim_desc">Data fim: mais distante</option>
-                        <option value="valorBase_asc">Valor base: mais baixo</option>
-                        <option value="valorBase_desc">Valor base: mais alto</option>
+            <div class="filters-bar filters-bar-compact">
+                <div class="filters-main-row">
+                    <div class="filter-search-wrapper">
+                        <svg class="search-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                        <input type="text" class="filter-input filter-search" id="search-direitos" placeholder="Pesquisar...">
+                    </div>
+                    <select class="filter-select" id="sort-direitos" title="Ordenar">
+                        <option value="">Ordenar...</option>
+                        <option value="dataFim_asc">Data fim (proxima)</option>
+                        <option value="dataFim_desc">Data fim (distante)</option>
+                        <option value="valorBase_asc">Valor base (baixo)</option>
+                        <option value="valorBase_desc">Valor base (alto)</option>
+                        <option value="lanceAtual_desc">Lance atual (alto)</option>
                     </select>
+                    <select class="filter-select" id="subtipo-direitos" title="Subtipo">
+                        <option value="">Subtipo...</option>
+                    </select>
+                    <button class="btn-icon" onclick="toggleAdvancedFilters('direitos')" title="Filtros Avançados" id="btn-advanced-direitos">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+                        </svg>
+                    </button>
+                    <button class="btn-icon" onclick="reloadAllData('direitos')" title="Atualizar Tudo">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                    </button>
+                    <button class="btn-icon" onclick="clearFilters('direitos')" title="Limpar Filtros">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
                 </div>
-                <div class="filter-buttons">
-                    <button class="btn btn-primary" onclick="reloadAllData('direitos')">🔄 Atualizar</button>
-                    <button class="btn btn-secondary" onclick="clearFilters('direitos')">✕ Limpar</button>
+                <div class="advanced-filters-content" id="advanced-filters-direitos">
+                    <div class="advanced-filters-grid">
+                        <div class="filter-group">
+                            <label class="filter-label">Valor Min</label>
+                            <input type="number" class="filter-input" id="valor-min-direitos" placeholder="Min">
+                        </div>
+                        <div class="filter-group">
+                            <label class="filter-label">Valor Max</label>
+                            <input type="number" class="filter-input" id="valor-max-direitos" placeholder="Max">
+                        </div>
+                    </div>
                 </div>
             </div>
             <div id="direitos-content"><div class="loading"><div class="loading-spinner"></div><div class="loading-text">A carregar direitos...</div></div></div>
@@ -3103,24 +3241,52 @@
                 <div class="type-badge lo" onclick="toggleTypeFilter('LO', this)"><span>LO</span><span>Leilão Online</span></div>
                 <div class="type-badge np" onclick="toggleTypeFilter('NP', this)"><span>NP</span><span>Negociação Particular</span></div>
             </div>
-            <div class="filters-bar">
-                <div class="filter-group">
-                    <label class="filter-label">Pesquisar</label>
-                    <input type="text" class="filter-input" id="search-equipamentos" placeholder="🔍 Referência do evento...">
-                </div>
-                <div class="filter-group">
-                    <label class="filter-label">Ordenar por</label>
-                    <select class="filter-select" id="sort-equipamentos">
-                        <option value="">Selecione...</option>
-                        <option value="dataFim_asc">Data fim: mais próxima</option>
-                        <option value="dataFim_desc">Data fim: mais distante</option>
-                        <option value="valorBase_asc">Valor base: mais baixo</option>
-                        <option value="valorBase_desc">Valor base: mais alto</option>
+            <div class="filters-bar filters-bar-compact">
+                <div class="filters-main-row">
+                    <div class="filter-search-wrapper">
+                        <svg class="search-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                        <input type="text" class="filter-input filter-search" id="search-equipamentos" placeholder="Pesquisar...">
+                    </div>
+                    <select class="filter-select" id="sort-equipamentos" title="Ordenar">
+                        <option value="">Ordenar...</option>
+                        <option value="dataFim_asc">Data fim (proxima)</option>
+                        <option value="dataFim_desc">Data fim (distante)</option>
+                        <option value="valorBase_asc">Valor base (baixo)</option>
+                        <option value="valorBase_desc">Valor base (alto)</option>
+                        <option value="lanceAtual_desc">Lance atual (alto)</option>
                     </select>
+                    <select class="filter-select" id="subtipo-equipamentos" title="Subtipo">
+                        <option value="">Subtipo...</option>
+                    </select>
+                    <button class="btn-icon" onclick="toggleAdvancedFilters('equipamentos')" title="Filtros Avançados" id="btn-advanced-equipamentos">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+                        </svg>
+                    </button>
+                    <button class="btn-icon" onclick="reloadAllData('equipamentos')" title="Atualizar Tudo">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                    </button>
+                    <button class="btn-icon" onclick="clearFilters('equipamentos')" title="Limpar Filtros">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
                 </div>
-                <div class="filter-buttons">
-                    <button class="btn btn-primary" onclick="reloadAllData('equipamentos')">🔄 Atualizar</button>
-                    <button class="btn btn-secondary" onclick="clearFilters('equipamentos')">✕ Limpar</button>
+                <div class="advanced-filters-content" id="advanced-filters-equipamentos">
+                    <div class="advanced-filters-grid">
+                        <div class="filter-group">
+                            <label class="filter-label">Valor Min</label>
+                            <input type="number" class="filter-input" id="valor-min-equipamentos" placeholder="Min">
+                        </div>
+                        <div class="filter-group">
+                            <label class="filter-label">Valor Max</label>
+                            <input type="number" class="filter-input" id="valor-max-equipamentos" placeholder="Max">
+                        </div>
+                    </div>
                 </div>
             </div>
             <div id="equipamentos-content"><div class="loading"><div class="loading-spinner"></div><div class="loading-text">A carregar equipamentos...</div></div></div>
@@ -3137,24 +3303,52 @@
                 <div class="type-badge lo" onclick="toggleTypeFilter('LO', this)"><span>LO</span><span>Leilão Online</span></div>
                 <div class="type-badge np" onclick="toggleTypeFilter('NP', this)"><span>NP</span><span>Negociação Particular</span></div>
             </div>
-            <div class="filters-bar">
-                <div class="filter-group">
-                    <label class="filter-label">Pesquisar</label>
-                    <input type="text" class="filter-input" id="search-mobiliario" placeholder="🔍 Referência do evento...">
-                </div>
-                <div class="filter-group">
-                    <label class="filter-label">Ordenar por</label>
-                    <select class="filter-select" id="sort-mobiliario">
-                        <option value="">Selecione...</option>
-                        <option value="dataFim_asc">Data fim: mais próxima</option>
-                        <option value="dataFim_desc">Data fim: mais distante</option>
-                        <option value="valorBase_asc">Valor base: mais baixo</option>
-                        <option value="valorBase_desc">Valor base: mais alto</option>
+            <div class="filters-bar filters-bar-compact">
+                <div class="filters-main-row">
+                    <div class="filter-search-wrapper">
+                        <svg class="search-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                        <input type="text" class="filter-input filter-search" id="search-mobiliario" placeholder="Pesquisar...">
+                    </div>
+                    <select class="filter-select" id="sort-mobiliario" title="Ordenar">
+                        <option value="">Ordenar...</option>
+                        <option value="dataFim_asc">Data fim (proxima)</option>
+                        <option value="dataFim_desc">Data fim (distante)</option>
+                        <option value="valorBase_asc">Valor base (baixo)</option>
+                        <option value="valorBase_desc">Valor base (alto)</option>
+                        <option value="lanceAtual_desc">Lance atual (alto)</option>
                     </select>
+                    <select class="filter-select" id="subtipo-mobiliario" title="Subtipo">
+                        <option value="">Subtipo...</option>
+                    </select>
+                    <button class="btn-icon" onclick="toggleAdvancedFilters('mobiliario')" title="Filtros Avançados" id="btn-advanced-mobiliario">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+                        </svg>
+                    </button>
+                    <button class="btn-icon" onclick="reloadAllData('mobiliario')" title="Atualizar Tudo">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                    </button>
+                    <button class="btn-icon" onclick="clearFilters('mobiliario')" title="Limpar Filtros">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
                 </div>
-                <div class="filter-buttons">
-                    <button class="btn btn-primary" onclick="reloadAllData('mobiliario')">🔄 Atualizar</button>
-                    <button class="btn btn-secondary" onclick="clearFilters('mobiliario')">✕ Limpar</button>
+                <div class="advanced-filters-content" id="advanced-filters-mobiliario">
+                    <div class="advanced-filters-grid">
+                        <div class="filter-group">
+                            <label class="filter-label">Valor Min</label>
+                            <input type="number" class="filter-input" id="valor-min-mobiliario" placeholder="Min">
+                        </div>
+                        <div class="filter-group">
+                            <label class="filter-label">Valor Max</label>
+                            <input type="number" class="filter-input" id="valor-max-mobiliario" placeholder="Max">
+                        </div>
+                    </div>
                 </div>
             </div>
             <div id="mobiliario-content"><div class="loading"><div class="loading-spinner"></div><div class="loading-text">A carregar mobiliário...</div></div></div>
@@ -3171,24 +3365,52 @@
                 <div class="type-badge lo" onclick="toggleTypeFilter('LO', this)"><span>LO</span><span>Leilão Online</span></div>
                 <div class="type-badge np" onclick="toggleTypeFilter('NP', this)"><span>NP</span><span>Negociação Particular</span></div>
             </div>
-            <div class="filters-bar">
-                <div class="filter-group">
-                    <label class="filter-label">Pesquisar</label>
-                    <input type="text" class="filter-input" id="search-maquinas" placeholder="🔍 Referência do evento...">
-                </div>
-                <div class="filter-group">
-                    <label class="filter-label">Ordenar por</label>
-                    <select class="filter-select" id="sort-maquinas">
-                        <option value="">Selecione...</option>
-                        <option value="dataFim_asc">Data fim: mais próxima</option>
-                        <option value="dataFim_desc">Data fim: mais distante</option>
-                        <option value="valorBase_asc">Valor base: mais baixo</option>
-                        <option value="valorBase_desc">Valor base: mais alto</option>
+            <div class="filters-bar filters-bar-compact">
+                <div class="filters-main-row">
+                    <div class="filter-search-wrapper">
+                        <svg class="search-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                        <input type="text" class="filter-input filter-search" id="search-maquinas" placeholder="Pesquisar...">
+                    </div>
+                    <select class="filter-select" id="sort-maquinas" title="Ordenar">
+                        <option value="">Ordenar...</option>
+                        <option value="dataFim_asc">Data fim (proxima)</option>
+                        <option value="dataFim_desc">Data fim (distante)</option>
+                        <option value="valorBase_asc">Valor base (baixo)</option>
+                        <option value="valorBase_desc">Valor base (alto)</option>
+                        <option value="lanceAtual_desc">Lance atual (alto)</option>
                     </select>
+                    <select class="filter-select" id="subtipo-maquinas" title="Subtipo">
+                        <option value="">Subtipo...</option>
+                    </select>
+                    <button class="btn-icon" onclick="toggleAdvancedFilters('maquinas')" title="Filtros Avançados" id="btn-advanced-maquinas">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+                        </svg>
+                    </button>
+                    <button class="btn-icon" onclick="reloadAllData('maquinas')" title="Atualizar Tudo">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                    </button>
+                    <button class="btn-icon" onclick="clearFilters('maquinas')" title="Limpar Filtros">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
                 </div>
-                <div class="filter-buttons">
-                    <button class="btn btn-primary" onclick="reloadAllData('maquinas')">🔄 Atualizar</button>
-                    <button class="btn btn-secondary" onclick="clearFilters('maquinas')">✕ Limpar</button>
+                <div class="advanced-filters-content" id="advanced-filters-maquinas">
+                    <div class="advanced-filters-grid">
+                        <div class="filter-group">
+                            <label class="filter-label">Valor Min</label>
+                            <input type="number" class="filter-input" id="valor-min-maquinas" placeholder="Min">
+                        </div>
+                        <div class="filter-group">
+                            <label class="filter-label">Valor Max</label>
+                            <input type="number" class="filter-input" id="valor-max-maquinas" placeholder="Max">
+                        </div>
+                    </div>
                 </div>
             </div>
             <div id="maquinas-content"><div class="loading"><div class="loading-spinner"></div><div class="loading-text">A carregar máquinas...</div></div></div>
@@ -4286,6 +4508,25 @@
                 `;
             }
 
+            // Build location badge if available
+            let locationBadgeHTML = '';
+            const locationParts = [];
+            if (event.detalhes?.distrito) locationParts.push(event.detalhes.distrito);
+            if (event.detalhes?.concelho) locationParts.push(event.detalhes.concelho);
+            if (event.detalhes?.freguesia) locationParts.push(event.detalhes.freguesia);
+
+            if (locationParts.length > 0) {
+                locationBadgeHTML = `
+                    <div class="event-location-badge">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                        <span>${locationParts.join(', ')}</span>
+                    </div>
+                `;
+            }
+
             card.innerHTML = `
                 <div class="event-card-header">
                     <div class="event-ref-badge">
@@ -4308,6 +4549,7 @@
                 </div>
 
                 ${carouselHTML}
+                ${locationBadgeHTML}
 
                 <div class="event-card-body">
                     <!-- Informações Básicas -->
