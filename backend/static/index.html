@@ -1235,6 +1235,374 @@
             height: 16px;
         }
 
+        /* Advanced Filters */
+        .advanced-filters-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: #475569;
+            transition: all 0.2s;
+            margin-top: 8px;
+            width: fit-content;
+        }
+
+        .advanced-filters-toggle:hover {
+            background: #e2e8f0;
+            color: #1e293b;
+        }
+
+        .advanced-filters-toggle svg {
+            width: 16px;
+            height: 16px;
+            transition: transform 0.3s;
+        }
+
+        .advanced-filters-toggle.open svg {
+            transform: rotate(180deg);
+        }
+
+        .advanced-filters-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
+            opacity: 0;
+            padding: 0 20px;
+            margin: 0 -20px;
+        }
+
+        .advanced-filters-content.open {
+            max-height: 300px;
+            opacity: 1;
+            padding: 16px 20px;
+            border-top: 1px solid #e2e8f0;
+            margin-top: 16px;
+        }
+
+        .advanced-filters-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 12px;
+        }
+
+        /* Inspection Modal */
+        .inspection-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 10000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .inspection-modal.active {
+            display: flex;
+        }
+
+        .inspection-content {
+            display: flex;
+            background: white;
+            border-radius: 16px;
+            max-width: 1200px;
+            width: 100%;
+            max-height: 90vh;
+            overflow: hidden;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+        }
+
+        .inspection-carousel {
+            flex: 1.2;
+            background: #0f172a;
+            position: relative;
+            min-height: 400px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .inspection-carousel-images {
+            display: flex;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.4s ease;
+        }
+
+        .inspection-carousel-image {
+            min-width: 100%;
+            height: 100%;
+            background-size: contain;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        .inspection-carousel-nav {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 48px;
+            height: 48px;
+            background: rgba(255, 255, 255, 0.9);
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            z-index: 10;
+        }
+
+        .inspection-carousel-nav:hover {
+            background: white;
+            transform: translateY(-50%) scale(1.1);
+        }
+
+        .inspection-carousel-nav.prev { left: 16px; }
+        .inspection-carousel-nav.next { right: 16px; }
+
+        .inspection-carousel-nav svg {
+            width: 24px;
+            height: 24px;
+            color: #1e293b;
+        }
+
+        .inspection-carousel-indicators {
+            position: absolute;
+            bottom: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 8px;
+        }
+
+        .inspection-carousel-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.4);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .inspection-carousel-indicator.active {
+            background: white;
+            transform: scale(1.2);
+        }
+
+        .inspection-carousel-counter {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .inspection-details {
+            flex: 0.8;
+            padding: 24px;
+            overflow-y: auto;
+            max-height: 90vh;
+        }
+
+        .inspection-close {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.9);
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            transition: all 0.2s;
+        }
+
+        .inspection-close:hover {
+            background: white;
+            transform: scale(1.1);
+        }
+
+        .inspection-close svg {
+            width: 20px;
+            height: 20px;
+            color: #1e293b;
+        }
+
+        .inspection-header {
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .inspection-ref {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .inspection-ref-prefix {
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .inspection-ref-prefix.lo {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .inspection-ref-prefix.np {
+            background: #fce7f3;
+            color: #9f1239;
+        }
+
+        .inspection-ref-text {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1e293b;
+        }
+
+        .inspection-type {
+            font-size: 13px;
+            color: #64748b;
+        }
+
+        .inspection-section {
+            margin-bottom: 16px;
+        }
+
+        .inspection-section-title {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #64748b;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .inspection-section-title svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        .inspection-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .inspection-row:last-child {
+            border-bottom: none;
+        }
+
+        .inspection-label {
+            font-size: 13px;
+            color: #64748b;
+        }
+
+        .inspection-value {
+            font-size: 13px;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .inspection-value.price {
+            color: #059669;
+        }
+
+        .inspection-value.empty {
+            color: #94a3b8;
+            font-weight: 400;
+        }
+
+        .inspection-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 20px;
+            padding-top: 16px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .inspection-action-btn {
+            flex: 1;
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .inspection-action-btn.primary {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            color: white;
+        }
+
+        .inspection-action-btn.primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+
+        .inspection-action-btn.secondary {
+            background: #f1f5f9;
+            color: #475569;
+        }
+
+        .inspection-action-btn.secondary:hover {
+            background: #e2e8f0;
+        }
+
+        .inspection-action-btn svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        @media (max-width: 900px) {
+            .inspection-content {
+                flex-direction: column;
+                max-height: 95vh;
+            }
+
+            .inspection-carousel {
+                min-height: 250px;
+                max-height: 40vh;
+            }
+
+            .inspection-details {
+                max-height: 55vh;
+            }
+        }
+
         /* Type Badges */
         .type-badges {
             display: flex;
@@ -2505,7 +2873,7 @@
             <div class="filters-bar">
                 <div class="filter-group">
                     <label class="filter-label">Pesquisar</label>
-                    <input type="text" class="filter-input" id="search-imoveis" placeholder="🔍 Referência do evento...">
+                    <input type="text" class="filter-input" id="search-imoveis" placeholder="Referência, tipo, localização...">
                 </div>
                 <div class="filter-group">
                     <label class="filter-label">Ordenar por</label>
@@ -2524,21 +2892,9 @@
                     </select>
                 </div>
                 <div class="filter-group">
-                    <label class="filter-label">Distrito</label>
-                    <select class="filter-select" id="distrito-imoveis" onchange="updateConcelhoFilter('imoveis')">
-                        <option value="">Todos os distritos</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label class="filter-label">Concelho</label>
-                    <select class="filter-select" id="concelho-imoveis" onchange="updateFreguesiaFilter('imoveis')" disabled>
-                        <option value="">Todos os concelhos</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label class="filter-label">Freguesia</label>
-                    <select class="filter-select" id="freguesia-imoveis" disabled>
-                        <option value="">Todas as freguesias</option>
+                    <label class="filter-label">Subtipo</label>
+                    <select class="filter-select" id="subtipo-imoveis">
+                        <option value="">Todos os subtipos</option>
                     </select>
                 </div>
                 <div class="filter-buttons">
@@ -2554,6 +2910,52 @@
                         </svg>
                         Limpar
                     </button>
+                </div>
+
+                <!-- Advanced Filters Toggle -->
+                <div class="advanced-filters-toggle" onclick="toggleAdvancedFilters('imoveis')">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                    Filtros Avançados
+                </div>
+
+                <!-- Advanced Filters Content -->
+                <div class="advanced-filters-content" id="advanced-filters-imoveis">
+                    <div class="advanced-filters-grid">
+                        <div class="filter-group">
+                            <label class="filter-label">Distrito</label>
+                            <select class="filter-select" id="distrito-imoveis" onchange="updateConcelhoFilter('imoveis')">
+                                <option value="">Todos os distritos</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label class="filter-label">Concelho</label>
+                            <select class="filter-select" id="concelho-imoveis" onchange="updateFreguesiaFilter('imoveis')" disabled>
+                                <option value="">Todos os concelhos</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label class="filter-label">Freguesia</label>
+                            <select class="filter-select" id="freguesia-imoveis" disabled>
+                                <option value="">Todas as freguesias</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label class="filter-label">Tipologia</label>
+                            <select class="filter-select" id="tipologia-imoveis">
+                                <option value="">Todas as tipologias</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label class="filter-label">Valor Mín.</label>
+                            <input type="number" class="filter-input" id="valor-min-imoveis" placeholder="€ Min">
+                        </div>
+                        <div class="filter-group">
+                            <label class="filter-label">Valor Máx.</label>
+                            <input type="number" class="filter-input" id="valor-max-imoveis" placeholder="€ Max">
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -2809,6 +3211,8 @@
         let currentPageData = { imoveis: 1, veiculos: 1, direitos: 1, equipamentos: 1, mobiliario: 1, maquinas: 1 };
         let totalPagesData = { imoveis: 1, veiculos: 1, direitos: 1, equipamentos: 1, mobiliario: 1, maquinas: 1 };
         let allDistritos = new Set();
+        let allSubtipos = new Set();
+        let allTipologias = new Set();
         let activeTypeFilter = null;
         let allLoadedEvents = {
             imoveis: [],
@@ -2818,6 +3222,336 @@
             mobiliario: [],
             maquinas: []
         }; // Store all loaded events
+
+        // Inspection modal state
+        let inspectionCurrentEvent = null;
+        let inspectionCurrentIndex = 0;
+
+        // Toggle advanced filters
+        function toggleAdvancedFilters(type) {
+            const toggle = document.querySelector(`[onclick="toggleAdvancedFilters('${type}')"]`);
+            const content = document.getElementById(`advanced-filters-${type}`);
+            if (toggle && content) {
+                toggle.classList.toggle('open');
+                content.classList.toggle('open');
+            }
+        }
+
+        // Update subtipo filter
+        function updateSubtipoFilter() {
+            const select = document.getElementById('subtipo-imoveis');
+            if (!select) return;
+
+            const currentValue = select.value;
+            select.innerHTML = '<option value="">Todos os subtipos</option>';
+
+            const sortedSubtipos = Array.from(allSubtipos).sort();
+            sortedSubtipos.forEach(subtipo => {
+                if (subtipo && subtipo !== 'N/A') {
+                    const option = document.createElement('option');
+                    option.value = subtipo;
+                    option.textContent = subtipo;
+                    select.appendChild(option);
+                }
+            });
+
+            if (currentValue) {
+                select.value = currentValue;
+            }
+        }
+
+        // Update tipologia filter
+        function updateTipologiaFilter() {
+            const select = document.getElementById('tipologia-imoveis');
+            if (!select) return;
+
+            const currentValue = select.value;
+            select.innerHTML = '<option value="">Todas as tipologias</option>';
+
+            const sortedTipologias = Array.from(allTipologias).sort();
+            sortedTipologias.forEach(tipologia => {
+                if (tipologia) {
+                    const option = document.createElement('option');
+                    option.value = tipologia;
+                    option.textContent = tipologia;
+                    select.appendChild(option);
+                }
+            });
+
+            if (currentValue) {
+                select.value = currentValue;
+            }
+        }
+
+        // Inspection Modal Functions
+        function openInspectionModal(reference) {
+            const type = document.querySelector('.page.active').id;
+            const event = allLoadedEvents[type]?.find(e => e.reference === reference);
+            if (!event) return;
+
+            inspectionCurrentEvent = event;
+            inspectionCurrentIndex = 0;
+
+            const modal = document.getElementById('inspection-modal');
+            const imagesContainer = document.getElementById('inspection-images');
+            const indicatorsContainer = document.getElementById('inspection-indicators');
+            const counter = document.getElementById('inspection-counter');
+            const details = document.getElementById('inspection-details');
+
+            // Build images
+            const images = event.imagens && event.imagens.length > 0 ? event.imagens : [event.capa || ''];
+            imagesContainer.innerHTML = images.map(img =>
+                `<div class="inspection-carousel-image" style="background-image: url('${img || ''}')"></div>`
+            ).join('');
+
+            // Build indicators
+            indicatorsContainer.innerHTML = images.map((_, idx) =>
+                `<div class="inspection-carousel-indicator ${idx === 0 ? 'active' : ''}" onclick="inspectionGoTo(${idx})"></div>`
+            ).join('');
+
+            // Update counter
+            counter.textContent = `1 / ${images.length}`;
+
+            // Show/hide nav buttons
+            const prevBtn = document.querySelector('.inspection-carousel-nav.prev');
+            const nextBtn = document.querySelector('.inspection-carousel-nav.next');
+            if (images.length <= 1) {
+                prevBtn.style.display = 'none';
+                nextBtn.style.display = 'none';
+                indicatorsContainer.style.display = 'none';
+            } else {
+                prevBtn.style.display = 'flex';
+                nextBtn.style.display = 'flex';
+                indicatorsContainer.style.display = 'flex';
+            }
+
+            // Build details
+            const typePrefix = event.reference.substring(0, 2);
+            const typePrefixClass = typePrefix === 'LO' ? 'lo' : 'np';
+
+            const formatPrice = (price) => {
+                if (!price) return 'N/A';
+                return new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(price);
+            };
+
+            const formatDate = (dateStr) => {
+                if (!dateStr) return 'N/A';
+                const date = new Date(dateStr);
+                return date.toLocaleString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+            };
+
+            const getValue = (val) => val || 'N/A';
+            const isImovel = event.tipoEvento === 'imoveis' || event.tipoEvento === 'imovel';
+
+            details.innerHTML = `
+                <div class="inspection-header">
+                    <div class="inspection-ref">
+                        <span class="inspection-ref-prefix ${typePrefixClass}">${typePrefix}</span>
+                        <span class="inspection-ref-text">${event.reference.substring(2)}</span>
+                    </div>
+                    <div class="inspection-type">${getValue(event.detalhes?.tipo)} - ${getValue(event.detalhes?.subtipo)}</div>
+                </div>
+
+                <div class="inspection-section">
+                    <div class="inspection-section-title">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        Valores
+                    </div>
+                    <div class="inspection-row">
+                        <span class="inspection-label">Valor Base</span>
+                        <span class="inspection-value ${event.valores?.valorBase ? 'price' : 'empty'}">${formatPrice(event.valores?.valorBase)}</span>
+                    </div>
+                    <div class="inspection-row">
+                        <span class="inspection-label">Valor Abertura</span>
+                        <span class="inspection-value ${event.valores?.valorAbertura ? 'price' : 'empty'}">${formatPrice(event.valores?.valorAbertura)}</span>
+                    </div>
+                    <div class="inspection-row">
+                        <span class="inspection-label">Valor Mínimo</span>
+                        <span class="inspection-value ${event.valores?.valorMinimo ? 'price' : 'empty'}">${formatPrice(event.valores?.valorMinimo)}</span>
+                    </div>
+                    <div class="inspection-row">
+                        <span class="inspection-label">Lance Atual</span>
+                        <span class="inspection-value ${event.valores?.lanceAtual ? 'price' : 'empty'}">${formatPrice(event.valores?.lanceAtual)}</span>
+                    </div>
+                </div>
+
+                <div class="inspection-section">
+                    <div class="inspection-section-title">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                        Datas
+                    </div>
+                    <div class="inspection-row">
+                        <span class="inspection-label">Início</span>
+                        <span class="inspection-value ${event.dataInicio ? '' : 'empty'}">${formatDate(event.dataInicio)}</span>
+                    </div>
+                    <div class="inspection-row">
+                        <span class="inspection-label">Fim</span>
+                        <span class="inspection-value ${event.dataFim ? '' : 'empty'}">${formatDate(event.dataFim)}</span>
+                    </div>
+                </div>
+
+                ${isImovel ? `
+                    <div class="inspection-section">
+                        <div class="inspection-section-title">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            </svg>
+                            Localização
+                        </div>
+                        <div class="inspection-row">
+                            <span class="inspection-label">Distrito</span>
+                            <span class="inspection-value ${event.detalhes?.distrito ? '' : 'empty'}">${getValue(event.detalhes?.distrito)}</span>
+                        </div>
+                        <div class="inspection-row">
+                            <span class="inspection-label">Concelho</span>
+                            <span class="inspection-value ${event.detalhes?.concelho ? '' : 'empty'}">${getValue(event.detalhes?.concelho)}</span>
+                        </div>
+                        <div class="inspection-row">
+                            <span class="inspection-label">Freguesia</span>
+                            <span class="inspection-value ${event.detalhes?.freguesia ? '' : 'empty'}">${getValue(event.detalhes?.freguesia)}</span>
+                        </div>
+                    </div>
+
+                    <div class="inspection-section">
+                        <div class="inspection-section-title">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+                            </svg>
+                            Áreas
+                        </div>
+                        <div class="inspection-row">
+                            <span class="inspection-label">Tipologia</span>
+                            <span class="inspection-value ${event.detalhes?.tipologia ? '' : 'empty'}">${getValue(event.detalhes?.tipologia)}</span>
+                        </div>
+                        <div class="inspection-row">
+                            <span class="inspection-label">Área Privativa</span>
+                            <span class="inspection-value ${event.detalhes?.areaPrivativa ? '' : 'empty'}">${event.detalhes?.areaPrivativa ? event.detalhes.areaPrivativa + ' m²' : 'N/A'}</span>
+                        </div>
+                        <div class="inspection-row">
+                            <span class="inspection-label">Área Total</span>
+                            <span class="inspection-value ${event.detalhes?.areaTotal ? '' : 'empty'}">${event.detalhes?.areaTotal ? event.detalhes.areaTotal + ' m²' : 'N/A'}</span>
+                        </div>
+                    </div>
+                ` : ''}
+
+                ${event.gestor_nome ? `
+                    <div class="inspection-section">
+                        <div class="inspection-section-title">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                            </svg>
+                            Gestor
+                        </div>
+                        <div class="inspection-row">
+                            <span class="inspection-label">Nome</span>
+                            <span class="inspection-value">${event.gestor_nome}</span>
+                        </div>
+                        ${event.gestor_email ? `
+                            <div class="inspection-row">
+                                <span class="inspection-label">Email</span>
+                                <span class="inspection-value">${event.gestor_email}</span>
+                            </div>
+                        ` : ''}
+                    </div>
+                ` : ''}
+
+                <div class="inspection-actions">
+                    <button class="inspection-action-btn primary" onclick="viewEvent('${event.reference}')">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                        </svg>
+                        Ver no Site
+                    </button>
+                    <button class="inspection-action-btn secondary" onclick="reloadEventFromModal('${event.reference}')">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                        Atualizar
+                    </button>
+                    ${event.gps?.latitude ? `
+                        <button class="inspection-action-btn secondary" onclick="openLocation(${event.gps.latitude}, ${event.gps.longitude})">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                            </svg>
+                            Mapa
+                        </button>
+                    ` : ''}
+                </div>
+            `;
+
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeInspectionModal() {
+            const modal = document.getElementById('inspection-modal');
+            modal.classList.remove('active');
+            document.body.style.overflow = '';
+            inspectionCurrentEvent = null;
+        }
+
+        function inspectionCarouselPrev() {
+            if (!inspectionCurrentEvent) return;
+            const images = inspectionCurrentEvent.imagens || [];
+            if (images.length <= 1) return;
+            inspectionCurrentIndex = inspectionCurrentIndex > 0 ? inspectionCurrentIndex - 1 : images.length - 1;
+            updateInspectionCarousel();
+        }
+
+        function inspectionCarouselNext() {
+            if (!inspectionCurrentEvent) return;
+            const images = inspectionCurrentEvent.imagens || [];
+            if (images.length <= 1) return;
+            inspectionCurrentIndex = inspectionCurrentIndex < images.length - 1 ? inspectionCurrentIndex + 1 : 0;
+            updateInspectionCarousel();
+        }
+
+        function inspectionGoTo(index) {
+            inspectionCurrentIndex = index;
+            updateInspectionCarousel();
+        }
+
+        function updateInspectionCarousel() {
+            const imagesContainer = document.getElementById('inspection-images');
+            const indicators = document.querySelectorAll('.inspection-carousel-indicator');
+            const counter = document.getElementById('inspection-counter');
+
+            if (!inspectionCurrentEvent) return;
+            const images = inspectionCurrentEvent.imagens || [];
+
+            imagesContainer.style.transform = `translateX(-${inspectionCurrentIndex * 100}%)`;
+
+            indicators.forEach((ind, idx) => {
+                ind.classList.toggle('active', idx === inspectionCurrentIndex);
+            });
+
+            counter.textContent = `${inspectionCurrentIndex + 1} / ${images.length}`;
+        }
+
+        // Reload event from modal (wrapper function)
+        async function reloadEventFromModal(reference) {
+            closeInspectionModal();
+            await reloadEvent(reference);
+        }
+
+        // Close modal on escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeInspectionModal();
+            }
+        });
+
+        // Close modal on background click
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('inspection-modal')) {
+                closeInspectionModal();
+            }
+        });
         let filteredEvents = {
             imoveis: [],
             veiculos: [],
@@ -3251,14 +3985,18 @@
                     // Normalize events to handle both old and new API formats
                     allLoadedEvents[type] = normalizeEvents(data.events);
 
-                    // Collect distritos (using normalized data)
+                    // Collect distritos, subtipos, tipologias (using normalized data)
                     if (type === 'imoveis') {
                         allLoadedEvents[type].forEach(event => {
-                            if (event.detalhes && event.detalhes.distrito) {
-                                allDistritos.add(event.detalhes.distrito);
+                            if (event.detalhes) {
+                                if (event.detalhes.distrito) allDistritos.add(event.detalhes.distrito);
+                                if (event.detalhes.subtipo && event.detalhes.subtipo !== 'N/A') allSubtipos.add(event.detalhes.subtipo);
+                                if (event.detalhes.tipologia) allTipologias.add(event.detalhes.tipologia);
                             }
                         });
                         updateDistritoFilter();
+                        updateSubtipoFilter();
+                        updateTipologiaFilter();
                     }
                 }
 
@@ -3268,32 +4006,58 @@
                 const concelhoSelect = document.getElementById(`concelho-${type}`);
                 const freguesiaSelect = document.getElementById(`freguesia-${type}`);
                 const sortSelect = document.getElementById(`sort-${type}`);
+                const subtipoSelect = document.getElementById(`subtipo-${type}`);
+                const tipologiaSelect = document.getElementById(`tipologia-${type}`);
+                const valorMinInput = document.getElementById(`valor-min-${type}`);
+                const valorMaxInput = document.getElementById(`valor-max-${type}`);
 
                 const search = searchInput ? searchInput.value : '';
                 const distrito = distritoSelect ? distritoSelect.value : '';
                 const concelho = concelhoSelect ? concelhoSelect.value : '';
                 const freguesia = freguesiaSelect ? freguesiaSelect.value : '';
                 const sortBy = sortSelect ? sortSelect.value : '';
+                const subtipo = subtipoSelect ? subtipoSelect.value : '';
+                const tipologia = tipologiaSelect ? tipologiaSelect.value : '';
+                const valorMin = valorMinInput ? parseFloat(valorMinInput.value) || 0 : 0;
+                const valorMax = valorMaxInput ? parseFloat(valorMaxInput.value) || Infinity : Infinity;
 
                 // Apply ALL filters to create filtered list
                 let events = [...allLoadedEvents[type]];
 
                 if (search) {
+                    const searchLower = search.toLowerCase();
                     events = events.filter(e =>
-                        e.reference.toLowerCase().includes(search.toLowerCase())
+                        e.reference.toLowerCase().includes(searchLower) ||
+                        (e.detalhes?.tipo && e.detalhes.tipo.toLowerCase().includes(searchLower)) ||
+                        (e.detalhes?.subtipo && e.detalhes.subtipo.toLowerCase().includes(searchLower)) ||
+                        (e.detalhes?.distrito && e.detalhes.distrito.toLowerCase().includes(searchLower)) ||
+                        (e.detalhes?.concelho && e.detalhes.concelho.toLowerCase().includes(searchLower)) ||
+                        (e.detalhes?.freguesia && e.detalhes.freguesia.toLowerCase().includes(searchLower))
                     );
                 }
                 if (activeTypeFilter) {
                     events = events.filter(e => e.reference.startsWith(activeTypeFilter));
                 }
                 if (distrito) {
-                    events = events.filter(e => e.detalhes.distrito === distrito);
+                    events = events.filter(e => e.detalhes?.distrito === distrito);
                 }
                 if (concelho) {
-                    events = events.filter(e => e.detalhes.concelho === concelho);
+                    events = events.filter(e => e.detalhes?.concelho === concelho);
                 }
                 if (freguesia) {
-                    events = events.filter(e => e.detalhes.freguesia === freguesia);
+                    events = events.filter(e => e.detalhes?.freguesia === freguesia);
+                }
+                if (subtipo) {
+                    events = events.filter(e => e.detalhes?.subtipo === subtipo);
+                }
+                if (tipologia) {
+                    events = events.filter(e => e.detalhes?.tipologia === tipologia);
+                }
+                if (valorMin > 0 || valorMax < Infinity) {
+                    events = events.filter(e => {
+                        const valor = e.valores?.valorBase || 0;
+                        return valor >= valorMin && valor <= valorMax;
+                    });
                 }
 
                 // Apply sorting
@@ -3388,6 +4152,7 @@
         function createEventCard(event) {
             const card = document.createElement('div');
             card.className = 'event-card';
+            card.setAttribute('data-reference', event.reference);
 
             const typePrefix = event.reference.substring(0, 2);
             const typePrefixClass = typePrefix === 'LO' ? 'lo' : 'np';
@@ -3633,9 +4398,21 @@
                 </div>
             `;
 
-            // Add carousel navigation
+            // Add carousel navigation and click handler
+            const carousel = card.querySelector('.event-carousel');
+            if (carousel) {
+                // Add click to open inspection modal
+                carousel.style.cursor = 'pointer';
+                carousel.addEventListener('click', (e) => {
+                    // Don't open modal if clicking nav buttons or indicators
+                    if (e.target.closest('.event-carousel-nav') || e.target.closest('.event-carousel-indicator')) {
+                        return;
+                    }
+                    openInspectionModal(event.reference);
+                });
+            }
+
             if (event.imagens && event.imagens.length > 1) {
-                const carousel = card.querySelector('.event-carousel');
                 const imagesContainer = carousel.querySelector('.event-carousel-images');
                 const prevBtn = carousel.querySelector('.prev');
                 const nextBtn = carousel.querySelector('.next');
@@ -3675,17 +4452,19 @@
 
         // Card Actions
         async function reloadEvent(reference) {
+            // Find the card by reference using data attribute
+            const card = document.querySelector(`.event-card[data-reference="${reference}"]`);
+
             try {
                 // Show loading indicator
-                const card = event.target.closest('.event-card');
                 if (card) {
                     card.style.opacity = '0.5';
                     card.style.pointerEvents = 'none';
                 }
 
-                addLog(`🔄 Recarregando evento: ${reference}`, 'info');
+                addLog(`Recarregando evento: ${reference}`, 'info');
 
-                // Force API to re-scrape the event
+                // Force API to re-scrape the event using official API
                 const response = await fetch(`${API_BASE}/api/scrape/event/${reference}`, {
                     method: 'POST'
                 });
@@ -3693,18 +4472,22 @@
                 const data = await response.json();
 
                 if (response.ok) {
-                    addLog(`✅ Evento ${reference} recarregado com sucesso`, 'success');
-                    showModal('✅ Evento Atualizado', `Evento ${reference} foi atualizado com sucesso!\n\nA página vai recarregar...`);
+                    addLog(`Evento ${reference} recarregado com sucesso`, 'success');
 
-                    // Wait a moment for the modal to be visible
-                    await new Promise(resolve => setTimeout(resolve, 1500));
+                    // Update the event in allLoadedEvents
+                    const activePage = document.querySelector('.page.active').id;
+                    if (allLoadedEvents[activePage]) {
+                        const idx = allLoadedEvents[activePage].findIndex(e => e.reference === reference);
+                        if (idx !== -1 && data.event) {
+                            allLoadedEvents[activePage][idx] = normalizeEvent(data.event);
+                        }
+                    }
 
                     // Reload the current page
-                    const activePage = document.querySelector('.page.active').id;
                     loadEvents(activePage);
                 } else {
-                    addLog(`❌ Erro ao recarregar ${reference}: ${data.detail || 'Erro desconhecido'}`, 'error');
-                    showModal('❌ Erro ao Recarregar', data.detail || 'Erro ao recarregar o evento. Por favor, tente novamente.');
+                    addLog(`Erro ao recarregar ${reference}: ${data.detail || 'Erro desconhecido'}`, 'error');
+                    showModal('Erro ao Recarregar', data.detail || 'Erro ao recarregar o evento. Por favor, tente novamente.');
 
                     if (card) {
                         card.style.opacity = '1';
@@ -3713,8 +4496,8 @@
                 }
             } catch (error) {
                 console.error('Erro ao recarregar evento:', error);
-                addLog(`❌ Erro ao recarregar ${reference}: ${error.message}`, 'error');
-                showModal('❌ Erro', `Erro ao recarregar o evento:\n${error.message}`);
+                addLog(`Erro ao recarregar ${reference}: ${error.message}`, 'error');
+                showModal('Erro', `Erro ao recarregar o evento:\n${error.message}`);
 
                 if (card) {
                     card.style.opacity = '1';
@@ -3889,10 +4672,18 @@
             const concelhoSelect = document.getElementById(`concelho-${type}`);
             const freguesiaSelect = document.getElementById(`freguesia-${type}`);
             const sortSelect = document.getElementById(`sort-${type}`);
+            const subtipoSelect = document.getElementById(`subtipo-${type}`);
+            const tipologiaSelect = document.getElementById(`tipologia-${type}`);
+            const valorMinInput = document.getElementById(`valor-min-${type}`);
+            const valorMaxInput = document.getElementById(`valor-max-${type}`);
 
             if (searchInput) searchInput.value = '';
             if (distritoSelect) distritoSelect.value = '';
             if (sortSelect) sortSelect.value = '';
+            if (subtipoSelect) subtipoSelect.value = '';
+            if (tipologiaSelect) tipologiaSelect.value = '';
+            if (valorMinInput) valorMinInput.value = '';
+            if (valorMaxInput) valorMaxInput.value = '';
 
             if (concelhoSelect) {
                 concelhoSelect.innerHTML = '<option value="">Todos os concelhos</option>';
@@ -5187,6 +5978,79 @@
                 cancelDeleteDatabase();
             }
         }
+
+        // Setup filter event listeners for imoveis page
+        (function setupImoveisFilters() {
+            // Debounce function for search inputs
+            let searchTimeout;
+            const debounce = (func, delay) => {
+                return (...args) => {
+                    clearTimeout(searchTimeout);
+                    searchTimeout = setTimeout(() => func(...args), delay);
+                };
+            };
+
+            // Search input - debounced
+            const searchInput = document.getElementById('search-imoveis');
+            if (searchInput) {
+                searchInput.addEventListener('input', debounce(() => {
+                    currentPageData.imoveis = 1;
+                    loadEvents('imoveis', 1);
+                }, 300));
+            }
+
+            // Sort select
+            const sortSelect = document.getElementById('sort-imoveis');
+            if (sortSelect) {
+                sortSelect.addEventListener('change', () => {
+                    currentPageData.imoveis = 1;
+                    loadEvents('imoveis', 1);
+                });
+            }
+
+            // Subtipo select
+            const subtipoSelect = document.getElementById('subtipo-imoveis');
+            if (subtipoSelect) {
+                subtipoSelect.addEventListener('change', () => {
+                    currentPageData.imoveis = 1;
+                    loadEvents('imoveis', 1);
+                });
+            }
+
+            // Tipologia select
+            const tipologiaSelect = document.getElementById('tipologia-imoveis');
+            if (tipologiaSelect) {
+                tipologiaSelect.addEventListener('change', () => {
+                    currentPageData.imoveis = 1;
+                    loadEvents('imoveis', 1);
+                });
+            }
+
+            // Freguesia select
+            const freguesiaSelect = document.getElementById('freguesia-imoveis');
+            if (freguesiaSelect) {
+                freguesiaSelect.addEventListener('change', () => {
+                    currentPageData.imoveis = 1;
+                    loadEvents('imoveis', 1);
+                });
+            }
+
+            // Value range inputs - debounced
+            const valorMinInput = document.getElementById('valor-min-imoveis');
+            const valorMaxInput = document.getElementById('valor-max-imoveis');
+            if (valorMinInput) {
+                valorMinInput.addEventListener('input', debounce(() => {
+                    currentPageData.imoveis = 1;
+                    loadEvents('imoveis', 1);
+                }, 500));
+            }
+            if (valorMaxInput) {
+                valorMaxInput.addEventListener('input', debounce(() => {
+                    currentPageData.imoveis = 1;
+                    loadEvents('imoveis', 1);
+                }, 500));
+            }
+        })();
     </script>
 
     <!-- Generic Alert Modal -->
@@ -5237,6 +6101,35 @@
                 <button id="confirm-delete-btn" onclick="executeDeleteDatabase()" disabled style="flex: 1; padding: 14px; background: #cbd5e1; border: 2px solid #cbd5e1; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: not-allowed; transition: all 0.2s; color: #94a3b8;">
                     ✓ Confirmar
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Inspection Modal -->
+    <div class="inspection-modal" id="inspection-modal">
+        <button class="inspection-close" onclick="closeInspectionModal()">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+        </button>
+        <div class="inspection-content">
+            <div class="inspection-carousel" id="inspection-carousel">
+                <div class="inspection-carousel-counter" id="inspection-counter">1 / 1</div>
+                <div class="inspection-carousel-images" id="inspection-images"></div>
+                <button class="inspection-carousel-nav prev" onclick="inspectionCarouselPrev()">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+                    </svg>
+                </button>
+                <button class="inspection-carousel-nav next" onclick="inspectionCarouselNext()">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+                    </svg>
+                </button>
+                <div class="inspection-carousel-indicators" id="inspection-indicators"></div>
+            </div>
+            <div class="inspection-details" id="inspection-details">
+                <!-- Populated by JavaScript -->
             </div>
         </div>
     </div>
