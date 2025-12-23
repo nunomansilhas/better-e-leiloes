@@ -321,6 +321,9 @@ class NotificationRuleDB(Base):
     # Para regras de ending_soon
     minutos_restantes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # Ex: 10 min
 
+    # Para notificações de evento específico
+    event_reference: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+
     # Metadados
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
@@ -825,6 +828,7 @@ class DatabaseManager:
             "preco_max": r.preco_max,
             "variacao_min": r.variacao_min,
             "minutos_restantes": r.minutos_restantes,
+            "event_reference": r.event_reference,
             "triggers_count": r.triggers_count,
             "created_at": r.created_at.isoformat() if r.created_at else None
         } for r in rules]
@@ -842,7 +846,8 @@ class DatabaseManager:
             preco_min=rule_data.get("preco_min"),
             preco_max=rule_data.get("preco_max"),
             variacao_min=rule_data.get("variacao_min"),
-            minutos_restantes=rule_data.get("minutos_restantes")
+            minutos_restantes=rule_data.get("minutos_restantes"),
+            event_reference=rule_data.get("event_reference")
         )
         self.session.add(rule)
         await self.session.commit()
@@ -986,6 +991,15 @@ class DatabaseManager:
         cutoff = datetime.utcnow() - timedelta(days=days)
         result = await self.session.execute(
             delete(NotificationDB).where(NotificationDB.created_at < cutoff)
+        )
+        await self.session.commit()
+        return result.rowcount
+
+    async def delete_all_notifications(self) -> int:
+        """Delete all notifications"""
+        from sqlalchemy import delete
+        result = await self.session.execute(
+            delete(NotificationDB)
         )
         await self.session.commit()
         return result.rowcount

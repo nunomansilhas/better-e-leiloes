@@ -413,6 +413,14 @@ async def mark_all_notifications_read():
         return JSONResponse({"marked_read": count})
 
 
+@app.delete("/api/notifications/delete-all")
+async def delete_all_notifications():
+    """Delete all notifications"""
+    async with get_db() as db:
+        count = await db.delete_all_notifications()
+        return JSONResponse({"deleted": count})
+
+
 # ============== NOTIFICATION RULES ENDPOINTS ==============
 
 @app.get("/api/notification-rules")

@@ -101,6 +101,11 @@ class NotificationEngine:
         """
         Verifica se um evento corresponde aos filtros de uma regra.
         """
+        # Check event_reference for event-specific rules
+        if rule.get("event_reference"):
+            # This is an event-specific rule, only match that exact event
+            return event.reference == rule["event_reference"]
+
         # Check tipos filter
         if rule.get("tipos"):
             event_tipo = self._normalize_tipo(event.tipo_id, event.tipo)
