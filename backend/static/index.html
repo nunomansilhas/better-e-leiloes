@@ -67,7 +67,7 @@
         }
 
         .sidebar-header {
-            padding: 0 24px 24px;
+            padding: 0 12px 20px;
             border-bottom: 1px solid rgba(255,255,255,0.1);
         }
 
@@ -76,8 +76,14 @@
             font-weight: 700;
             display: flex;
             align-items: center;
+            justify-content: center;
             gap: 10px;
             white-space: nowrap;
+        }
+
+        .sidebar:hover .sidebar-header h1,
+        .sidebar.locked .sidebar-header h1 {
+            justify-content: flex-start;
         }
 
         .sidebar-header h1 svg {
@@ -119,7 +125,7 @@
         }
 
         .nav-section-label {
-            padding: 8px 24px 4px;
+            padding: 4px 24px 2px;
             font-size: 10px;
             font-weight: 700;
             text-transform: uppercase;
@@ -137,7 +143,7 @@
         .nav-divider {
             height: 1px;
             background: rgba(255, 255, 255, 0.1);
-            margin: 12px 16px;
+            margin: 6px 16px;
         }
 
         .sidebar-bottom {
@@ -148,8 +154,8 @@
         /* ===== USER CARD - GLASSMORPHISM DESIGN ===== */
         .user-card {
             position: relative;
-            padding: 7px;
-            margin: 8px 7px;
+            padding: 10px;
+            margin: 8px 10px;
             border-radius: 10px;
             cursor: pointer;
             transition: all 0.3s ease;
@@ -181,6 +187,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            width: 100%;
         }
 
         .sidebar:hover .user-card-header,
@@ -1991,7 +1998,7 @@
         <div class="sidebar-header">
             <h1>
                 <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 24px; height: 24px;">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                 </svg>
                 <span>E-Leilões</span>
             </h1>
