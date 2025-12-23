@@ -292,6 +292,70 @@ class EventDB(Base):
         )
 
 
+# ========== NOTIFICATION TABLES ==========
+
+class NotificationRuleDB(Base):
+    """
+    Regras de notificação configuráveis pelo utilizador
+    """
+    __tablename__ = "notification_rules"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    rule_type: Mapped[str] = mapped_column(String(50), nullable=False)  # new_event, price_change, ending_soon
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    # Filtros (JSON)
+    tipos: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # ["imoveis", "veiculos"]
+    subtipos: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # ["Apartamento", "Moradia"]
+    distritos: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # ["Lisboa", "Porto"]
+    concelhos: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # ["Sintra", "Cascais"]
+
+    # Filtros de preço
+    preco_min: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    preco_max: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+
+    # Para regras de price_change
+    variacao_min: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # Variação mínima (€)
+
+    # Para regras de ending_soon
+    minutos_restantes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # Ex: 10 min
+
+    # Metadados
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    triggers_count: Mapped[int] = mapped_column(Integer, default=0)  # Quantas vezes disparou
+
+
+class NotificationDB(Base):
+    """
+    Notificações geradas pelo sistema
+    """
+    __tablename__ = "notifications"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    rule_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # Regra que gerou (se aplicável)
+
+    # Tipo de notificação
+    notification_type: Mapped[str] = mapped_column(String(50), nullable=False)  # new_event, price_change, ending_soon
+
+    # Evento relacionado
+    event_reference: Mapped[str] = mapped_column(String(50), nullable=False)
+    event_titulo: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    event_tipo: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    event_subtipo: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    event_distrito: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+
+    # Dados específicos do tipo
+    preco_anterior: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    preco_atual: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    preco_variacao: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+
+    # Estado
+    read: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
 async def init_db():
     """Cria tabelas se não existirem"""
     async with engine.begin() as conn:
@@ -711,6 +775,196 @@ class DatabaseManager:
             .where(EventDB.descricao.is_(None))
         )
         return list(result.scalars().all())
+
+    # ========== NOTIFICATION RULES ==========
+
+    async def get_notification_rules(self, active_only: bool = False) -> List[dict]:
+        """Get all notification rules"""
+        query = select(NotificationRuleDB)
+        if active_only:
+            query = query.where(NotificationRuleDB.active == True)
+        query = query.order_by(NotificationRuleDB.created_at.desc())
+
+        result = await self.session.execute(query)
+        rules = result.scalars().all()
+
+        return [{
+            "id": r.id,
+            "name": r.name,
+            "rule_type": r.rule_type,
+            "active": r.active,
+            "tipos": json.loads(r.tipos) if r.tipos else None,
+            "subtipos": json.loads(r.subtipos) if r.subtipos else None,
+            "distritos": json.loads(r.distritos) if r.distritos else None,
+            "concelhos": json.loads(r.concelhos) if r.concelhos else None,
+            "preco_min": r.preco_min,
+            "preco_max": r.preco_max,
+            "variacao_min": r.variacao_min,
+            "minutos_restantes": r.minutos_restantes,
+            "triggers_count": r.triggers_count,
+            "created_at": r.created_at.isoformat() if r.created_at else None
+        } for r in rules]
+
+    async def create_notification_rule(self, rule_data: dict) -> int:
+        """Create a new notification rule"""
+        rule = NotificationRuleDB(
+            name=rule_data["name"],
+            rule_type=rule_data["rule_type"],
+            active=rule_data.get("active", True),
+            tipos=json.dumps(rule_data.get("tipos")) if rule_data.get("tipos") else None,
+            subtipos=json.dumps(rule_data.get("subtipos")) if rule_data.get("subtipos") else None,
+            distritos=json.dumps(rule_data.get("distritos")) if rule_data.get("distritos") else None,
+            concelhos=json.dumps(rule_data.get("concelhos")) if rule_data.get("concelhos") else None,
+            preco_min=rule_data.get("preco_min"),
+            preco_max=rule_data.get("preco_max"),
+            variacao_min=rule_data.get("variacao_min"),
+            minutos_restantes=rule_data.get("minutos_restantes")
+        )
+        self.session.add(rule)
+        await self.session.commit()
+        await self.session.refresh(rule)
+        return rule.id
+
+    async def update_notification_rule(self, rule_id: int, updates: dict) -> bool:
+        """Update a notification rule"""
+        result = await self.session.execute(
+            select(NotificationRuleDB).where(NotificationRuleDB.id == rule_id)
+        )
+        rule = result.scalar_one_or_none()
+
+        if not rule:
+            return False
+
+        if "name" in updates:
+            rule.name = updates["name"]
+        if "active" in updates:
+            rule.active = updates["active"]
+        if "tipos" in updates:
+            rule.tipos = json.dumps(updates["tipos"]) if updates["tipos"] else None
+        if "subtipos" in updates:
+            rule.subtipos = json.dumps(updates["subtipos"]) if updates["subtipos"] else None
+        if "distritos" in updates:
+            rule.distritos = json.dumps(updates["distritos"]) if updates["distritos"] else None
+        if "concelhos" in updates:
+            rule.concelhos = json.dumps(updates["concelhos"]) if updates["concelhos"] else None
+        if "preco_min" in updates:
+            rule.preco_min = updates["preco_min"]
+        if "preco_max" in updates:
+            rule.preco_max = updates["preco_max"]
+        if "variacao_min" in updates:
+            rule.variacao_min = updates["variacao_min"]
+        if "minutos_restantes" in updates:
+            rule.minutos_restantes = updates["minutos_restantes"]
+
+        rule.updated_at = datetime.utcnow()
+        await self.session.commit()
+        return True
+
+    async def delete_notification_rule(self, rule_id: int) -> bool:
+        """Delete a notification rule"""
+        from sqlalchemy import delete
+        result = await self.session.execute(
+            delete(NotificationRuleDB).where(NotificationRuleDB.id == rule_id)
+        )
+        await self.session.commit()
+        return result.rowcount > 0
+
+    async def increment_rule_triggers(self, rule_id: int):
+        """Increment the triggers count for a rule"""
+        result = await self.session.execute(
+            select(NotificationRuleDB).where(NotificationRuleDB.id == rule_id)
+        )
+        rule = result.scalar_one_or_none()
+        if rule:
+            rule.triggers_count += 1
+            await self.session.commit()
+
+    # ========== NOTIFICATIONS ==========
+
+    async def create_notification(self, notification_data: dict) -> int:
+        """Create a new notification"""
+        notification = NotificationDB(
+            rule_id=notification_data.get("rule_id"),
+            notification_type=notification_data["notification_type"],
+            event_reference=notification_data["event_reference"],
+            event_titulo=notification_data.get("event_titulo"),
+            event_tipo=notification_data.get("event_tipo"),
+            event_subtipo=notification_data.get("event_subtipo"),
+            event_distrito=notification_data.get("event_distrito"),
+            preco_anterior=notification_data.get("preco_anterior"),
+            preco_atual=notification_data.get("preco_atual"),
+            preco_variacao=notification_data.get("preco_variacao")
+        )
+        self.session.add(notification)
+        await self.session.commit()
+        await self.session.refresh(notification)
+        return notification.id
+
+    async def get_notifications(self, limit: int = 50, unread_only: bool = False) -> List[dict]:
+        """Get notifications"""
+        query = select(NotificationDB).order_by(NotificationDB.created_at.desc())
+        if unread_only:
+            query = query.where(NotificationDB.read == False)
+        query = query.limit(limit)
+
+        result = await self.session.execute(query)
+        notifications = result.scalars().all()
+
+        return [{
+            "id": n.id,
+            "rule_id": n.rule_id,
+            "notification_type": n.notification_type,
+            "event_reference": n.event_reference,
+            "event_titulo": n.event_titulo,
+            "event_tipo": n.event_tipo,
+            "event_subtipo": n.event_subtipo,
+            "event_distrito": n.event_distrito,
+            "preco_anterior": n.preco_anterior,
+            "preco_atual": n.preco_atual,
+            "preco_variacao": n.preco_variacao,
+            "read": n.read,
+            "created_at": n.created_at.isoformat() if n.created_at else None
+        } for n in notifications]
+
+    async def get_unread_count(self) -> int:
+        """Get count of unread notifications"""
+        result = await self.session.execute(
+            select(func.count(NotificationDB.id)).where(NotificationDB.read == False)
+        )
+        return result.scalar() or 0
+
+    async def mark_notification_read(self, notification_id: int) -> bool:
+        """Mark a notification as read"""
+        result = await self.session.execute(
+            select(NotificationDB).where(NotificationDB.id == notification_id)
+        )
+        notification = result.scalar_one_or_none()
+        if notification:
+            notification.read = True
+            await self.session.commit()
+            return True
+        return False
+
+    async def mark_all_notifications_read(self) -> int:
+        """Mark all notifications as read"""
+        from sqlalchemy import update
+        result = await self.session.execute(
+            update(NotificationDB).where(NotificationDB.read == False).values(read=True)
+        )
+        await self.session.commit()
+        return result.rowcount
+
+    async def delete_old_notifications(self, days: int = 30) -> int:
+        """Delete notifications older than X days"""
+        from sqlalchemy import delete
+        from datetime import timedelta
+
+        cutoff = datetime.utcnow() - timedelta(days=days)
+        result = await self.session.execute(
+            delete(NotificationDB).where(NotificationDB.created_at < cutoff)
+        )
+        await self.session.commit()
+        return result.rowcount
 
 
 @asynccontextmanager

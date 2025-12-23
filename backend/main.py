@@ -374,6 +374,102 @@ async def get_xmonitor_stats():
     return JSONResponse(get_stats())
 
 
+# ============== NOTIFICATION ENDPOINTS ==============
+
+@app.get("/api/notifications")
+async def get_notifications(
+    limit: int = Query(50, ge=1, le=200),
+    unread_only: bool = Query(False)
+):
+    """Get notifications list"""
+    async with get_db() as db:
+        notifications = await db.get_notifications(limit=limit, unread_only=unread_only)
+        return JSONResponse(notifications)
+
+
+@app.get("/api/notifications/count")
+async def get_notifications_count():
+    """Get unread notifications count"""
+    async with get_db() as db:
+        count = await db.get_unread_count()
+        return JSONResponse({"unread": count})
+
+
+@app.post("/api/notifications/{notification_id}/read")
+async def mark_notification_read(notification_id: int):
+    """Mark a notification as read"""
+    async with get_db() as db:
+        success = await db.mark_notification_read(notification_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Notification not found")
+        return JSONResponse({"success": True})
+
+
+@app.post("/api/notifications/read-all")
+async def mark_all_notifications_read():
+    """Mark all notifications as read"""
+    async with get_db() as db:
+        count = await db.mark_all_notifications_read()
+        return JSONResponse({"marked_read": count})
+
+
+# ============== NOTIFICATION RULES ENDPOINTS ==============
+
+@app.get("/api/notification-rules")
+async def get_notification_rules(active_only: bool = Query(False)):
+    """Get all notification rules"""
+    async with get_db() as db:
+        rules = await db.get_notification_rules(active_only=active_only)
+        return JSONResponse(rules)
+
+
+@app.post("/api/notification-rules")
+async def create_notification_rule(rule: dict):
+    """Create a new notification rule"""
+    required_fields = ["name", "rule_type"]
+    for field in required_fields:
+        if field not in rule:
+            raise HTTPException(status_code=400, detail=f"Missing required field: {field}")
+
+    valid_types = ["new_event", "price_change", "ending_soon"]
+    if rule["rule_type"] not in valid_types:
+        raise HTTPException(status_code=400, detail=f"Invalid rule_type. Must be one of: {valid_types}")
+
+    async with get_db() as db:
+        rule_id = await db.create_notification_rule(rule)
+        return JSONResponse({"id": rule_id, "success": True})
+
+
+@app.put("/api/notification-rules/{rule_id}")
+async def update_notification_rule(rule_id: int, updates: dict):
+    """Update a notification rule"""
+    async with get_db() as db:
+        success = await db.update_notification_rule(rule_id, updates)
+        if not success:
+            raise HTTPException(status_code=404, detail="Rule not found")
+        return JSONResponse({"success": True})
+
+
+@app.delete("/api/notification-rules/{rule_id}")
+async def delete_notification_rule(rule_id: int):
+    """Delete a notification rule"""
+    async with get_db() as db:
+        success = await db.delete_notification_rule(rule_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Rule not found")
+        return JSONResponse({"success": True})
+
+
+@app.post("/api/notification-rules/{rule_id}/toggle")
+async def toggle_notification_rule(rule_id: int, active: bool = Query(...)):
+    """Toggle a notification rule on/off"""
+    async with get_db() as db:
+        success = await db.update_notification_rule(rule_id, {"active": active})
+        if not success:
+            raise HTTPException(status_code=404, detail="Rule not found")
+        return JSONResponse({"success": True, "active": active})
+
+
 # ============== END AUTOMATIC PIPELINES ENDPOINTS ==============
 
 

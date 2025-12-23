@@ -1163,11 +1163,21 @@ class AutoPipelinesManager:
                     new_refs = [item['reference'] for item in new_ids]
                     events = await scraper.scrape_details_via_api(new_refs)
 
+                    # Process notifications for new events
+                    from notification_engine import process_new_events_batch
+                    notifications_count = 0
+
                     async with get_db() as db:
                         for event in events:
                             await db.save_event(event)
                             await cache_manager.set(event.reference, event)
                             new_ids_count += 1
+
+                        # Check notification rules for new events
+                        notifications_count = await process_new_events_batch(events, db)
+
+                    if notifications_count > 0:
+                        print(f"  🔔 {notifications_count} notificações criadas para novos eventos")
                 else:
                     print(f"  ✓ Nenhum ID novo encontrado")
 
