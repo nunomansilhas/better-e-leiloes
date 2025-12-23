@@ -67,8 +67,9 @@
         }
 
         .sidebar-header {
-            padding: 0 12px 20px;
+            padding: 0 0 16px;
             border-bottom: 1px solid rgba(255,255,255,0.1);
+            margin: 0 16px;
         }
 
         .sidebar-header h1 {
@@ -79,16 +80,18 @@
             justify-content: center;
             gap: 10px;
             white-space: nowrap;
+            padding: 0 8px;
         }
 
         .sidebar:hover .sidebar-header h1,
         .sidebar.locked .sidebar-header h1 {
             justify-content: flex-start;
+            padding: 0;
         }
 
         .sidebar-header h1 svg {
-            width: 24px !important;
-            height: 24px !important;
+            width: 22px !important;
+            height: 22px !important;
             flex-shrink: 0;
         }
 
@@ -125,7 +128,7 @@
         }
 
         .nav-section-label {
-            padding: 4px 24px 2px;
+            padding: 8px 24px 4px;
             font-size: 10px;
             font-weight: 700;
             text-transform: uppercase;
@@ -143,7 +146,7 @@
         .nav-divider {
             height: 1px;
             background: rgba(255, 255, 255, 0.1);
-            margin: 6px 16px;
+            margin: 8px 16px;
         }
 
         .sidebar-bottom {
@@ -1997,8 +2000,10 @@
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <h1>
-                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 24px; height: 24px;">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                <svg viewBox="0 0 24 24" fill="currentColor" style="width: 22px; height: 22px;">
+                    <rect x="4" y="4" width="16" height="3" rx="1"/>
+                    <rect x="4" y="10.5" width="12" height="3" rx="1"/>
+                    <rect x="4" y="17" width="16" height="3" rx="1"/>
                 </svg>
                 <span>E-Leilões</span>
             </h1>
