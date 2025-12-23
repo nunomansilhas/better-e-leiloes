@@ -1161,14 +1161,29 @@
             display: flex;
             gap: 10px;
             align-items: center;
-            flex-wrap: wrap;
+        }
+
+        .filters-inputs {
+            display: flex;
+            flex: 1;
+            gap: 10px;
+        }
+
+        .filters-inputs > * {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .filters-buttons {
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
         }
 
         .filter-search-wrapper {
             position: relative;
             flex: 1;
-            min-width: 180px;
-            max-width: 280px;
+            min-width: 0;
         }
 
         .filter-search-wrapper .search-icon {
@@ -1184,6 +1199,7 @@
 
         .filter-search {
             padding-left: 38px !important;
+            width: 100%;
         }
 
         .filter-group {
@@ -1386,16 +1402,18 @@
                 padding: 10px 12px;
             }
             .filters-main-row {
+                flex-wrap: wrap;
                 gap: 8px;
             }
-            .filter-search-wrapper {
-                min-width: 100%;
-                max-width: 100%;
-                order: -1;
+            .filters-inputs {
+                width: 100%;
+                order: 1;
+            }
+            .filters-buttons {
+                order: 0;
+                margin-left: auto;
             }
             .filter-select {
-                flex: 1;
-                min-width: 0;
                 font-size: 12px;
                 padding: 8px 10px;
             }
@@ -1417,7 +1435,8 @@
         }
 
         @media (max-width: 480px) {
-            .filters-main-row {
+            .filters-inputs {
+                flex-direction: column;
                 gap: 6px;
             }
             .filter-select {
@@ -3018,38 +3037,42 @@
 
             <div class="filters-bar filters-bar-compact">
                 <div class="filters-main-row">
-                    <div class="filter-search-wrapper">
-                        <svg class="search-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                        </svg>
-                        <input type="text" class="filter-input filter-search" id="search-imoveis" placeholder="Pesquisar...">
+                    <div class="filters-inputs">
+                        <div class="filter-search-wrapper">
+                            <svg class="search-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                            </svg>
+                            <input type="text" class="filter-input filter-search" id="search-imoveis" placeholder="Pesquisar...">
+                        </div>
+                        <select class="filter-select" id="sort-imoveis" title="Ordenar">
+                            <option value="">Ordenar...</option>
+                            <option value="dataFim_asc">Data fim (proxima)</option>
+                            <option value="dataFim_desc">Data fim (distante)</option>
+                            <option value="valorBase_asc">Valor base (baixo)</option>
+                            <option value="valorBase_desc">Valor base (alto)</option>
+                            <option value="lanceAtual_desc">Lance atual (alto)</option>
+                        </select>
+                        <select class="filter-select" id="subtipo-imoveis" title="Subtipo">
+                            <option value="">Subtipo...</option>
+                        </select>
                     </div>
-                    <select class="filter-select" id="sort-imoveis" title="Ordenar">
-                        <option value="">Ordenar...</option>
-                        <option value="dataFim_asc">Data fim (proxima)</option>
-                        <option value="dataFim_desc">Data fim (distante)</option>
-                        <option value="valorBase_asc">Valor base (baixo)</option>
-                        <option value="valorBase_desc">Valor base (alto)</option>
-                        <option value="lanceAtual_desc">Lance atual (alto)</option>
-                    </select>
-                    <select class="filter-select" id="subtipo-imoveis" title="Subtipo">
-                        <option value="">Subtipo...</option>
-                    </select>
-                    <button class="btn-icon" onclick="toggleAdvancedFilters('imoveis')" title="Filtros Avançados" id="btn-advanced-imoveis">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
-                        </svg>
-                    </button>
-                    <button class="btn-icon" onclick="reloadAllData('imoveis')" title="Atualizar Tudo">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                        </svg>
-                    </button>
-                    <button class="btn-icon" onclick="clearFilters('imoveis')" title="Limpar Filtros">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
-                        </svg>
-                    </button>
+                    <div class="filters-buttons">
+                        <button class="btn-icon" onclick="toggleAdvancedFilters('imoveis')" title="Filtros Avançados" id="btn-advanced-imoveis">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+                            </svg>
+                        </button>
+                        <button class="btn-icon" onclick="reloadAllData('imoveis')" title="Atualizar Tudo">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                            </svg>
+                        </button>
+                        <button class="btn-icon" onclick="clearFilters('imoveis')" title="Limpar Filtros">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Advanced Filters Content -->
@@ -3113,38 +3136,42 @@
             </div>
             <div class="filters-bar filters-bar-compact">
                 <div class="filters-main-row">
-                    <div class="filter-search-wrapper">
-                        <svg class="search-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                        </svg>
-                        <input type="text" class="filter-input filter-search" id="search-veiculos" placeholder="Pesquisar...">
+                    <div class="filters-inputs">
+                        <div class="filter-search-wrapper">
+                            <svg class="search-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                            </svg>
+                            <input type="text" class="filter-input filter-search" id="search-veiculos" placeholder="Pesquisar...">
+                        </div>
+                        <select class="filter-select" id="sort-veiculos" title="Ordenar">
+                            <option value="">Ordenar...</option>
+                            <option value="dataFim_asc">Data fim (proxima)</option>
+                            <option value="dataFim_desc">Data fim (distante)</option>
+                            <option value="valorBase_asc">Valor base (baixo)</option>
+                            <option value="valorBase_desc">Valor base (alto)</option>
+                            <option value="lanceAtual_desc">Lance atual (alto)</option>
+                        </select>
+                        <select class="filter-select" id="subtipo-veiculos" title="Subtipo">
+                            <option value="">Subtipo...</option>
+                        </select>
                     </div>
-                    <select class="filter-select" id="sort-veiculos" title="Ordenar">
-                        <option value="">Ordenar...</option>
-                        <option value="dataFim_asc">Data fim (proxima)</option>
-                        <option value="dataFim_desc">Data fim (distante)</option>
-                        <option value="valorBase_asc">Valor base (baixo)</option>
-                        <option value="valorBase_desc">Valor base (alto)</option>
-                        <option value="lanceAtual_desc">Lance atual (alto)</option>
-                    </select>
-                    <select class="filter-select" id="subtipo-veiculos" title="Subtipo">
-                        <option value="">Subtipo...</option>
-                    </select>
-                    <button class="btn-icon" onclick="toggleAdvancedFilters('veiculos')" title="Filtros Avançados" id="btn-advanced-veiculos">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
-                        </svg>
-                    </button>
-                    <button class="btn-icon" onclick="reloadAllData('veiculos')" title="Atualizar Tudo">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                        </svg>
-                    </button>
-                    <button class="btn-icon" onclick="clearFilters('veiculos')" title="Limpar Filtros">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
-                        </svg>
-                    </button>
+                    <div class="filters-buttons">
+                        <button class="btn-icon" onclick="toggleAdvancedFilters('veiculos')" title="Filtros Avançados" id="btn-advanced-veiculos">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+                            </svg>
+                        </button>
+                        <button class="btn-icon" onclick="reloadAllData('veiculos')" title="Atualizar Tudo">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                            </svg>
+                        </button>
+                        <button class="btn-icon" onclick="clearFilters('veiculos')" title="Limpar Filtros">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
                 <div class="advanced-filters-content" id="advanced-filters-veiculos">
                     <div class="advanced-filters-grid">
@@ -3181,38 +3208,42 @@
             </div>
             <div class="filters-bar filters-bar-compact">
                 <div class="filters-main-row">
-                    <div class="filter-search-wrapper">
-                        <svg class="search-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                        </svg>
-                        <input type="text" class="filter-input filter-search" id="search-direitos" placeholder="Pesquisar...">
+                    <div class="filters-inputs">
+                        <div class="filter-search-wrapper">
+                            <svg class="search-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                            </svg>
+                            <input type="text" class="filter-input filter-search" id="search-direitos" placeholder="Pesquisar...">
+                        </div>
+                        <select class="filter-select" id="sort-direitos" title="Ordenar">
+                            <option value="">Ordenar...</option>
+                            <option value="dataFim_asc">Data fim (proxima)</option>
+                            <option value="dataFim_desc">Data fim (distante)</option>
+                            <option value="valorBase_asc">Valor base (baixo)</option>
+                            <option value="valorBase_desc">Valor base (alto)</option>
+                            <option value="lanceAtual_desc">Lance atual (alto)</option>
+                        </select>
+                        <select class="filter-select" id="subtipo-direitos" title="Subtipo">
+                            <option value="">Subtipo...</option>
+                        </select>
                     </div>
-                    <select class="filter-select" id="sort-direitos" title="Ordenar">
-                        <option value="">Ordenar...</option>
-                        <option value="dataFim_asc">Data fim (proxima)</option>
-                        <option value="dataFim_desc">Data fim (distante)</option>
-                        <option value="valorBase_asc">Valor base (baixo)</option>
-                        <option value="valorBase_desc">Valor base (alto)</option>
-                        <option value="lanceAtual_desc">Lance atual (alto)</option>
-                    </select>
-                    <select class="filter-select" id="subtipo-direitos" title="Subtipo">
-                        <option value="">Subtipo...</option>
-                    </select>
-                    <button class="btn-icon" onclick="toggleAdvancedFilters('direitos')" title="Filtros Avançados" id="btn-advanced-direitos">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
-                        </svg>
-                    </button>
-                    <button class="btn-icon" onclick="reloadAllData('direitos')" title="Atualizar Tudo">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                        </svg>
-                    </button>
-                    <button class="btn-icon" onclick="clearFilters('direitos')" title="Limpar Filtros">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
-                        </svg>
-                    </button>
+                    <div class="filters-buttons">
+                        <button class="btn-icon" onclick="toggleAdvancedFilters('direitos')" title="Filtros Avançados" id="btn-advanced-direitos">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+                            </svg>
+                        </button>
+                        <button class="btn-icon" onclick="reloadAllData('direitos')" title="Atualizar Tudo">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                            </svg>
+                        </button>
+                        <button class="btn-icon" onclick="clearFilters('direitos')" title="Limpar Filtros">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
                 <div class="advanced-filters-content" id="advanced-filters-direitos">
                     <div class="advanced-filters-grid">
@@ -3243,38 +3274,42 @@
             </div>
             <div class="filters-bar filters-bar-compact">
                 <div class="filters-main-row">
-                    <div class="filter-search-wrapper">
-                        <svg class="search-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                        </svg>
-                        <input type="text" class="filter-input filter-search" id="search-equipamentos" placeholder="Pesquisar...">
+                    <div class="filters-inputs">
+                        <div class="filter-search-wrapper">
+                            <svg class="search-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                            </svg>
+                            <input type="text" class="filter-input filter-search" id="search-equipamentos" placeholder="Pesquisar...">
+                        </div>
+                        <select class="filter-select" id="sort-equipamentos" title="Ordenar">
+                            <option value="">Ordenar...</option>
+                            <option value="dataFim_asc">Data fim (proxima)</option>
+                            <option value="dataFim_desc">Data fim (distante)</option>
+                            <option value="valorBase_asc">Valor base (baixo)</option>
+                            <option value="valorBase_desc">Valor base (alto)</option>
+                            <option value="lanceAtual_desc">Lance atual (alto)</option>
+                        </select>
+                        <select class="filter-select" id="subtipo-equipamentos" title="Subtipo">
+                            <option value="">Subtipo...</option>
+                        </select>
                     </div>
-                    <select class="filter-select" id="sort-equipamentos" title="Ordenar">
-                        <option value="">Ordenar...</option>
-                        <option value="dataFim_asc">Data fim (proxima)</option>
-                        <option value="dataFim_desc">Data fim (distante)</option>
-                        <option value="valorBase_asc">Valor base (baixo)</option>
-                        <option value="valorBase_desc">Valor base (alto)</option>
-                        <option value="lanceAtual_desc">Lance atual (alto)</option>
-                    </select>
-                    <select class="filter-select" id="subtipo-equipamentos" title="Subtipo">
-                        <option value="">Subtipo...</option>
-                    </select>
-                    <button class="btn-icon" onclick="toggleAdvancedFilters('equipamentos')" title="Filtros Avançados" id="btn-advanced-equipamentos">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
-                        </svg>
-                    </button>
-                    <button class="btn-icon" onclick="reloadAllData('equipamentos')" title="Atualizar Tudo">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                        </svg>
-                    </button>
-                    <button class="btn-icon" onclick="clearFilters('equipamentos')" title="Limpar Filtros">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
-                        </svg>
-                    </button>
+                    <div class="filters-buttons">
+                        <button class="btn-icon" onclick="toggleAdvancedFilters('equipamentos')" title="Filtros Avançados" id="btn-advanced-equipamentos">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+                            </svg>
+                        </button>
+                        <button class="btn-icon" onclick="reloadAllData('equipamentos')" title="Atualizar Tudo">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                            </svg>
+                        </button>
+                        <button class="btn-icon" onclick="clearFilters('equipamentos')" title="Limpar Filtros">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
                 <div class="advanced-filters-content" id="advanced-filters-equipamentos">
                     <div class="advanced-filters-grid">
@@ -3305,38 +3340,42 @@
             </div>
             <div class="filters-bar filters-bar-compact">
                 <div class="filters-main-row">
-                    <div class="filter-search-wrapper">
-                        <svg class="search-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                        </svg>
-                        <input type="text" class="filter-input filter-search" id="search-mobiliario" placeholder="Pesquisar...">
+                    <div class="filters-inputs">
+                        <div class="filter-search-wrapper">
+                            <svg class="search-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                            </svg>
+                            <input type="text" class="filter-input filter-search" id="search-mobiliario" placeholder="Pesquisar...">
+                        </div>
+                        <select class="filter-select" id="sort-mobiliario" title="Ordenar">
+                            <option value="">Ordenar...</option>
+                            <option value="dataFim_asc">Data fim (proxima)</option>
+                            <option value="dataFim_desc">Data fim (distante)</option>
+                            <option value="valorBase_asc">Valor base (baixo)</option>
+                            <option value="valorBase_desc">Valor base (alto)</option>
+                            <option value="lanceAtual_desc">Lance atual (alto)</option>
+                        </select>
+                        <select class="filter-select" id="subtipo-mobiliario" title="Subtipo">
+                            <option value="">Subtipo...</option>
+                        </select>
                     </div>
-                    <select class="filter-select" id="sort-mobiliario" title="Ordenar">
-                        <option value="">Ordenar...</option>
-                        <option value="dataFim_asc">Data fim (proxima)</option>
-                        <option value="dataFim_desc">Data fim (distante)</option>
-                        <option value="valorBase_asc">Valor base (baixo)</option>
-                        <option value="valorBase_desc">Valor base (alto)</option>
-                        <option value="lanceAtual_desc">Lance atual (alto)</option>
-                    </select>
-                    <select class="filter-select" id="subtipo-mobiliario" title="Subtipo">
-                        <option value="">Subtipo...</option>
-                    </select>
-                    <button class="btn-icon" onclick="toggleAdvancedFilters('mobiliario')" title="Filtros Avançados" id="btn-advanced-mobiliario">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
-                        </svg>
-                    </button>
-                    <button class="btn-icon" onclick="reloadAllData('mobiliario')" title="Atualizar Tudo">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                        </svg>
-                    </button>
-                    <button class="btn-icon" onclick="clearFilters('mobiliario')" title="Limpar Filtros">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
-                        </svg>
-                    </button>
+                    <div class="filters-buttons">
+                        <button class="btn-icon" onclick="toggleAdvancedFilters('mobiliario')" title="Filtros Avançados" id="btn-advanced-mobiliario">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+                            </svg>
+                        </button>
+                        <button class="btn-icon" onclick="reloadAllData('mobiliario')" title="Atualizar Tudo">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                            </svg>
+                        </button>
+                        <button class="btn-icon" onclick="clearFilters('mobiliario')" title="Limpar Filtros">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
                 <div class="advanced-filters-content" id="advanced-filters-mobiliario">
                     <div class="advanced-filters-grid">
@@ -3367,38 +3406,42 @@
             </div>
             <div class="filters-bar filters-bar-compact">
                 <div class="filters-main-row">
-                    <div class="filter-search-wrapper">
-                        <svg class="search-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                        </svg>
-                        <input type="text" class="filter-input filter-search" id="search-maquinas" placeholder="Pesquisar...">
+                    <div class="filters-inputs">
+                        <div class="filter-search-wrapper">
+                            <svg class="search-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                            </svg>
+                            <input type="text" class="filter-input filter-search" id="search-maquinas" placeholder="Pesquisar...">
+                        </div>
+                        <select class="filter-select" id="sort-maquinas" title="Ordenar">
+                            <option value="">Ordenar...</option>
+                            <option value="dataFim_asc">Data fim (proxima)</option>
+                            <option value="dataFim_desc">Data fim (distante)</option>
+                            <option value="valorBase_asc">Valor base (baixo)</option>
+                            <option value="valorBase_desc">Valor base (alto)</option>
+                            <option value="lanceAtual_desc">Lance atual (alto)</option>
+                        </select>
+                        <select class="filter-select" id="subtipo-maquinas" title="Subtipo">
+                            <option value="">Subtipo...</option>
+                        </select>
                     </div>
-                    <select class="filter-select" id="sort-maquinas" title="Ordenar">
-                        <option value="">Ordenar...</option>
-                        <option value="dataFim_asc">Data fim (proxima)</option>
-                        <option value="dataFim_desc">Data fim (distante)</option>
-                        <option value="valorBase_asc">Valor base (baixo)</option>
-                        <option value="valorBase_desc">Valor base (alto)</option>
-                        <option value="lanceAtual_desc">Lance atual (alto)</option>
-                    </select>
-                    <select class="filter-select" id="subtipo-maquinas" title="Subtipo">
-                        <option value="">Subtipo...</option>
-                    </select>
-                    <button class="btn-icon" onclick="toggleAdvancedFilters('maquinas')" title="Filtros Avançados" id="btn-advanced-maquinas">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
-                        </svg>
-                    </button>
-                    <button class="btn-icon" onclick="reloadAllData('maquinas')" title="Atualizar Tudo">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                        </svg>
-                    </button>
-                    <button class="btn-icon" onclick="clearFilters('maquinas')" title="Limpar Filtros">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
-                        </svg>
-                    </button>
+                    <div class="filters-buttons">
+                        <button class="btn-icon" onclick="toggleAdvancedFilters('maquinas')" title="Filtros Avançados" id="btn-advanced-maquinas">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+                            </svg>
+                        </button>
+                        <button class="btn-icon" onclick="reloadAllData('maquinas')" title="Atualizar Tudo">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                            </svg>
+                        </button>
+                        <button class="btn-icon" onclick="clearFilters('maquinas')" title="Limpar Filtros">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
                 <div class="advanced-filters-content" id="advanced-filters-maquinas">
                     <div class="advanced-filters-grid">
