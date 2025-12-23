@@ -2018,7 +2018,7 @@ class EventScraper:
         if total > 10:
             print(f"💰 API Volatile: {total} eventos...")
 
-        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True, verify=False) as client:
             for i, ref in enumerate(references):
                 if self.stop_requested:
                     break
