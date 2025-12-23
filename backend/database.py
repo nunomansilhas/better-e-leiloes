@@ -5,7 +5,7 @@ Schema v2 - Baseado na API oficial e-leiloes.pt
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy import select, func, String, Float, DateTime, Text, Integer, Boolean, JSON
+from sqlalchemy import select, func, String, Float, DateTime, Text, Integer, Boolean, JSON, text
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from typing import List, Tuple, Optional
 from datetime import datetime
@@ -363,6 +363,24 @@ async def init_db():
     """Cria tabelas se não existirem"""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    # Run migrations for new columns
+    async with engine.begin() as conn:
+        # Check if event_reference column exists in notification_rules
+        try:
+            result = await conn.execute(
+                text("SELECT event_reference FROM notification_rules LIMIT 1")
+            )
+        except Exception:
+            # Column doesn't exist, add it
+            try:
+                await conn.execute(
+                    text("ALTER TABLE notification_rules ADD COLUMN event_reference VARCHAR(50) NULL")
+                )
+                print("✅ Added event_reference column to notification_rules")
+            except Exception as e:
+                print(f"⚠️ Migration note: {e}")
+
     print("✅ Database inicializada")
 
 
