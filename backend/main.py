@@ -98,6 +98,10 @@ async def lifespan(app: FastAPI):
     await pipeline_state.stop()
     print("🧹 Pipeline state limpo")
 
+    # Clear X-Monitor history on startup (fresh start each session)
+    from xmonitor_history import clear_history
+    clear_history()
+
     scraper = EventScraper()
     cache_manager = CacheManager()
 

@@ -504,6 +504,18 @@
             font-weight: 600;
         }
 
+        .stats-total-breakdown .inactive-count {
+            color: #94a3b8;
+            font-size: 11px;
+            margin-left: auto;
+            opacity: 0.8;
+        }
+
+        .stats-total-breakdown .inactive-count span {
+            color: #64748b;
+            font-weight: 500;
+        }
+
         /* Stats Grid - 2x3 for types */
         .stats-grid {
             display: grid;
@@ -2669,6 +2681,7 @@
                     <div class="stats-total-breakdown">
                         <span><span class="lo" id="stat-total-lo">0</span> LO</span>
                         <span><span class="np" id="stat-total-np">0</span> NP</span>
+                        <span class="inactive-count" title="Eventos inativos/terminados"><span id="stat-total-inactive">0</span> inativos</span>
                     </div>
                 </div>
 
@@ -4050,6 +4063,9 @@
                 const countLO = (arr) => arr.filter(e => e.reference.startsWith('LO')).length;
                 const countNP = (arr) => arr.filter(e => e.reference.startsWith('NP')).length;
 
+                // Count inactive/terminated events
+                const inactiveCount = events.filter(e => e.cancelado === true).length;
+
                 // Helper to update stat with animation on change
                 const updateStat = (id, value) => {
                     const el = document.getElementById(id);
@@ -4071,6 +4087,7 @@
                 updateStat('stat-total', total);
                 updateStat('stat-total-lo', countLO(events));
                 updateStat('stat-total-np', countNP(events));
+                updateStat('stat-total-inactive', inactiveCount);
 
                 // Imóveis
                 updateStat('stat-imoveis', imoveisEvents.length);

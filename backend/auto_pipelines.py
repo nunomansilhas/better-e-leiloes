@@ -1051,7 +1051,6 @@ class AutoPipelinesManager:
             print(f"🔴 X-Monitor {tier_name}: {len(events_to_process)} eventos (total: 🔴{len(critical_events)} 🟠{len(urgent_events)} 🟡{len(soon_events)})")
 
             scraper = EventScraper()
-            cache_manager = CacheManager()
 
             try:
                 updated_count = 0
@@ -1084,7 +1083,6 @@ class AutoPipelinesManager:
 
                                 async with get_db() as db:
                                     await db.save_event(event)
-                                    await cache_manager.set(event.reference, event)
 
                                 # Record to history
                                 from xmonitor_history import record_event_update
@@ -1117,7 +1115,6 @@ class AutoPipelinesManager:
 
             finally:
                 await scraper.close()
-                await cache_manager.close()
                 self.pipelines['xmonitor'].is_running = False
                 # Reschedule with adaptive interval
                 self._reschedule_xmonitor(next_interval_seconds)

@@ -212,3 +212,22 @@ def cleanup_old_history(days: int = 7):
         print(f"🧹 Cleaned up {removed} old history entries")
 
     return removed
+
+
+def clear_history():
+    """
+    Clear all history data - called on API startup.
+    Deletes the JSON file to start fresh.
+    """
+    _ensure_data_dir()
+
+    if HISTORY_FILE.exists():
+        try:
+            HISTORY_FILE.unlink()
+            print("🗑️ X-Monitor history cleared (fresh start)")
+            return True
+        except Exception as e:
+            print(f"⚠️ Error clearing X-Monitor history: {e}")
+            return False
+
+    return True  # File didn't exist, nothing to clear
