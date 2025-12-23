@@ -473,6 +473,27 @@ async def toggle_notification_rule(rule_id: int, active: bool = Query(...)):
 # ============== END AUTOMATIC PIPELINES ENDPOINTS ==============
 
 
+# ============== FILTER OPTIONS ENDPOINTS ==============
+
+@app.get("/api/filters/subtypes/{tipo_id}")
+async def get_subtypes_for_tipo(tipo_id: int):
+    """Get available subtypes for a specific event type"""
+    async with get_db() as db:
+        subtypes = await db.get_subtypes_by_tipo(tipo_id)
+        return JSONResponse(subtypes)
+
+
+@app.get("/api/filters/distritos/{tipo_id}")
+async def get_distritos_for_tipo(tipo_id: int):
+    """Get available distritos for a specific event type"""
+    async with get_db() as db:
+        distritos = await db.get_distritos_by_tipo(tipo_id)
+        return JSONResponse(distritos)
+
+
+# ============== END FILTER OPTIONS ENDPOINTS ==============
+
+
 @app.get("/api/events/{reference}", response_model=EventData)
 async def get_event(reference: str):
     """

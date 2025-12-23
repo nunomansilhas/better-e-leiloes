@@ -358,6 +358,90 @@
             text-align: center;
         }
 
+        /* Notification Toggle Button */
+        .notification-toggle-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 13px;
+            font-weight: 500;
+            color: #64748b;
+        }
+
+        .notification-toggle-btn:hover {
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            border-color: #93c5fd;
+            color: #3b82f6;
+        }
+
+        .notification-toggle-btn.active {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            border-color: #2563eb;
+            color: white;
+        }
+
+        .notification-toggle-btn.active:hover {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        }
+
+        /* Toast Notification */
+        .toast-container {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .toast {
+            background: white;
+            border-radius: 12px;
+            padding: 16px 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 300px;
+            animation: slideIn 0.3s ease;
+            border-left: 4px solid #3b82f6;
+        }
+
+        .toast.success { border-left-color: #10b981; }
+        .toast.error { border-left-color: #ef4444; }
+        .toast.warning { border-left-color: #f59e0b; }
+
+        .toast-icon { font-size: 20px; }
+        .toast-content { flex: 1; }
+        .toast-title { font-weight: 600; font-size: 14px; color: #1e293b; }
+        .toast-message { font-size: 13px; color: #64748b; margin-top: 2px; }
+
+        .toast-close {
+            background: none;
+            border: none;
+            color: #94a3b8;
+            cursor: pointer;
+            padding: 4px;
+            font-size: 18px;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+
         .nav-dropdown {
             margin-top: 4px;
             max-height: 0;
@@ -2579,6 +2663,9 @@
     </style>
 </head>
 <body>
+    <!-- Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+
     <!-- Sidebar -->
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
@@ -3081,9 +3168,17 @@
 
         <!-- Imóveis Page -->
         <div id="imoveis" class="page">
-            <div class="page-header">
-                <h2>Imóveis</h2>
-                <p>Todos os imóveis disponíveis em leilão</p>
+            <div class="page-header" style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div>
+                    <h2>Imóveis</h2>
+                    <p>Todos os imóveis disponíveis em leilão</p>
+                </div>
+                <button class="notification-toggle-btn" id="notify-btn-imoveis" onclick="toggleQuickNotification('imoveis', 1)" title="Ativar notificações para novos imóveis">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="20" height="20">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                    </svg>
+                    <span>Notificar</span>
+                </button>
             </div>
 
             <div class="type-badges">
@@ -3188,9 +3283,17 @@
 
         <!-- Veículos Page -->
         <div id="veiculos" class="page">
-            <div class="page-header">
-                <h2>Veículos</h2>
-                <p>Todos os veículos disponíveis em leilão</p>
+            <div class="page-header" style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div>
+                    <h2>Veículos</h2>
+                    <p>Todos os veículos disponíveis em leilão</p>
+                </div>
+                <button class="notification-toggle-btn" id="notify-btn-veiculos" onclick="toggleQuickNotification('veiculos', 2)" title="Ativar notificações para novos veículos">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="20" height="20">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                    </svg>
+                    <span>Notificar</span>
+                </button>
             </div>
             <div class="type-badges">
                 <div class="type-badge lo" onclick="toggleTypeFilter('LO', this)"><span>LO</span><span>Leilão Online</span></div>
@@ -3260,9 +3363,17 @@
 
         <!-- Direitos Page -->
         <div id="direitos" class="page">
-            <div class="page-header">
-                <h2>Direitos</h2>
-                <p>Todos os direitos disponíveis em leilão</p>
+            <div class="page-header" style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div>
+                    <h2>Direitos</h2>
+                    <p>Todos os direitos disponíveis em leilão</p>
+                </div>
+                <button class="notification-toggle-btn" id="notify-btn-direitos" onclick="toggleQuickNotification('direitos', 6)" title="Ativar notificações para novos direitos">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="20" height="20">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                    </svg>
+                    <span>Notificar</span>
+                </button>
             </div>
             <div class="type-badges">
                 <div class="type-badge lo" onclick="toggleTypeFilter('LO', this)"><span>LO</span><span>Leilão Online</span></div>
@@ -3326,9 +3437,17 @@
 
         <!-- Equipamentos Page -->
         <div id="equipamentos" class="page">
-            <div class="page-header">
-                <h2>Equipamentos</h2>
-                <p>Todos os equipamentos disponíveis em leilão</p>
+            <div class="page-header" style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div>
+                    <h2>Equipamentos</h2>
+                    <p>Todos os equipamentos disponíveis em leilão</p>
+                </div>
+                <button class="notification-toggle-btn" id="notify-btn-equipamentos" onclick="toggleQuickNotification('equipamentos', 3)" title="Ativar notificações para novos equipamentos">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="20" height="20">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                    </svg>
+                    <span>Notificar</span>
+                </button>
             </div>
             <div class="type-badges">
                 <div class="type-badge lo" onclick="toggleTypeFilter('LO', this)"><span>LO</span><span>Leilão Online</span></div>
@@ -3392,9 +3511,17 @@
 
         <!-- Mobiliário Page -->
         <div id="mobiliario" class="page">
-            <div class="page-header">
-                <h2>Mobiliário</h2>
-                <p>Todo o mobiliário disponível em leilão</p>
+            <div class="page-header" style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div>
+                    <h2>Mobiliário</h2>
+                    <p>Todo o mobiliário disponível em leilão</p>
+                </div>
+                <button class="notification-toggle-btn" id="notify-btn-mobiliario" onclick="toggleQuickNotification('mobiliario', 4)" title="Ativar notificações para novo mobiliário">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="20" height="20">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                    </svg>
+                    <span>Notificar</span>
+                </button>
             </div>
             <div class="type-badges">
                 <div class="type-badge lo" onclick="toggleTypeFilter('LO', this)"><span>LO</span><span>Leilão Online</span></div>
@@ -3458,9 +3585,17 @@
 
         <!-- Máquinas Page -->
         <div id="maquinas" class="page">
-            <div class="page-header">
-                <h2>Máquinas</h2>
-                <p>Todas as máquinas disponíveis em leilão</p>
+            <div class="page-header" style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div>
+                    <h2>Máquinas</h2>
+                    <p>Todas as máquinas disponíveis em leilão</p>
+                </div>
+                <button class="notification-toggle-btn" id="notify-btn-maquinas" onclick="toggleQuickNotification('maquinas', 5)" title="Ativar notificações para novas máquinas">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="20" height="20">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                    </svg>
+                    <span>Notificar</span>
+                </button>
             </div>
             <div class="type-badges">
                 <div class="type-badge lo" onclick="toggleTypeFilter('LO', this)"><span>LO</span><span>Leilão Online</span></div>
@@ -3590,71 +3725,117 @@
             </div>
         </div>
 
-        <!-- Create Rule Modal -->
-        <div id="create-rule-modal" class="modal" style="display: none;">
-            <div class="modal-backdrop" onclick="closeCreateRuleModal()"></div>
-            <div class="modal-content" style="max-width: 500px;">
-                <div class="modal-header">
-                    <h3>Nova Regra de Notificação</h3>
-                    <button class="modal-close" onclick="closeCreateRuleModal()">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <div class="form-group" style="margin-bottom: 16px;">
-                        <label style="display: block; margin-bottom: 6px; font-weight: 500;">Nome da Regra</label>
-                        <input type="text" id="rule-name" class="filter-input" placeholder="Ex: Apartamentos em Lisboa" style="width: 100%;">
-                    </div>
-
-                    <div class="form-group" style="margin-bottom: 16px;">
-                        <label style="display: block; margin-bottom: 6px; font-weight: 500;">Tipo de Alerta</label>
-                        <select id="rule-type" class="filter-select" style="width: 100%;">
-                            <option value="new_event">Novo Evento</option>
-                            <option value="price_change">Alteração de Preço</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group" style="margin-bottom: 16px;">
-                        <label style="display: block; margin-bottom: 6px; font-weight: 500;">Tipos de Evento</label>
-                        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-                            <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
-                                <input type="checkbox" class="rule-tipo" value="imoveis"> Imóveis
-                            </label>
-                            <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
-                                <input type="checkbox" class="rule-tipo" value="veiculos"> Veículos
-                            </label>
-                            <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
-                                <input type="checkbox" class="rule-tipo" value="direitos"> Direitos
-                            </label>
-                            <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
-                                <input type="checkbox" class="rule-tipo" value="equipamentos"> Equipamentos
-                            </label>
-                            <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
-                                <input type="checkbox" class="rule-tipo" value="mobiliario"> Mobiliário
-                            </label>
-                            <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
-                                <input type="checkbox" class="rule-tipo" value="maquinas"> Máquinas
-                            </label>
+        <!-- Create Rule Modal - Modern Design -->
+        <div id="create-rule-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 9999; justify-content: center; align-items: center;">
+            <div style="background: white; border-radius: 20px; width: 90%; max-width: 480px; box-shadow: 0 25px 80px rgba(0, 0, 0, 0.25); overflow: hidden; animation: slideIn 0.3s ease;">
+                <!-- Header -->
+                <div style="padding: 24px 28px 20px; border-bottom: 1px solid #f1f5f9;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                                <svg fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24" width="20" height="20">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 style="margin: 0; font-size: 18px; font-weight: 600; color: #0f172a;">Nova Regra</h3>
+                                <p style="margin: 2px 0 0; font-size: 13px; color: #64748b;">Configure os alertas</p>
+                            </div>
                         </div>
-                    </div>
-
-                    <div class="form-group" style="margin-bottom: 16px;">
-                        <label style="display: block; margin-bottom: 6px; font-weight: 500;">Distritos (separados por vírgula)</label>
-                        <input type="text" id="rule-distritos" class="filter-input" placeholder="Ex: Lisboa, Porto, Setúbal" style="width: 100%;">
-                    </div>
-
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                        <div class="form-group">
-                            <label style="display: block; margin-bottom: 6px; font-weight: 500;">Preço Min (€)</label>
-                            <input type="number" id="rule-preco-min" class="filter-input" placeholder="0" style="width: 100%;">
-                        </div>
-                        <div class="form-group">
-                            <label style="display: block; margin-bottom: 6px; font-weight: 500;">Preço Max (€)</label>
-                            <input type="number" id="rule-preco-max" class="filter-input" placeholder="999999" style="width: 100%;">
-                        </div>
+                        <button onclick="closeCreateRuleModal()" style="background: #f1f5f9; border: none; width: 36px; height: 36px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">
+                            <svg fill="none" stroke="#64748b" stroke-width="2" viewBox="0 0 24 24" width="18" height="18">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
                     </div>
                 </div>
-                <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 12px; padding: 16px; border-top: 1px solid #e2e8f0;">
-                    <button class="btn-secondary" onclick="closeCreateRuleModal()">Cancelar</button>
-                    <button class="btn-primary" onclick="createNotificationRule()">Criar Regra</button>
+
+                <!-- Body -->
+                <div style="padding: 24px 28px;">
+                    <!-- Nome -->
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 8px;">Nome da regra</label>
+                        <input type="text" id="rule-name" placeholder="Ex: Apartamentos em Lisboa" style="width: 100%; padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 14px; transition: all 0.2s; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#e5e7eb'">
+                    </div>
+
+                    <!-- Tipo de Alerta -->
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 8px;">Tipo de alerta</label>
+                        <div style="display: flex; gap: 10px;">
+                            <label style="flex: 1; display: flex; align-items: center; gap: 10px; padding: 14px; border: 2px solid #e5e7eb; border-radius: 10px; cursor: pointer; transition: all 0.2s;" onclick="this.querySelector('input').checked = true; document.querySelectorAll('.rule-type-option').forEach(el => el.style.borderColor = '#e5e7eb'); this.style.borderColor = '#3b82f6'; this.style.background = '#eff6ff';" class="rule-type-option">
+                                <input type="radio" name="rule-type-radio" value="new_event" checked style="display: none;">
+                                <span style="font-size: 20px;">🆕</span>
+                                <span style="font-size: 13px; font-weight: 500;">Novo Evento</span>
+                            </label>
+                            <label style="flex: 1; display: flex; align-items: center; gap: 10px; padding: 14px; border: 2px solid #e5e7eb; border-radius: 10px; cursor: pointer; transition: all 0.2s;" onclick="this.querySelector('input').checked = true; document.querySelectorAll('.rule-type-option').forEach(el => { el.style.borderColor = '#e5e7eb'; el.style.background = 'white'; }); this.style.borderColor = '#3b82f6'; this.style.background = '#eff6ff';" class="rule-type-option">
+                                <input type="radio" name="rule-type-radio" value="price_change" style="display: none;">
+                                <span style="font-size: 20px;">💰</span>
+                                <span style="font-size: 13px; font-weight: 500;">Alteração Preço</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Tipos de Evento -->
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 10px;">Tipos de evento</label>
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+                            <label class="tipo-chip" style="display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px; background: #f8fafc; border: 2px solid transparent; border-radius: 8px; cursor: pointer; transition: all 0.2s; font-size: 12px; font-weight: 500; color: #64748b;">
+                                <input type="checkbox" class="rule-tipo" value="imoveis" style="display: none;" onchange="this.parentElement.style.background = this.checked ? '#dbeafe' : '#f8fafc'; this.parentElement.style.borderColor = this.checked ? '#3b82f6' : 'transparent'; this.parentElement.style.color = this.checked ? '#1d4ed8' : '#64748b';">
+                                🏠 Imóveis
+                            </label>
+                            <label class="tipo-chip" style="display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px; background: #f8fafc; border: 2px solid transparent; border-radius: 8px; cursor: pointer; transition: all 0.2s; font-size: 12px; font-weight: 500; color: #64748b;">
+                                <input type="checkbox" class="rule-tipo" value="veiculos" style="display: none;" onchange="this.parentElement.style.background = this.checked ? '#dbeafe' : '#f8fafc'; this.parentElement.style.borderColor = this.checked ? '#3b82f6' : 'transparent'; this.parentElement.style.color = this.checked ? '#1d4ed8' : '#64748b';">
+                                🚗 Veículos
+                            </label>
+                            <label class="tipo-chip" style="display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px; background: #f8fafc; border: 2px solid transparent; border-radius: 8px; cursor: pointer; transition: all 0.2s; font-size: 12px; font-weight: 500; color: #64748b;">
+                                <input type="checkbox" class="rule-tipo" value="direitos" style="display: none;" onchange="this.parentElement.style.background = this.checked ? '#dbeafe' : '#f8fafc'; this.parentElement.style.borderColor = this.checked ? '#3b82f6' : 'transparent'; this.parentElement.style.color = this.checked ? '#1d4ed8' : '#64748b';">
+                                📜 Direitos
+                            </label>
+                            <label class="tipo-chip" style="display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px; background: #f8fafc; border: 2px solid transparent; border-radius: 8px; cursor: pointer; transition: all 0.2s; font-size: 12px; font-weight: 500; color: #64748b;">
+                                <input type="checkbox" class="rule-tipo" value="equipamentos" style="display: none;" onchange="this.parentElement.style.background = this.checked ? '#dbeafe' : '#f8fafc'; this.parentElement.style.borderColor = this.checked ? '#3b82f6' : 'transparent'; this.parentElement.style.color = this.checked ? '#1d4ed8' : '#64748b';">
+                                🔧 Equipam.
+                            </label>
+                            <label class="tipo-chip" style="display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px; background: #f8fafc; border: 2px solid transparent; border-radius: 8px; cursor: pointer; transition: all 0.2s; font-size: 12px; font-weight: 500; color: #64748b;">
+                                <input type="checkbox" class="rule-tipo" value="mobiliario" style="display: none;" onchange="this.parentElement.style.background = this.checked ? '#dbeafe' : '#f8fafc'; this.parentElement.style.borderColor = this.checked ? '#3b82f6' : 'transparent'; this.parentElement.style.color = this.checked ? '#1d4ed8' : '#64748b';">
+                                🪑 Mobiliário
+                            </label>
+                            <label class="tipo-chip" style="display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px; background: #f8fafc; border: 2px solid transparent; border-radius: 8px; cursor: pointer; transition: all 0.2s; font-size: 12px; font-weight: 500; color: #64748b;">
+                                <input type="checkbox" class="rule-tipo" value="maquinas" style="display: none;" onchange="this.parentElement.style.background = this.checked ? '#dbeafe' : '#f8fafc'; this.parentElement.style.borderColor = this.checked ? '#3b82f6' : 'transparent'; this.parentElement.style.color = this.checked ? '#1d4ed8' : '#64748b';">
+                                ⚙️ Máquinas
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Distritos -->
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 8px;">Distritos <span style="font-weight: 400; color: #94a3b8;">(opcional)</span></label>
+                        <input type="text" id="rule-distritos" placeholder="Ex: Lisboa, Porto, Setúbal" style="width: 100%; padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 14px; transition: all 0.2s; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#e5e7eb'">
+                    </div>
+
+                    <!-- Preços -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div>
+                            <label style="display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 8px;">Preço mín <span style="font-weight: 400; color: #94a3b8;">€</span></label>
+                            <input type="number" id="rule-preco-min" placeholder="0" style="width: 100%; padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 14px; transition: all 0.2s; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#e5e7eb'">
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 8px;">Preço máx <span style="font-weight: 400; color: #94a3b8;">€</span></label>
+                            <input type="number" id="rule-preco-max" placeholder="Sem limite" style="width: 100%; padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 14px; transition: all 0.2s; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#e5e7eb'">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div style="padding: 20px 28px; background: #f8fafc; border-top: 1px solid #f1f5f9; display: flex; justify-content: flex-end; gap: 12px;">
+                    <button onclick="closeCreateRuleModal()" style="padding: 12px 24px; background: white; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 14px; font-weight: 600; color: #64748b; cursor: pointer; transition: all 0.2s;">
+                        Cancelar
+                    </button>
+                    <button onclick="createNotificationRule()" style="padding: 12px 24px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border: none; border-radius: 10px; font-size: 14px; font-weight: 600; color: white; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px;">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="16" height="16">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        Criar Regra
+                    </button>
                 </div>
             </div>
         </div>
@@ -6768,22 +6949,39 @@
 
         function closeCreateRuleModal() {
             document.getElementById('create-rule-modal').style.display = 'none';
-            // Clear form
+
+            // Clear form inputs
             document.getElementById('rule-name').value = '';
-            document.getElementById('rule-type').value = 'new_event';
             document.getElementById('rule-distritos').value = '';
             document.getElementById('rule-preco-min').value = '';
             document.getElementById('rule-preco-max').value = '';
-            document.querySelectorAll('.rule-tipo').forEach(cb => cb.checked = false);
+
+            // Reset radio buttons visual state
+            document.querySelectorAll('.rule-type-option').forEach((el, i) => {
+                el.style.borderColor = i === 0 ? '#3b82f6' : '#e5e7eb';
+                el.style.background = i === 0 ? '#eff6ff' : 'white';
+            });
+            const firstRadio = document.querySelector('input[name="rule-type-radio"]');
+            if (firstRadio) firstRadio.checked = true;
+
+            // Reset tipo checkboxes visual state
+            document.querySelectorAll('.rule-tipo').forEach(cb => {
+                cb.checked = false;
+                cb.parentElement.style.background = '#f8fafc';
+                cb.parentElement.style.borderColor = 'transparent';
+                cb.parentElement.style.color = '#64748b';
+            });
         }
 
         // Create notification rule
         async function createNotificationRule() {
             const name = document.getElementById('rule-name').value.trim();
-            const ruleType = document.getElementById('rule-type').value;
+            // Get rule type from radio buttons
+            const ruleTypeRadio = document.querySelector('input[name="rule-type-radio"]:checked');
+            const ruleType = ruleTypeRadio ? ruleTypeRadio.value : 'new_event';
 
             if (!name) {
-                alert('Por favor, insira um nome para a regra');
+                showToast('Campo obrigatório', 'Por favor, insira um nome para a regra', 'warning');
                 return;
             }
 
@@ -6812,7 +7010,7 @@
                 if (response.ok) {
                     closeCreateRuleModal();
                     loadNotificationRules();
-                    addLog(`Regra criada: ${name}`, 'success');
+                    showToast('Regra criada', `"${name}" foi adicionada com sucesso`, 'success');
                 } else {
                     const error = await response.json();
                     alert('Erro: ' + (error.detail || 'Erro desconhecido'));
@@ -6893,6 +7091,191 @@
 
         // Initial badge update
         updateNotificationBadge();
+
+        // ============== TOAST NOTIFICATION SYSTEM ==============
+
+        function showToast(title, message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+
+            const icons = {
+                success: '✅',
+                error: '❌',
+                warning: '⚠️',
+                info: '🔔'
+            };
+
+            toast.innerHTML = `
+                <span class="toast-icon">${icons[type] || icons.info}</span>
+                <div class="toast-content">
+                    <div class="toast-title">${title}</div>
+                    <div class="toast-message">${message}</div>
+                </div>
+                <button class="toast-close" onclick="this.parentElement.remove()">×</button>
+            `;
+
+            container.appendChild(toast);
+
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                toast.style.animation = 'slideOut 0.3s ease forwards';
+                setTimeout(() => toast.remove(), 300);
+            }, 5000);
+        }
+
+        // ============== QUICK NOTIFICATION TOGGLE ==============
+
+        const tipoNames = {
+            imoveis: 'Imóveis',
+            veiculos: 'Veículos',
+            direitos: 'Direitos',
+            equipamentos: 'Equipamentos',
+            mobiliario: 'Mobiliário',
+            maquinas: 'Máquinas'
+        };
+
+        // Track quick notification rules
+        let quickNotificationRules = {};
+
+        async function loadQuickNotificationStates() {
+            try {
+                const response = await fetch(`${API_BASE}/api/notification-rules`);
+                const rules = await response.json();
+
+                // Find quick rules (prefixed with "Quick:")
+                quickNotificationRules = {};
+                rules.forEach(rule => {
+                    if (rule.name.startsWith('Quick:')) {
+                        const tipo = rule.name.replace('Quick: ', '').toLowerCase();
+                        // Match tipo name to key
+                        Object.keys(tipoNames).forEach(key => {
+                            if (tipoNames[key] === rule.name.replace('Quick: ', '')) {
+                                quickNotificationRules[key] = { id: rule.id, active: rule.active };
+                            }
+                        });
+                    }
+                });
+
+                // Update button states
+                Object.keys(tipoNames).forEach(tipo => {
+                    updateNotifyButtonState(tipo);
+                });
+            } catch (error) {
+                console.error('Error loading quick notification states:', error);
+            }
+        }
+
+        function updateNotifyButtonState(tipo) {
+            const btn = document.getElementById(`notify-btn-${tipo}`);
+            if (!btn) return;
+
+            const rule = quickNotificationRules[tipo];
+            if (rule && rule.active) {
+                btn.classList.add('active');
+                btn.querySelector('span').textContent = 'Notificações ON';
+            } else {
+                btn.classList.remove('active');
+                btn.querySelector('span').textContent = 'Notificar';
+            }
+        }
+
+        async function toggleQuickNotification(tipo, tipoId) {
+            const btn = document.getElementById(`notify-btn-${tipo}`);
+            const existingRule = quickNotificationRules[tipo];
+
+            try {
+                if (existingRule) {
+                    // Toggle existing rule
+                    const newState = !existingRule.active;
+                    await fetch(`${API_BASE}/api/notification-rules/${existingRule.id}/toggle?active=${newState}`, {
+                        method: 'POST'
+                    });
+                    existingRule.active = newState;
+
+                    if (newState) {
+                        showToast('Notificações ativadas', `Será notificado de novos ${tipoNames[tipo].toLowerCase()}`, 'success');
+                    } else {
+                        showToast('Notificações desativadas', `Já não receberá alertas de ${tipoNames[tipo].toLowerCase()}`, 'info');
+                    }
+                } else {
+                    // Create new rule
+                    const response = await fetch(`${API_BASE}/api/notification-rules`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            name: `Quick: ${tipoNames[tipo]}`,
+                            rule_type: 'new_event',
+                            tipos: [tipo],
+                            active: true
+                        })
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        quickNotificationRules[tipo] = { id: data.id, active: true };
+                        showToast('Notificações ativadas', `Será notificado de novos ${tipoNames[tipo].toLowerCase()}`, 'success');
+                    }
+                }
+
+                updateNotifyButtonState(tipo);
+            } catch (error) {
+                console.error('Error toggling quick notification:', error);
+                showToast('Erro', 'Não foi possível alterar as notificações', 'error');
+            }
+        }
+
+        // ============== DYNAMIC SUBTYPES LOADING ==============
+
+        const tipoIdMap = {
+            imoveis: 1,
+            veiculos: 2,
+            equipamentos: 3,
+            mobiliario: 4,
+            maquinas: 5,
+            direitos: 6
+        };
+
+        async function loadSubtypesForPage(tipo) {
+            const tipoId = tipoIdMap[tipo];
+            if (!tipoId) return;
+
+            const select = document.getElementById(`subtipo-${tipo}`);
+            if (!select) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/api/filters/subtypes/${tipoId}`);
+                const subtypes = await response.json();
+
+                const currentValue = select.value;
+                select.innerHTML = '<option value="">Todos os subtipos</option>';
+
+                subtypes.forEach(subtype => {
+                    const option = document.createElement('option');
+                    option.value = subtype;
+                    option.textContent = subtype;
+                    select.appendChild(option);
+                });
+
+                if (currentValue) select.value = currentValue;
+            } catch (error) {
+                console.error(`Error loading subtypes for ${tipo}:`, error);
+            }
+        }
+
+        // Load subtypes when showing a page
+        const originalShowPage2 = showPage;
+        showPage = function(pageId) {
+            originalShowPage2(pageId);
+
+            // Load subtypes for event pages
+            if (tipoIdMap[pageId]) {
+                loadSubtypesForPage(pageId);
+            }
+        };
+
+        // Initial load of quick notification states
+        loadQuickNotificationStates();
 
         // ============== END ALERTAS/NOTIFICATIONS SYSTEM ==============
     </script>

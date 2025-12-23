@@ -695,6 +695,30 @@ class DatabaseManager:
         result = await self.session.execute(select(EventDB.reference))
         return list(result.scalars().all())
 
+    async def get_subtypes_by_tipo(self, tipo_id: int) -> List[str]:
+        """Get distinct subtypes for a given tipo_id"""
+        result = await self.session.execute(
+            select(EventDB.subtipo)
+            .where(EventDB.tipo_id == tipo_id)
+            .where(EventDB.subtipo.isnot(None))
+            .where(EventDB.cancelado == False)
+            .distinct()
+            .order_by(EventDB.subtipo)
+        )
+        return [s for s in result.scalars().all() if s and s != 'N/A']
+
+    async def get_distritos_by_tipo(self, tipo_id: int) -> List[str]:
+        """Get distinct distritos for a given tipo_id"""
+        result = await self.session.execute(
+            select(EventDB.distrito)
+            .where(EventDB.tipo_id == tipo_id)
+            .where(EventDB.distrito.isnot(None))
+            .where(EventDB.cancelado == False)
+            .distinct()
+            .order_by(EventDB.distrito)
+        )
+        return [d for d in result.scalars().all() if d]
+
     async def delete_all_events(self) -> int:
         """Apaga TODOS os eventos"""
         from sqlalchemy import delete
