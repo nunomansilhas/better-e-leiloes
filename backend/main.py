@@ -330,6 +330,46 @@ async def get_prices_cache_info():
     })
 
 
+# ============== X-MONITOR HISTORY ENDPOINTS ==============
+
+@app.get("/api/xmonitor/history")
+async def get_xmonitor_history():
+    """Get all X-Monitor history data"""
+    from xmonitor_history import get_all_history
+    return JSONResponse(get_all_history())
+
+
+@app.get("/api/xmonitor/history/{reference}")
+async def get_xmonitor_event_history(reference: str):
+    """Get history for a specific event"""
+    from xmonitor_history import get_event_history
+    history = get_event_history(reference)
+    if not history:
+        raise HTTPException(status_code=404, detail=f"No history for event: {reference}")
+    return JSONResponse(history)
+
+
+@app.get("/api/xmonitor/recent")
+async def get_xmonitor_recent(limit: int = Query(50, ge=1, le=500)):
+    """Get most recent changes across all events"""
+    from xmonitor_history import get_recent_changes
+    return JSONResponse(get_recent_changes(limit))
+
+
+@app.get("/api/xmonitor/summary")
+async def get_xmonitor_summary():
+    """Get summary of all tracked events"""
+    from xmonitor_history import get_active_events_summary
+    return JSONResponse(get_active_events_summary())
+
+
+@app.get("/api/xmonitor/stats")
+async def get_xmonitor_stats():
+    """Get X-Monitor history statistics"""
+    from xmonitor_history import get_stats
+    return JSONResponse(get_stats())
+
+
 # ============== END AUTOMATIC PIPELINES ENDPOINTS ==============
 
 

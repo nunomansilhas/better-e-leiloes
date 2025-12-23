@@ -1086,6 +1086,17 @@ class AutoPipelinesManager:
                                     await db.save_event(event)
                                     await cache_manager.set(event.reference, event)
 
+                                # Record to history
+                                from xmonitor_history import record_event_update
+                                record_event_update(
+                                    reference=event.reference,
+                                    lance_atual=new_price,
+                                    data_fim=new_end,
+                                    old_lance=old_price,
+                                    old_data_fim=old_end,
+                                    tier=tier
+                                )
+
                                 mins = int(seconds / 60)
                                 secs = int(seconds % 60)
                                 print(f"    {tier_emoji} {event.reference}: {old_price or 0}€ → {new_price}€ ({mins}m{secs}s)")
