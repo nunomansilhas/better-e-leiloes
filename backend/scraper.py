@@ -9,6 +9,7 @@ from datetime import datetime
 import re
 from playwright.async_api import async_playwright, Page, Browser
 import os
+import httpx
 
 from models import (
     EventData, ScraperStatus,
