@@ -7247,29 +7247,18 @@
             maquinas: 'Máquinas'
         };
 
-        // Track quick notification rules
-        let quickNotificationRules = {};
+        // Track quick notification rule (single rule with tipos array)
+        let quickNotificationRule = null;
 
         async function loadQuickNotificationStates() {
             try {
                 const response = await fetch(`${API_BASE}/api/notification-rules`);
                 const rules = await response.json();
 
-                // Find quick rules (prefixed with "Quick:")
-                quickNotificationRules = {};
-                rules.forEach(rule => {
-                    if (rule.name.startsWith('Quick:')) {
-                        const tipo = rule.name.replace('Quick: ', '').toLowerCase();
-                        // Match tipo name to key
-                        Object.keys(tipoNames).forEach(key => {
-                            if (tipoNames[key] === rule.name.replace('Quick: ', '')) {
-                                quickNotificationRules[key] = { id: rule.id, active: rule.active };
-                            }
-                        });
-                    }
-                });
+                // Find the single "Quick Notifications" rule
+                quickNotificationRule = rules.find(r => r.name === 'Quick Notifications') || null;
 
-                // Update button states
+                // Update all button states
                 Object.keys(tipoNames).forEach(tipo => {
                     updateNotifyButtonState(tipo);
                 });
@@ -7282,8 +7271,12 @@
             const btn = document.getElementById(`notify-btn-${tipo}`);
             if (!btn) return;
 
-            const rule = quickNotificationRules[tipo];
-            if (rule && rule.active) {
+            const isActive = quickNotificationRule &&
+                             quickNotificationRule.active &&
+                             quickNotificationRule.tipos &&
+                             quickNotificationRule.tipos.includes(tipo);
+
+            if (isActive) {
                 btn.classList.add('active');
                 btn.querySelector('span').textContent = 'Notificações ON';
             } else {
@@ -7294,29 +7287,51 @@
 
         async function toggleQuickNotification(tipo, tipoId) {
             const btn = document.getElementById(`notify-btn-${tipo}`);
-            const existingRule = quickNotificationRules[tipo];
 
             try {
-                if (existingRule) {
-                    // Toggle existing rule
-                    const newState = !existingRule.active;
-                    await fetch(`${API_BASE}/api/notification-rules/${existingRule.id}/toggle?active=${newState}`, {
-                        method: 'POST'
-                    });
-                    existingRule.active = newState;
+                if (quickNotificationRule) {
+                    // Rule exists - update tipos array
+                    let tipos = quickNotificationRule.tipos || [];
+                    const isCurrentlyActive = tipos.includes(tipo);
 
-                    if (newState) {
-                        showToast('Notificações ativadas', `Será notificado de novos ${tipoNames[tipo].toLowerCase()}`, 'success');
-                    } else {
+                    if (isCurrentlyActive) {
+                        // Remove tipo from array
+                        tipos = tipos.filter(t => t !== tipo);
+
+                        if (tipos.length === 0) {
+                            // No more tipos - delete the rule
+                            await fetch(`${API_BASE}/api/notification-rules/${quickNotificationRule.id}`, {
+                                method: 'DELETE'
+                            });
+                            quickNotificationRule = null;
+                        } else {
+                            // Update rule with new tipos
+                            await fetch(`${API_BASE}/api/notification-rules/${quickNotificationRule.id}`, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ tipos: tipos })
+                            });
+                            quickNotificationRule.tipos = tipos;
+                        }
                         showToast('Notificações desativadas', `Já não receberá alertas de ${tipoNames[tipo].toLowerCase()}`, 'info');
+                    } else {
+                        // Add tipo to array
+                        tipos.push(tipo);
+                        await fetch(`${API_BASE}/api/notification-rules/${quickNotificationRule.id}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ tipos: tipos })
+                        });
+                        quickNotificationRule.tipos = tipos;
+                        showToast('Notificações ativadas', `Será notificado de novos ${tipoNames[tipo].toLowerCase()}`, 'success');
                     }
                 } else {
-                    // Create new rule
+                    // Create new rule with this tipo
                     const response = await fetch(`${API_BASE}/api/notification-rules`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            name: `Quick: ${tipoNames[tipo]}`,
+                            name: 'Quick Notifications',
                             rule_type: 'new_event',
                             tipos: [tipo],
                             active: true
@@ -7325,7 +7340,7 @@
 
                     if (response.ok) {
                         const data = await response.json();
-                        quickNotificationRules[tipo] = { id: data.id, active: true };
+                        quickNotificationRule = { id: data.id, active: true, tipos: [tipo] };
                         showToast('Notificações ativadas', `Será notificado de novos ${tipoNames[tipo].toLowerCase()}`, 'success');
                     }
                 }
