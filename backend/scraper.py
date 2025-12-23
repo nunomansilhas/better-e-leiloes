@@ -2009,44 +2009,27 @@ class EventScraper:
     ) -> List[dict]:
         """
         Scrape only volatile data (lanceAtual, dataFim) via API - VERY FAST!
-        Used for price updates.
+        Uses httpx directly - no browser needed!
         """
-        await self.init_browser()
-
         results = []
         total = len(references)
 
-        print(f"💰 API Volatile Scrape: {total} eventos...")
+        if total > 10:
+            print(f"💰 API Volatile: {total} eventos...")
 
-        # Create single context for all requests
-        context = await self.browser.new_context(
-            user_agent=self.user_agent,
-            viewport={'width': 1920, 'height': 1080},
-            ignore_https_errors=True
-        )
-
-        page = await context.new_page()
-
-        try:
-            # Initialize session by visiting main site
-            await page.goto("https://www.e-leiloes.pt", wait_until='domcontentloaded', timeout=15000)
-            await asyncio.sleep(0.5)
-
+        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
             for i, ref in enumerate(references):
                 if self.stop_requested:
                     break
 
                 try:
                     api_url = f"https://www.e-leiloes.pt/api/eventos/{ref}"
-                    response = await page.goto(api_url, wait_until='domcontentloaded', timeout=10000)
+                    response = await client.get(api_url)
 
-                    if response.status == 200:
-                        import json
-                        body = await page.query_selector('body')
-                        json_str = await body.inner_text() if body else ''
-                        data = json.loads(json_str)
-
+                    if response.status_code == 200:
+                        data = response.json()
                         item = data.get('item', {})
+
                         if item:
                             data_fim = None
                             try:
@@ -2060,20 +2043,20 @@ class EventScraper:
                                 'lanceAtual': item.get('lanceAtual', 0),
                                 'dataFim': data_fim
                             })
-                            print(f"  💰 [{i+1}/{total}] {ref}: {item.get('lanceAtual', 0)}€")
+
+                            if total <= 10:
+                                print(f"  💰 [{i+1}/{total}] {ref}: {item.get('lanceAtual', 0)}€")
 
                     if on_progress:
                         await on_progress(i + 1, total, ref)
 
                 except Exception as e:
-                    print(f"  ❌ [{i+1}/{total}] {ref}: {e}")
+                    print(f"  ❌ [{i+1}/{total}] {ref}: {str(e)[:50]}")
 
-                # Very small delay for volatile data
-                await asyncio.sleep(0.2)
+                # Small delay to be nice to the API
+                if total > 1:
+                    await asyncio.sleep(0.1)
 
-        finally:
-            await page.close()
-            await context.close()
-
-        print(f"✅ API Volatile concluído: {len(results)}/{total}")
+        if total > 10:
+            print(f"✅ API Volatile: {len(results)}/{total} atualizados")
         return results
