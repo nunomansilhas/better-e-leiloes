@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      8.6
-// @description  v8 + altura fixa cards, countdown alinhado
+// @version      8.7
+// @description  v8 + altura fixa TOTAL, tudo alinhado horizontalmente
 // @author       Nuno Mansilhas
 // @match        https://e-leiloes.pt/*
 // @match        https://www.e-leiloes.pt/*
@@ -323,7 +323,7 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.05) !important;
             background: white !important;
             position: relative !important;
-            height: 480px !important;
+            height: 520px !important;
             display: flex !important;
             flex-direction: column !important;
             overflow: hidden !important;
@@ -341,16 +341,30 @@
             flex-shrink: 0;
         }
 
-        /* Fixed height title area */
+        /* Fixed height for type + location row */
+        .p-evento[data-better-enhanced="true"] > .w-full:first-of-type > div:first-child {
+            height: 24px !important;
+            overflow: hidden !important;
+            flex-shrink: 0 !important;
+        }
+
+        /* Fixed height title area - exactly 2 lines */
         .p-evento[data-better-enhanced="true"] .p-evento-title,
-        .p-evento[data-better-enhanced="true"] [class*="text-"][class*="font-bold"] {
+        .p-evento[data-better-enhanced="true"] [class*="font-bold"]:not(.better-valor-amount) {
             display: -webkit-box !important;
             -webkit-line-clamp: 2 !important;
             -webkit-box-orient: vertical !important;
             overflow: hidden !important;
             text-overflow: ellipsis !important;
-            min-height: 2.5em !important;
-            max-height: 2.5em !important;
+            height: 42px !important;
+            min-height: 42px !important;
+            max-height: 42px !important;
+            line-height: 1.4 !important;
+        }
+
+        /* Native content wrapper - fixed height */
+        .p-evento[data-better-enhanced="true"] > .w-full {
+            flex-shrink: 0 !important;
         }
 
         /* Card content wrapper fills remaining space */
@@ -358,11 +372,19 @@
             flex: 1 !important;
             display: flex !important;
             flex-direction: column !important;
+            justify-content: flex-end !important;
         }
 
         /* Push countdown to bottom */
         .p-evento[data-better-enhanced="true"] .better-countdown-row {
             margin-top: auto !important;
+            flex-shrink: 0 !important;
+        }
+
+        /* Values rows don't grow */
+        .p-evento[data-better-enhanced="true"] .better-valores-row,
+        .p-evento[data-better-enhanced="true"] .better-lance-row {
+            flex-shrink: 0 !important;
         }
 
         /* Zone: Values (VB/VA/VM) - ORGANIZED LAYOUT */
@@ -1126,7 +1148,7 @@
     }
 
     function init() {
-        console.log('🚀 Better E-Leilões Card Enhancer v8.6 - Fixed Height Cards');
+        console.log('🚀 Better E-Leilões Card Enhancer v8.7 - Full Alignment');
 
         integrateWithNativeFloatingButtons();
         enhanceAllCards();
@@ -1135,7 +1157,7 @@
 
         observer.observe(document.body, { childList: true, subtree: true });
 
-        console.log('✅ Card enhancer v8.6 ativo!');
+        console.log('✅ Card enhancer v8.7 ativo!');
     }
 
     if (document.readyState === 'loading') {
