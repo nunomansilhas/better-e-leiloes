@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      8.1
-// @description  v8 + fontes consistentes, botões bonitos, GPS button
+// @version      8.2
+// @description  v8 + fontes consistentes, botões outlined limpos, GPS button
 // @author       Nuno Mansilhas
 // @match        https://e-leiloes.pt/*
 // @match        https://www.e-leiloes.pt/*
@@ -119,7 +119,7 @@
         }
 
         /* ============================================ */
-        /* ACTION BUTTONS (Refresh, Sync & Map)        */
+        /* ACTION BUTTONS - Clean Outlined Style       */
         /* ============================================ */
 
         .better-action-buttons {
@@ -127,7 +127,7 @@
             top: 8px;
             right: 8px;
             display: flex;
-            gap: 6px;
+            gap: 4px;
             z-index: 10;
             opacity: 0;
             transition: opacity 0.2s ease;
@@ -138,69 +138,71 @@
         }
 
         .better-action-btn {
-            width: 32px;
-            height: 32px;
-            border-radius: 8px;
-            border: none;
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            border: 1.5px solid;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 14px;
-            transition: all 0.2s ease;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.1);
-            backdrop-filter: blur(8px);
+            font-size: 12px;
+            transition: all 0.15s ease;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(4px);
         }
 
         .better-action-btn:hover {
-            transform: translateY(-2px) scale(1.05);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2), 0 2px 4px rgba(0,0,0,0.1);
+            transform: scale(1.1);
         }
 
         .better-action-btn:active {
-            transform: translateY(0) scale(0.98);
+            transform: scale(0.95);
         }
 
-        .better-action-btn.refresh {
-            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-            color: white;
-        }
-
-        .better-action-btn.refresh:hover {
-            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-        }
-
-        .better-action-btn.sync {
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-            color: white;
-        }
-
-        .better-action-btn.sync:hover {
-            background: linear-gradient(135deg, #059669 0%, #047857 100%);
-        }
-
+        /* Map - Blue outline */
         .better-action-btn.map {
-            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            border-color: #3b82f6;
+            color: #3b82f6;
+        }
+        .better-action-btn.map:hover {
+            background: #3b82f6;
             color: white;
         }
 
-        .better-action-btn.map:hover {
-            background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+        /* Refresh - Green outline */
+        .better-action-btn.refresh {
+            border-color: #10b981;
+            color: #10b981;
+        }
+        .better-action-btn.refresh:hover {
+            background: #10b981;
+            color: white;
+        }
+
+        /* Sync - Gray/neutral outline */
+        .better-action-btn.sync {
+            border-color: #6b7280;
+            color: #6b7280;
+        }
+        .better-action-btn.sync:hover {
+            background: #6b7280;
+            color: white;
         }
 
         .better-action-btn.loading {
             pointer-events: none;
-            opacity: 0.7;
+            opacity: 0.6;
         }
 
         .better-action-btn.loading::after {
             content: '';
-            width: 14px;
-            height: 14px;
-            border: 2px solid transparent;
-            border-top-color: white;
+            width: 12px;
+            height: 12px;
+            border: 1.5px solid transparent;
+            border-top-color: currentColor;
             border-radius: 50%;
-            animation: spin 0.8s linear infinite;
+            animation: spin 0.6s linear infinite;
         }
 
         @keyframes spin {
@@ -1101,7 +1103,7 @@
     }
 
     function init() {
-        console.log('🚀 Better E-Leilões Card Enhancer v8.1 - Sync, Refresh, Map & Prettier Buttons');
+        console.log('🚀 Better E-Leilões Card Enhancer v8.2 - Clean Outlined Buttons');
 
         integrateWithNativeFloatingButtons();
         enhanceAllCards();
@@ -1110,7 +1112,7 @@
 
         observer.observe(document.body, { childList: true, subtree: true });
 
-        console.log('✅ Card enhancer v8.1 ativo!');
+        console.log('✅ Card enhancer v8.2 ativo!');
     }
 
     if (document.readyState === 'loading') {
