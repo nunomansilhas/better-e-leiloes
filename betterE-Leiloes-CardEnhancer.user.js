@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      8.5
-// @description  v8 + cêntimos, layout organizado
+// @version      8.6
+// @description  v8 + altura fixa cards, countdown alinhado
 // @author       Nuno Mansilhas
 // @match        https://e-leiloes.pt/*
 // @match        https://www.e-leiloes.pt/*
@@ -323,6 +323,10 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.05) !important;
             background: white !important;
             position: relative !important;
+            height: 480px !important;
+            display: flex !important;
+            flex-direction: column !important;
+            overflow: hidden !important;
         }
 
         .p-evento[data-better-enhanced="true"]:hover {
@@ -334,6 +338,31 @@
             border-radius: 12px;
             margin: 8px;
             height: 160px;
+            flex-shrink: 0;
+        }
+
+        /* Fixed height title area */
+        .p-evento[data-better-enhanced="true"] .p-evento-title,
+        .p-evento[data-better-enhanced="true"] [class*="text-"][class*="font-bold"] {
+            display: -webkit-box !important;
+            -webkit-line-clamp: 2 !important;
+            -webkit-box-orient: vertical !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            min-height: 2.5em !important;
+            max-height: 2.5em !important;
+        }
+
+        /* Card content wrapper fills remaining space */
+        .p-evento[data-better-enhanced="true"] .better-card-content {
+            flex: 1 !important;
+            display: flex !important;
+            flex-direction: column !important;
+        }
+
+        /* Push countdown to bottom */
+        .p-evento[data-better-enhanced="true"] .better-countdown-row {
+            margin-top: auto !important;
         }
 
         /* Zone: Values (VB/VA/VM) - ORGANIZED LAYOUT */
@@ -1097,7 +1126,7 @@
     }
 
     function init() {
-        console.log('🚀 Better E-Leilões Card Enhancer v8.5 - Cêntimos + Layout');
+        console.log('🚀 Better E-Leilões Card Enhancer v8.6 - Fixed Height Cards');
 
         integrateWithNativeFloatingButtons();
         enhanceAllCards();
@@ -1106,7 +1135,7 @@
 
         observer.observe(document.body, { childList: true, subtree: true });
 
-        console.log('✅ Card enhancer v8.5 ativo!');
+        console.log('✅ Card enhancer v8.6 ativo!');
     }
 
     if (document.readyState === 'loading') {
