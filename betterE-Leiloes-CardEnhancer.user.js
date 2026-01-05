@@ -1,10 +1,13 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      7.0
+// @version      7.1
 // @description  Design moderno com carousel de imagens - compatível com API v2
 // @author       Nuno Mansilhas
+// @match        https://e-leiloes.pt/*
 // @match        https://www.e-leiloes.pt/*
+// @match        http://e-leiloes.pt/*
+// @match        http://www.e-leiloes.pt/*
 // @icon         https://www.e-leiloes.pt/favicon.ico
 // @grant        none
 // @updateURL    https://raw.githubusercontent.com/nunomansilhas/better-e-leiloes/main/betterE-Leiloes-CardEnhancer.user.js
@@ -638,7 +641,7 @@
     }
 
     function init() {
-        console.log('🚀 Better E-Leilões Card Enhancer v7.0 - API v2');
+        console.log('🚀 Better E-Leilões Card Enhancer v7.1 - API v2');
 
         integrateWithNativeFloatingButtons();
         enhanceAllCards();
@@ -647,7 +650,7 @@
 
         observer.observe(document.body, { childList: true, subtree: true });
 
-        console.log('✅ Card enhancer v7.0 ativo - compatível com API v2!');
+        console.log('✅ Card enhancer v7.1 ativo - compatível com API v2!');
     }
 
     if (document.readyState === 'loading') {
