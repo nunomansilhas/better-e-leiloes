@@ -1,0 +1,35 @@
+{
+  "full": {
+    "type": "full",
+    "name": "Auto Pipeline",
+    "description": "Pipeline completa (IDs + API) a cada 8 horas",
+    "enabled": false,
+    "interval_hours": 8.0,
+    "last_run": null,
+    "next_run": null,
+    "runs_count": 0,
+    "is_running": false
+  },
+  "xmonitor": {
+    "type": "xmonitor",
+    "name": "X-Monitor",
+    "description": "Monitoriza eventos nas pr\u00f3ximas 24h - atualiza lance_atual e dataFim",
+    "enabled": false,
+    "interval_hours": 0.001388888888888889,
+    "last_run": "2025-12-23 16:34:40",
+    "next_run": null,
+    "runs_count": 1188,
+    "is_running": false
+  },
+  "ysync": {
+    "type": "ysync",
+    "name": "Y-Sync",
+    "description": "Sincroniza novos IDs e marca eventos terminados (ativo=0)",
+    "enabled": false,
+    "interval_hours": 2.0,
+    "last_run": "2026-01-05 09:49:57",
+    "next_run": "2026-01-05 11:49:57",
+    "runs_count": 16,
+    "is_running": false
+  }
+}

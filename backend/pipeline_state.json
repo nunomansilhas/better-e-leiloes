@@ -1,0 +1,15 @@
+{
+  "active": true,
+  "stage": 2,
+  "stage_name": "Stage 2 - API (Detalhes + Imagens)",
+  "current": 3236,
+  "total": 3236,
+  "message": "🚀 API: 3236/3236 - NP1156312025",
+  "started_at": "2026-01-05T10:01:12.205377",
+  "updated_at": "2026-01-05T10:20:35.638704",
+  "errors": [],
+  "details": {
+    "save_to_db": true,
+    "mode": "api"
+  }
+}
