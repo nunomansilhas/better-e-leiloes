@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      7.2
-// @description  Design moderno com carousel de imagens - compatível com API v2
+// @version      8.0
+// @description  Design moderno com carousel de imagens, refresh e sync - compatível com API v2
 // @author       Nuno Mansilhas
 // @match        https://e-leiloes.pt/*
 // @match        https://www.e-leiloes.pt/*
@@ -27,7 +27,7 @@
         API_BASE: 'http://localhost:8000/api',
         DASHBOARD_URL: 'http://localhost:8000',
         ENABLE_API_ENRICHMENT: true,
-        MAX_CAROUSEL_IMAGES: 5
+        MAX_CAROUSEL_IMAGES: 10  // Increased to show more images
     };
 
     // ====================================
@@ -107,7 +107,82 @@
             transform: scale(1.2) !important;
         }
 
-        /* Carousel base */
+        /* ============================================ */
+        /* ACTION BUTTONS (Refresh & Sync)             */
+        /* ============================================ */
+
+        .better-action-buttons {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            display: flex;
+            gap: 4px;
+            z-index: 10;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .p-evento:hover .better-action-buttons {
+            opacity: 1;
+        }
+
+        .better-action-btn {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .better-action-btn.refresh {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .better-action-btn.refresh:hover {
+            background: #2563eb;
+            transform: scale(1.1);
+        }
+
+        .better-action-btn.sync {
+            background: #10b981;
+            color: white;
+        }
+
+        .better-action-btn.sync:hover {
+            background: #059669;
+            transform: scale(1.1);
+        }
+
+        .better-action-btn.loading {
+            pointer-events: none;
+            opacity: 0.7;
+        }
+
+        .better-action-btn.loading::after {
+            content: '';
+            width: 12px;
+            height: 12px;
+            border: 2px solid transparent;
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* ============================================ */
+        /* CAROUSEL                                    */
+        /* ============================================ */
+
         .better-carousel {
             position: relative;
             width: 100%;
@@ -127,55 +202,82 @@
             height: 100%;
             background-size: cover;
             background-position: center;
+            cursor: zoom-in;
         }
 
         .better-carousel-nav {
             position: absolute;
             top: 50%;
             transform: translateY(-50%);
-            background: rgba(0, 0, 0, 0.5);
+            background: rgba(0, 0, 0, 0.6);
             color: white;
             border: none;
-            width: 28px;
-            height: 28px;
+            width: 32px;
+            height: 32px;
             border-radius: 50%;
             cursor: pointer;
-            font-size: 14px;
+            font-size: 16px;
             z-index: 5;
             opacity: 0;
             transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .better-carousel:hover .better-carousel-nav {
             opacity: 1;
         }
 
-        .better-carousel-nav.prev { left: 6px; }
-        .better-carousel-nav.next { right: 6px; }
+        .better-carousel-nav:hover {
+            background: rgba(0, 0, 0, 0.8);
+            transform: translateY(-50%) scale(1.1);
+        }
+
+        .better-carousel-nav.prev { left: 8px; }
+        .better-carousel-nav.next { right: 8px; }
 
         .better-carousel-dots {
             position: absolute;
-            bottom: 6px;
+            bottom: 8px;
             left: 50%;
             transform: translateX(-50%);
             display: flex;
-            gap: 4px;
+            gap: 5px;
             z-index: 5;
         }
 
         .better-carousel-dot {
-            width: 6px;
-            height: 6px;
+            width: 8px;
+            height: 8px;
             border-radius: 50%;
             background: rgba(255, 255, 255, 0.5);
             cursor: pointer;
             transition: all 0.2s ease;
+            border: 1px solid rgba(0,0,0,0.2);
+        }
+
+        .better-carousel-dot:hover {
+            background: rgba(255, 255, 255, 0.8);
         }
 
         .better-carousel-dot.active {
             background: white;
-            width: 16px;
-            border-radius: 3px;
+            width: 20px;
+            border-radius: 4px;
+        }
+
+        .better-carousel-counter {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 600;
+            z-index: 5;
         }
 
         /* Dashboard button */
@@ -198,6 +300,7 @@
             border: 1px solid #e5e7eb !important;
             box-shadow: 0 1px 3px rgba(0,0,0,0.05) !important;
             background: white !important;
+            position: relative !important;
         }
 
         .p-evento[data-better-enhanced="true"]:hover {
@@ -352,6 +455,93 @@
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
         }
+
+        /* ============================================ */
+        /* LIGHTBOX FOR FULL IMAGE VIEW                */
+        /* ============================================ */
+
+        .better-lightbox {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 99999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .better-lightbox.active {
+            opacity: 1;
+        }
+
+        .better-lightbox-img {
+            max-width: 90vw;
+            max-height: 90vh;
+            object-fit: contain;
+            border-radius: 8px;
+        }
+
+        .better-lightbox-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .better-lightbox-close:hover {
+            background: rgba(255, 255, 255, 0.4);
+        }
+
+        .better-lightbox-nav {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .better-lightbox-nav:hover {
+            background: rgba(255, 255, 255, 0.4);
+        }
+
+        .better-lightbox-nav.prev { left: 20px; }
+        .better-lightbox-nav.next { right: 20px; }
+
+        .better-lightbox-counter {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            font-size: 14px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 5px 15px;
+            border-radius: 20px;
+        }
     `;
     document.head.appendChild(styles);
 
@@ -419,6 +609,9 @@
                             console.error(`❌ JSON parse error for ${reference}:`, e);
                             resolve(null);
                         }
+                    } else if (response.status === 404) {
+                        // Event not in database - return special marker
+                        resolve({ _notFound: true });
                     } else {
                         resolve(null);
                     }
@@ -433,6 +626,111 @@
                 }
             });
         });
+    }
+
+    function triggerScrape(reference) {
+        return new Promise((resolve) => {
+            GM_xmlhttpRequest({
+                method: 'POST',
+                url: `${CONFIG.API_BASE}/scrape/event/${reference}`,
+                headers: {
+                    'Accept': 'application/json'
+                },
+                onload: function(response) {
+                    if (response.status === 200 || response.status === 202) {
+                        resolve(true);
+                    } else {
+                        console.error(`❌ Scrape trigger failed for ${reference}:`, response.status);
+                        resolve(false);
+                    }
+                },
+                onerror: function(error) {
+                    console.error(`❌ Scrape trigger error for ${reference}:`, error);
+                    resolve(false);
+                }
+            });
+        });
+    }
+
+    // ====================================
+    // LIGHTBOX
+    // ====================================
+
+    let lightboxImages = [];
+    let lightboxIndex = 0;
+
+    function openLightbox(images, startIndex = 0) {
+        lightboxImages = images;
+        lightboxIndex = startIndex;
+
+        const lightbox = document.createElement('div');
+        lightbox.className = 'better-lightbox';
+        lightbox.id = 'better-lightbox';
+        lightbox.innerHTML = `
+            <button class="better-lightbox-close">×</button>
+            <button class="better-lightbox-nav prev">‹</button>
+            <img class="better-lightbox-img" src="${images[startIndex]}">
+            <button class="better-lightbox-nav next">›</button>
+            <div class="better-lightbox-counter">${startIndex + 1} / ${images.length}</div>
+        `;
+
+        document.body.appendChild(lightbox);
+        setTimeout(() => lightbox.classList.add('active'), 10);
+
+        const img = lightbox.querySelector('.better-lightbox-img');
+        const counter = lightbox.querySelector('.better-lightbox-counter');
+
+        function updateLightbox() {
+            img.src = lightboxImages[lightboxIndex];
+            counter.textContent = `${lightboxIndex + 1} / ${lightboxImages.length}`;
+        }
+
+        lightbox.querySelector('.better-lightbox-close').addEventListener('click', closeLightbox);
+        lightbox.querySelector('.better-lightbox-nav.prev').addEventListener('click', () => {
+            lightboxIndex = (lightboxIndex - 1 + lightboxImages.length) % lightboxImages.length;
+            updateLightbox();
+        });
+        lightbox.querySelector('.better-lightbox-nav.next').addEventListener('click', () => {
+            lightboxIndex = (lightboxIndex + 1) % lightboxImages.length;
+            updateLightbox();
+        });
+
+        lightbox.addEventListener('click', (e) => {
+            if (e.target === lightbox) closeLightbox();
+        });
+
+        document.addEventListener('keydown', handleLightboxKeys);
+    }
+
+    function closeLightbox() {
+        const lightbox = document.getElementById('better-lightbox');
+        if (lightbox) {
+            lightbox.classList.remove('active');
+            setTimeout(() => lightbox.remove(), 300);
+        }
+        document.removeEventListener('keydown', handleLightboxKeys);
+    }
+
+    function handleLightboxKeys(e) {
+        if (e.key === 'Escape') closeLightbox();
+        if (e.key === 'ArrowLeft') {
+            lightboxIndex = (lightboxIndex - 1 + lightboxImages.length) % lightboxImages.length;
+            const img = document.querySelector('.better-lightbox-img');
+            const counter = document.querySelector('.better-lightbox-counter');
+            if (img && counter) {
+                img.src = lightboxImages[lightboxIndex];
+                counter.textContent = `${lightboxIndex + 1} / ${lightboxImages.length}`;
+            }
+        }
+        if (e.key === 'ArrowRight') {
+            lightboxIndex = (lightboxIndex + 1) % lightboxImages.length;
+            const img = document.querySelector('.better-lightbox-img');
+            const counter = document.querySelector('.better-lightbox-counter');
+            if (img && counter) {
+                img.src = lightboxImages[lightboxIndex];
+                counter.textContent = `${lightboxIndex + 1} / ${lightboxImages.length}`;
+            }
+        }
     }
 
     // ====================================
@@ -483,10 +781,19 @@
             if (!reference) return;
 
             const apiData = await getEventFromAPI(reference);
-            if (!apiData) return;
+
+            // If API returned 404 or null, keep original card but add action buttons
+            if (!apiData || apiData._notFound) {
+                // Add sync button to allow scraping this event
+                addActionButtons(card, reference, false);
+                return; // Keep original card design
+            }
 
             const eventUrl = `https://www.e-leiloes.pt/evento/${reference}`;
             card.style.position = 'relative';
+
+            // Add action buttons (refresh and sync)
+            addActionButtons(card, reference, true);
 
             // Remove native links
             card.querySelectorAll('a[href*="/evento/"]').forEach(link => {
@@ -523,7 +830,7 @@
                 });
             }
 
-            // Carousel - render even with 1 image
+            // Carousel - show all images
             const nativeImageDiv = card.querySelector('.p-evento-image');
             if (nativeImageDiv && apiData.imagens && apiData.imagens.length > 0) {
                 const images = apiData.imagens.slice(0, CONFIG.MAX_CAROUSEL_IMAGES);
@@ -534,8 +841,9 @@
                 carousel.className = 'better-carousel';
                 carousel.innerHTML = `
                     <div class="better-carousel-track">
-                        ${images.map(img => `<div class="better-carousel-slide" style="background-image: url('${img}');"></div>`).join('')}
+                        ${images.map((img, idx) => `<div class="better-carousel-slide" style="background-image: url('${img}');" data-index="${idx}"></div>`).join('')}
                     </div>
+                    <div class="better-carousel-counter">${images.length} 📷</div>
                     ${images.length > 1 ? `
                         <button class="better-carousel-nav prev">‹</button>
                         <button class="better-carousel-nav next">›</button>
@@ -547,16 +855,17 @@
 
                 nativeImageDiv.parentNode.insertBefore(carousel, nativeImageDiv.nextSibling);
 
+                // Carousel navigation
+                const track = carousel.querySelector('.better-carousel-track');
+                const dots = carousel.querySelectorAll('.better-carousel-dot');
+                let currentSlide = 0;
+
+                function updateCarousel() {
+                    track.style.transform = `translateX(-${currentSlide * 100}%)`;
+                    dots.forEach((d, i) => d.classList.toggle('active', i === currentSlide));
+                }
+
                 if (images.length > 1) {
-                    const track = carousel.querySelector('.better-carousel-track');
-                    const dots = carousel.querySelectorAll('.better-carousel-dot');
-                    let currentSlide = 0;
-
-                    function updateCarousel() {
-                        track.style.transform = `translateX(-${currentSlide * 100}%)`;
-                        dots.forEach((d, i) => d.classList.toggle('active', i === currentSlide));
-                    }
-
                     carousel.querySelector('.prev').addEventListener('click', (e) => {
                         e.stopPropagation();
                         currentSlide = (currentSlide - 1 + images.length) % images.length;
@@ -577,6 +886,14 @@
                         });
                     });
                 }
+
+                // Click on slide opens lightbox
+                carousel.querySelectorAll('.better-carousel-slide').forEach((slide, idx) => {
+                    slide.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        openLightbox(images, idx);
+                    });
+                });
             }
 
             // Values - VB/VA/VM in one row, Lance in separate row (API v2 format)
@@ -624,7 +941,7 @@
             // Click handlers
             card.style.cursor = 'pointer';
             card.addEventListener('click', (e) => {
-                if (e.target.closest('.pi-map-marker, .better-carousel-nav, .better-carousel-dot, .pi-star')) return;
+                if (e.target.closest('.pi-map-marker, .better-carousel-nav, .better-carousel-dot, .better-carousel-slide, .pi-star, .better-action-btn')) return;
                 e.preventDefault();
                 e.stopPropagation();
                 window.open(eventUrl, '_blank', 'noopener,noreferrer');
@@ -638,6 +955,83 @@
         } catch (error) {
             console.error(`❌ Error enhancing card for ${reference}:`, error);
         }
+    }
+
+    function addActionButtons(card, reference, hasData) {
+        const buttonsDiv = document.createElement('div');
+        buttonsDiv.className = 'better-action-buttons';
+
+        if (hasData) {
+            // Refresh button - updates data from e-leiloes
+            const refreshBtn = document.createElement('button');
+            refreshBtn.className = 'better-action-btn refresh';
+            refreshBtn.title = 'Atualizar dados';
+            refreshBtn.innerHTML = '🔄';
+            refreshBtn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                refreshBtn.classList.add('loading');
+                refreshBtn.innerHTML = '';
+
+                const success = await triggerScrape(reference);
+
+                if (success) {
+                    // Wait a bit for scrape to complete, then refresh card
+                    setTimeout(async () => {
+                        // Remove enhanced flag to allow re-enhancement
+                        delete card.dataset.betterEnhanced;
+                        // Remove our added elements
+                        card.querySelectorAll('.better-carousel, .better-card-content, .better-action-buttons').forEach(el => el.remove());
+                        // Show native image again
+                        const nativeImg = card.querySelector('.p-evento-image');
+                        if (nativeImg) nativeImg.style.display = '';
+                        // Re-enhance
+                        await enhanceCard(card);
+                    }, 2000);
+                } else {
+                    refreshBtn.classList.remove('loading');
+                    refreshBtn.innerHTML = '❌';
+                    setTimeout(() => { refreshBtn.innerHTML = '🔄'; }, 2000);
+                }
+            });
+            buttonsDiv.appendChild(refreshBtn);
+        }
+
+        // Sync button - adds event to database
+        const syncBtn = document.createElement('button');
+        syncBtn.className = 'better-action-btn sync';
+        syncBtn.title = hasData ? 'Sincronizar novamente' : 'Adicionar à base de dados';
+        syncBtn.innerHTML = '⬇️';
+        syncBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            syncBtn.classList.add('loading');
+            syncBtn.innerHTML = '';
+
+            const success = await triggerScrape(reference);
+
+            if (success) {
+                syncBtn.classList.remove('loading');
+                syncBtn.innerHTML = '✅';
+
+                // If it was a new event, re-enhance the card after sync
+                if (!hasData) {
+                    setTimeout(async () => {
+                        delete card.dataset.betterEnhanced;
+                        card.querySelectorAll('.better-action-buttons').forEach(el => el.remove());
+                        await enhanceCard(card);
+                    }, 2000);
+                }
+            } else {
+                syncBtn.classList.remove('loading');
+                syncBtn.innerHTML = '❌';
+                setTimeout(() => { syncBtn.innerHTML = '⬇️'; }, 2000);
+            }
+        });
+        buttonsDiv.appendChild(syncBtn);
+
+        card.style.position = 'relative';
+        card.appendChild(buttonsDiv);
     }
 
     // ====================================
@@ -663,7 +1057,7 @@
     }
 
     function init() {
-        console.log('🚀 Better E-Leilões Card Enhancer v7.2 - API v2 (GM_xmlhttpRequest)');
+        console.log('🚀 Better E-Leilões Card Enhancer v8.0 - with Sync & Refresh');
 
         integrateWithNativeFloatingButtons();
         enhanceAllCards();
@@ -672,7 +1066,7 @@
 
         observer.observe(document.body, { childList: true, subtree: true });
 
-        console.log('✅ Card enhancer v7.2 ativo - bypasses ad blockers!');
+        console.log('✅ Card enhancer v8.0 ativo - sync, refresh, lightbox!');
     }
 
     if (document.readyState === 'loading') {
