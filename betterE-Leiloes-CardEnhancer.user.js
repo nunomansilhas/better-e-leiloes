@@ -84,11 +84,11 @@
             color: #3b82f6 !important;
             cursor: pointer !important;
             pointer-events: auto !important;
-            transition: all 0.2s ease !important;
+            transition: color 0.15s ease !important;
         }
 
         .p-evento[data-better-enhanced="true"] .pi-map-marker.better-map-link:hover {
-            transform: scale(1.2) !important;
+            color: #1e3a5f !important;
         }
 
         /* ============================================ */
