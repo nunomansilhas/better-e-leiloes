@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      7.1
+// @version      7.2
 // @description  Design moderno com carousel de imagens - compatível com API v2
 // @author       Nuno Mansilhas
 // @match        https://e-leiloes.pt/*
@@ -9,7 +9,9 @@
 // @match        http://e-leiloes.pt/*
 // @match        http://www.e-leiloes.pt/*
 // @icon         https://www.e-leiloes.pt/favicon.ico
-// @grant        none
+// @grant        GM_xmlhttpRequest
+// @connect      localhost
+// @connect      127.0.0.1
 // @updateURL    https://raw.githubusercontent.com/nunomansilhas/better-e-leiloes/main/betterE-Leiloes-CardEnhancer.user.js
 // @downloadURL  https://raw.githubusercontent.com/nunomansilhas/better-e-leiloes/main/betterE-Leiloes-CardEnhancer.user.js
 // ==/UserScript==
@@ -396,21 +398,41 @@
     }
 
     // ====================================
-    // API
+    // API (using GM_xmlhttpRequest to bypass ad blockers)
     // ====================================
 
-    async function getEventFromAPI(reference) {
-        if (!CONFIG.ENABLE_API_ENRICHMENT) return null;
+    function getEventFromAPI(reference) {
+        if (!CONFIG.ENABLE_API_ENRICHMENT) return Promise.resolve(null);
 
-        try {
-            const response = await fetch(`${CONFIG.API_BASE}/events/${reference}`);
-            if (response.ok) {
-                return await response.json();
-            }
-        } catch (error) {
-            console.error(`❌ API error for ${reference}:`, error);
-        }
-        return null;
+        return new Promise((resolve) => {
+            GM_xmlhttpRequest({
+                method: 'GET',
+                url: `${CONFIG.API_BASE}/events/${reference}`,
+                headers: {
+                    'Accept': 'application/json'
+                },
+                onload: function(response) {
+                    if (response.status === 200) {
+                        try {
+                            resolve(JSON.parse(response.responseText));
+                        } catch (e) {
+                            console.error(`❌ JSON parse error for ${reference}:`, e);
+                            resolve(null);
+                        }
+                    } else {
+                        resolve(null);
+                    }
+                },
+                onerror: function(error) {
+                    console.error(`❌ API error for ${reference}:`, error);
+                    resolve(null);
+                },
+                ontimeout: function() {
+                    console.error(`❌ API timeout for ${reference}`);
+                    resolve(null);
+                }
+            });
+        });
     }
 
     // ====================================
@@ -641,7 +663,7 @@
     }
 
     function init() {
-        console.log('🚀 Better E-Leilões Card Enhancer v7.1 - API v2');
+        console.log('🚀 Better E-Leilões Card Enhancer v7.2 - API v2 (GM_xmlhttpRequest)');
 
         integrateWithNativeFloatingButtons();
         enhanceAllCards();
@@ -650,7 +672,7 @@
 
         observer.observe(document.body, { childList: true, subtree: true });
 
-        console.log('✅ Card enhancer v7.1 ativo - compatível com API v2!');
+        console.log('✅ Card enhancer v7.2 ativo - bypasses ad blockers!');
     }
 
     if (document.readyState === 'loading') {
