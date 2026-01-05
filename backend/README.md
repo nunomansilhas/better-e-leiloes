@@ -1,417 +1,318 @@
 # E-Leiloes API Backend
 
-Backend API para recolha e disponibilização de dados do **e-leiloes.pt**.
+Backend FastAPI para o sistema E-Leiloes Dashboard com scraping, notificações e monitorização em tempo real.
 
-## 🆕 Versão 12.4 (Dezembro 2024)
+## Versão 2.0 (Janeiro 2025)
 
-### 🎯 Novidades
+### Principais Ficheiros
 
-**Backend:**
-- ✅ Filtro por `tipo_evento` (imovel/movel) no endpoint `/api/events`
-- ✅ Schema completo: valores de leilão, GPS, tipologia, matrícula
-- ✅ Endpoint DELETE `/api/database` para gestão de dados
-- ✅ Two-phase scraping: listing + details (otimizado)
-- ✅ Suporte completo para móveis e imóveis
+| Ficheiro | Descrição |
+|----------|-----------|
+| `main.py` | FastAPI app, todos os endpoints REST |
+| `database.py` | SQLAlchemy models, DB manager, migrações |
+| `scraper.py` | Playwright scraper (IDs, Content, Images) |
+| `notification_engine.py` | Motor de notificações (regras, matching) |
+| `auto_pipelines.py` | X-Monitor, Y-Sync, Auto Pipeline |
+| `pipeline_state.py` | Estado global das pipelines |
+| `cache.py` | Redis cache manager |
+| `models.py` | Pydantic models (EventData, etc.) |
+| `static/index.html` | Dashboard SPA completo |
 
-**Frontend (Extensão):**
-- 🎨 Ícones melhorados: `☰` lista, `▦` grelha
-- 🔍 Filtros por tipo de evento funcionais
-- 📊 Modal com visualização lista/grelha
-- 🗑️ Gestão de base de dados integrada
-- ⚡ Cards compactos responsivos
-
-## 🏗️ Arquitetura
-
-```
-┌─────────────────┐      ┌──────────────────┐      ┌─────────────────┐
-│   Extensão      │─────▶│   FastAPI        │─────▶│   e-leiloes.pt  │
-│   (Frontend)    │      │   (Backend)      │      │   (Scraping)    │
-└─────────────────┘      └──────────────────┘      └─────────────────┘
-                                │
-                                ▼
-                         ┌──────────────┐
-                         │   SQLite DB  │
-                         └──────────────┘
-                                │
-                                ▼
-                         ┌──────────────┐
-                         │ Redis Cache  │
-                         │  (Opcional)  │
-                         └──────────────┘
-```
-
-## ✨ Features
-
-- ✅ **API RESTful** com FastAPI
-- ✅ **Scraping assíncrono** com Playwright (two-phase: listing + details)
-- ✅ **Base de dados** SQLite com schema completo (valores, GPS, detalhes)
-- ✅ **Cache** Redis (opcional, fallback para memória)
-- ✅ **Processamento em background** para scraping massivo
-- ✅ **Paginação e filtros** avançados (tipo_evento, distrito, tipo)
-- ✅ **CORS** configurado para extensão browser
-- ✅ **Documentação automática** (Swagger/OpenAPI)
-- ✅ **Gestão de base de dados** (delete all, stats)
-- ✅ **Suporte completo** para imóveis e móveis
-
-## 📋 Pré-requisitos
-
-- Python 3.10+
-- pip
-- (Opcional) Redis para caching
-
-## 🚀 Instalação
-
-### 1. Clone e instale dependências
+## Instalação
 
 ```bash
-cd backend
+# Dependências Python
 pip install -r requirements.txt
-```
 
-### 2. Instale Playwright browsers
-
-```bash
+# Playwright browsers
 playwright install chromium
-```
 
-### 3. Configure variáveis de ambiente
-
-```bash
+# Configurar .env
 cp .env.example .env
-# Edita .env com tuas configurações
 ```
 
-### 4. Inicie o servidor
-
-```bash
-python main.py
-```
-
-A API estará disponível em: **http://localhost:8000**
-
-Documentação interativa: **http://localhost:8000/docs**
-
-## 📚 Endpoints da API
-
-### GET `/`
-Health check da API
-
-### GET `/api/events/{reference}`
-Obtém dados de um evento específico.
-
-**Exemplo:**
-```bash
-curl http://localhost:8000/api/events/NP-2024-12345
-```
-
-**Resposta:**
-```json
-{
-  "reference": "NP-2024-12345",
-  "tipoEvento": "imovel",
-  "valores": {
-    "valorBase": 150000.0,
-    "valorAbertura": 140000.0,
-    "valorMinimo": 130000.0,
-    "lanceAtual": 155000.0
-  },
-  "gps": {
-    "latitude": 38.7223,
-    "longitude": -9.1393
-  },
-  "detalhes": {
-    "tipo": "Apartamento",
-    "subtipo": "Apartamento T2",
-    "tipologia": "T2",
-    "areaPrivativa": 85.5,
-    "areaDependente": 10.0,
-    "areaTotal": 95.5,
-    "distrito": "Lisboa",
-    "concelho": "Lisboa",
-    "freguesia": "Avenidas Novas",
-    "matricula": null
-  },
-  "scraped_at": "2024-12-05T10:30:00Z",
-  "updated_at": null
-}
-```
-
-### GET `/api/events`
-Lista eventos com paginação e filtros.
-
-**Query params:**
-- `page`: Número da página (default: 1)
-- `limit`: Resultados por página (default: 50, max: 200)
-- `tipo`: Filtrar por tipo de propriedade (Apartamento, Moradia, etc) (opcional)
-- `tipo_evento`: Filtrar por tipo de evento - "imovel" ou "movel" (opcional)
-- `distrito`: Filtrar por distrito (opcional)
-
-**Exemplos:**
-```bash
-# Apenas imóveis
-curl "http://localhost:8000/api/events?tipo_evento=imovel&page=1&limit=10"
-
-# Apartamentos em Lisboa
-curl "http://localhost:8000/api/events?tipo=Apartamento&distrito=Lisboa"
-
-# Apenas móveis
-curl "http://localhost:8000/api/events?tipo_evento=movel"
-```
-
-### POST `/api/scrape/event/{reference}`
-Força re-scraping de um evento específico (background task).
-
-### POST `/api/scrape/all`
-Inicia scraping de TODOS os eventos (⚠️ pode demorar horas!).
-
-**Query params:**
-- `max_pages`: Limitar número de páginas (opcional)
-
-### GET `/api/scrape/status`
-Status atual do scraper.
-
-### DELETE `/api/cache`
-Limpa todo o cache Redis/memória.
-
-### DELETE `/api/database`
-**⚠️ PERIGO:** Apaga TODOS os eventos da base de dados.
-
-**Resposta:**
-```json
-{
-  "message": "Base de dados limpa com sucesso",
-  "deleted_events": 24
-}
-```
-
-### GET `/api/stats`
-Estatísticas da base de dados.
-
-**Resposta:**
-```json
-{
-  "total_events": 24,
-  "with_gps": 12,
-  "by_type": {
-    "Apartamento": 8,
-    "Moradia": 4,
-    "Automóvel": 12
-  }
-}
-```
-
-## 🔧 Configuração
-
-### `.env` principais variáveis:
+## Configuração (.env)
 
 ```env
 # API
 API_HOST=0.0.0.0
 API_PORT=8000
 
-# Database
-DATABASE_URL=sqlite+aiosqlite:///./eleiloes.db
+# Database - MySQL
+DATABASE_URL=mysql+aiomysql://user:password@localhost:3306/eleiloes
 
 # Redis (opcional)
 REDIS_URL=redis://localhost:6379
 
-# CORS
-ALLOWED_ORIGINS=http://localhost:3000,https://www.e-leiloes.pt
-
 # Scraping
-SCRAPE_DELAY=0.8  # Delay entre requests (segundos)
-CONCURRENT_REQUESTS=4  # Requests paralelos
+SCRAPE_DELAY=0.8
+CONCURRENT_REQUESTS=4
 ```
 
-## 📊 Base de Dados
-
-SQLite schema automático:
-
-```sql
-CREATE TABLE events (
-    reference TEXT PRIMARY KEY,
-    tipo_evento TEXT NOT NULL,  -- 'imovel' ou 'movel'
-    
-    -- Valores do leilão
-    valor_base REAL,
-    valor_abertura REAL,
-    valor_minimo REAL,
-    lance_atual REAL,
-    
-    -- GPS (apenas imóveis)
-    latitude REAL,
-    longitude REAL,
-    
-    -- Detalhes gerais
-    tipo TEXT,
-    subtipo TEXT,
-    
-    -- Detalhes imóveis
-    tipologia TEXT,
-    area_privativa REAL,
-    area_dependente REAL,
-    area_total REAL,
-    
-    -- Localização
-    distrito TEXT,
-    concelho TEXT,
-    freguesia TEXT,
-    
-    -- Detalhes móveis
-    matricula TEXT,
-    
-    -- Metadados
-    scraped_at DATETIME,
-    updated_at DATETIME
-);
-```
-
-## 🐳 Deploy com Docker
-
-```dockerfile
-# Dockerfile (criar)
-FROM python:3.11-slim
-
-WORKDIR /app
-
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-RUN playwright install --with-deps chromium
-
-COPY . .
-
-CMD ["python", "main.py"]
-```
+## Iniciar Servidor
 
 ```bash
-docker build -t eleiloes-api .
-docker run -p 8000:8000 --env-file .env eleiloes-api
+python run.py
+# ou
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-## ⚡ Performance & Scraping
+## API Endpoints
 
-### Two-Phase Scraping Strategy
+### Eventos
 
-O scraper usa uma estratégia em duas fases:
+```bash
+# Listar com filtros
+GET /api/events?tipo_evento=imoveis&page=1&limit=50&distrito=Lisboa
 
-**Fase 1 - Listing (tipo=1 e tipo=2):**
-- Navega pelas páginas de listagem (imoveis e moveis)
-- Extrai referências e valores dos cards
-- Para automaticamente em páginas vazias
-- ~2 páginas por tipo = 4 páginas totais
+# Detalhes
+GET /api/events/{reference}
 
-**Fase 2 - Details:**
-- Processa cada evento individualmente
-- Extrai GPS (imóveis), tipologia, áreas, localização
-- Processa 4 eventos em paralelo
-- Total: ~24 eventos em 2 minutos
+# Estatísticas
+GET /api/stats
+```
 
-### Otimizações
+### Notificações
 
-- **Cache Redis**: Reduz latência de ~800ms para <10ms
-- **Processamento paralelo**: 4 eventos simultâneos (configurável)
-- **Delay configurável**: Evita sobrecarga do site (800ms default)
-- **Background tasks**: Scraping massivo sem bloquear API
-- **Stop on empty**: Para navegação em páginas vazias automaticamente
+```bash
+# Listar
+GET /api/notifications?limit=50&unread_only=true
 
-## 🔒 Segurança
+# Contagem não lidas
+GET /api/notifications/count
 
-- **CORS** restrito aos domínios configurados
-- **Rate limiting** (TODO: adicionar)
-- **API Key** (TODO: adicionar autenticação)
+# Marcar lida
+POST /api/notifications/{id}/read
 
-## 📝 Logs
+# Marcar todas lidas
+POST /api/notifications/read-all
 
-Logs estruturados no stdout:
+# Eliminar todas
+DELETE /api/notifications/delete-all
+```
+
+### Regras de Notificação
+
+```bash
+# Listar
+GET /api/notification-rules?active_only=true
+
+# Criar
+POST /api/notification-rules
+{
+    "name": "Quick Notifications",
+    "rule_type": "new_event",
+    "tipos": ["imoveis", "veiculos"],
+    "distritos": ["Lisboa"],
+    "preco_max": 200000,
+    "active": true
+}
+
+# Atualizar
+PUT /api/notification-rules/{id}
+{
+    "tipos": ["imoveis", "veiculos", "direitos"]
+}
+
+# Toggle ativo/inativo
+POST /api/notification-rules/{id}/toggle?active=false
+
+# Eliminar
+DELETE /api/notification-rules/{id}
+```
+
+### Filtros Dinâmicos
+
+```bash
+# Subtipos por tipo (1=imóveis, 2=veículos, etc.)
+GET /api/filters/subtypes/1
+
+# Distritos por tipo
+GET /api/filters/distritos/1
+```
+
+### Scraping
+
+```bash
+# Stage 1 - Descobrir IDs
+POST /api/scrape/stage1/ids?tipo=1&max_pages=10
+
+# Stage 2 - Extrair detalhes
+POST /api/scrape/stage2/details
+
+# Stage 3 - Download imagens
+POST /api/scrape/stage3/images
+
+# Pipeline completo
+POST /api/scrape/pipeline?tipo=1
+
+# Estado
+GET /api/scrape/status
+
+# Parar
+POST /api/scrape/stop
+```
+
+### Pipelines Automáticas
+
+```bash
+# Estado de todas
+GET /api/auto-pipelines/status
+
+# Toggle pipeline
+POST /api/auto-pipelines/x-monitor/toggle
+
+# Histórico X-Monitor
+GET /api/x-monitor/history
+```
+
+## Base de Dados
+
+### Tabelas
+
+```sql
+-- Eventos (schema completo)
+events (
+    reference VARCHAR(50) PRIMARY KEY,
+    titulo, capa, tipo_id, subtipo_id,
+    valor_base, valor_minimo, lance_atual,
+    data_inicio, data_fim,
+    distrito, concelho, freguesia,
+    latitude, longitude,
+    area_total, area_privativa,
+    fotos JSON, onus JSON,
+    ...
+)
+
+-- Regras de notificação
+notification_rules (
+    id INT PRIMARY KEY,
+    name, rule_type, active,
+    tipos JSON, distritos JSON,
+    preco_min, preco_max,
+    event_reference,  -- Para regras de evento específico
+    triggers_count, created_at
+)
+
+-- Notificações geradas
+notifications (
+    id INT PRIMARY KEY,
+    rule_id, notification_type,
+    event_reference, event_titulo,
+    preco_anterior, preco_atual,
+    read, created_at
+)
+```
+
+### Migrações Automáticas
+
+O `init_db()` executa migrações automáticas:
+- Adiciona `event_reference` à tabela `notification_rules` se não existir
+
+## Notification Engine
+
+### Tipos de Regra
+
+| Tipo | Descrição |
+|------|-----------|
+| `new_event` | Novo evento que corresponde aos filtros |
+| `price_change` | Alteração de preço num evento |
+
+### Filtros Disponíveis
+
+- `tipos` - Array de tipos: `["imoveis", "veiculos"]`
+- `subtipos` - Array de subtipos: `["Apartamento", "Moradia"]`
+- `distritos` - Array de distritos: `["Lisboa", "Porto"]`
+- `preco_min` / `preco_max` - Range de preço
+- `event_reference` - Evento específico (para notificações por evento)
+
+### Fluxo
+
+1. **Y-Sync** detecta novos eventos
+2. **NotificationEngine** avalia contra regras ativas
+3. Se match, cria entrada em `notifications`
+4. Dashboard atualiza badge e lista
+
+## Pipelines Automáticas
+
+### X-Monitor
+Monitoriza preços de eventos ativos:
+- **Critical** (< 5 min): 5 segundos
+- **Urgent** (< 1 hora): 1 minuto
+- **Soon** (< 24 horas): 10 minutos
+
+### Y-Sync
+Sincroniza novos eventos a cada 2 horas e dispara notificações.
+
+### Auto Pipeline
+Pipeline completa (IDs + Content + Images) a cada 8 horas.
+
+## Dashboard (static/index.html)
+
+SPA com ~7500 linhas que inclui:
+
+- **6 páginas de eventos** com cards, filtros, paginação
+- **Página de Alertas** com tabs (Notificações/Regras)
+- **Modal de Inspeção** para detalhes de eventos
+- **Quick Notifications** toggle no header de cada página
+- **Botão de notificação** em cada card de evento
+- **Página de Scraper** para gestão manual
+- **Console de logs** em tempo real
+
+### Funções JavaScript Principais
+
+```javascript
+// Eventos
+loadEvents(type, page)
+createEventCard(event)
+openInspectionModal(reference)
+
+// Notificações
+loadNotifications()
+loadNotificationRules()
+toggleQuickNotification(tipo, tipoId)
+toggleEventNotification(reference, titulo, tipoEvento)
+updateNotifyButtonStates()
+
+// Filtros
+loadSubtypesForPage(tipo)
+updateDistritoFilter()
+applyFilters(type)
+```
+
+## Logs
+
 ```
 🚀 Iniciando E-Leiloes API...
 ✅ Database inicializada
-✅ Redis conectado
-✅ API pronta!
+✅ Added event_reference column to notification_rules
+✅ API pronta em http://localhost:8000
+🔔 Notificação criada: LO20250001234 (regra: Quick Notifications)
 ```
 
-## 🧪 Testes
+## Troubleshooting
 
+**Erro "Unknown column 'event_reference'":**
+- Reiniciar servidor - migração automática adiciona a coluna
+
+**Playwright não funciona:**
 ```bash
-# Teste unitário
-pytest
-
-# Teste de carga
-locust -f tests/load_test.py
+playwright install chromium --with-deps
 ```
 
-## 📈 Monitorização
+**Redis connection failed:**
+- Sistema funciona sem Redis (usa cache em memória)
 
-Integração com:
-- Prometheus (métricas)
-- Grafana (dashboards)
-- Sentry (error tracking)
+## Tecnologias
 
-## 🤝 Integração com Extensão
+- Python 3.11
+- FastAPI + Uvicorn
+- SQLAlchemy 2.0 (async)
+- Playwright
+- APScheduler
+- aiomysql + PyMySQL
+- Redis (opcional)
 
-A extensão Tampermonkey (`betterE-Leiloes-v12.4-API.user.js`) faz requests para:
+## Licença
 
-```javascript
-const API_URL = 'http://localhost:8000/api';
-
-// Buscar evento específico
-async function getEventData(reference) {
-    const response = await fetch(`${API_URL}/events/${reference}`);
-    return await response.json();
-}
-
-// Listar eventos com filtros
-async function listEvents(page = 1, limit = 50, filters = {}) {
-    let url = `${API_URL}/events?page=${page}&limit=${limit}`;
-    
-    if (filters.tipoEvento) url += `&tipo_evento=${filters.tipoEvento}`;
-    if (filters.distrito) url += `&distrito=${filters.distrito}`;
-    
-    const response = await fetch(url);
-    return await response.json();
-}
-
-// Trigger scraping completo
-async function triggerFullScrape() {
-    const response = await fetch(`${API_URL}/scrape/all`, { method: 'POST' });
-    return await response.json();
-}
-
-// Limpar base de dados
-async function clearDatabase() {
-    const response = await fetch(`${API_URL}/database`, { method: 'DELETE' });
-    return await response.json();
-}
-```
-
-### Features da Extensão v12.4
-
-- 🎨 **Badges nos cards**: GPS, Valores, Detalhes
-- 📊 **Modal de visualização**: Lista e grelha compacta
-- 🔍 **Filtros avançados**: Por tipo de evento (imóvel/móvel) e distrito
-- 🗑️ **Gestão de dados**: Limpar base de dados com confirmação dupla
-- 📈 **Estatísticas**: Total de eventos, GPS, tipos
-- ⚡ **Scraping em background**: Com polling de status
-
-## 🐛 Troubleshooting
-
-**Erro: "playwright not installed"**
-```bash
-playwright install chromium
-```
-
-**Erro: "Redis connection failed"**
-- Verifica se Redis está a correr: `redis-cli ping`
-- Ou desativa Redis no `.env` (usa cache em memória)
-
-**Scraping muito lento**
-- Aumenta `CONCURRENT_REQUESTS` no `.env`
-- Reduz `SCRAPE_DELAY` (cuidado com rate limiting)
-
-## 📄 Licença
-
-MIT License
-
-## 👨‍💻 Autor
-
-Nuno Mansilhas
+MIT License - Nuno Mansilhas
