@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      8.4
-// @description  v8 + scrape via backend (API oficial + guarda BD)
+// @version      8.5
+// @description  v8 + cêntimos, layout organizado
 // @author       Nuno Mansilhas
 // @match        https://e-leiloes.pt/*
 // @match        https://www.e-leiloes.pt/*
@@ -336,69 +336,93 @@
             height: 160px;
         }
 
-        /* Zone: Values (VB/VA/VM) */
+        /* Zone: Values (VB/VA/VM) - ORGANIZED LAYOUT */
         .p-evento[data-better-enhanced="true"] .better-valores-row {
             background: white;
-            padding: 12px 16px 8px 16px;
-            gap: 8px;
+            padding: 10px 12px 6px 12px;
+            gap: 6px;
             border-top: 1px solid #f3f4f6;
+            display: flex;
+            justify-content: center;
         }
 
         .p-evento[data-better-enhanced="true"] .better-valor-item {
             background: #f9fafb;
             border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            padding: 6px 12px;
-            flex: 1;
-            justify-content: center;
+            border-radius: 6px;
+            padding: 6px 8px;
+            min-width: 85px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
         }
 
         .p-evento[data-better-enhanced="true"] .better-valor-label {
             color: #6b7280;
-            font-size: 8px;
+            font-size: 9px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         .p-evento[data-better-enhanced="true"] .better-valor-amount {
             color: #111827;
-            font-size: 10px;
+            font-size: 11px;
+            font-weight: 700;
+            font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+            white-space: nowrap;
         }
 
         /* Zone: Lance */
         .p-evento[data-better-enhanced="true"] .better-lance-row {
-            padding: 8px 16px 12px 16px;
+            padding: 6px 12px 10px 12px;
+            display: flex;
+            justify-content: center;
         }
 
         .p-evento[data-better-enhanced="true"] .better-valor-item.lance-atual {
             background: #fef3c7;
             border-color: #fcd34d;
-            flex: none;
-            padding: 8px 20px;
+            min-width: 120px;
+            padding: 8px 16px;
+        }
+
+        .p-evento[data-better-enhanced="true"] .better-valor-item.lance-atual .better-valor-amount {
+            font-size: 13px;
+            color: #92400e;
         }
 
         /* Zone: Countdown */
         .p-evento[data-better-enhanced="true"] .better-countdown-row {
             background: #f9fafb;
-            padding: 10px 16px;
+            padding: 8px 12px;
             border-top: 1px solid #e5e7eb;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: auto;
+            border-radius: 0 0 16px 16px;
         }
 
         .p-evento[data-better-enhanced="true"] .native-ref-prefix.lo { color: #3b82f6 !important; }
         .p-evento[data-better-enhanced="true"] .native-ref-prefix.np { color: #f59e0b !important; }
 
         /* ============================================ */
-        /* VALORES E COUNTDOWN                         */
+        /* VALORES E COUNTDOWN BASE                    */
         /* ============================================ */
 
         .better-valores-row {
             display: flex;
-            flex-wrap: wrap;
+            flex-wrap: nowrap;
             justify-content: center;
         }
 
         .better-valor-item {
             display: flex;
+            flex-direction: column;
             align-items: center;
-            gap: 4px;
+            gap: 2px;
         }
 
         .better-valor-label {
@@ -413,13 +437,13 @@
         .better-lance-row {
             display: flex;
             justify-content: center;
-            padding: 8px 12px;
+            padding: 6px 12px;
             background: white;
         }
 
         /* Countdown - Row 5 (locked to bottom) */
         .better-countdown-row {
-            padding: 10px 16px;
+            padding: 8px 12px;
             background: white;
             display: flex;
             align-items: center;
@@ -572,10 +596,11 @@
     // ====================================
 
     function formatCurrency(value) {
-        if (!value) return '-';
+        if (value === null || value === undefined) return '0,00 €';
         const num = parseFloat(value);
         return new Intl.NumberFormat('pt-PT', {
-            maximumFractionDigits: 0
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
         }).format(num) + ' €';
     }
 
@@ -1072,7 +1097,7 @@
     }
 
     function init() {
-        console.log('🚀 Better E-Leilões Card Enhancer v8.4 - Backend Scrape');
+        console.log('🚀 Better E-Leilões Card Enhancer v8.5 - Cêntimos + Layout');
 
         integrateWithNativeFloatingButtons();
         enhanceAllCards();
@@ -1081,7 +1106,7 @@
 
         observer.observe(document.body, { childList: true, subtree: true });
 
-        console.log('✅ Card enhancer v8.4 ativo!');
+        console.log('✅ Card enhancer v8.5 ativo!');
     }
 
     if (document.readyState === 'loading') {
