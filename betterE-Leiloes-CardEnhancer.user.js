@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      10.0
-// @description  Melhorias subtis aos cards - botões de ação, carousel, fontes consistentes
+// @version      8.1
+// @description  v8 + fontes consistentes, botões bonitos, GPS button
 // @author       Nuno Mansilhas
 // @match        https://e-leiloes.pt/*
 // @match        https://www.e-leiloes.pt/*
@@ -10,8 +10,6 @@
 // @match        http://www.e-leiloes.pt/*
 // @icon         https://www.e-leiloes.pt/favicon.ico
 // @grant        GM_xmlhttpRequest
-// @grant        GM_setValue
-// @grant        GM_getValue
 // @connect      localhost
 // @connect      127.0.0.1
 // @updateURL    https://raw.githubusercontent.com/nunomansilhas/better-e-leiloes/main/betterE-Leiloes-CardEnhancer.user.js
@@ -29,85 +27,117 @@
         API_BASE: 'http://localhost:8000/api',
         DASHBOARD_URL: 'http://localhost:8000',
         ENABLE_API_ENRICHMENT: true,
-        MAX_CAROUSEL_IMAGES: 10
+        MAX_CAROUSEL_IMAGES: 10  // Increased to show more images
     };
 
-    // Favorites storage
-    let favorites = [];
-    try {
-        favorites = JSON.parse(GM_getValue('favorites', '[]'));
-    } catch (e) {
-        favorites = [];
-    }
-
-    function saveFavorites() {
-        GM_setValue('favorites', JSON.stringify(favorites));
-    }
-
-    function toggleFavorite(reference) {
-        const idx = favorites.indexOf(reference);
-        if (idx > -1) {
-            favorites.splice(idx, 1);
-        } else {
-            favorites.push(reference);
-        }
-        saveFavorites();
-        return favorites.includes(reference);
-    }
-
     // ====================================
-    // ESTILOS CSS - SUBTIL E LIMPO
+    // ESTILOS CSS - MINIMAL CLEAN
     // ====================================
 
     const styles = document.createElement('style');
     styles.textContent = `
         /* ============================================ */
-        /* MELHORIAS SUBTIS AOS CARDS                  */
+        /* BASE STYLES (comum a todos os designs)      */
         /* ============================================ */
 
         .p-evento {
             transition: all 0.3s ease !important;
+            overflow: hidden !important;
         }
 
         .p-evento:hover {
-            transform: translateY(-3px) !important;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.12) !important;
+            transform: translateY(-4px) !important;
         }
 
-        .p-evento[data-better-enhanced="true"] {
-            position: relative !important;
+        /* Força remover bordas do div nativo */
+        .p-evento[data-better-enhanced="true"] .w-full {
+            border: none !important;
+            border-radius: 0 !important;
         }
 
-        /* Fonte consistente em todo o card */
-        .p-evento[data-better-enhanced="true"] * {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+        /* Padroniza fontes */
+        .p-evento[data-better-enhanced="true"],
+        .p-evento[data-better-enhanced="true"] *:not([class*="pi-"]):not(i) {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
         }
 
-        /* Hide context menu */
+        /* Hide custom context menu */
         .p-contextmenu.p-component {
             display: none !important;
         }
 
+        /* Force white backgrounds on hover for all card elements */
+        .p-evento[data-better-enhanced="true"] *:hover {
+            background-color: inherit;
+        }
+
+        .p-evento[data-better-enhanced="true"]:hover .better-valores-row {
+            background: white !important;
+        }
+        .p-evento[data-better-enhanced="true"]:hover .better-lance-row {
+            background: white !important;
+        }
+        .p-evento[data-better-enhanced="true"]:hover .better-countdown-row {
+            background: #f9fafb !important;
+        }
+        .p-evento[data-better-enhanced="true"]:hover .better-valor-item:not(.lance-atual) {
+            background: #f9fafb !important;
+        }
+
+        /* Esconde elementos nativos que substituímos */
+        .p-evento[data-better-enhanced="true"] .surface-100.border-round-bottom,
+        .p-evento[data-better-enhanced="true"] .p-tag.p-component {
+            display: none !important;
+        }
+
+        /* Fix para links */
+        .p-evento a[href*="/evento/"] {
+            pointer-events: none !important;
+        }
+
+        /* Map marker clickable */
+        .p-evento[data-better-enhanced="true"] .pi-map-marker.better-map-link {
+            color: #3b82f6 !important;
+            cursor: pointer !important;
+            pointer-events: auto !important;
+            transition: all 0.2s ease !important;
+        }
+
+        .p-evento[data-better-enhanced="true"] .pi-map-marker.better-map-link:hover {
+            transform: scale(1.2) !important;
+        }
+
         /* ============================================ */
-        /* BOTÕES DE AÇÃO - BONITOS E FUNCIONAIS       */
+        /* CONSISTENT FONT SIZES                       */
         /* ============================================ */
 
-        .better-action-bar {
+        .p-evento[data-better-enhanced="true"] .better-valor-label,
+        .p-evento[data-better-enhanced="true"] .better-valor-amount,
+        .p-evento[data-better-enhanced="true"] .better-countdown-text,
+        .p-evento[data-better-enhanced="true"] .better-countdown-time {
+            font-size: 12px !important;
+        }
+
+        /* ============================================ */
+        /* ACTION BUTTONS (Refresh, Sync & Map)        */
+        /* ============================================ */
+
+        .better-action-buttons {
             position: absolute;
             top: 8px;
             right: 8px;
             display: flex;
             gap: 6px;
-            z-index: 20;
+            z-index: 10;
             opacity: 0;
             transition: opacity 0.2s ease;
         }
 
-        .p-evento:hover .better-action-bar {
+        .p-evento:hover .better-action-buttons {
             opacity: 1;
         }
 
-        .better-btn {
+        .better-action-btn {
             width: 32px;
             height: 32px;
             border-radius: 8px;
@@ -118,72 +148,57 @@
             justify-content: center;
             font-size: 14px;
             transition: all 0.2s ease;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.1);
             backdrop-filter: blur(8px);
         }
 
-        .better-btn:hover {
-            transform: scale(1.1);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+        .better-action-btn:hover {
+            transform: translateY(-2px) scale(1.05);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2), 0 2px 4px rgba(0,0,0,0.1);
         }
 
-        .better-btn.favorite {
-            background: rgba(255,255,255,0.95);
-            color: #d1d5db;
+        .better-action-btn:active {
+            transform: translateY(0) scale(0.98);
         }
 
-        .better-btn.favorite:hover {
-            color: #ef4444;
-        }
-
-        .better-btn.favorite.active {
-            background: #fef2f2;
-            color: #ef4444;
-        }
-
-        .better-btn.map {
-            background: rgba(59, 130, 246, 0.95);
+        .better-action-btn.refresh {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
             color: white;
         }
 
-        .better-btn.map:hover {
-            background: #2563eb;
+        .better-action-btn.refresh:hover {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
         }
 
-        .better-btn.refresh {
-            background: rgba(16, 185, 129, 0.95);
+        .better-action-btn.sync {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
             color: white;
         }
 
-        .better-btn.refresh:hover {
-            background: #059669;
+        .better-action-btn.sync:hover {
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
         }
 
-        .better-btn.sync {
-            background: rgba(139, 92, 246, 0.95);
+        .better-action-btn.map {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
             color: white;
         }
 
-        .better-btn.sync:hover {
-            background: #7c3aed;
+        .better-action-btn.map:hover {
+            background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
         }
 
-        .better-btn.dashboard {
-            background: rgba(59, 130, 246, 0.95);
-            color: white;
-        }
-
-        .better-btn.loading {
+        .better-action-btn.loading {
             pointer-events: none;
             opacity: 0.7;
         }
 
-        .better-btn.loading::after {
+        .better-action-btn.loading::after {
             content: '';
             width: 14px;
             height: 14px;
             border: 2px solid transparent;
-            border-top-color: currentColor;
+            border-top-color: white;
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
         }
@@ -193,14 +208,15 @@
         }
 
         /* ============================================ */
-        /* CAROUSEL DE IMAGENS                         */
+        /* CAROUSEL                                    */
         /* ============================================ */
 
         .better-carousel {
             position: relative;
             width: 100%;
-            height: 100%;
+            height: 180px;
             overflow: hidden;
+            background: #f1f5f9;
         }
 
         .better-carousel-track {
@@ -221,11 +237,11 @@
             position: absolute;
             top: 50%;
             transform: translateY(-50%);
-            background: rgba(0, 0, 0, 0.5);
+            background: rgba(0, 0, 0, 0.6);
             color: white;
             border: none;
-            width: 30px;
-            height: 30px;
+            width: 32px;
+            height: 32px;
             border-radius: 50%;
             cursor: pointer;
             font-size: 16px;
@@ -243,23 +259,11 @@
 
         .better-carousel-nav:hover {
             background: rgba(0, 0, 0, 0.8);
+            transform: translateY(-50%) scale(1.1);
         }
 
         .better-carousel-nav.prev { left: 8px; }
         .better-carousel-nav.next { right: 8px; }
-
-        .better-carousel-counter {
-            position: absolute;
-            bottom: 8px;
-            right: 8px;
-            background: rgba(0, 0, 0, 0.6);
-            color: white;
-            padding: 3px 10px;
-            border-radius: 12px;
-            font-size: 11px;
-            font-weight: 600;
-            z-index: 5;
-        }
 
         .better-carousel-dots {
             position: absolute;
@@ -267,65 +271,221 @@
             left: 50%;
             transform: translateX(-50%);
             display: flex;
-            gap: 4px;
+            gap: 5px;
             z-index: 5;
         }
 
         .better-carousel-dot {
-            width: 6px;
-            height: 6px;
+            width: 8px;
+            height: 8px;
             border-radius: 50%;
             background: rgba(255, 255, 255, 0.5);
             cursor: pointer;
             transition: all 0.2s ease;
+            border: 1px solid rgba(0,0,0,0.2);
         }
 
-        .better-carousel-dot:hover,
+        .better-carousel-dot:hover {
+            background: rgba(255, 255, 255, 0.8);
+        }
+
         .better-carousel-dot.active {
             background: white;
+            width: 20px;
+            border-radius: 4px;
         }
 
-        .better-carousel-dot.active {
-            width: 18px;
-            border-radius: 3px;
-        }
-
-        /* ============================================ */
-        /* BADGE DE URGÊNCIA                           */
-        /* ============================================ */
-
-        .better-urgency-badge {
+        .better-carousel-counter {
             position: absolute;
             top: 8px;
             left: 8px;
-            padding: 4px 10px;
-            border-radius: 6px;
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
             font-size: 10px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            z-index: 15;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+            font-weight: 600;
+            z-index: 5;
         }
 
-        .better-urgency-badge.critical {
-            background: linear-gradient(135deg, #ef4444, #dc2626);
-            color: white;
-            animation: pulse-badge 1s infinite;
+        /* Dashboard button */
+        .better-dashboard-btn {
+            background: #3b82f6 !important;
+            border-color: #3b82f6 !important;
         }
 
-        .better-urgency-badge.ending-soon {
-            background: linear-gradient(135deg, #f59e0b, #d97706);
-            color: white;
-        }
-
-        @keyframes pulse-badge {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.8; }
+        .better-dashboard-btn:hover {
+            background: #2563eb !important;
+            transform: scale(1.05) !important;
         }
 
         /* ============================================ */
-        /* LIGHTBOX                                    */
+        /* MINIMAL CLEAN DESIGN                        */
+        /* ============================================ */
+
+        .p-evento[data-better-enhanced="true"] {
+            border-radius: 16px !important;
+            border: 1px solid #e5e7eb !important;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05) !important;
+            background: white !important;
+            position: relative !important;
+        }
+
+        .p-evento[data-better-enhanced="true"]:hover {
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1) !important;
+            border-color: #d1d5db !important;
+        }
+
+        .p-evento[data-better-enhanced="true"] .better-carousel {
+            border-radius: 12px;
+            margin: 8px;
+            height: 160px;
+        }
+
+        /* Zone: Values (VB/VA/VM) */
+        .p-evento[data-better-enhanced="true"] .better-valores-row {
+            background: white;
+            padding: 12px 16px 8px 16px;
+            gap: 8px;
+            border-top: 1px solid #f3f4f6;
+        }
+
+        .p-evento[data-better-enhanced="true"] .better-valor-item {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 6px 12px;
+            flex: 1;
+            justify-content: center;
+        }
+
+        .p-evento[data-better-enhanced="true"] .better-valor-label {
+            color: #6b7280;
+            font-size: 8px;
+        }
+
+        .p-evento[data-better-enhanced="true"] .better-valor-amount {
+            color: #111827;
+            font-size: 10px;
+        }
+
+        /* Zone: Lance */
+        .p-evento[data-better-enhanced="true"] .better-lance-row {
+            padding: 8px 16px 12px 16px;
+        }
+
+        .p-evento[data-better-enhanced="true"] .better-valor-item.lance-atual {
+            background: #fef3c7;
+            border-color: #fcd34d;
+            flex: none;
+            padding: 8px 20px;
+        }
+
+        /* Zone: Countdown */
+        .p-evento[data-better-enhanced="true"] .better-countdown-row {
+            background: #f9fafb;
+            padding: 10px 16px;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .p-evento[data-better-enhanced="true"] .native-ref-prefix.lo { color: #3b82f6 !important; }
+        .p-evento[data-better-enhanced="true"] .native-ref-prefix.np { color: #f59e0b !important; }
+
+        /* ============================================ */
+        /* VALORES E COUNTDOWN                         */
+        /* ============================================ */
+
+        .better-valores-row {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .better-valor-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .better-valor-label {
+            font-weight: 600;
+        }
+
+        .better-valor-amount {
+            font-weight: 700;
+        }
+
+        /* Lance row - separate centered row */
+        .better-lance-row {
+            display: flex;
+            justify-content: center;
+            padding: 8px 12px;
+            background: white;
+        }
+
+        /* Countdown - Row 5 (locked to bottom) */
+        .better-countdown-row {
+            padding: 10px 16px;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: auto;
+            border-radius: 0 0 16px 16px;
+        }
+
+        /* Card flex layout to push countdown to bottom */
+        .p-evento[data-better-enhanced="true"] {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Target only the card body container (not header) */
+        .p-evento[data-better-enhanced="true"] > .w-full:last-of-type {
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+        }
+
+        /* Card content wrapper - flex to push countdown down */
+        .better-card-content {
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+        }
+
+        .better-countdown {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 9px;
+        }
+
+        .better-countdown-icon {
+            font-size: 10px;
+        }
+
+        .better-countdown-text {
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .better-countdown-time {
+            color: #dc2626;
+            font-weight: 700;
+        }
+
+        .better-countdown-time.ending-soon {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* ============================================ */
+        /* LIGHTBOX FOR FULL IMAGE VIEW                */
         /* ============================================ */
 
         .better-lightbox {
@@ -334,7 +494,7 @@
             left: 0;
             width: 100vw;
             height: 100vh;
-            background: rgba(0, 0, 0, 0.95);
+            background: rgba(0, 0, 0, 0.9);
             z-index: 99999;
             display: flex;
             align-items: center;
@@ -358,8 +518,8 @@
             position: absolute;
             top: 20px;
             right: 20px;
-            width: 44px;
-            height: 44px;
+            width: 40px;
+            height: 40px;
             background: rgba(255, 255, 255, 0.2);
             border: none;
             border-radius: 50%;
@@ -407,22 +567,8 @@
             color: white;
             font-size: 14px;
             background: rgba(0, 0, 0, 0.5);
-            padding: 8px 20px;
+            padding: 5px 15px;
             border-radius: 20px;
-        }
-
-        /* ============================================ */
-        /* DASHBOARD BUTTON                            */
-        /* ============================================ */
-
-        .better-dashboard-btn {
-            background: #3b82f6 !important;
-            border-color: #3b82f6 !important;
-        }
-
-        .better-dashboard-btn:hover {
-            background: #2563eb !important;
-            transform: scale(1.05) !important;
         }
     `;
     document.head.appendChild(styles);
@@ -431,6 +577,14 @@
     // UTILITÁRIOS
     // ====================================
 
+    function formatCurrency(value) {
+        if (!value) return '-';
+        const num = parseFloat(value);
+        return new Intl.NumberFormat('pt-PT', {
+            maximumFractionDigits: 0
+        }).format(num) + ' €';
+    }
+
     function calculateTimeRemaining(endDate) {
         if (!endDate) return null;
 
@@ -438,18 +592,31 @@
         const end = new Date(endDate);
         const diff = end - now;
 
-        if (diff <= 0) return null;
+        if (diff <= 0) return { text: 'Terminado', isEnding: false };
 
-        const totalHours = diff / (1000 * 60 * 60);
-        return {
-            hours: totalHours,
-            isCritical: totalHours < 1,
-            isEndingSoon: totalHours < 24
-        };
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+        let text = '';
+        const isEnding = days === 0 && hours < 24;
+
+        if (days > 0) {
+            text = `${days}d ${hours}h ${minutes}m`;
+        } else if (hours > 0) {
+            text = `${hours}h ${minutes}m ${seconds}s`;
+        } else if (minutes > 0) {
+            text = `${minutes}m ${seconds}s`;
+        } else {
+            text = `${seconds}s`;
+        }
+
+        return { text, isEnding };
     }
 
     // ====================================
-    // API
+    // API (using GM_xmlhttpRequest to bypass ad blockers)
     // ====================================
 
     function getEventFromAPI(reference) {
@@ -459,22 +626,32 @@
             GM_xmlhttpRequest({
                 method: 'GET',
                 url: `${CONFIG.API_BASE}/events/${reference}`,
-                headers: { 'Accept': 'application/json' },
+                headers: {
+                    'Accept': 'application/json'
+                },
                 onload: function(response) {
                     if (response.status === 200) {
                         try {
                             resolve(JSON.parse(response.responseText));
                         } catch (e) {
+                            console.error(`❌ JSON parse error for ${reference}:`, e);
                             resolve(null);
                         }
                     } else if (response.status === 404) {
+                        // Event not in database - return special marker
                         resolve({ _notFound: true });
                     } else {
                         resolve(null);
                     }
                 },
-                onerror: () => resolve(null),
-                ontimeout: () => resolve(null)
+                onerror: function(error) {
+                    console.error(`❌ API error for ${reference}:`, error);
+                    resolve(null);
+                },
+                ontimeout: function() {
+                    console.error(`❌ API timeout for ${reference}`);
+                    resolve(null);
+                }
             });
         });
     }
@@ -484,9 +661,21 @@
             GM_xmlhttpRequest({
                 method: 'POST',
                 url: `${CONFIG.API_BASE}/scrape/event/${reference}`,
-                headers: { 'Accept': 'application/json' },
-                onload: (response) => resolve(response.status === 200 || response.status === 202),
-                onerror: () => resolve(false)
+                headers: {
+                    'Accept': 'application/json'
+                },
+                onload: function(response) {
+                    if (response.status === 200 || response.status === 202) {
+                        resolve(true);
+                    } else {
+                        console.error(`❌ Scrape trigger failed for ${reference}:`, response.status);
+                        resolve(false);
+                    }
+                },
+                onerror: function(error) {
+                    console.error(`❌ Scrape trigger error for ${reference}:`, error);
+                    resolve(false);
+                }
             });
         });
     }
@@ -552,17 +741,23 @@
 
     function handleLightboxKeys(e) {
         if (e.key === 'Escape') closeLightbox();
-        const img = document.querySelector('.better-lightbox-img');
-        const counter = document.querySelector('.better-lightbox-counter');
         if (e.key === 'ArrowLeft') {
             lightboxIndex = (lightboxIndex - 1 + lightboxImages.length) % lightboxImages.length;
-            if (img) img.src = lightboxImages[lightboxIndex];
-            if (counter) counter.textContent = `${lightboxIndex + 1} / ${lightboxImages.length}`;
+            const img = document.querySelector('.better-lightbox-img');
+            const counter = document.querySelector('.better-lightbox-counter');
+            if (img && counter) {
+                img.src = lightboxImages[lightboxIndex];
+                counter.textContent = `${lightboxIndex + 1} / ${lightboxImages.length}`;
+            }
         }
         if (e.key === 'ArrowRight') {
             lightboxIndex = (lightboxIndex + 1) % lightboxImages.length;
-            if (img) img.src = lightboxImages[lightboxIndex];
-            if (counter) counter.textContent = `${lightboxIndex + 1} / ${lightboxImages.length}`;
+            const img = document.querySelector('.better-lightbox-img');
+            const counter = document.querySelector('.better-lightbox-counter');
+            if (img && counter) {
+                img.src = lightboxImages[lightboxIndex];
+                counter.textContent = `${lightboxIndex + 1} / ${lightboxImages.length}`;
+            }
         }
     }
 
@@ -578,24 +773,30 @@
         btn.type = 'button';
         btn.title = 'Better E-Leilões Dashboard';
         btn.style.cssText = 'margin-right: 5px; bottom: 137px; background: #3b82f6; border-color: #3b82f6;';
-        btn.innerHTML = `<span class="p-button-icon pi pi-home"></span><span class="p-button-label">&nbsp;</span>`;
+        btn.innerHTML = `
+            <span class="p-button-icon pi pi-home" data-pc-section="icon"></span>
+            <span class="p-button-label" data-pc-section="label">&nbsp;</span>
+        `;
 
         btn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            window.open(CONFIG.DASHBOARD_URL, '_blank');
+            window.open(CONFIG.DASHBOARD_URL, '_blank', 'noopener,noreferrer');
         });
 
         document.body.appendChild(btn);
     }
 
     // ====================================
-    // CARD ENHANCEMENT - SUBTIL
+    // CARD ENHANCEMENT
     // ====================================
 
     function extractReferenceFromCard(card) {
         const refElement = card.querySelector('.pi-tag + span');
-        return refElement ? refElement.textContent.trim() : null;
+        if (refElement) {
+            return refElement.textContent.trim();
+        }
+        return null;
     }
 
     async function enhanceCard(card) {
@@ -603,42 +804,76 @@
         card.dataset.betterEnhanced = 'true';
 
         const reference = extractReferenceFromCard(card);
-        if (!reference) return;
 
         try {
+            if (!reference) return;
+
             const apiData = await getEventFromAPI(reference);
-            const hasData = apiData && !apiData._notFound;
 
-            // Add action buttons bar
-            addActionBar(card, reference, hasData, apiData);
-
-            if (!hasData) return; // Keep original card if no data
-
-            const eventUrl = `https://www.e-leiloes.pt/evento/${reference}`;
-
-            // Add urgency badge if needed
-            if (apiData.data_fim) {
-                const timeInfo = calculateTimeRemaining(apiData.data_fim);
-                if (timeInfo && (timeInfo.isCritical || timeInfo.isEndingSoon)) {
-                    const badge = document.createElement('div');
-                    badge.className = `better-urgency-badge ${timeInfo.isCritical ? 'critical' : 'ending-soon'}`;
-                    badge.textContent = timeInfo.isCritical ? '🔥 < 1h' : '⏰ < 24h';
-                    card.appendChild(badge);
-                }
+            // If API returned 404 or null, keep original card but add action buttons
+            if (!apiData || apiData._notFound) {
+                // Add sync button to allow scraping this event
+                addActionButtons(card, reference, false, null);
+                return; // Keep original card design
             }
 
-            // Add carousel if we have images
+            const eventUrl = `https://www.e-leiloes.pt/evento/${reference}`;
+            card.style.position = 'relative';
+
+            // Add action buttons (refresh, sync, and map if GPS available)
+            const hasGPS = apiData.latitude && apiData.longitude;
+            const gpsData = hasGPS ? { lat: apiData.latitude, lng: apiData.longitude } : null;
+            addActionButtons(card, reference, true, gpsData);
+
+            // Remove native links
+            card.querySelectorAll('a[href*="/evento/"]').forEach(link => {
+                link.removeAttribute('href');
+                link.style.pointerEvents = 'none';
+            });
+
+            // Color reference prefix
+            const nativeRefSpan = card.querySelector('.pi-tag + span');
+            if (nativeRefSpan) {
+                const refText = nativeRefSpan.textContent.trim();
+                const prefix = refText.substring(0, 2);
+                const rest = refText.substring(2);
+                nativeRefSpan.innerHTML = `<span class="native-ref-prefix ${prefix.toLowerCase()}">${prefix}</span>${rest}`;
+            }
+
+            // Remove borders from native divs
+            card.querySelectorAll('.w-full').forEach(div => {
+                div.classList.remove('border-1', 'surface-border', 'border-round');
+                div.style.border = 'none';
+            });
+
+            // Style map marker
+            const hasGPS = apiData.latitude && apiData.longitude;
+            const nativeMapMarker = card.querySelector('.pi-map-marker');
+            if (nativeMapMarker && hasGPS) {
+                const mapsUrl = `https://www.google.com/maps?q=${apiData.latitude},${apiData.longitude}`;
+                nativeMapMarker.classList.add('better-map-link');
+                nativeMapMarker.title = 'Ver no Google Maps';
+                nativeMapMarker.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    window.open(mapsUrl, '_blank', 'noopener,noreferrer');
+                });
+            }
+
+            // Carousel - show all images
             const nativeImageDiv = card.querySelector('.p-evento-image');
             if (nativeImageDiv && apiData.imagens && apiData.imagens.length > 0) {
                 const images = apiData.imagens.slice(0, CONFIG.MAX_CAROUSEL_IMAGES);
 
-                // Create carousel inside native image container
+                nativeImageDiv.style.display = 'none';
+
                 const carousel = document.createElement('div');
                 carousel.className = 'better-carousel';
                 carousel.innerHTML = `
                     <div class="better-carousel-track">
                         ${images.map((img, idx) => `<div class="better-carousel-slide" style="background-image: url('${img}');" data-index="${idx}"></div>`).join('')}
                     </div>
+                    <div class="better-carousel-counter">${images.length} 📷</div>
                     ${images.length > 1 ? `
                         <button class="better-carousel-nav prev">‹</button>
                         <button class="better-carousel-nav next">›</button>
@@ -646,31 +881,28 @@
                             ${images.map((_, idx) => `<div class="better-carousel-dot ${idx === 0 ? 'active' : ''}" data-index="${idx}"></div>`).join('')}
                         </div>
                     ` : ''}
-                    <div class="better-carousel-counter">${images.length} 📷</div>
                 `;
 
-                // Replace native image content
-                nativeImageDiv.innerHTML = '';
-                nativeImageDiv.appendChild(carousel);
+                nativeImageDiv.parentNode.insertBefore(carousel, nativeImageDiv.nextSibling);
 
                 // Carousel navigation
+                const track = carousel.querySelector('.better-carousel-track');
+                const dots = carousel.querySelectorAll('.better-carousel-dot');
+                let currentSlide = 0;
+
+                function updateCarousel() {
+                    track.style.transform = `translateX(-${currentSlide * 100}%)`;
+                    dots.forEach((d, i) => d.classList.toggle('active', i === currentSlide));
+                }
+
                 if (images.length > 1) {
-                    const track = carousel.querySelector('.better-carousel-track');
-                    const dots = carousel.querySelectorAll('.better-carousel-dot');
-                    let currentSlide = 0;
-
-                    function updateCarousel() {
-                        track.style.transform = `translateX(-${currentSlide * 100}%)`;
-                        dots.forEach((d, i) => d.classList.toggle('active', i === currentSlide));
-                    }
-
-                    carousel.querySelector('.prev')?.addEventListener('click', (e) => {
+                    carousel.querySelector('.prev').addEventListener('click', (e) => {
                         e.stopPropagation();
                         currentSlide = (currentSlide - 1 + images.length) % images.length;
                         updateCarousel();
                     });
 
-                    carousel.querySelector('.next')?.addEventListener('click', (e) => {
+                    carousel.querySelector('.next').addEventListener('click', (e) => {
                         e.stopPropagation();
                         currentSlide = (currentSlide + 1) % images.length;
                         updateCarousel();
@@ -685,7 +917,7 @@
                     });
                 }
 
-                // Lightbox on click
+                // Click on slide opens lightbox
                 carousel.querySelectorAll('.better-carousel-slide').forEach((slide, idx) => {
                     slide.addEventListener('click', (e) => {
                         e.stopPropagation();
@@ -694,95 +926,157 @@
                 });
             }
 
-            // Make card clickable
+            // Values - VB/VA/VM in one row, Lance in separate row (API v2 format)
+            let valoresHTML = '';
+            const topItems = [];
+            if (apiData.valor_base) topItems.push(`<div class="better-valor-item"><span class="better-valor-label">VB:</span><span class="better-valor-amount">${formatCurrency(apiData.valor_base)}</span></div>`);
+            if (apiData.valor_abertura) topItems.push(`<div class="better-valor-item"><span class="better-valor-label">VA:</span><span class="better-valor-amount">${formatCurrency(apiData.valor_abertura)}</span></div>`);
+            if (apiData.valor_minimo) topItems.push(`<div class="better-valor-item"><span class="better-valor-label">VM:</span><span class="better-valor-amount">${formatCurrency(apiData.valor_minimo)}</span></div>`);
+
+            const lanceHTML = `<div class="better-lance-row"><div class="better-valor-item lance-atual"><span class="better-valor-label">Lance:</span><span class="better-valor-amount">${apiData.lance_atual ? formatCurrency(apiData.lance_atual) : '0 €'}</span></div></div>`;
+
+            if (topItems.length > 0) {
+                valoresHTML = `<div class="better-valores-row">${topItems.join('')}</div>${lanceHTML}`;
+            } else {
+                valoresHTML = lanceHTML;
+            }
+
+            // Countdown (API v2: data_fim)
+            let countdownHTML = '';
+            if (apiData.data_fim) {
+                const remaining = calculateTimeRemaining(apiData.data_fim);
+                if (remaining) {
+                    const countdownId = `countdown-${reference}`;
+                    countdownHTML = `
+                        <div class="better-countdown-row">
+                            <div class="better-countdown">
+                                <span class="better-countdown-icon">⏱️</span>
+                                <span class="better-countdown-text">Termina:</span>
+                                <span class="better-countdown-time ${remaining.isEnding ? 'ending-soon' : ''}" id="${countdownId}" data-end="${apiData.data_fim}">${remaining.text}</span>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+
+            // Insert content
+            const cardBody = card.querySelector('.w-full');
+            if (cardBody) {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'better-card-content';
+                wrapper.innerHTML = valoresHTML + countdownHTML;
+                cardBody.appendChild(wrapper);
+            }
+
+            // Click handlers
             card.style.cursor = 'pointer';
             card.addEventListener('click', (e) => {
-                if (e.target.closest('.better-btn, .better-carousel-nav, .better-carousel-dot, .better-carousel-slide')) return;
-                window.open(eventUrl, '_blank');
-            });
+                if (e.target.closest('.pi-map-marker, .better-carousel-nav, .better-carousel-dot, .better-carousel-slide, .pi-star, .better-action-btn')) return;
+                e.preventDefault();
+                e.stopPropagation();
+                window.open(eventUrl, '_blank', 'noopener,noreferrer');
+            }, true);
+
+            // Restore native right-click context menu
+            card.addEventListener('contextmenu', (e) => {
+                e.stopPropagation();
+            }, true);
 
         } catch (error) {
             console.error(`❌ Error enhancing card for ${reference}:`, error);
         }
     }
 
-    function addActionBar(card, reference, hasData, apiData) {
-        const bar = document.createElement('div');
-        bar.className = 'better-action-bar';
+    function addActionButtons(card, reference, hasData, gpsData) {
+        const buttonsDiv = document.createElement('div');
+        buttonsDiv.className = 'better-action-buttons';
 
-        // Favorite button
-        const isFav = favorites.includes(reference);
-        const favBtn = document.createElement('button');
-        favBtn.className = `better-btn favorite ${isFav ? 'active' : ''}`;
-        favBtn.title = isFav ? 'Remover dos favoritos' : 'Adicionar aos favoritos';
-        favBtn.innerHTML = isFav ? '❤️' : '🤍';
-        favBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const nowFav = toggleFavorite(reference);
-            favBtn.classList.toggle('active', nowFav);
-            favBtn.innerHTML = nowFav ? '❤️' : '🤍';
-            favBtn.title = nowFav ? 'Remover dos favoritos' : 'Adicionar aos favoritos';
-        });
-        bar.appendChild(favBtn);
-
-        // Map button (if has GPS)
-        if (hasData && apiData.latitude && apiData.longitude) {
+        // Map button - opens Google Maps (only if GPS available)
+        if (gpsData) {
             const mapBtn = document.createElement('button');
-            mapBtn.className = 'better-btn map';
+            mapBtn.className = 'better-action-btn map';
             mapBtn.title = 'Ver no Google Maps';
             mapBtn.innerHTML = '📍';
             mapBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                window.open(`https://www.google.com/maps?q=${apiData.latitude},${apiData.longitude}`, '_blank');
+                e.preventDefault();
+                const mapsUrl = `https://www.google.com/maps?q=${gpsData.lat},${gpsData.lng}`;
+                window.open(mapsUrl, '_blank', 'noopener,noreferrer');
             });
-            bar.appendChild(mapBtn);
+            buttonsDiv.appendChild(mapBtn);
         }
 
         if (hasData) {
-            // Refresh button
+            // Refresh button - updates data from e-leiloes
             const refreshBtn = document.createElement('button');
-            refreshBtn.className = 'better-btn refresh';
+            refreshBtn.className = 'better-action-btn refresh';
             refreshBtn.title = 'Atualizar dados';
             refreshBtn.innerHTML = '🔄';
             refreshBtn.addEventListener('click', async (e) => {
                 e.stopPropagation();
+                e.preventDefault();
                 refreshBtn.classList.add('loading');
                 refreshBtn.innerHTML = '';
 
                 const success = await triggerScrape(reference);
-                refreshBtn.classList.remove('loading');
-                refreshBtn.innerHTML = success ? '✅' : '❌';
-                setTimeout(() => { refreshBtn.innerHTML = '🔄'; }, 2000);
 
                 if (success) {
-                    setTimeout(() => location.reload(), 2500);
+                    // Wait a bit for scrape to complete, then refresh card
+                    setTimeout(async () => {
+                        // Remove enhanced flag to allow re-enhancement
+                        delete card.dataset.betterEnhanced;
+                        // Remove our added elements
+                        card.querySelectorAll('.better-carousel, .better-card-content, .better-action-buttons').forEach(el => el.remove());
+                        // Show native image again
+                        const nativeImg = card.querySelector('.p-evento-image');
+                        if (nativeImg) nativeImg.style.display = '';
+                        // Re-enhance
+                        await enhanceCard(card);
+                    }, 2000);
+                } else {
+                    refreshBtn.classList.remove('loading');
+                    refreshBtn.innerHTML = '❌';
+                    setTimeout(() => { refreshBtn.innerHTML = '🔄'; }, 2000);
                 }
             });
-            bar.appendChild(refreshBtn);
+            buttonsDiv.appendChild(refreshBtn);
         }
 
-        // Sync button
+        // Sync button - adds event to database
         const syncBtn = document.createElement('button');
-        syncBtn.className = 'better-btn sync';
-        syncBtn.title = hasData ? 'Sincronizar' : 'Adicionar à BD';
+        syncBtn.className = 'better-action-btn sync';
+        syncBtn.title = hasData ? 'Sincronizar novamente' : 'Adicionar à base de dados';
         syncBtn.innerHTML = '⬇️';
         syncBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
+            e.preventDefault();
             syncBtn.classList.add('loading');
             syncBtn.innerHTML = '';
 
             const success = await triggerScrape(reference);
-            syncBtn.classList.remove('loading');
-            syncBtn.innerHTML = success ? '✅' : '❌';
-            setTimeout(() => { syncBtn.innerHTML = '⬇️'; }, 2000);
 
-            if (success && !hasData) {
-                setTimeout(() => location.reload(), 2500);
+            if (success) {
+                syncBtn.classList.remove('loading');
+                syncBtn.innerHTML = '✅';
+
+                // If it was a new event, re-enhance the card after sync
+                if (!hasData) {
+                    setTimeout(async () => {
+                        delete card.dataset.betterEnhanced;
+                        card.querySelectorAll('.better-action-buttons').forEach(el => el.remove());
+                        await enhanceCard(card);
+                    }, 2000);
+                }
+            } else {
+                syncBtn.classList.remove('loading');
+                syncBtn.innerHTML = '❌';
+                setTimeout(() => { syncBtn.innerHTML = '⬇️'; }, 2000);
             }
         });
-        bar.appendChild(syncBtn);
+        buttonsDiv.appendChild(syncBtn);
 
-        card.appendChild(bar);
+        card.style.position = 'relative';
+        card.appendChild(buttonsDiv);
     }
 
     // ====================================
@@ -797,15 +1091,27 @@
         enhanceAllCards();
     });
 
+    function updateAllCountdowns() {
+        document.querySelectorAll('[data-end]').forEach(el => {
+            const remaining = calculateTimeRemaining(el.dataset.end);
+            if (remaining) {
+                el.textContent = remaining.text;
+                el.classList.toggle('ending-soon', remaining.isEnding);
+            }
+        });
+    }
+
     function init() {
-        console.log('🚀 Better E-Leilões v10.0 - Melhorias subtis');
+        console.log('🚀 Better E-Leilões Card Enhancer v8.1 - Sync, Refresh, Map & Prettier Buttons');
 
         integrateWithNativeFloatingButtons();
         enhanceAllCards();
 
+        setInterval(updateAllCountdowns, 1000);
+
         observer.observe(document.body, { childList: true, subtree: true });
 
-        console.log('✅ v10.0 - Botões bonitos, carousel, favoritos, GPS!');
+        console.log('✅ Card enhancer v8.1 ativo!');
     }
 
     if (document.readyState === 'loading') {
