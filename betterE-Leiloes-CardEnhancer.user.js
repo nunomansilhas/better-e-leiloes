@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      8.3
-// @description  v8 + API oficial e-leiloes.pt, botões outlined limpos
+// @version      8.4
+// @description  v8 + scrape via backend (API oficial + guarda BD)
 // @author       Nuno Mansilhas
 // @match        https://e-leiloes.pt/*
 // @match        https://www.e-leiloes.pt/*
@@ -650,22 +650,35 @@
         });
     }
 
-    // Fetch fresh data from official e-leiloes.pt API
-    function fetchFromOfficialAPI(reference) {
+    // Scrape event via our backend (uses official API + saves to DB)
+    function scrapeEventViaBackend(reference) {
         return new Promise((resolve) => {
-            // Use fetch since we're on the same domain
-            fetch(`https://www.e-leiloes.pt/api/eventos/${reference}`)
-                .then(response => {
-                    if (response.ok) {
-                        return response.json();
+            GM_xmlhttpRequest({
+                method: 'POST',
+                url: `${CONFIG.API_BASE}/scrape/stage2/api?references=${reference}&save_to_db=true`,
+                headers: {
+                    'Accept': 'application/json'
+                },
+                onload: function(response) {
+                    if (response.status === 200) {
+                        try {
+                            const data = JSON.parse(response.responseText);
+                            // Return first event from the response
+                            resolve(data.events && data.events.length > 0 ? data.events[0] : null);
+                        } catch (e) {
+                            console.error(`❌ JSON parse error:`, e);
+                            resolve(null);
+                        }
+                    } else {
+                        console.error(`❌ Scrape failed for ${reference}:`, response.status);
+                        resolve(null);
                     }
-                    throw new Error(`API returned ${response.status}`);
-                })
-                .then(data => resolve(data))
-                .catch(error => {
-                    console.error(`❌ Official API error for ${reference}:`, error);
+                },
+                onerror: function(error) {
+                    console.error(`❌ Scrape error for ${reference}:`, error);
                     resolve(null);
-                });
+                }
+            });
         });
     }
 
@@ -994,10 +1007,10 @@
             buttonsDiv.appendChild(mapBtn);
         }
 
-        // Refresh button - fetches fresh data from official e-leiloes.pt API
+        // Refresh button - scrapes via backend (uses official API + saves to DB)
         const refreshBtn = document.createElement('button');
         refreshBtn.className = 'better-action-btn refresh';
-        refreshBtn.title = 'Atualizar lance (API oficial)';
+        refreshBtn.title = 'Atualizar dados (scrape via API oficial)';
         refreshBtn.innerHTML = '🔄';
         refreshBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
@@ -1005,24 +1018,25 @@
             refreshBtn.classList.add('loading');
             refreshBtn.innerHTML = '';
 
-            const freshData = await fetchFromOfficialAPI(reference);
+            const scrapedEvent = await scrapeEventViaBackend(reference);
 
-            if (freshData) {
-                // Update lance display if we have new data
-                const lanceElement = card.querySelector('.better-valor-item.lance-atual .better-valor-amount');
-                if (lanceElement && freshData.lanceAtual !== undefined) {
-                    lanceElement.textContent = formatCurrency(freshData.lanceAtual);
-                }
-
-                // Update countdown if data_fim changed
-                const countdownEl = card.querySelector('.better-countdown-time');
-                if (countdownEl && freshData.dataFim) {
-                    countdownEl.dataset.end = freshData.dataFim;
-                }
-
+            if (scrapedEvent) {
                 refreshBtn.classList.remove('loading');
                 refreshBtn.innerHTML = '✅';
-                setTimeout(() => { refreshBtn.innerHTML = '🔄'; }, 1500);
+
+                // Re-enhance card with fresh data after a short delay
+                setTimeout(async () => {
+                    refreshBtn.innerHTML = '🔄';
+                    // Remove enhanced flag to allow re-enhancement
+                    delete card.dataset.betterEnhanced;
+                    // Remove our added elements
+                    card.querySelectorAll('.better-carousel, .better-card-content, .better-action-buttons').forEach(el => el.remove());
+                    // Show native image again
+                    const nativeImg = card.querySelector('.p-evento-image');
+                    if (nativeImg) nativeImg.style.display = '';
+                    // Re-enhance with fresh data from our backend
+                    await enhanceCard(card);
+                }, 1000);
             } else {
                 refreshBtn.classList.remove('loading');
                 refreshBtn.innerHTML = '❌';
@@ -1058,7 +1072,7 @@
     }
 
     function init() {
-        console.log('🚀 Better E-Leilões Card Enhancer v8.3 - Official API');
+        console.log('🚀 Better E-Leilões Card Enhancer v8.4 - Backend Scrape');
 
         integrateWithNativeFloatingButtons();
         enhanceAllCards();
@@ -1067,7 +1081,7 @@
 
         observer.observe(document.body, { childList: true, subtree: true });
 
-        console.log('✅ Card enhancer v8.3 ativo!');
+        console.log('✅ Card enhancer v8.4 ativo!');
     }
 
     if (document.readyState === 'loading') {
