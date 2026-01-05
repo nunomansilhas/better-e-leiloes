@@ -129,12 +129,7 @@
         }
 
         .better-action-btn:hover {
-            transform: scale(1.15);
             color: #3b82f6;
-        }
-
-        .better-action-btn:active {
-            transform: scale(0.95);
         }
 
         .better-action-btn.loading {
