@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      10.4
-// @description  v10.4 - PrimeIcons for action buttons (native style)
+// @version      10.5
+// @description  v10.5 - Clean icons without outline, same size as native
 // @author       Nuno Mansilhas
 // @match        https://e-leiloes.pt/*
 // @match        https://www.e-leiloes.pt/*
@@ -103,39 +103,34 @@
         }
 
         /* ============================================ */
-        /* ACTION BUTTONS - Inline with native star    */
+        /* ACTION BUTTONS - Same style as native star  */
         /* ============================================ */
 
         .better-action-buttons {
             display: flex;
             align-items: center;
             gap: 4px;
-            margin-left: 2px;
         }
 
         .better-action-btn {
-            width: 24px;
-            height: 24px;
-            border-radius: 4px;
-            border: 1.5px solid #1e3a5f;
+            background: none;
+            border: none;
             cursor: pointer;
+            padding: 0;
+            color: #1e3a5f;
+            transition: all 0.15s ease;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.15s ease;
-            background: transparent;
-            color: #1e3a5f;
-            padding: 0;
         }
 
         .better-action-btn i {
-            font-size: 14px;
+            font-size: 1.25rem;
         }
 
         .better-action-btn:hover {
-            transform: scale(1.1);
-            background: #1e3a5f;
-            color: white;
+            transform: scale(1.15);
+            color: #3b82f6;
         }
 
         .better-action-btn:active {
@@ -1125,7 +1120,7 @@
     }
 
     function init() {
-        console.log('🚀 Better E-Leilões Card Enhancer v10.4 - PrimeIcons Native Style');
+        console.log('🚀 Better E-Leilões Card Enhancer v10.5 - Clean Icons Native Size');
 
         integrateWithNativeFloatingButtons();
         enhanceAllCards();
@@ -1134,7 +1129,7 @@
 
         observer.observe(document.body, { childList: true, subtree: true });
 
-        console.log('✅ Card enhancer v10.4 ativo!');
+        console.log('✅ Card enhancer v10.5 ativo!');
     }
 
     if (document.readyState === 'loading') {
