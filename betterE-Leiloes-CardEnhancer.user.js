@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      10.1
-// @description  v10.1 - clean version, aligned with native favorites
+// @version      10.2
+// @description  v10.2 - action buttons always visible, styled like native
 // @author       Nuno Mansilhas
 // @match        https://e-leiloes.pt/*
 // @match        https://www.e-leiloes.pt/*
@@ -103,64 +103,56 @@
         }
 
         /* ============================================ */
-        /* ACTION BUTTONS - Clean Outlined Style       */
+        /* ACTION BUTTONS - Always visible, native style */
         /* ============================================ */
 
         .better-action-buttons {
             position: absolute;
-            top: 8px;
-            right: 8px;
+            top: 6px;
+            right: 6px;
             display: flex;
-            gap: 4px;
+            gap: 2px;
             z-index: 10;
-            opacity: 0;
-            transition: opacity 0.2s ease;
-        }
-
-        .p-evento:hover .better-action-buttons {
-            opacity: 1;
         }
 
         .better-action-btn {
-            width: 28px;
-            height: 28px;
+            width: 26px;
+            height: 26px;
             border-radius: 6px;
-            border: 1.5px solid;
+            border: 1.5px solid #1e3a5f;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 12px;
+            font-size: 13px;
             transition: all 0.15s ease;
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(4px);
+            background: white;
+            color: #1e3a5f;
         }
 
         .better-action-btn:hover {
             transform: scale(1.1);
+            background: #1e3a5f;
+            color: white;
         }
 
         .better-action-btn:active {
             transform: scale(0.95);
         }
 
-        /* Map - Blue outline */
+        /* Map button */
         .better-action-btn.map {
-            border-color: #3b82f6;
-            color: #3b82f6;
-        }
-        .better-action-btn.map:hover {
-            background: #3b82f6;
-            color: white;
+            border-color: #1e3a5f;
+            color: #1e3a5f;
         }
 
-        /* Refresh - Green outline */
+        /* Refresh button - same style as map */
         .better-action-btn.refresh {
-            border-color: #10b981;
-            color: #10b981;
+            border-color: #1e3a5f;
+            color: #1e3a5f;
         }
         .better-action-btn.refresh:hover {
-            background: #10b981;
+            background: #1e3a5f;
             color: white;
         }
 
@@ -1136,7 +1128,7 @@
     }
 
     function init() {
-        console.log('🚀 Better E-Leilões Card Enhancer v10.1 - Clean Version');
+        console.log('🚀 Better E-Leilões Card Enhancer v10.2 - Buttons Always Visible');
 
         integrateWithNativeFloatingButtons();
         enhanceAllCards();
@@ -1145,7 +1137,7 @@
 
         observer.observe(document.body, { childList: true, subtree: true });
 
-        console.log('✅ Card enhancer v10.1 ativo!');
+        console.log('✅ Card enhancer v10.2 ativo!');
     }
 
     if (document.readyState === 'loading') {
