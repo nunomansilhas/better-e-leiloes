@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      8.2
-// @description  v8 + fontes consistentes, botões outlined limpos, GPS button
+// @version      8.3
+// @description  v8 + API oficial e-leiloes.pt, botões outlined limpos
 // @author       Nuno Mansilhas
 // @match        https://e-leiloes.pt/*
 // @match        https://www.e-leiloes.pt/*
@@ -12,6 +12,8 @@
 // @grant        GM_xmlhttpRequest
 // @connect      localhost
 // @connect      127.0.0.1
+// @connect      e-leiloes.pt
+// @connect      www.e-leiloes.pt
 // @updateURL    https://raw.githubusercontent.com/nunomansilhas/better-e-leiloes/main/betterE-Leiloes-CardEnhancer.user.js
 // @downloadURL  https://raw.githubusercontent.com/nunomansilhas/better-e-leiloes/main/betterE-Leiloes-CardEnhancer.user.js
 // ==/UserScript==
@@ -177,16 +179,6 @@
         }
         .better-action-btn.refresh:hover {
             background: #10b981;
-            color: white;
-        }
-
-        /* Sync - Gray/neutral outline */
-        .better-action-btn.sync {
-            border-color: #6b7280;
-            color: #6b7280;
-        }
-        .better-action-btn.sync:hover {
-            background: #6b7280;
             color: white;
         }
 
@@ -658,27 +650,22 @@
         });
     }
 
-    function triggerScrape(reference) {
+    // Fetch fresh data from official e-leiloes.pt API
+    function fetchFromOfficialAPI(reference) {
         return new Promise((resolve) => {
-            GM_xmlhttpRequest({
-                method: 'POST',
-                url: `${CONFIG.API_BASE}/scrape/event/${reference}`,
-                headers: {
-                    'Accept': 'application/json'
-                },
-                onload: function(response) {
-                    if (response.status === 200 || response.status === 202) {
-                        resolve(true);
-                    } else {
-                        console.error(`❌ Scrape trigger failed for ${reference}:`, response.status);
-                        resolve(false);
+            // Use fetch since we're on the same domain
+            fetch(`https://www.e-leiloes.pt/api/eventos/${reference}`)
+                .then(response => {
+                    if (response.ok) {
+                        return response.json();
                     }
-                },
-                onerror: function(error) {
-                    console.error(`❌ Scrape trigger error for ${reference}:`, error);
-                    resolve(false);
-                }
-            });
+                    throw new Error(`API returned ${response.status}`);
+                })
+                .then(data => resolve(data))
+                .catch(error => {
+                    console.error(`❌ Official API error for ${reference}:`, error);
+                    resolve(null);
+                });
         });
     }
 
@@ -1007,74 +994,42 @@
             buttonsDiv.appendChild(mapBtn);
         }
 
-        if (hasData) {
-            // Refresh button - updates data from e-leiloes
-            const refreshBtn = document.createElement('button');
-            refreshBtn.className = 'better-action-btn refresh';
-            refreshBtn.title = 'Atualizar dados';
-            refreshBtn.innerHTML = '🔄';
-            refreshBtn.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                refreshBtn.classList.add('loading');
-                refreshBtn.innerHTML = '';
-
-                const success = await triggerScrape(reference);
-
-                if (success) {
-                    // Wait a bit for scrape to complete, then refresh card
-                    setTimeout(async () => {
-                        // Remove enhanced flag to allow re-enhancement
-                        delete card.dataset.betterEnhanced;
-                        // Remove our added elements
-                        card.querySelectorAll('.better-carousel, .better-card-content, .better-action-buttons').forEach(el => el.remove());
-                        // Show native image again
-                        const nativeImg = card.querySelector('.p-evento-image');
-                        if (nativeImg) nativeImg.style.display = '';
-                        // Re-enhance
-                        await enhanceCard(card);
-                    }, 2000);
-                } else {
-                    refreshBtn.classList.remove('loading');
-                    refreshBtn.innerHTML = '❌';
-                    setTimeout(() => { refreshBtn.innerHTML = '🔄'; }, 2000);
-                }
-            });
-            buttonsDiv.appendChild(refreshBtn);
-        }
-
-        // Sync button - adds event to database
-        const syncBtn = document.createElement('button');
-        syncBtn.className = 'better-action-btn sync';
-        syncBtn.title = hasData ? 'Sincronizar novamente' : 'Adicionar à base de dados';
-        syncBtn.innerHTML = '⬇️';
-        syncBtn.addEventListener('click', async (e) => {
+        // Refresh button - fetches fresh data from official e-leiloes.pt API
+        const refreshBtn = document.createElement('button');
+        refreshBtn.className = 'better-action-btn refresh';
+        refreshBtn.title = 'Atualizar lance (API oficial)';
+        refreshBtn.innerHTML = '🔄';
+        refreshBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
             e.preventDefault();
-            syncBtn.classList.add('loading');
-            syncBtn.innerHTML = '';
+            refreshBtn.classList.add('loading');
+            refreshBtn.innerHTML = '';
 
-            const success = await triggerScrape(reference);
+            const freshData = await fetchFromOfficialAPI(reference);
 
-            if (success) {
-                syncBtn.classList.remove('loading');
-                syncBtn.innerHTML = '✅';
-
-                // If it was a new event, re-enhance the card after sync
-                if (!hasData) {
-                    setTimeout(async () => {
-                        delete card.dataset.betterEnhanced;
-                        card.querySelectorAll('.better-action-buttons').forEach(el => el.remove());
-                        await enhanceCard(card);
-                    }, 2000);
+            if (freshData) {
+                // Update lance display if we have new data
+                const lanceElement = card.querySelector('.better-valor-item.lance-atual .better-valor-amount');
+                if (lanceElement && freshData.lanceAtual !== undefined) {
+                    lanceElement.textContent = formatCurrency(freshData.lanceAtual);
                 }
+
+                // Update countdown if data_fim changed
+                const countdownEl = card.querySelector('.better-countdown-time');
+                if (countdownEl && freshData.dataFim) {
+                    countdownEl.dataset.end = freshData.dataFim;
+                }
+
+                refreshBtn.classList.remove('loading');
+                refreshBtn.innerHTML = '✅';
+                setTimeout(() => { refreshBtn.innerHTML = '🔄'; }, 1500);
             } else {
-                syncBtn.classList.remove('loading');
-                syncBtn.innerHTML = '❌';
-                setTimeout(() => { syncBtn.innerHTML = '⬇️'; }, 2000);
+                refreshBtn.classList.remove('loading');
+                refreshBtn.innerHTML = '❌';
+                setTimeout(() => { refreshBtn.innerHTML = '🔄'; }, 2000);
             }
         });
-        buttonsDiv.appendChild(syncBtn);
+        buttonsDiv.appendChild(refreshBtn);
 
         card.style.position = 'relative';
         card.appendChild(buttonsDiv);
@@ -1103,7 +1058,7 @@
     }
 
     function init() {
-        console.log('🚀 Better E-Leilões Card Enhancer v8.2 - Clean Outlined Buttons');
+        console.log('🚀 Better E-Leilões Card Enhancer v8.3 - Official API');
 
         integrateWithNativeFloatingButtons();
         enhanceAllCards();
@@ -1112,7 +1067,7 @@
 
         observer.observe(document.body, { childList: true, subtree: true });
 
-        console.log('✅ Card enhancer v8.2 ativo!');
+        console.log('✅ Card enhancer v8.3 ativo!');
     }
 
     if (document.readyState === 'loading') {
