@@ -846,8 +846,7 @@
                 div.style.border = 'none';
             });
 
-            // Style map marker
-            const hasGPS = apiData.latitude && apiData.longitude;
+            // Style map marker (hasGPS already defined above)
             const nativeMapMarker = card.querySelector('.pi-map-marker');
             if (nativeMapMarker && hasGPS) {
                 const mapsUrl = `https://www.google.com/maps?q=${apiData.latitude},${apiData.longitude}`;
