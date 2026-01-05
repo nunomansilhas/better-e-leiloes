@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      9.2
-// @description  v9.2 - carousel com fotos (campo correto), countdown LOCKED ao fundo
+// @version      9.3
+// @description  v9.3 - carousel buttons fix, valores centered, hover grey, flexible height
 // @author       Nuno Mansilhas
 // @match        https://e-leiloes.pt/*
 // @match        https://www.e-leiloes.pt/*
@@ -66,24 +66,6 @@
         /* Hide custom context menu */
         .p-contextmenu.p-component {
             display: none !important;
-        }
-
-        /* Force white backgrounds on hover for all card elements */
-        .p-evento[data-better-enhanced="true"] *:hover {
-            background-color: inherit;
-        }
-
-        .p-evento[data-better-enhanced="true"]:hover .better-valores-row {
-            background: white !important;
-        }
-        .p-evento[data-better-enhanced="true"]:hover .better-lance-row {
-            background: white !important;
-        }
-        .p-evento[data-better-enhanced="true"]:hover .better-countdown-row {
-            background: #f9fafb !important;
-        }
-        .p-evento[data-better-enhanced="true"]:hover .better-valor-item:not(.lance-atual) {
-            background: #f9fafb !important;
         }
 
         /* Esconde elementos nativos que substituímos */
@@ -231,20 +213,22 @@
             position: absolute;
             top: 50%;
             transform: translateY(-50%);
-            background: rgba(0, 0, 0, 0.6);
-            color: white;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
             border: none;
             width: 32px;
             height: 32px;
             border-radius: 50%;
             cursor: pointer;
             font-size: 16px;
+            font-weight: bold;
             z-index: 5;
             opacity: 0;
             transition: all 0.2s ease;
             display: flex;
             align-items: center;
             justify-content: center;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
         }
 
         .better-carousel:hover .better-carousel-nav {
@@ -252,7 +236,8 @@
         }
 
         .better-carousel-nav:hover {
-            background: rgba(0, 0, 0, 0.8);
+            background: #333;
+            color: white;
             transform: translateY(-50%) scale(1.1);
         }
 
@@ -323,7 +308,7 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.05) !important;
             background: white !important;
             position: relative !important;
-            height: 460px !important;
+            min-height: 380px !important;
             display: flex !important;
             flex-direction: column !important;
             overflow: hidden !important;
@@ -332,6 +317,7 @@
         .p-evento[data-better-enhanced="true"]:hover {
             box-shadow: 0 2px 8px rgba(0,0,0,0.08) !important;
             border-color: #d1d5db !important;
+            background: #f9fafb !important;
         }
 
         /* Carousel - compact */
@@ -350,7 +336,7 @@
             padding: 4px 8px !important;
         }
 
-        /* Fixed height title area - exactly 2 lines */
+        /* Title area - compact with ellipsis */
         .p-evento[data-better-enhanced="true"] .p-evento-title,
         .p-evento[data-better-enhanced="true"] a[href*="/evento/"] > div {
             display: -webkit-box !important;
@@ -358,11 +344,10 @@
             -webkit-box-orient: vertical !important;
             overflow: hidden !important;
             text-overflow: ellipsis !important;
-            height: 36px !important;
-            min-height: 36px !important;
+            min-height: 28px !important;
             max-height: 36px !important;
-            line-height: 1.25 !important;
-            font-size: 13px !important;
+            line-height: 1.3 !important;
+            font-size: 11px !important;
         }
 
         /* Card content wrapper - direct child of card, fills remaining space */
@@ -389,36 +374,42 @@
         /* Zone: Values (VB/VA/VM) - COMPACT LAYOUT */
         .p-evento[data-better-enhanced="true"] .better-valores-row {
             background: white;
-            padding: 6px 8px 4px 8px;
-            gap: 4px;
+            padding: 4px 4px 2px 4px;
+            gap: 3px;
             border-top: 1px solid #f3f4f6;
             display: flex;
             justify-content: center;
+            align-items: center;
+            transition: background-color 0.2s ease;
+        }
+
+        .p-evento[data-better-enhanced="true"]:hover .better-valores-row {
+            background: #f9fafb !important;
         }
 
         .p-evento[data-better-enhanced="true"] .better-valor-item {
             background: #f9fafb;
             border: 1px solid #e5e7eb;
             border-radius: 4px;
-            padding: 4px 6px;
-            min-width: 75px;
+            padding: 3px 5px;
+            min-width: 70px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 1px;
+            gap: 0px;
         }
 
         .p-evento[data-better-enhanced="true"] .better-valor-label {
             color: #6b7280;
-            font-size: 9px;
+            font-size: 8px;
             font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.3px;
         }
 
         .p-evento[data-better-enhanced="true"] .better-valor-amount {
             color: #111827;
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 700;
             font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
             white-space: nowrap;
@@ -426,20 +417,27 @@
 
         /* Zone: Lance - compact */
         .p-evento[data-better-enhanced="true"] .better-lance-row {
-            padding: 4px 8px 6px 8px;
+            padding: 2px 4px 4px 4px;
             display: flex;
             justify-content: center;
+            align-items: center;
+            background: white;
+            transition: background-color 0.2s ease;
+        }
+
+        .p-evento[data-better-enhanced="true"]:hover .better-lance-row {
+            background: #f9fafb !important;
         }
 
         .p-evento[data-better-enhanced="true"] .better-valor-item.lance-atual {
             background: #fef3c7;
             border-color: #fcd34d;
-            min-width: 100px;
-            padding: 6px 12px;
+            min-width: 90px;
+            padding: 4px 10px;
         }
 
         .p-evento[data-better-enhanced="true"] .better-valor-item.lance-atual .better-valor-amount {
-            font-size: 12px;
+            font-size: 11px;
             color: #92400e;
         }
 
@@ -1135,7 +1133,7 @@
     }
 
     function init() {
-        console.log('🚀 Better E-Leilões Card Enhancer v9.2 - Carousel + Countdown Fix');
+        console.log('🚀 Better E-Leilões Card Enhancer v9.3 - Compact + Hover Fix');
 
         integrateWithNativeFloatingButtons();
         enhanceAllCards();
@@ -1144,7 +1142,7 @@
 
         observer.observe(document.body, { childList: true, subtree: true });
 
-        console.log('✅ Card enhancer v9.2 ativo!');
+        console.log('✅ Card enhancer v9.3 ativo!');
     }
 
     if (document.readyState === 'loading') {
