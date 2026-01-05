@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      9.0
-// @description  v9 + layout compacto, countdown no fundo, hover cinzento
+// @version      9.1
+// @description  v9 + carousel com campo correto, layout compacto
 // @author       Nuno Mansilhas
 // @match        https://e-leiloes.pt/*
 // @match        https://www.e-leiloes.pt/*
@@ -935,70 +935,76 @@
                 });
             }
 
-            // Carousel - show all images
+            // Carousel - show all images from carousel field
             const nativeImageDiv = card.querySelector('.p-evento-image');
-            if (nativeImageDiv && apiData.imagens && apiData.imagens.length > 0) {
-                const images = apiData.imagens.slice(0, CONFIG.MAX_CAROUSEL_IMAGES);
+            if (nativeImageDiv && apiData.carousel && apiData.carousel.length > 0) {
+                // Extract image URLs from carousel objects
+                const images = apiData.carousel
+                    .slice(0, CONFIG.MAX_CAROUSEL_IMAGES)
+                    .map(item => item.image || item.thumbnail)
+                    .filter(url => url);
 
-                nativeImageDiv.style.display = 'none';
+                if (images.length > 0) {
+                    nativeImageDiv.style.display = 'none';
 
-                const carousel = document.createElement('div');
-                carousel.className = 'better-carousel';
-                carousel.innerHTML = `
-                    <div class="better-carousel-track">
-                        ${images.map((img, idx) => `<div class="better-carousel-slide" style="background-image: url('${img}');" data-index="${idx}"></div>`).join('')}
-                    </div>
-                    <div class="better-carousel-counter">${images.length} 📷</div>
-                    ${images.length > 1 ? `
-                        <button class="better-carousel-nav prev">‹</button>
-                        <button class="better-carousel-nav next">›</button>
-                        <div class="better-carousel-dots">
-                            ${images.map((_, idx) => `<div class="better-carousel-dot ${idx === 0 ? 'active' : ''}" data-index="${idx}"></div>`).join('')}
+                    const carousel = document.createElement('div');
+                    carousel.className = 'better-carousel';
+                    carousel.innerHTML = `
+                        <div class="better-carousel-track">
+                            ${images.map((img, idx) => `<div class="better-carousel-slide" style="background-image: url('${img}');" data-index="${idx}"></div>`).join('')}
                         </div>
-                    ` : ''}
-                `;
+                        <div class="better-carousel-counter">${images.length} 📷</div>
+                        ${images.length > 1 ? `
+                            <button class="better-carousel-nav prev">‹</button>
+                            <button class="better-carousel-nav next">›</button>
+                            <div class="better-carousel-dots">
+                                ${images.map((_, idx) => `<div class="better-carousel-dot ${idx === 0 ? 'active' : ''}" data-index="${idx}"></div>`).join('')}
+                            </div>
+                        ` : ''}
+                    `;
 
-                nativeImageDiv.parentNode.insertBefore(carousel, nativeImageDiv.nextSibling);
+                    nativeImageDiv.parentNode.insertBefore(carousel, nativeImageDiv.nextSibling);
 
-                // Carousel navigation
-                const track = carousel.querySelector('.better-carousel-track');
-                const dots = carousel.querySelectorAll('.better-carousel-dot');
-                let currentSlide = 0;
+                    // Carousel navigation
+                    const track = carousel.querySelector('.better-carousel-track');
+                    const dots = carousel.querySelectorAll('.better-carousel-dot');
+                    let currentSlide = 0;
 
-                function updateCarousel() {
-                    track.style.transform = `translateX(-${currentSlide * 100}%)`;
-                    dots.forEach((d, i) => d.classList.toggle('active', i === currentSlide));
-                }
+                    function updateCarousel() {
+                        track.style.transform = `translateX(-${currentSlide * 100}%)`;
+                        dots.forEach((d, i) => d.classList.toggle('active', i === currentSlide));
+                    }
 
-                if (images.length > 1) {
-                    carousel.querySelector('.prev').addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        currentSlide = (currentSlide - 1 + images.length) % images.length;
-                        updateCarousel();
-                    });
-
-                    carousel.querySelector('.next').addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        currentSlide = (currentSlide + 1) % images.length;
-                        updateCarousel();
-                    });
-
-                    dots.forEach((dot, idx) => {
-                        dot.addEventListener('click', (e) => {
+                    if (images.length > 1) {
+                        carousel.querySelector('.prev').addEventListener('click', (e) => {
                             e.stopPropagation();
-                            currentSlide = idx;
+                            currentSlide = (currentSlide - 1 + images.length) % images.length;
                             updateCarousel();
+                        });
+
+                        carousel.querySelector('.next').addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            currentSlide = (currentSlide + 1) % images.length;
+                            updateCarousel();
+                        });
+
+                        dots.forEach((dot, idx) => {
+                            dot.addEventListener('click', (e) => {
+                                e.stopPropagation();
+                                currentSlide = idx;
+                                updateCarousel();
+                            });
+                        });
+                    }
+
+                    // Click on slide opens lightbox
+                    carousel.querySelectorAll('.better-carousel-slide').forEach((slide, idx) => {
+                        slide.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            openLightbox(images, idx);
                         });
                     });
                 }
-
-                // Click on slide opens lightbox
-                carousel.querySelectorAll('.better-carousel-slide').forEach((slide, idx) => {
-                    slide.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        openLightbox(images, idx);
-                    });
-                });
             }
 
             // Values - VB/VA/VM in one row, Lance in separate row (API v2 format)
@@ -1146,7 +1152,7 @@
     }
 
     function init() {
-        console.log('🚀 Better E-Leilões Card Enhancer v9.0 - Compact Layout');
+        console.log('🚀 Better E-Leilões Card Enhancer v9.1 - Carousel Fix');
 
         integrateWithNativeFloatingButtons();
         enhanceAllCards();
@@ -1155,7 +1161,7 @@
 
         observer.observe(document.body, { childList: true, subtree: true });
 
-        console.log('✅ Card enhancer v9.0 ativo!');
+        console.log('✅ Card enhancer v9.1 ativo!');
     }
 
     if (document.readyState === 'loading') {
