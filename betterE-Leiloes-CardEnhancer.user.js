@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      8.8
-// @description  v8 + hover sem movimento, footer gap corrigido
+// @version      8.9
+// @description  v8 + countdown SEMPRE no fundo do card
 // @author       Nuno Mansilhas
 // @match        https://e-leiloes.pt/*
 // @match        https://www.e-leiloes.pt/*
@@ -43,7 +43,12 @@
         /* ============================================ */
 
         .p-evento {
+            transition: all 0.3s ease !important;
             overflow: hidden !important;
+        }
+
+        .p-evento:hover {
+            transform: translateY(-4px) !important;
         }
 
         /* Força remover bordas do div nativo */
@@ -309,24 +314,8 @@
         }
 
         /* ============================================ */
-        /* MINIMAL CLEAN DESIGN                        */
+        /* MINIMAL CLEAN DESIGN - FIXED HEIGHT LAYOUT  */
         /* ============================================ */
-
-        /* Hover effect - background change only, no movement */
-        .p-evento {
-            transition: background-color 0.2s ease !important;
-        }
-
-        .p-evento:hover {
-            background-color: var(--surface-100, #f8f9fa) !important;
-            transform: none !important;
-        }
-
-        /* Fix footer gap */
-        .div-area {
-            padding-top: 24px !important;
-            padding-bottom: 24px !important;
-        }
 
         .p-evento[data-better-enhanced="true"] {
             border-radius: 16px !important;
@@ -334,7 +323,7 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.05) !important;
             background: white !important;
             position: relative !important;
-            height: 520px !important;
+            height: 500px !important;
             display: flex !important;
             flex-direction: column !important;
             overflow: hidden !important;
@@ -345,57 +334,55 @@
             border-color: #d1d5db !important;
         }
 
+        /* Carousel - fixed height */
         .p-evento[data-better-enhanced="true"] .better-carousel {
             border-radius: 12px;
             margin: 8px;
-            height: 160px;
-            flex-shrink: 0;
+            height: 160px !important;
+            min-height: 160px !important;
+            max-height: 160px !important;
+            flex-shrink: 0 !important;
         }
 
-        /* Fixed height for type + location row */
-        .p-evento[data-better-enhanced="true"] > .w-full:first-of-type > div:first-child {
-            height: 24px !important;
-            overflow: hidden !important;
+        /* Native header area - type + location row */
+        .p-evento[data-better-enhanced="true"] > .w-full:first-of-type {
             flex-shrink: 0 !important;
         }
 
         /* Fixed height title area - exactly 2 lines */
         .p-evento[data-better-enhanced="true"] .p-evento-title,
-        .p-evento[data-better-enhanced="true"] [class*="font-bold"]:not(.better-valor-amount) {
+        .p-evento[data-better-enhanced="true"] a[href*="/evento/"] > div {
             display: -webkit-box !important;
             -webkit-line-clamp: 2 !important;
             -webkit-box-orient: vertical !important;
             overflow: hidden !important;
             text-overflow: ellipsis !important;
-            height: 42px !important;
-            min-height: 42px !important;
-            max-height: 42px !important;
-            line-height: 1.4 !important;
+            height: 40px !important;
+            min-height: 40px !important;
+            max-height: 40px !important;
+            line-height: 1.3 !important;
         }
 
-        /* Native content wrapper - fixed height */
-        .p-evento[data-better-enhanced="true"] > .w-full {
-            flex-shrink: 0 !important;
-        }
-
-        /* Card content wrapper fills remaining space */
+        /* Card content wrapper - ALWAYS fills remaining space */
         .p-evento[data-better-enhanced="true"] .better-card-content {
-            flex: 1 !important;
+            flex: 1 1 auto !important;
             display: flex !important;
             flex-direction: column !important;
-            justify-content: flex-end !important;
+            min-height: 0 !important;
         }
 
-        /* Push countdown to bottom */
-        .p-evento[data-better-enhanced="true"] .better-countdown-row {
-            margin-top: auto !important;
-            flex-shrink: 0 !important;
-        }
-
-        /* Values rows don't grow */
+        /* Values and Lance rows - fixed, don't grow */
         .p-evento[data-better-enhanced="true"] .better-valores-row,
         .p-evento[data-better-enhanced="true"] .better-lance-row {
             flex-shrink: 0 !important;
+            flex-grow: 0 !important;
+        }
+
+        /* COUNTDOWN - ALWAYS at the absolute bottom */
+        .p-evento[data-better-enhanced="true"] .better-countdown-row {
+            margin-top: auto !important;
+            flex-shrink: 0 !important;
+            position: relative !important;
         }
 
         /* Zone: Values (VB/VA/VM) - ORGANIZED LAYOUT */
@@ -1159,7 +1146,7 @@
     }
 
     function init() {
-        console.log('🚀 Better E-Leilões Card Enhancer v8.8 - Hover Fix');
+        console.log('🚀 Better E-Leilões Card Enhancer v8.9 - Bottom Countdown');
 
         integrateWithNativeFloatingButtons();
         enhanceAllCards();
@@ -1168,7 +1155,7 @@
 
         observer.observe(document.body, { childList: true, subtree: true });
 
-        console.log('✅ Card enhancer v8.8 ativo!');
+        console.log('✅ Card enhancer v8.9 ativo!');
     }
 
     if (document.readyState === 'loading') {
