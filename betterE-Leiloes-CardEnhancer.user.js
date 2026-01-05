@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      9.3
-// @description  v9.3 - carousel buttons fix, valores centered, hover grey, flexible height
+// @version      9.4
+// @description  v9.4 - fixed height cards for aligned countdown, gap between cards
 // @author       Nuno Mansilhas
 // @match        https://e-leiloes.pt/*
 // @match        https://www.e-leiloes.pt/*
@@ -308,10 +308,13 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.05) !important;
             background: white !important;
             position: relative !important;
-            min-height: 380px !important;
+            height: 420px !important;
+            min-height: 420px !important;
+            max-height: 420px !important;
             display: flex !important;
             flex-direction: column !important;
             overflow: hidden !important;
+            margin: 4px !important;
         }
 
         .p-evento[data-better-enhanced="true"]:hover {
@@ -336,7 +339,7 @@
             padding: 4px 8px !important;
         }
 
-        /* Title area - compact with ellipsis */
+        /* Title area - FIXED height for alignment */
         .p-evento[data-better-enhanced="true"] .p-evento-title,
         .p-evento[data-better-enhanced="true"] a[href*="/evento/"] > div {
             display: -webkit-box !important;
@@ -344,8 +347,9 @@
             -webkit-box-orient: vertical !important;
             overflow: hidden !important;
             text-overflow: ellipsis !important;
-            min-height: 28px !important;
-            max-height: 36px !important;
+            height: 32px !important;
+            min-height: 32px !important;
+            max-height: 32px !important;
             line-height: 1.3 !important;
             font-size: 11px !important;
         }
@@ -1133,7 +1137,7 @@
     }
 
     function init() {
-        console.log('🚀 Better E-Leilões Card Enhancer v9.3 - Compact + Hover Fix');
+        console.log('🚀 Better E-Leilões Card Enhancer v9.4 - Aligned Countdown');
 
         integrateWithNativeFloatingButtons();
         enhanceAllCards();
@@ -1142,7 +1146,7 @@
 
         observer.observe(document.body, { childList: true, subtree: true });
 
-        console.log('✅ Card enhancer v9.3 ativo!');
+        console.log('✅ Card enhancer v9.4 ativo!');
     }
 
     if (document.readyState === 'loading') {
