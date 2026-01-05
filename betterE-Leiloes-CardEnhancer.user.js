@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      10.0
-// @description  v10.0 - badges, favoritos, filtros rápidos
+// @version      10.1
+// @description  v10.1 - clean version, aligned with native favorites
 // @author       Nuno Mansilhas
 // @match        https://e-leiloes.pt/*
 // @match        https://www.e-leiloes.pt/*
@@ -66,151 +66,6 @@
         /* Hide custom context menu */
         .p-contextmenu.p-component {
             display: none !important;
-        }
-
-        /* ============================================ */
-        /* BADGE "A TERMINAR"                          */
-        /* ============================================ */
-
-        .better-badge-ending {
-            position: absolute;
-            top: 8px;
-            left: 8px;
-            padding: 3px 8px;
-            border-radius: 4px;
-            font-size: 9px;
-            font-weight: 700;
-            text-transform: uppercase;
-            z-index: 15;
-            animation: pulse-badge 2s infinite;
-        }
-
-        .better-badge-ending.ending-24h {
-            background: #fef3c7;
-            color: #92400e;
-            border: 1px solid #fcd34d;
-        }
-
-        .better-badge-ending.ending-1h {
-            background: #fee2e2;
-            color: #991b1b;
-            border: 1px solid #fca5a5;
-        }
-
-        .better-badge-ending.ending-5m {
-            background: #dc2626;
-            color: white;
-            border: 1px solid #b91c1c;
-        }
-
-        @keyframes pulse-badge {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
-        }
-
-        /* ============================================ */
-        /* FAVORITE STAR BUTTON                        */
-        /* ============================================ */
-
-        .better-favorite-btn {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
-            border: none;
-            background: rgba(255, 255, 255, 0.9);
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 14px;
-            z-index: 15;
-            transition: all 0.2s ease;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }
-
-        .better-favorite-btn:hover {
-            transform: scale(1.1);
-            background: white;
-        }
-
-        .better-favorite-btn.active {
-            background: #fef3c7;
-            color: #f59e0b;
-        }
-
-        .better-favorite-btn.active::after {
-            content: '★';
-        }
-
-        .better-favorite-btn:not(.active)::after {
-            content: '☆';
-            color: #6b7280;
-        }
-
-        /* ============================================ */
-        /* QUICK FILTERS TOOLBAR                       */
-        /* ============================================ */
-
-        .better-filters-toolbar {
-            background: white;
-            border: 1px solid #e5e7eb;
-            border-radius: 12px;
-            padding: 12px 16px;
-            margin-bottom: 16px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            flex-wrap: wrap;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-        }
-
-        .better-filters-toolbar .filter-label {
-            font-size: 12px;
-            font-weight: 600;
-            color: #374151;
-        }
-
-        .better-filters-toolbar .filter-group {
-            display: flex;
-            gap: 6px;
-            align-items: center;
-        }
-
-        .better-filter-btn {
-            padding: 6px 12px;
-            border-radius: 6px;
-            border: 1px solid #e5e7eb;
-            background: white;
-            font-size: 11px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.15s ease;
-            color: #4b5563;
-        }
-
-        .better-filter-btn:hover {
-            background: #f3f4f6;
-            border-color: #d1d5db;
-        }
-
-        .better-filter-btn.active {
-            background: #3b82f6;
-            border-color: #3b82f6;
-            color: white;
-        }
-
-        .better-filter-btn.favorites-filter.active {
-            background: #f59e0b;
-            border-color: #f59e0b;
-        }
-
-        .better-filters-separator {
-            width: 1px;
-            height: 24px;
-            background: #e5e7eb;
         }
 
         /* Esconde elementos nativos que substituímos */
@@ -817,160 +672,6 @@
     }
 
     // ====================================
-    // FAVORITES SYSTEM (localStorage)
-    // ====================================
-
-    const FAVORITES_KEY = 'better-eleiloes-favorites';
-
-    function getFavorites() {
-        try {
-            return JSON.parse(localStorage.getItem(FAVORITES_KEY)) || [];
-        } catch {
-            return [];
-        }
-    }
-
-    function saveFavorites(favorites) {
-        localStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites));
-    }
-
-    function isFavorite(reference) {
-        return getFavorites().includes(reference);
-    }
-
-    function toggleFavorite(reference) {
-        const favorites = getFavorites();
-        const index = favorites.indexOf(reference);
-        if (index > -1) {
-            favorites.splice(index, 1);
-        } else {
-            favorites.push(reference);
-        }
-        saveFavorites(favorites);
-        return index === -1; // returns true if now favorite
-    }
-
-    // ====================================
-    // ENDING BADGE HELPER
-    // ====================================
-
-    function getEndingBadge(endDate) {
-        if (!endDate) return null;
-
-        const now = new Date();
-        const end = new Date(endDate);
-        const diff = end - now;
-
-        if (diff <= 0) return null;
-
-        const hours = diff / (1000 * 60 * 60);
-        const minutes = diff / (1000 * 60);
-
-        if (minutes <= 5) {
-            return { class: 'ending-5m', text: '< 5 MIN!' };
-        } else if (hours <= 1) {
-            return { class: 'ending-1h', text: '< 1 HORA' };
-        } else if (hours <= 24) {
-            return { class: 'ending-24h', text: '< 24H' };
-        }
-
-        return null;
-    }
-
-    // ====================================
-    // QUICK FILTERS STATE
-    // ====================================
-
-    let activeFilters = {
-        favorites: false,
-        ending24h: false
-    };
-
-    function isOnEventosPage() {
-        return window.location.pathname.includes('/eventos');
-    }
-
-    function applyFilters() {
-        const cards = document.querySelectorAll('.p-evento');
-        cards.forEach(card => {
-            const reference = card.querySelector('.pi-tag + span')?.textContent?.trim();
-            let show = true;
-
-            // Filter: favorites only
-            if (activeFilters.favorites && reference) {
-                show = show && isFavorite(reference);
-            }
-
-            // Filter: ending in 24h
-            if (activeFilters.ending24h) {
-                const countdownEl = card.querySelector('[data-end]');
-                if (countdownEl) {
-                    const endDate = countdownEl.dataset.end;
-                    const diff = new Date(endDate) - new Date();
-                    const hours = diff / (1000 * 60 * 60);
-                    show = show && (hours > 0 && hours <= 24);
-                } else {
-                    show = false;
-                }
-            }
-
-            card.style.display = show ? '' : 'none';
-        });
-    }
-
-    function createFiltersToolbar() {
-        if (!isOnEventosPage()) return;
-        if (document.querySelector('.better-filters-toolbar')) return;
-
-        // Find the grid container
-        const gridContainer = document.querySelector('.p-evento')?.parentElement;
-        if (!gridContainer) return;
-
-        const toolbar = document.createElement('div');
-        toolbar.className = 'better-filters-toolbar';
-        toolbar.innerHTML = `
-            <span class="filter-label">🔍 Filtros:</span>
-            <div class="filter-group">
-                <button class="better-filter-btn favorites-filter" data-filter="favorites">
-                    ★ Favoritos
-                </button>
-                <button class="better-filter-btn" data-filter="ending24h">
-                    ⏰ A Terminar (24h)
-                </button>
-            </div>
-            <div class="filters-separator"></div>
-            <span class="filter-label" id="better-filter-count"></span>
-        `;
-
-        gridContainer.parentElement.insertBefore(toolbar, gridContainer);
-
-        // Add click handlers
-        toolbar.querySelectorAll('.better-filter-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const filter = btn.dataset.filter;
-                activeFilters[filter] = !activeFilters[filter];
-                btn.classList.toggle('active', activeFilters[filter]);
-                applyFilters();
-                updateFilterCount();
-            });
-        });
-    }
-
-    function updateFilterCount() {
-        const countEl = document.getElementById('better-filter-count');
-        if (!countEl) return;
-
-        const visible = document.querySelectorAll('.p-evento[style=""], .p-evento:not([style*="display: none"])').length;
-        const total = document.querySelectorAll('.p-evento').length;
-
-        if (activeFilters.favorites || activeFilters.ending24h) {
-            countEl.textContent = `Mostrando ${visible} de ${total}`;
-        } else {
-            countEl.textContent = '';
-        }
-    }
-
-    // ====================================
     // API (using GM_xmlhttpRequest to bypass ad blockers)
     // ====================================
 
@@ -1182,32 +883,6 @@
 
             const eventUrl = `https://www.e-leiloes.pt/evento/${reference}`;
             card.style.position = 'relative';
-
-            // Add favorite button
-            const favBtn = document.createElement('button');
-            favBtn.className = `better-favorite-btn ${isFavorite(reference) ? 'active' : ''}`;
-            favBtn.title = 'Adicionar aos favoritos';
-            favBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                const isNowFavorite = toggleFavorite(reference);
-                favBtn.classList.toggle('active', isNowFavorite);
-                favBtn.title = isNowFavorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos';
-                // Re-apply filters if active
-                if (activeFilters.favorites) applyFilters();
-            });
-            card.appendChild(favBtn);
-
-            // Add ending badge if applicable
-            if (apiData.data_fim) {
-                const badge = getEndingBadge(apiData.data_fim);
-                if (badge) {
-                    const badgeEl = document.createElement('div');
-                    badgeEl.className = `better-badge-ending ${badge.class}`;
-                    badgeEl.textContent = badge.text;
-                    card.appendChild(badgeEl);
-                }
-            }
 
             // Add action buttons (refresh, sync, and map if GPS available)
             const hasGPS = apiData.latitude && apiData.longitude;
@@ -1461,19 +1136,16 @@
     }
 
     function init() {
-        console.log('🚀 Better E-Leilões Card Enhancer v10.0 - Badges, Favoritos, Filtros');
+        console.log('🚀 Better E-Leilões Card Enhancer v10.1 - Clean Version');
 
         integrateWithNativeFloatingButtons();
         enhanceAllCards();
-
-        // Create filters toolbar on eventos pages
-        setTimeout(createFiltersToolbar, 500);
 
         setInterval(updateAllCountdowns, 1000);
 
         observer.observe(document.body, { childList: true, subtree: true });
 
-        console.log('✅ Card enhancer v10.0 ativo!');
+        console.log('✅ Card enhancer v10.1 ativo!');
     }
 
     if (document.readyState === 'loading') {
