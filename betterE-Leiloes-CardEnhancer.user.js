@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      9.0
+// @version      9.1
 // @description  Design moderno com altura fixa, badges, favoritos e melhor UX
 // @author       Nuno Mansilhas
 // @match        https://e-leiloes.pt/*
@@ -994,6 +994,20 @@
             const timeInfo = apiData.data_fim ? calculateTimeRemaining(apiData.data_fim) : null;
             const hasBids = apiData.lance_atual && apiData.lance_atual > 0;
 
+            // Extract native image BEFORE clearing card content
+            let nativeImageUrl = null;
+            const nativeImageDiv = card.querySelector('.p-evento-image');
+            if (nativeImageDiv) {
+                const bgStyle = nativeImageDiv.style.backgroundImage;
+                if (bgStyle) {
+                    const match = bgStyle.match(/url\(["']?([^"')]+)["']?\)/);
+                    if (match) nativeImageUrl = match[1];
+                }
+                // Also try to find img tag
+                const imgTag = nativeImageDiv.querySelector('img');
+                if (imgTag && imgTag.src) nativeImageUrl = imgTag.src;
+            }
+
             // Build new card content
             card.innerHTML = '';
 
@@ -1014,9 +1028,15 @@
             // Add action buttons
             addActionButtons(card, reference, true, apiData);
 
-            // Carousel
+            // Carousel - use API images or fallback to native image
+            let images = [];
             if (apiData.imagens && apiData.imagens.length > 0) {
-                const images = apiData.imagens.slice(0, CONFIG.MAX_CAROUSEL_IMAGES);
+                images = apiData.imagens.slice(0, CONFIG.MAX_CAROUSEL_IMAGES);
+            } else if (nativeImageUrl) {
+                images = [nativeImageUrl];
+            }
+
+            if (images.length > 0) {
                 const carousel = document.createElement('div');
                 carousel.className = 'better-carousel';
                 carousel.innerHTML = `
@@ -1034,8 +1054,8 @@
                     ${images.length > 1 ? `
                         <button class="better-carousel-nav prev">‹</button>
                         <button class="better-carousel-nav next">›</button>
+                        <div class="better-carousel-counter">${images.length} 📷</div>
                     ` : ''}
-                    <div class="better-carousel-counter">${images.length} 📷</div>
                 `;
 
                 card.appendChild(carousel);
@@ -1069,6 +1089,16 @@
                         openLightbox(images, idx);
                     });
                 });
+            } else {
+                // No images at all - show placeholder
+                const placeholder = document.createElement('div');
+                placeholder.className = 'better-carousel';
+                placeholder.innerHTML = `
+                    <div style="display:flex;align-items:center;justify-content:center;height:100%;color:#9ca3af;font-size:14px;">
+                        📷 Sem imagem
+                    </div>
+                `;
+                card.appendChild(placeholder);
             }
 
             // Card body
@@ -1266,7 +1296,7 @@
     }
 
     function init() {
-        console.log('🚀 Better E-Leilões Card Enhancer v9.0 - Fixed Height + Badges + Favorites');
+        console.log('🚀 Better E-Leilões Card Enhancer v9.1 - Fixed Height + Image Fallback');
 
         integrateWithNativeFloatingButtons();
         enhanceAllCards();
@@ -1274,7 +1304,7 @@
         setInterval(updateAllCountdowns, 1000);
         observer.observe(document.body, { childList: true, subtree: true });
 
-        console.log('✅ v9.0 ativo - altura fixa, favoritos, badges de urgência!');
+        console.log('✅ v9.1 ativo - fallback para imagem original quando API não tem!');
     }
 
     if (document.readyState === 'loading') {
