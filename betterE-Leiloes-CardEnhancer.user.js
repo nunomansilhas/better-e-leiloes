@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      8.9
-// @description  v8 + countdown SEMPRE no fundo do card
+// @version      9.0
+// @description  v9 + layout compacto, countdown no fundo, hover cinzento
 // @author       Nuno Mansilhas
 // @match        https://e-leiloes.pt/*
 // @match        https://www.e-leiloes.pt/*
@@ -43,12 +43,12 @@
         /* ============================================ */
 
         .p-evento {
-            transition: all 0.3s ease !important;
             overflow: hidden !important;
+            transition: background-color 0.2s ease !important;
         }
 
         .p-evento:hover {
-            transform: translateY(-4px) !important;
+            background-color: #f8f9fa !important;
         }
 
         /* Força remover bordas do div nativo */
@@ -314,7 +314,7 @@
         }
 
         /* ============================================ */
-        /* MINIMAL CLEAN DESIGN - FIXED HEIGHT LAYOUT  */
+        /* MINIMAL CLEAN DESIGN - OPTIMIZED LAYOUT     */
         /* ============================================ */
 
         .p-evento[data-better-enhanced="true"] {
@@ -323,30 +323,31 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.05) !important;
             background: white !important;
             position: relative !important;
-            height: 500px !important;
+            height: 460px !important;
             display: flex !important;
             flex-direction: column !important;
             overflow: hidden !important;
         }
 
         .p-evento[data-better-enhanced="true"]:hover {
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08) !important;
             border-color: #d1d5db !important;
         }
 
-        /* Carousel - fixed height */
+        /* Carousel - compact */
         .p-evento[data-better-enhanced="true"] .better-carousel {
-            border-radius: 12px;
-            margin: 8px;
-            height: 160px !important;
-            min-height: 160px !important;
-            max-height: 160px !important;
+            border-radius: 10px;
+            margin: 6px;
+            height: 140px !important;
+            min-height: 140px !important;
+            max-height: 140px !important;
             flex-shrink: 0 !important;
         }
 
-        /* Native header area - type + location row */
+        /* Native header area - compact */
         .p-evento[data-better-enhanced="true"] > .w-full:first-of-type {
             flex-shrink: 0 !important;
+            padding: 4px 8px !important;
         }
 
         /* Fixed height title area - exactly 2 lines */
@@ -357,39 +358,38 @@
             -webkit-box-orient: vertical !important;
             overflow: hidden !important;
             text-overflow: ellipsis !important;
-            height: 40px !important;
-            min-height: 40px !important;
-            max-height: 40px !important;
-            line-height: 1.3 !important;
+            height: 36px !important;
+            min-height: 36px !important;
+            max-height: 36px !important;
+            line-height: 1.25 !important;
+            font-size: 13px !important;
         }
 
-        /* Card content wrapper - ALWAYS fills remaining space */
+        /* Card content wrapper - fills space, pushes countdown down */
         .p-evento[data-better-enhanced="true"] .better-card-content {
-            flex: 1 1 auto !important;
+            flex: 1 !important;
             display: flex !important;
             flex-direction: column !important;
-            min-height: 0 !important;
+            justify-content: space-between !important;
         }
 
-        /* Values and Lance rows - fixed, don't grow */
+        /* Values and Lance rows - compact */
         .p-evento[data-better-enhanced="true"] .better-valores-row,
         .p-evento[data-better-enhanced="true"] .better-lance-row {
             flex-shrink: 0 !important;
-            flex-grow: 0 !important;
         }
 
-        /* COUNTDOWN - ALWAYS at the absolute bottom */
+        /* COUNTDOWN - ALWAYS at bottom */
         .p-evento[data-better-enhanced="true"] .better-countdown-row {
             margin-top: auto !important;
             flex-shrink: 0 !important;
-            position: relative !important;
         }
 
-        /* Zone: Values (VB/VA/VM) - ORGANIZED LAYOUT */
+        /* Zone: Values (VB/VA/VM) - COMPACT LAYOUT */
         .p-evento[data-better-enhanced="true"] .better-valores-row {
             background: white;
-            padding: 10px 12px 6px 12px;
-            gap: 6px;
+            padding: 6px 8px 4px 8px;
+            gap: 4px;
             border-top: 1px solid #f3f4f6;
             display: flex;
             justify-content: center;
@@ -398,13 +398,13 @@
         .p-evento[data-better-enhanced="true"] .better-valor-item {
             background: #f9fafb;
             border: 1px solid #e5e7eb;
-            border-radius: 6px;
-            padding: 6px 8px;
-            min-width: 85px;
+            border-radius: 4px;
+            padding: 4px 6px;
+            min-width: 75px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 2px;
+            gap: 1px;
         }
 
         .p-evento[data-better-enhanced="true"] .better-valor-label {
@@ -423,9 +423,9 @@
             white-space: nowrap;
         }
 
-        /* Zone: Lance */
+        /* Zone: Lance - compact */
         .p-evento[data-better-enhanced="true"] .better-lance-row {
-            padding: 6px 12px 10px 12px;
+            padding: 4px 8px 6px 8px;
             display: flex;
             justify-content: center;
         }
@@ -433,19 +433,19 @@
         .p-evento[data-better-enhanced="true"] .better-valor-item.lance-atual {
             background: #fef3c7;
             border-color: #fcd34d;
-            min-width: 120px;
-            padding: 8px 16px;
+            min-width: 100px;
+            padding: 6px 12px;
         }
 
         .p-evento[data-better-enhanced="true"] .better-valor-item.lance-atual .better-valor-amount {
-            font-size: 13px;
+            font-size: 12px;
             color: #92400e;
         }
 
-        /* Zone: Countdown */
+        /* Zone: Countdown - compact, always at bottom */
         .p-evento[data-better-enhanced="true"] .better-countdown-row {
             background: #f9fafb;
-            padding: 8px 12px;
+            padding: 6px 8px;
             border-top: 1px solid #e5e7eb;
             display: flex;
             align-items: center;
@@ -1146,7 +1146,7 @@
     }
 
     function init() {
-        console.log('🚀 Better E-Leilões Card Enhancer v8.9 - Bottom Countdown');
+        console.log('🚀 Better E-Leilões Card Enhancer v9.0 - Compact Layout');
 
         integrateWithNativeFloatingButtons();
         enhanceAllCards();
@@ -1155,7 +1155,7 @@
 
         observer.observe(document.body, { childList: true, subtree: true });
 
-        console.log('✅ Card enhancer v8.9 ativo!');
+        console.log('✅ Card enhancer v9.0 ativo!');
     }
 
     if (document.readyState === 'loading') {
