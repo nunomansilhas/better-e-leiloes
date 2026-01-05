@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      10.2
-// @description  v10.2 - action buttons always visible, styled like native
+// @version      10.3
+// @description  v10.3 - action buttons inline with native star
 // @author       Nuno Mansilhas
 // @match        https://e-leiloes.pt/*
 // @match        https://www.e-leiloes.pt/*
@@ -103,31 +103,30 @@
         }
 
         /* ============================================ */
-        /* ACTION BUTTONS - Always visible, native style */
+        /* ACTION BUTTONS - Inline with native star    */
         /* ============================================ */
 
         .better-action-buttons {
-            position: absolute;
-            top: 6px;
-            right: 6px;
             display: flex;
-            gap: 2px;
-            z-index: 10;
+            align-items: center;
+            gap: 4px;
+            margin-left: 2px;
         }
 
         .better-action-btn {
-            width: 26px;
-            height: 26px;
-            border-radius: 6px;
+            width: 22px;
+            height: 22px;
+            border-radius: 4px;
             border: 1.5px solid #1e3a5f;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 13px;
+            font-size: 12px;
             transition: all 0.15s ease;
-            background: white;
+            background: transparent;
             color: #1e3a5f;
+            padding: 0;
         }
 
         .better-action-btn:hover {
@@ -140,22 +139,6 @@
             transform: scale(0.95);
         }
 
-        /* Map button */
-        .better-action-btn.map {
-            border-color: #1e3a5f;
-            color: #1e3a5f;
-        }
-
-        /* Refresh button - same style as map */
-        .better-action-btn.refresh {
-            border-color: #1e3a5f;
-            color: #1e3a5f;
-        }
-        .better-action-btn.refresh:hover {
-            background: #1e3a5f;
-            color: white;
-        }
-
         .better-action-btn.loading {
             pointer-events: none;
             opacity: 0.6;
@@ -163,8 +146,8 @@
 
         .better-action-btn.loading::after {
             content: '';
-            width: 12px;
-            height: 12px;
+            width: 10px;
+            height: 10px;
             border: 1.5px solid transparent;
             border-top-color: currentColor;
             border-radius: 50%;
@@ -1101,8 +1084,26 @@
         });
         buttonsDiv.appendChild(refreshBtn);
 
-        card.style.position = 'relative';
-        card.appendChild(buttonsDiv);
+        // Find the native star's container and insert our buttons inline
+        // Structure: <div class="flex align-items-center gap-1"><span class="p-tag">...</span><i class="pi pi-star">...</i></div>
+        const nativeStar = card.querySelector('.pi-star');
+        if (nativeStar && nativeStar.parentElement) {
+            // Insert our buttons after the native star in the same flex container
+            nativeStar.parentElement.appendChild(buttonsDiv);
+        } else {
+            // Fallback: if no star found, append to the header area
+            const headerArea = card.querySelector('.flex.align-items-center.gap-1') || card.querySelector('.w-full:first-of-type');
+            if (headerArea) {
+                headerArea.appendChild(buttonsDiv);
+            } else {
+                // Last resort: append to card with position relative
+                card.style.position = 'relative';
+                buttonsDiv.style.position = 'absolute';
+                buttonsDiv.style.top = '6px';
+                buttonsDiv.style.right = '6px';
+                card.appendChild(buttonsDiv);
+            }
+        }
     }
 
     // ====================================
@@ -1128,7 +1129,7 @@
     }
 
     function init() {
-        console.log('🚀 Better E-Leilões Card Enhancer v10.2 - Buttons Always Visible');
+        console.log('🚀 Better E-Leilões Card Enhancer v10.3 - Buttons Inline with Native Star');
 
         integrateWithNativeFloatingButtons();
         enhanceAllCards();
@@ -1137,7 +1138,7 @@
 
         observer.observe(document.body, { childList: true, subtree: true });
 
-        console.log('✅ Card enhancer v10.2 ativo!');
+        console.log('✅ Card enhancer v10.3 ativo!');
     }
 
     if (document.readyState === 'loading') {
