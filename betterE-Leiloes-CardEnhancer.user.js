@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      10.3
-// @description  v10.3 - action buttons inline with native star
+// @version      10.4
+// @description  v10.4 - PrimeIcons for action buttons (native style)
 // @author       Nuno Mansilhas
 // @match        https://e-leiloes.pt/*
 // @match        https://www.e-leiloes.pt/*
@@ -114,19 +114,22 @@
         }
 
         .better-action-btn {
-            width: 22px;
-            height: 22px;
+            width: 24px;
+            height: 24px;
             border-radius: 4px;
             border: 1.5px solid #1e3a5f;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 12px;
             transition: all 0.15s ease;
             background: transparent;
             color: #1e3a5f;
             padding: 0;
+        }
+
+        .better-action-btn i {
+            font-size: 14px;
         }
 
         .better-action-btn:hover {
@@ -144,14 +147,8 @@
             opacity: 0.6;
         }
 
-        .better-action-btn.loading::after {
-            content: '';
-            width: 10px;
-            height: 10px;
-            border: 1.5px solid transparent;
-            border-top-color: currentColor;
-            border-radius: 50%;
-            animation: spin 0.6s linear infinite;
+        .better-action-btn.loading i {
+            animation: spin 0.8s linear infinite;
         }
 
         @keyframes spin {
@@ -1036,7 +1033,7 @@
             const mapBtn = document.createElement('button');
             mapBtn.className = 'better-action-btn map';
             mapBtn.title = 'Ver no Google Maps';
-            mapBtn.innerHTML = '📍';
+            mapBtn.innerHTML = '<i class="pi pi-map-marker"></i>';
             mapBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 e.preventDefault();
@@ -1050,22 +1047,21 @@
         const refreshBtn = document.createElement('button');
         refreshBtn.className = 'better-action-btn refresh';
         refreshBtn.title = 'Atualizar dados (scrape via API oficial)';
-        refreshBtn.innerHTML = '🔄';
+        refreshBtn.innerHTML = '<i class="pi pi-sync"></i>';
         refreshBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
             e.preventDefault();
             refreshBtn.classList.add('loading');
-            refreshBtn.innerHTML = '';
 
             const scrapedEvent = await scrapeEventViaBackend(reference);
 
             if (scrapedEvent) {
                 refreshBtn.classList.remove('loading');
-                refreshBtn.innerHTML = '✅';
+                refreshBtn.innerHTML = '<i class="pi pi-check"></i>';
 
                 // Re-enhance card with fresh data after a short delay
                 setTimeout(async () => {
-                    refreshBtn.innerHTML = '🔄';
+                    refreshBtn.innerHTML = '<i class="pi pi-sync"></i>';
                     // Remove enhanced flag to allow re-enhancement
                     delete card.dataset.betterEnhanced;
                     // Remove our added elements
@@ -1078,8 +1074,8 @@
                 }, 1000);
             } else {
                 refreshBtn.classList.remove('loading');
-                refreshBtn.innerHTML = '❌';
-                setTimeout(() => { refreshBtn.innerHTML = '🔄'; }, 2000);
+                refreshBtn.innerHTML = '<i class="pi pi-times"></i>';
+                setTimeout(() => { refreshBtn.innerHTML = '<i class="pi pi-sync"></i>'; }, 2000);
             }
         });
         buttonsDiv.appendChild(refreshBtn);
@@ -1129,7 +1125,7 @@
     }
 
     function init() {
-        console.log('🚀 Better E-Leilões Card Enhancer v10.3 - Buttons Inline with Native Star');
+        console.log('🚀 Better E-Leilões Card Enhancer v10.4 - PrimeIcons Native Style');
 
         integrateWithNativeFloatingButtons();
         enhanceAllCards();
@@ -1138,7 +1134,7 @@
 
         observer.observe(document.body, { childList: true, subtree: true });
 
-        console.log('✅ Card enhancer v10.3 ativo!');
+        console.log('✅ Card enhancer v10.4 ativo!');
     }
 
     if (document.readyState === 'loading') {
