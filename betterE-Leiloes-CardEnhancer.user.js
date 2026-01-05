@@ -81,14 +81,14 @@
 
         /* Map marker clickable */
         .p-evento[data-better-enhanced="true"] .pi-map-marker.better-map-link {
-            color: #3b82f6 !important;
+            color: #1e3a5f !important;
             cursor: pointer !important;
             pointer-events: auto !important;
             transition: color 0.15s ease !important;
         }
 
         .p-evento[data-better-enhanced="true"] .pi-map-marker.better-map-link:hover {
-            color: #1e3a5f !important;
+            color: #3b82f6 !important;
         }
 
         /* ============================================ */
