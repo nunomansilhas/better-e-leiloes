@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      8.7
-// @description  v8 + altura fixa TOTAL, tudo alinhado horizontalmente
+// @version      8.8
+// @description  v8 + hover sem movimento, footer gap corrigido
 // @author       Nuno Mansilhas
 // @match        https://e-leiloes.pt/*
 // @match        https://www.e-leiloes.pt/*
@@ -43,12 +43,7 @@
         /* ============================================ */
 
         .p-evento {
-            transition: all 0.3s ease !important;
             overflow: hidden !important;
-        }
-
-        .p-evento:hover {
-            transform: translateY(-4px) !important;
         }
 
         /* Força remover bordas do div nativo */
@@ -317,6 +312,22 @@
         /* MINIMAL CLEAN DESIGN                        */
         /* ============================================ */
 
+        /* Hover effect - background change only, no movement */
+        .p-evento {
+            transition: background-color 0.2s ease !important;
+        }
+
+        .p-evento:hover {
+            background-color: var(--surface-100, #f8f9fa) !important;
+            transform: none !important;
+        }
+
+        /* Fix footer gap */
+        .div-area {
+            padding-top: 24px !important;
+            padding-bottom: 24px !important;
+        }
+
         .p-evento[data-better-enhanced="true"] {
             border-radius: 16px !important;
             border: 1px solid #e5e7eb !important;
@@ -330,7 +341,7 @@
         }
 
         .p-evento[data-better-enhanced="true"]:hover {
-            box-shadow: 0 10px 40px rgba(0,0,0,0.1) !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
             border-color: #d1d5db !important;
         }
 
@@ -1148,7 +1159,7 @@
     }
 
     function init() {
-        console.log('🚀 Better E-Leilões Card Enhancer v8.7 - Full Alignment');
+        console.log('🚀 Better E-Leilões Card Enhancer v8.8 - Hover Fix');
 
         integrateWithNativeFloatingButtons();
         enhanceAllCards();
@@ -1157,7 +1168,7 @@
 
         observer.observe(document.body, { childList: true, subtree: true });
 
-        console.log('✅ Card enhancer v8.7 ativo!');
+        console.log('✅ Card enhancer v8.8 ativo!');
     }
 
     if (document.readyState === 'loading') {
