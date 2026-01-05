@@ -1,14 +1,28 @@
 # E-Leiloes Dashboard & Scraper System
 
-Sistema completo de monitorização e scraping para **e-leiloes.pt** com dashboard web, pipelines automáticas e alertas em tempo real.
+Sistema completo de monitorização e scraping para **e-leiloes.pt** com dashboard web, pipelines automáticas, sistema de notificações e alertas em tempo real.
+
+## Versão Atual: v2.0 (Janeiro 2025)
+
+### Novidades Recentes
+
+- **Sistema de Notificações** - Regras personalizáveis para alertas de novos eventos e alterações de preço
+- **Quick Notifications** - Ativar notificações por tipo de evento com um clique
+- **Notificações por Evento** - Seguir alterações de eventos específicos
+- **X-Monitor Melhorado** - Monitorização de preços em tempo real com histórico JSON
+- **Página de Alertas** - Interface com tabs para gerir notificações e regras
+- **Filtros Avançados** - Distrito, concelho, freguesia, subtipo, tipologia, valor min/max
+- **Modal de Inspeção** - Ver detalhes completos de qualquer evento
+- **Subtipos Dinâmicos** - Carregados da BD para cada tipo de evento
 
 ## Componentes
 
 ### Dashboard Web
 - **URL**: `http://localhost:8000`
 - Interface moderna com sidebar navegável
-- Visualização de todos os eventos em tempo real
-- Filtros avançados por tipo, distrito e estado
+- 6 páginas de eventos: Imóveis, Veículos, Direitos, Equipamentos, Mobiliário, Máquinas
+- Filtros avançados por localização, tipo e preço
+- Notificações em tempo real
 - Estatísticas e métricas do sistema
 
 ### Backend API
@@ -17,43 +31,51 @@ Sistema completo de monitorização e scraping para **e-leiloes.pt** com dashboa
 - **Cache**: Redis (opcional)
 - **Scheduler**: APScheduler para pipelines automáticas
 
-### Extensao Browser (Tampermonkey)
-- **Arquivo**: `betterE-Leiloes-v12.0-API.user.js`
-- Badges nos cards: GPS, Valores, Detalhes
-- Modal de visualizacao integrado
+### Sistema de Notificações
+- **Regras personalizáveis** - Por tipo, subtipo, distrito, preço
+- **Quick Notifications** - Toggle rápido por tipo de evento
+- **Notificações por evento** - Seguir eventos específicos
+- **Página de Alertas** - Gerir notificações e regras
 
-## Pipelines Automaticas
+## Estrutura do Projeto
 
-O sistema inclui 5 pipelines automáticas configuráveis:
+```
+better-e-leiloes/
+├── backend/
+│   ├── main.py              # FastAPI app + endpoints
+│   ├── database.py          # SQLAlchemy models + DB manager
+│   ├── scraper.py           # Playwright scraper
+│   ├── notification_engine.py # Motor de notificações
+│   ├── auto_pipelines.py    # Pipelines automáticas (X-Monitor, Y-Sync)
+│   ├── pipeline_state.py    # Estado das pipelines
+│   ├── cache.py             # Redis cache manager
+│   ├── models.py            # Pydantic models
+│   ├── static/
+│   │   └── index.html       # Dashboard SPA
+│   └── requirements.txt
+├── database/
+│   ├── MYSQL_SETUP.md
+│   └── FIX_MYSQL_CORRUPTION.md
+└── README.md
+```
 
-| Pipeline | Intervalo | Target | Descricao |
+## Pipelines Automáticas
+
+| Pipeline | Intervalo | Target | Descrição |
 |----------|-----------|--------|-----------|
 | **Auto Pipeline** | 8 horas | Todos | Pipeline completa: IDs + Content + Images |
-| **X-Critical** | 5 segundos | < 5 min | Monitoriza precos de eventos a terminar |
-| **X-Urgent** | 1 minuto | < 1 hora | Precos de eventos urgentes |
-| **X-Soon** | 10 minutos | < 24 horas | Precos de eventos proximos |
-| **Y-Info** | 2 horas | Todos | Verificacao geral de informacoes |
+| **X-Monitor** | 5 seg - 10 min | Ativos | Monitoriza preços de eventos por urgência |
+| **Y-Sync** | 2 horas | Novos | Sincroniza novos eventos e dispara notificações |
 
-## Scrapers Independentes
-
-Executa cada fase separadamente:
-
-- **IDs** - Descobre novos eventos no site
-- **Recheck** - Verifica eventos novos (smart scraping)
-- **Content** - Extrai detalhes de todos os eventos
-- **Images** - Download de imagens dos eventos
-
-## Pipeline Completo (3 Stages)
-
-```
-Stage 1: IDs      Stage 2: Content      Stage 3: Images
-   [1] ────────────── [2] ────────────────── [3]
-   Descobrir IDs      Extrair detalhes       Download imagens
-```
+### X-Monitor (Price Tracking)
+Monitorização inteligente baseada em urgência:
+- **Critical** (< 5 min): Verifica a cada 5 segundos
+- **Urgent** (< 1 hora): Verifica a cada 1 minuto
+- **Soon** (< 24 horas): Verifica a cada 10 minutos
 
 ## Quick Start
 
-### 1. Instalar Dependencias
+### 1. Instalar Dependências
 
 ```bash
 cd backend
@@ -87,43 +109,86 @@ CONCURRENT_REQUESTS=4
 python run.py
 ```
 
-Dashboard disponivel em: **http://localhost:8000**
+Dashboard disponível em: **http://localhost:8000**
 
 ## API Endpoints
 
 ### Eventos
-| Metodo | Endpoint | Descricao |
+| Método | Endpoint | Descrição |
 |--------|----------|-----------|
-| GET | `/api/events` | Lista eventos com paginacao |
+| GET | `/api/events` | Lista eventos com paginação e filtros |
 | GET | `/api/events/{reference}` | Detalhes de um evento |
-| GET | `/api/events/stream` | Stream SSE de eventos |
-| GET | `/api/stats` | Estatisticas gerais |
+| GET | `/api/stats` | Estatísticas gerais |
+
+### Notificações
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| GET | `/api/notifications` | Lista notificações |
+| GET | `/api/notifications/count` | Contagem de não lidas |
+| POST | `/api/notifications/read-all` | Marcar todas como lidas |
+| DELETE | `/api/notifications/delete-all` | Eliminar todas |
+
+### Regras de Notificação
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| GET | `/api/notification-rules` | Lista regras |
+| POST | `/api/notification-rules` | Criar regra |
+| PUT | `/api/notification-rules/{id}` | Atualizar regra |
+| DELETE | `/api/notification-rules/{id}` | Eliminar regra |
+| POST | `/api/notification-rules/{id}/toggle` | Ativar/desativar |
+
+### Filtros Dinâmicos
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| GET | `/api/filters/subtypes/{tipo_id}` | Subtipos por tipo |
+| GET | `/api/filters/distritos/{tipo_id}` | Distritos por tipo |
 
 ### Scraping
-| Metodo | Endpoint | Descricao |
+| Método | Endpoint | Descrição |
 |--------|----------|-----------|
 | POST | `/api/scrape/stage1/ids` | Descobrir IDs |
-| POST | `/api/scrape/stage2/details` | Extrair conteudo |
+| POST | `/api/scrape/stage2/details` | Extrair conteúdo |
 | POST | `/api/scrape/stage3/images` | Download imagens |
-| POST | `/api/scrape/pipeline` | Pipeline completo |
-| POST | `/api/scrape/smart/new-events` | Smart scraping |
 | GET | `/api/scrape/status` | Estado do scraper |
 | POST | `/api/scrape/stop` | Parar scraping |
 
-### Pipelines Automaticas
-| Metodo | Endpoint | Descricao |
+### Pipelines Automáticas
+| Método | Endpoint | Descrição |
 |--------|----------|-----------|
-| GET | `/api/auto-pipelines/status` | Estado de todas as pipelines |
-| POST | `/api/auto-pipelines/{type}/toggle` | Ativar/desativar pipeline |
-| GET | `/api/auto-pipelines/prices/cache-info` | Info da cache de precos |
+| GET | `/api/auto-pipelines/status` | Estado das pipelines |
+| POST | `/api/auto-pipelines/{type}/toggle` | Ativar/desativar |
+| GET | `/api/x-monitor/history` | Histórico X-Monitor |
 
-### Sistema
-| Metodo | Endpoint | Descricao |
-|--------|----------|-----------|
-| GET | `/health` | Health check |
-| GET | `/api/logs` | Logs do sistema |
-| DELETE | `/api/database` | Limpar base de dados |
-| DELETE | `/api/cache` | Limpar cache |
+## Funcionalidades do Dashboard
+
+### Páginas de Eventos
+- **6 categorias**: Imóveis, Veículos, Direitos, Equipamentos, Mobiliário, Máquinas
+- **Cards informativos** com imagem, valores, tempo restante
+- **Botões de ação**: Ver no site, recarregar, mapa, notificar
+- **Paginação** client-side com todos os dados carregados
+
+### Filtros Avançados
+- Pesquisa por texto
+- Distrito / Concelho / Freguesia (cascata)
+- Subtipo e Tipologia (dinâmicos)
+- Valor mínimo / máximo
+- Ordenação por data ou valor
+
+### Sistema de Notificações
+- **Quick Toggle** - Botão no header de cada página para ativar notificações do tipo
+- **Por Evento** - Botão de sino em cada card para seguir evento específico
+- **Regras Personalizadas** - Criar regras com filtros avançados
+
+### Página de Alertas
+- **Tab Notificações** - Lista de alertas com ações (ver, marcar lida)
+- **Tab Regras** - Tabela de regras com toggle e delete
+- **Contadores** - Notificações não lidas e regras ativas
+
+### Modal de Inspeção
+- Ver todos os detalhes de um evento
+- Galeria de imagens
+- Mapa com localização GPS
+- Informações de ónus e executados
 
 ## Arquitetura
 
@@ -131,16 +196,16 @@ Dashboard disponivel em: **http://localhost:8000**
 ┌─────────────────────────────────────────────────────────────┐
 │                    Dashboard Web (Port 8000)                 │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
-│  │  Eventos    │  │  Pipelines  │  │  Scrapers           │  │
-│  │  Listagem   │  │  Automaticas│  │  Independentes      │  │
+│  │  Eventos    │  │  Alertas    │  │  Scrapers           │  │
+│  │  6 Páginas  │  │  & Regras   │  │  & Pipelines        │  │
 │  └─────────────┘  └─────────────┘  └─────────────────────┘  │
 └───────────────────────────┬─────────────────────────────────┘
                             │ REST API + SSE
 ┌───────────────────────────┴─────────────────────────────────┐
 │                      FastAPI Backend                         │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
-│  │ APScheduler │  │  Playwright │  │  Auto Pipelines     │  │
-│  │  (Jobs)     │  │  (Scraper)  │  │  Manager            │  │
+│  │ Notification│  │  Playwright │  │  Auto Pipelines     │  │
+│  │   Engine    │  │  (Scraper)  │  │  X-Monitor/Y-Sync   │  │
 │  └─────────────┘  └─────────────┘  └─────────────────────┘  │
 └───────────────────────────┬─────────────────────────────────┘
                             │
@@ -148,58 +213,73 @@ Dashboard disponivel em: **http://localhost:8000**
               │                           │
       ┌───────┴───────┐           ┌───────┴───────┐
       │    MySQL      │           │    Redis      │
-      │  (Eventos)    │           │   (Cache)     │
-      └───────────────┘           └───────────────┘
+      │  (Eventos +   │           │   (Cache)     │
+      │  Notificações)│           └───────────────┘
+      └───────────────┘
 ```
 
-## Funcionalidades do Dashboard
+## Base de Dados
 
-### Visualizacao de Eventos
-- Cards com informacao completa
-- Imagens dos eventos
-- Valores base e actuais
-- Tempo restante ate fim do leilao
-- GPS e localizacao
+### Tabelas Principais
+- `events` - Todos os eventos com detalhes completos
+- `notification_rules` - Regras de notificação configuradas
+- `notifications` - Notificações geradas
 
-### Filtros
-- Tipo de evento (Imovel/Movel)
-- Distrito
-- Estado (Ativo/Terminado)
-- Pesquisa por texto
+### Schema de Notificações
+```sql
+-- Regras
+CREATE TABLE notification_rules (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(100),
+    rule_type VARCHAR(50),  -- 'new_event', 'price_change'
+    active BOOLEAN,
+    tipos JSON,             -- ["imoveis", "veiculos"]
+    distritos JSON,         -- ["Lisboa", "Porto"]
+    preco_min FLOAT,
+    preco_max FLOAT,
+    event_reference VARCHAR(50),  -- Para regras de evento específico
+    triggers_count INT DEFAULT 0,
+    created_at DATETIME
+);
 
-### Gestao de Pipelines
-- Toggle on/off para cada pipeline
-- Visualizacao do estado em tempo real
-- Contador de execucoes
-- Proxima execucao agendada
+-- Notificações
+CREATE TABLE notifications (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    rule_id INT,
+    notification_type VARCHAR(50),
+    event_reference VARCHAR(50),
+    event_titulo VARCHAR(500),
+    preco_anterior FLOAT,
+    preco_atual FLOAT,
+    read BOOLEAN DEFAULT FALSE,
+    created_at DATETIME
+);
+```
+
+## Tecnologias
+
+- **Backend**: Python 3.11, FastAPI, Playwright, SQLAlchemy
+- **Database**: MySQL + aiomysql (async)
+- **Cache**: Redis
+- **Scheduler**: APScheduler
+- **Frontend**: HTML5, CSS3, JavaScript (Vanilla SPA)
 
 ## Troubleshooting
 
-**Dashboard nao carrega:**
+**Dashboard não carrega:**
 ```bash
-# Verificar se o servidor esta a correr
 curl http://localhost:8000/health
 ```
 
 **Erros de base de dados:**
 ```bash
-# Verificar conexao MySQL
 mysql -u user -p -h localhost eleiloes
 ```
 
-**Scraping lento:**
-- Ajustar `SCRAPE_DELAY` no .env
-- Verificar `CONCURRENT_REQUESTS`
+**Migração de colunas:**
+O sistema executa migrações automáticas no startup (init_db).
 
-## Tecnologias
-
-- **Backend**: Python 3.11, FastAPI, Playwright
-- **Database**: MySQL + aiomysql
-- **Cache**: Redis
-- **Scheduler**: APScheduler
-- **Frontend**: HTML5, CSS3, JavaScript (Vanilla)
-
-## Licenca
+## Licença
 
 MIT License
 
