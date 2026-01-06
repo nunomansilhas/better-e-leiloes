@@ -976,6 +976,62 @@ class DatabaseManager:
         await self.session.refresh(notification)
         return notification.id
 
+    async def notification_exists(
+        self,
+        rule_id: int,
+        event_reference: str,
+        notification_type: str,
+        hours: int = 24
+    ) -> bool:
+        """
+        Check if a similar notification was already created recently.
+        Prevents duplicate notifications within the specified time window.
+        """
+        from datetime import timedelta
+        cutoff = datetime.utcnow() - timedelta(hours=hours)
+
+        result = await self.session.execute(
+            select(func.count(NotificationDB.id)).where(
+                NotificationDB.rule_id == rule_id,
+                NotificationDB.event_reference == event_reference,
+                NotificationDB.notification_type == notification_type,
+                NotificationDB.created_at > cutoff
+            )
+        )
+        count = result.scalar() or 0
+        return count > 0
+
+    async def get_notification_rules_by_type(
+        self,
+        rule_type: str,
+        active_only: bool = True
+    ) -> List[dict]:
+        """Get notification rules filtered by type (more efficient than filtering in Python)"""
+        query = select(NotificationRuleDB).where(NotificationRuleDB.rule_type == rule_type)
+        if active_only:
+            query = query.where(NotificationRuleDB.active == True)
+
+        result = await self.session.execute(query)
+        rules = result.scalars().all()
+
+        return [{
+            "id": r.id,
+            "name": r.name,
+            "rule_type": r.rule_type,
+            "tipos": json.loads(r.tipos) if r.tipos else None,
+            "subtipos": json.loads(r.subtipos) if r.subtipos else None,
+            "distritos": json.loads(r.distritos) if r.distritos else None,
+            "concelhos": json.loads(r.concelhos) if r.concelhos else None,
+            "preco_min": r.preco_min,
+            "preco_max": r.preco_max,
+            "variacao_min": r.variacao_min,
+            "minutos_restantes": r.minutos_restantes,
+            "event_reference": r.event_reference,
+            "active": r.active,
+            "triggers_count": r.triggers_count,
+            "created_at": r.created_at.isoformat() if r.created_at else None
+        } for r in rules]
+
     async def get_notifications(self, limit: int = 50, unread_only: bool = False) -> List[dict]:
         """Get notifications"""
         query = select(NotificationDB).order_by(NotificationDB.created_at.desc())

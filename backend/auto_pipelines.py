@@ -1092,6 +1092,19 @@ class AutoPipelinesManager:
                                             event, old_price, new_price, db
                                         )
 
+                                    # Process ending_soon notifications
+                                    if event.data_fim:
+                                        from notification_engine import get_notification_engine
+                                        notification_engine = get_notification_engine()
+                                        remaining = (event.data_fim - datetime.now()).total_seconds() / 60
+                                        if 0 < remaining <= 1440:  # Within 24 hours
+                                            try:
+                                                await notification_engine.process_ending_soon(
+                                                    event, int(remaining), db
+                                                )
+                                            except Exception as e:
+                                                pass  # Silent fail for ending_soon
+
                                 # Record to history
                                 from xmonitor_history import record_event_update
                                 record_event_update(
@@ -1244,6 +1257,12 @@ class AutoPipelinesManager:
                         print(f"    ✓ Nenhum evento terminado")
 
                 print(f"  ✅ Y-Sync completo: {new_ids_count} novos, {terminated_count} terminados")
+
+                # Stage 3: Cleanup old notifications (runs every Y-Sync = every 2h)
+                print(f"  🗑️ Stage 3: Limpeza de notificações antigas...")
+                from notification_engine import cleanup_old_notifications
+                async with get_db() as db:
+                    await cleanup_old_notifications(db, days=30)
 
             finally:
                 await scraper.close()

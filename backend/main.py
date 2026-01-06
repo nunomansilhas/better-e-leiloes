@@ -445,6 +445,9 @@ async def create_notification_rule(rule: dict):
 
     async with get_db() as db:
         rule_id = await db.create_notification_rule(rule)
+        # Invalidate rules cache
+        from notification_engine import get_notification_engine
+        get_notification_engine().invalidate_cache(rule["rule_type"])
         return JSONResponse({"id": rule_id, "success": True})
 
 
@@ -455,6 +458,9 @@ async def update_notification_rule(rule_id: int, updates: dict):
         success = await db.update_notification_rule(rule_id, updates)
         if not success:
             raise HTTPException(status_code=404, detail="Rule not found")
+        # Invalidate all rules cache (rule_type might have changed)
+        from notification_engine import get_notification_engine
+        get_notification_engine().invalidate_cache()
         return JSONResponse({"success": True})
 
 
@@ -465,6 +471,9 @@ async def delete_notification_rule(rule_id: int):
         success = await db.delete_notification_rule(rule_id)
         if not success:
             raise HTTPException(status_code=404, detail="Rule not found")
+        # Invalidate all rules cache
+        from notification_engine import get_notification_engine
+        get_notification_engine().invalidate_cache()
         return JSONResponse({"success": True})
 
 
@@ -475,6 +484,9 @@ async def toggle_notification_rule(rule_id: int, active: bool = Query(...)):
         success = await db.update_notification_rule(rule_id, {"active": active})
         if not success:
             raise HTTPException(status_code=404, detail="Rule not found")
+        # Invalidate all rules cache
+        from notification_engine import get_notification_engine
+        get_notification_engine().invalidate_cache()
         return JSONResponse({"success": True, "active": active})
 
 
