@@ -3013,18 +3013,18 @@
                             <option value="">Todos os distritos</option>
                         </select>
                     </div>
-                    <!-- Header row -->
-                    <div style="display: flex; align-items: center; gap: 6px; padding: 4px 10px; font-size: 9px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">
-                        <span style="min-width: 70px;">Timer</span>
-                        <span style="min-width: 65px;">ID</span>
-                        <span style="min-width: 50px;">Mod</span>
-                        <span style="min-width: 55px;">Tipo</span>
-                        <span style="flex: 1;">Subtipo</span>
-                        <span style="min-width: 50px;">Zona</span>
-                        <span style="min-width: 70px; text-align: right;">Valor</span>
-                        <span style="min-width: 24px;"></span>
+                    <!-- Header row (sortable) -->
+                    <div style="display: flex; align-items: center; padding: 6px 10px; font-size: 9px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; background: #f8fafc; border-radius: 4px; margin-bottom: 4px; border-bottom: 1px solid #e2e8f0;">
+                        <span onclick="sortEndingSoon('timer')" style="width: 72px; cursor: pointer; display: flex; align-items: center; gap: 2px;" title="Ordenar por tempo">Timer <span id="sort-icon-timer">↑</span></span>
+                        <span onclick="sortEndingSoon('reference')" style="width: 70px; cursor: pointer; display: flex; align-items: center; gap: 2px;" title="Ordenar por ID">ID <span id="sort-icon-reference"></span></span>
+                        <span onclick="sortEndingSoon('modalidade')" style="width: 36px; cursor: pointer; display: flex; align-items: center; gap: 2px;" title="Ordenar por modalidade">Mod <span id="sort-icon-modalidade"></span></span>
+                        <span onclick="sortEndingSoon('tipo')" style="width: 60px; cursor: pointer; display: flex; align-items: center; gap: 2px;" title="Ordenar por tipo">Tipo <span id="sort-icon-tipo"></span></span>
+                        <span onclick="sortEndingSoon('subtipo')" style="flex: 1; cursor: pointer; display: flex; align-items: center; gap: 2px;" title="Ordenar por subtipo">Subtipo <span id="sort-icon-subtipo"></span></span>
+                        <span onclick="sortEndingSoon('distrito')" style="width: 55px; cursor: pointer; display: flex; align-items: center; gap: 2px;" title="Ordenar por distrito">Zona <span id="sort-icon-distrito"></span></span>
+                        <span onclick="sortEndingSoon('lance_atual')" style="width: 75px; cursor: pointer; display: flex; align-items: center; gap: 2px; justify-content: flex-end;" title="Ordenar por valor">Valor <span id="sort-icon-lance_atual"></span></span>
+                        <span style="width: 24px;"></span>
                     </div>
-                    <div id="dash-ending-soon" style="display: flex; flex-direction: column; gap: 4px; max-height: 120px; overflow-y: auto;">
+                    <div id="dash-ending-soon" style="display: flex; flex-direction: column; gap: 2px; max-height: 120px; overflow-y: auto;">
                         <!-- Loading placeholder -->
                         <div style="text-align: center; padding: 20px; color: #94a3b8; font-size: 11px;">A carregar...</div>
                     </div>
@@ -4750,6 +4750,8 @@
             }
         }
 
+        let endingSoonSort = { column: 'timer', direction: 'asc' };
+
         function filterEndingSoon() {
             const tipoFilter = document.getElementById('ending-filter-tipo')?.value || '';
             const distritoFilter = document.getElementById('ending-filter-distrito')?.value || '';
@@ -4760,7 +4762,57 @@
                 return true;
             });
 
+            applySortEndingSoon();
             renderEndingSoonWidget();
+        }
+
+        function sortEndingSoon(column) {
+            if (endingSoonSort.column === column) {
+                endingSoonSort.direction = endingSoonSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                endingSoonSort.column = column;
+                endingSoonSort.direction = 'asc';
+            }
+
+            // Update sort icons
+            const columns = ['timer', 'reference', 'modalidade', 'tipo', 'subtipo', 'distrito', 'lance_atual'];
+            columns.forEach(col => {
+                const icon = document.getElementById(`sort-icon-${col}`);
+                if (icon) {
+                    if (col === column) {
+                        icon.textContent = endingSoonSort.direction === 'asc' ? '↑' : '↓';
+                    } else {
+                        icon.textContent = '';
+                    }
+                }
+            });
+
+            applySortEndingSoon();
+            renderEndingSoonWidget();
+        }
+
+        function applySortEndingSoon() {
+            const { column, direction } = endingSoonSort;
+            const dir = direction === 'asc' ? 1 : -1;
+
+            endingSoonEvents.sort((a, b) => {
+                let valA, valB;
+
+                if (column === 'timer') {
+                    valA = new Date(a.data_fim).getTime();
+                    valB = new Date(b.data_fim).getTime();
+                } else if (column === 'lance_atual') {
+                    valA = a.lance_atual || 0;
+                    valB = b.lance_atual || 0;
+                } else {
+                    valA = (a[column] || '').toString().toLowerCase();
+                    valB = (b[column] || '').toString().toLowerCase();
+                }
+
+                if (valA < valB) return -1 * dir;
+                if (valA > valB) return 1 * dir;
+                return 0;
+            });
         }
 
         function renderEndingSoonWidget() {
@@ -4795,15 +4847,15 @@
                 const mod = event.modalidade || '-';
 
                 return `
-                    <div style="display: flex; align-items: center; gap: 6px; padding: 6px 10px; background: ${bgColor}; border-radius: 6px; border-left: 3px solid ${borderColor};">
-                        <span id="ending-timer-${idx}" style="font-size: 10px; font-weight: 600; color: ${textColor}; min-width: 70px;">--:--</span>
-                        <span style="font-size: 10px; color: #64748b; min-width: 65px; cursor: pointer;" title="Ver detalhes" onclick="openInspectionModal('${event.reference}')">${event.reference}</span>
-                        <span style="font-size: 10px; color: #8b5cf6; min-width: 50px; font-weight: 500;" title="Modalidade">${mod}</span>
-                        <span style="font-size: 10px; color: #1e293b; min-width: 55px;" title="Tipo">${tipo}</span>
+                    <div style="display: flex; align-items: center; padding: 5px 10px; background: ${bgColor}; border-radius: 4px; border-left: 3px solid ${borderColor};">
+                        <span id="ending-timer-${idx}" style="font-size: 10px; font-weight: 600; color: ${textColor}; width: 72px;">--:--</span>
+                        <span style="font-size: 10px; color: #64748b; width: 70px; cursor: pointer; text-decoration: underline;" title="Ver detalhes" onclick="openInspectionModal('${event.reference}')">${event.reference}</span>
+                        <span style="font-size: 10px; color: #8b5cf6; width: 36px; font-weight: 500;">${mod}</span>
+                        <span style="font-size: 10px; color: #1e293b; width: 60px;">${tipo}</span>
                         <span style="font-size: 10px; color: #64748b; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${subtipo}">${subtipo}</span>
-                        <span style="font-size: 10px; color: #64748b; min-width: 50px;" title="Distrito">${zona}</span>
-                        <span style="font-size: 10px; font-weight: 600; color: #1e293b; min-width: 70px; text-align: right;" title="Valor licitado">${valor}</span>
-                        <a href="https://www.e-leiloes.pt/evento/${event.reference}" target="_blank" onclick="event.stopPropagation()" style="min-width: 24px; display: flex; align-items: center; justify-content: center; text-decoration: none; font-size: 12px;" title="Abrir no e-leilões">🔗</a>
+                        <span style="font-size: 10px; color: #64748b; width: 55px;">${zona}</span>
+                        <span style="font-size: 10px; font-weight: 600; color: #1e293b; width: 75px; text-align: right;">${valor}</span>
+                        <a href="https://www.e-leiloes.pt/evento/${event.reference}" target="_blank" onclick="event.stopPropagation()" style="width: 24px; display: flex; align-items: center; justify-content: center; text-decoration: none; font-size: 12px;" title="Abrir no e-leilões">🔗</a>
                     </div>
                 `;
             }).join('');
