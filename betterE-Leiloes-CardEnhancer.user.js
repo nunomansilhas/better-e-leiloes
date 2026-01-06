@@ -331,7 +331,7 @@
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 12px;
-            padding: 8px 10px;
+            padding: 8px;
             flex: 1;
         }
 
@@ -426,7 +426,7 @@
         /* Zone: Countdown - clean bottom bar */
         .p-evento[data-better-enhanced="true"] .better-countdown-row {
             background: linear-gradient(180deg, #f9fafb 0%, #f3f4f6 100%);
-            padding: 8px 10px;
+            padding: 8px;
             border-top: 1px solid #e5e7eb;
             display: flex;
             align-items: center;
