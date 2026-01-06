@@ -5159,6 +5159,23 @@
             }
         }
 
+        // Distrito bar tooltip
+        let distritoTip = null;
+        function showDistritoTip(e, label, count, color) {
+            if (!distritoTip) {
+                distritoTip = document.createElement('div');
+                distritoTip.style.cssText = 'position: fixed; padding: 4px 8px; background: #1e293b; color: white; font-size: 10px; border-radius: 4px; pointer-events: none; z-index: 9999; white-space: nowrap;';
+                document.body.appendChild(distritoTip);
+            }
+            distritoTip.innerHTML = `<span style="color: ${color}; font-weight: 600;">${count}</span> ${label}`;
+            distritoTip.style.display = 'block';
+            distritoTip.style.left = (e.clientX + 10) + 'px';
+            distritoTip.style.top = (e.clientY - 20) + 'px';
+        }
+        function hideDistritoTip() {
+            if (distritoTip) distritoTip.style.display = 'none';
+        }
+
         async function loadDistrictBreakdownWidget() {
             const container = document.getElementById('dash-districts-breakdown');
             if (!container) return;
@@ -5185,10 +5202,10 @@
                 container.innerHTML = districts.map((d, idx) => {
                     const barWidth = Math.round((d.total / maxTotal) * 100);
 
-                    // Stacked bar segments
+                    // Stacked bar segments with hover tooltip
                     const segments = types.filter(t => d[t.key] > 0).map(t => {
                         const pct = (d[t.key] / d.total) * 100;
-                        return `<div style="width: ${pct}%; background: ${t.color}; height: 100%;" title="${t.label}: ${d[t.key]}"></div>`;
+                        return `<div class="distrito-seg" style="width: ${pct}%; background: ${t.color}; height: 100%; position: relative; cursor: pointer; transition: opacity 0.15s;" data-label="${t.label}" data-count="${d[t.key]}" onmouseenter="this.style.opacity='0.8'; showDistritoTip(event, '${t.label}', ${d[t.key]}, '${t.color}');" onmouseleave="this.style.opacity='1'; hideDistritoTip();"></div>`;
                     }).join('');
 
                     return `
