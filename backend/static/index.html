@@ -5172,49 +5172,34 @@
                     return;
                 }
 
-                const maxTotal = Math.max(...districts.map(d => d.total));
-
-                // Type configuration
+                // Type config (compact)
                 const types = [
-                    { key: 'imoveis', label: 'Imóveis', color: '#10b981', icon: '🏠' },
-                    { key: 'veiculos', label: 'Veículos', color: '#8b5cf6', icon: '🚗' },
-                    { key: 'direitos', label: 'Direitos', color: '#f97316', icon: '📜' },
-                    { key: 'equipamentos', label: 'Equip.', color: '#06b6d4', icon: '🔧' },
-                    { key: 'mobiliario', label: 'Mobil.', color: '#eab308', icon: '🪑' },
-                    { key: 'maquinas', label: 'Máquinas', color: '#ef4444', icon: '⚙️' }
+                    { key: 'imoveis', label: 'Im', color: '#10b981' },
+                    { key: 'veiculos', label: 'Ve', color: '#8b5cf6' },
+                    { key: 'direitos', label: 'Di', color: '#f97316' },
+                    { key: 'equipamentos', label: 'Eq', color: '#06b6d4' },
+                    { key: 'mobiliario', label: 'Mo', color: '#eab308' },
+                    { key: 'maquinas', label: 'Ma', color: '#ef4444' }
                 ];
 
                 container.innerHTML = districts.map((d, idx) => {
-                    const percentage = Math.round((d.total / maxTotal) * 100);
-
-                    // Get dominant type
+                    // Get dominant type for border color
                     let dominant = types[0];
                     let maxVal = 0;
                     types.forEach(t => {
-                        if (d[t.key] > maxVal) {
-                            maxVal = d[t.key];
-                            dominant = t;
-                        }
+                        if (d[t.key] > maxVal) { maxVal = d[t.key]; dominant = t; }
                     });
 
-                    // Build mini breakdown
-                    const breakdown = types
-                        .filter(t => d[t.key] > 0)
-                        .map(t => `<span style="display: inline-flex; align-items: center; gap: 2px; padding: 2px 6px; background: ${t.color}15; border-radius: 4px; font-size: 9px; color: ${t.color};">${t.icon} ${d[t.key]}</span>`)
+                    // Compact badges
+                    const badges = types.filter(t => d[t.key] > 0)
+                        .map(t => `<span style="padding: 1px 4px; background: ${t.color}; border-radius: 3px; font-size: 9px; color: white; font-weight: 500;">${t.label} ${d[t.key]}</span>`)
                         .join('');
 
                     return `
-                        <div class="distrito-card" style="display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border-radius: 8px; transition: all 0.2s; cursor: pointer; border: 1px solid transparent;" onmouseenter="this.style.background='white'; this.style.borderColor='#e2e8f0'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.08)';" onmouseleave="this.style.background='linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)'; this.style.borderColor='transparent'; this.style.boxShadow='none';">
-                            <div style="display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; background: ${dominant.color}15; border-radius: 8px; font-size: 18px;">${dominant.icon}</div>
-                            <div style="flex: 1; min-width: 0;">
-                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
-                                    <span style="font-size: 12px; font-weight: 600; color: #1e293b;">${d.distrito}</span>
-                                    <span style="font-size: 14px; font-weight: 700; color: ${dominant.color};">${d.total}</span>
-                                </div>
-                                <div style="display: flex; gap: 4px; flex-wrap: wrap;">
-                                    ${breakdown}
-                                </div>
-                            </div>
+                        <div style="display: flex; align-items: center; gap: 8px; padding: 5px 8px; background: #f8fafc; border-radius: 4px; border-left: 3px solid ${dominant.color};" onmouseenter="this.style.background='#f1f5f9';" onmouseleave="this.style.background='#f8fafc';">
+                            <span style="font-size: 11px; font-weight: 600; color: #334155; min-width: 65px;">${d.distrito}</span>
+                            <div style="display: flex; gap: 3px; flex-wrap: wrap; flex: 1;">${badges}</div>
+                            <span style="font-size: 11px; font-weight: 700; color: ${dominant.color};">${d.total}</span>
                         </div>
                     `;
                 }).join('');
