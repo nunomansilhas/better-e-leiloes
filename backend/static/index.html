@@ -5172,37 +5172,38 @@
                     return;
                 }
 
-                // Type config (compact)
+                const maxTotal = Math.max(...districts.map(d => d.total));
                 const types = [
-                    { key: 'imoveis', label: 'Im', color: '#10b981' },
-                    { key: 'veiculos', label: 'Ve', color: '#8b5cf6' },
-                    { key: 'direitos', label: 'Di', color: '#f97316' },
-                    { key: 'equipamentos', label: 'Eq', color: '#06b6d4' },
-                    { key: 'mobiliario', label: 'Mo', color: '#eab308' },
-                    { key: 'maquinas', label: 'Ma', color: '#ef4444' }
+                    { key: 'imoveis', label: 'Imoveis', color: '#3b82f6' },
+                    { key: 'veiculos', label: 'Veiculos', color: '#22c55e' },
+                    { key: 'direitos', label: 'Direitos', color: '#f59e0b' },
+                    { key: 'equipamentos', label: 'Equip.', color: '#8b5cf6' },
+                    { key: 'mobiliario', label: 'Mobil.', color: '#ec4899' },
+                    { key: 'maquinas', label: 'Maquinas', color: '#64748b' }
                 ];
 
                 container.innerHTML = districts.map((d, idx) => {
-                    // Get dominant type for border color
-                    let dominant = types[0];
-                    let maxVal = 0;
-                    types.forEach(t => {
-                        if (d[t.key] > maxVal) { maxVal = d[t.key]; dominant = t; }
-                    });
+                    const barWidth = Math.round((d.total / maxTotal) * 100);
 
-                    // Compact badges
-                    const badges = types.filter(t => d[t.key] > 0)
-                        .map(t => `<span style="padding: 1px 4px; background: ${t.color}; border-radius: 3px; font-size: 9px; color: white; font-weight: 500;">${t.label} ${d[t.key]}</span>`)
-                        .join('');
+                    // Stacked bar segments
+                    const segments = types.filter(t => d[t.key] > 0).map(t => {
+                        const pct = (d[t.key] / d.total) * 100;
+                        return `<div style="width: ${pct}%; background: ${t.color}; height: 100%;" title="${t.label}: ${d[t.key]}"></div>`;
+                    }).join('');
 
                     return `
-                        <div style="display: flex; align-items: center; gap: 8px; padding: 5px 8px; background: #f8fafc; border-radius: 4px; border-left: 3px solid ${dominant.color};" onmouseenter="this.style.background='#f1f5f9';" onmouseleave="this.style.background='#f8fafc';">
-                            <span style="font-size: 11px; font-weight: 600; color: #334155; min-width: 65px;">${d.distrito}</span>
-                            <div style="display: flex; gap: 3px; flex-wrap: wrap; flex: 1;">${badges}</div>
-                            <span style="font-size: 11px; font-weight: 700; color: ${dominant.color};">${d.total}</span>
+                        <div style="display: flex; align-items: center; gap: 10px; padding: 4px 0;">
+                            <span style="font-size: 11px; font-weight: 500; color: #475569; width: 70px; text-align: right;">${d.distrito}</span>
+                            <div style="flex: 1; height: 16px; background: #f1f5f9; border-radius: 3px; overflow: hidden;">
+                                <div style="display: flex; height: 100%; width: ${barWidth}%; transition: width 0.3s;">${segments}</div>
+                            </div>
+                            <span style="font-size: 11px; font-weight: 600; color: #1e293b; width: 28px;">${d.total}</span>
                         </div>
                     `;
-                }).join('');
+                }).join('') + `
+                <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; padding-top: 8px; border-top: 1px solid #e2e8f0;">
+                    ${types.map(t => `<span style="font-size: 9px; color: #64748b; display: flex; align-items: center; gap: 3px;"><span style="width: 8px; height: 8px; background: ${t.color}; border-radius: 2px;"></span>${t.label}</span>`).join('')}
+                </div>`;
 
             } catch (error) {
                 console.error('Erro ao carregar stats por distrito:', error);
