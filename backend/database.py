@@ -608,6 +608,35 @@ class DatabaseManager:
         event_db = result.scalar_one_or_none()
         return event_db.to_model() if event_db else None
 
+    async def update_event_fields(self, reference: str, fields: dict) -> bool:
+        """
+        Update only specific fields of an event (partial update).
+        This prevents overwriting other fields with stale data.
+
+        Args:
+            reference: Event reference
+            fields: Dict of field names and values to update
+
+        Returns:
+            True if event was updated, False if not found
+        """
+        result = await self.session.execute(
+            select(EventDB).where(EventDB.reference == reference)
+        )
+        event_db = result.scalar_one_or_none()
+
+        if not event_db:
+            return False
+
+        # Only update the specified fields
+        for field_name, value in fields.items():
+            if hasattr(event_db, field_name):
+                setattr(event_db, field_name, value)
+
+        event_db.updated_at = datetime.utcnow()
+        await self.session.commit()
+        return True
+
     async def list_events(
         self,
         page: int = 1,
@@ -821,6 +850,140 @@ class DatabaseManager:
         )
         return list(result.scalars().all())
 
+    async def get_events_ending_soon(self, hours: int = 24, limit: int = 10) -> List[dict]:
+        """Get events ending within the next X hours"""
+        from datetime import timedelta
+        now = datetime.utcnow()
+        end_time = now + timedelta(hours=hours)
+
+        result = await self.session.execute(
+            select(EventDB)
+            .where(EventDB.data_fim.isnot(None))
+            .where(EventDB.data_fim > now)
+            .where(EventDB.data_fim <= end_time)
+            .where(EventDB.cancelado == False)
+            .order_by(EventDB.data_fim.asc())
+            .limit(limit)
+        )
+        events = result.scalars().all()
+
+        modalidades = {1: 'LO', 2: 'NP'}
+        return [{
+            "reference": e.reference,
+            "titulo": e.titulo,
+            "tipo_id": e.tipo_id,
+            "tipo": e.tipo,
+            "subtipo": e.subtipo,
+            "distrito": e.distrito,
+            "lance_atual": e.lance_atual,
+            "valor_base": e.valor_base,
+            "valor_abertura": e.valor_abertura,
+            "valor_minimo": e.valor_minimo,
+            "data_fim": e.data_fim.isoformat() if e.data_fim else None,
+            "modalidade": modalidades.get(e.modalidade_id, '')
+        } for e in events]
+
+    async def get_stats_by_distrito(self, limit: int = 10) -> List[dict]:
+        """Get event counts by distrito with breakdown by tipo"""
+        from sqlalchemy import case
+
+        # Get top distritos by total count
+        result = await self.session.execute(
+            select(
+                EventDB.distrito,
+                func.count(EventDB.reference).label('total'),
+                func.sum(case((EventDB.tipo_id == 1, 1), else_=0)).label('imoveis'),
+                func.sum(case((EventDB.tipo_id == 2, 1), else_=0)).label('veiculos'),
+                func.sum(case((EventDB.tipo_id == 3, 1), else_=0)).label('direitos'),
+                func.sum(case((EventDB.tipo_id == 4, 1), else_=0)).label('equipamentos'),
+                func.sum(case((EventDB.tipo_id == 5, 1), else_=0)).label('mobiliario'),
+                func.sum(case((EventDB.tipo_id == 6, 1), else_=0)).label('maquinas')
+            )
+            .where(EventDB.distrito.isnot(None))
+            .where(EventDB.cancelado == False)
+            .group_by(EventDB.distrito)
+            .order_by(func.count(EventDB.reference).desc())
+            .limit(limit)
+        )
+
+        return [
+            {
+                "distrito": row.distrito,
+                "total": int(row.total),
+                "imoveis": int(row.imoveis or 0),
+                "veiculos": int(row.veiculos or 0),
+                "direitos": int(row.direitos or 0),
+                "equipamentos": int(row.equipamentos or 0),
+                "mobiliario": int(row.mobiliario or 0),
+                "maquinas": int(row.maquinas or 0)
+            }
+            for row in result.fetchall()
+        ]
+
+    async def get_recent_activity(self) -> dict:
+        """Get recent activity stats for dashboard"""
+        from datetime import timedelta
+        now = datetime.utcnow()
+        last_24h = now - timedelta(hours=24)
+
+        # New events in last 24h (using scraped_at)
+        new_events_result = await self.session.execute(
+            select(func.count(EventDB.reference))
+            .where(EventDB.scraped_at >= last_24h)
+        )
+        new_events = new_events_result.scalar() or 0
+
+        # Events that ended in last 24h
+        ended_result = await self.session.execute(
+            select(func.count(EventDB.reference))
+            .where(EventDB.data_fim.isnot(None))
+            .where(EventDB.data_fim >= last_24h)
+            .where(EventDB.data_fim <= now)
+        )
+        ended_events = ended_result.scalar() or 0
+
+        # Notifications triggered in last 24h
+        notifications_result = await self.session.execute(
+            select(func.count(NotificationDB.id))
+            .where(NotificationDB.created_at >= last_24h)
+        )
+        notifications = notifications_result.scalar() or 0
+
+        # Price updates (events updated in last 24h - approximation)
+        updated_result = await self.session.execute(
+            select(func.count(EventDB.reference))
+            .where(EventDB.updated_at >= last_24h)
+            .where(EventDB.scraped_at < last_24h)  # Exclude new events
+        )
+        price_updates = updated_result.scalar() or 0
+
+        return {
+            "new_events": new_events,
+            "ended_events": ended_events,
+            "notifications": notifications,
+            "price_updates": price_updates
+        }
+
+    async def get_recent_price_changes(self, limit: int = 20) -> List[dict]:
+        """Get recent price change notifications for dashboard"""
+        result = await self.session.execute(
+            select(NotificationDB)
+            .where(NotificationDB.notification_type == 'price_change')
+            .where(NotificationDB.preco_anterior.isnot(None))
+            .where(NotificationDB.preco_atual.isnot(None))
+            .order_by(NotificationDB.created_at.desc())
+            .limit(limit)
+        )
+        notifications = result.scalars().all()
+
+        return [{
+            "reference": n.event_reference,
+            "preco_anterior": n.preco_anterior,
+            "preco_atual": n.preco_atual,
+            "variacao": n.preco_variacao,
+            "created_at": n.created_at.isoformat() if n.created_at else None
+        } for n in notifications]
+
     # ========== NOTIFICATION RULES ==========
 
     async def get_notification_rules(self, active_only: bool = False) -> List[dict]:
@@ -947,6 +1110,69 @@ class DatabaseManager:
         await self.session.refresh(notification)
         return notification.id
 
+    async def notification_exists(
+        self,
+        rule_id: Optional[int],
+        event_reference: str,
+        notification_type: str,
+        hours: int = 24
+    ) -> bool:
+        """
+        Check if a similar notification was already created recently.
+        Prevents duplicate notifications within the specified time window.
+        """
+        from datetime import timedelta
+        cutoff = datetime.utcnow() - timedelta(hours=hours)
+
+        conditions = [
+            NotificationDB.event_reference == event_reference,
+            NotificationDB.notification_type == notification_type,
+            NotificationDB.created_at > cutoff
+        ]
+
+        # Handle None rule_id (system notifications)
+        if rule_id is None:
+            conditions.append(NotificationDB.rule_id.is_(None))
+        else:
+            conditions.append(NotificationDB.rule_id == rule_id)
+
+        result = await self.session.execute(
+            select(func.count(NotificationDB.id)).where(*conditions)
+        )
+        count = result.scalar() or 0
+        return count > 0
+
+    async def get_notification_rules_by_type(
+        self,
+        rule_type: str,
+        active_only: bool = True
+    ) -> List[dict]:
+        """Get notification rules filtered by type (more efficient than filtering in Python)"""
+        query = select(NotificationRuleDB).where(NotificationRuleDB.rule_type == rule_type)
+        if active_only:
+            query = query.where(NotificationRuleDB.active == True)
+
+        result = await self.session.execute(query)
+        rules = result.scalars().all()
+
+        return [{
+            "id": r.id,
+            "name": r.name,
+            "rule_type": r.rule_type,
+            "tipos": json.loads(r.tipos) if r.tipos else None,
+            "subtipos": json.loads(r.subtipos) if r.subtipos else None,
+            "distritos": json.loads(r.distritos) if r.distritos else None,
+            "concelhos": json.loads(r.concelhos) if r.concelhos else None,
+            "preco_min": r.preco_min,
+            "preco_max": r.preco_max,
+            "variacao_min": r.variacao_min,
+            "minutos_restantes": r.minutos_restantes,
+            "event_reference": r.event_reference,
+            "active": r.active,
+            "triggers_count": r.triggers_count,
+            "created_at": r.created_at.isoformat() if r.created_at else None
+        } for r in rules]
+
     async def get_notifications(self, limit: int = 50, unread_only: bool = False) -> List[dict]:
         """Get notifications"""
         query = select(NotificationDB).order_by(NotificationDB.created_at.desc())
@@ -980,14 +1206,14 @@ class DatabaseManager:
         )
         return result.scalar() or 0
 
-    async def mark_notification_read(self, notification_id: int) -> bool:
-        """Mark a notification as read"""
+    async def mark_notification_read(self, notification_id: int, read: bool = True) -> bool:
+        """Mark a notification as read or unread"""
         result = await self.session.execute(
             select(NotificationDB).where(NotificationDB.id == notification_id)
         )
         notification = result.scalar_one_or_none()
         if notification:
-            notification.read = True
+            notification.read = read
             await self.session.commit()
             return True
         return False

@@ -2671,6 +2671,33 @@
             animation: loadingSkeleton 1.5s infinite;
             border-radius: 4px;
         }
+
+        /* Price chart tooltip - positioned via JavaScript */
+        .price-chart-btn {
+            position: relative;
+        }
+        .price-chart-btn:hover > svg { stroke: #3b82f6; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spin { animation: spin 1s linear infinite; }
+        .chart-point { pointer-events: none; opacity: 0; transition: opacity 0.15s; }
+        .chart-point.last-point { opacity: 1; }
+        .chart-point.active { opacity: 1; }
+
+        /* Row hover effects for tables */
+        .ending-soon-row, .recent-bid-row {
+            transition: background 0.15s ease;
+        }
+        .ending-soon-row:hover, .ending-soon-row.highlight-linked {
+            background: #dbeafe !important;
+        }
+        .recent-bid-row:hover, .recent-bid-row.highlight-linked {
+            background: #dcfce7 !important;
+        }
+
+        /* Prevent horizontal scroll on widget containers */
+        #dash-ending-soon, #dash-recent-bids {
+            overflow-x: hidden;
+        }
     </style>
 </head>
 <body>
@@ -2755,11 +2782,11 @@
                 <span>Alertas</span>
                 <span class="nav-badge" id="nav-alerts-badge" style="display: none;">0</span>
             </div>
-            <div class="nav-item" onclick="scrollToPipelines()">
+            <div class="nav-item" onclick="showPage('scraping')" data-page="scraping">
                 <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
                 </svg>
-                <span>Scrapers</span>
+                <span>Scraping & Sync</span>
             </div>
         </nav>
 
@@ -2794,12 +2821,12 @@
             </div>
 
             <div class="nav-divider"></div>
-            <div class="nav-item" onclick="openSettings()">
+            <div class="nav-item" onclick="showPage('settings')" data-page="settings">
                 <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
                     <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                 </svg>
-                <span>Settings</span>
+                <span>Definições</span>
             </div>
             <div class="nav-item" onclick="toggleSidebarLock()">
                 <svg id="lockIcon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -2820,15 +2847,15 @@
                 <div class="stats-total-card">
                     <div class="stats-total-icon">📦</div>
                     <span class="stats-total-value" id="stat-total">0</span>
-                    <span class="stats-total-label">Total</span>
+                    <span class="stats-total-label">Ativos</span>
                     <div class="stats-total-breakdown">
                         <span><span class="lo" id="stat-total-lo">0</span> LO</span>
                         <span><span class="np" id="stat-total-np">0</span> NP</span>
                     </div>
-                    <div class="stats-inactive-row" title="Eventos terminados ou cancelados">
+                    <div class="stats-inactive-row" title="Eventos terminados ou inativos">
                         <span class="inactive-dot"></span>
                         <span class="inactive-value" id="stat-total-inactive">0</span>
-                        <span class="inactive-label">terminados</span>
+                        <span class="inactive-label">inativos</span>
                     </div>
                 </div>
 
@@ -2935,245 +2962,122 @@
                 </div>
             </div>
 
-            <div id="dashboard-content">
-                <!-- ========== SCRAPER TOOLS ========== -->
-                <div class="scraper-control-card" style="margin-bottom: 16px;">
-                    <!-- Header -->
-                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+            <!-- Quick Access Cards -->
+            <div id="dashboard-content" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 16px;">
+                <!-- Scraping & Sync Quick Access -->
+                <div style="background: white; border-radius: 10px; padding: 12px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); display: flex; align-items: center; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="width: 36px; height: 36px; background: linear-gradient(135deg, #3b82f6, #2563eb); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                            <span style="font-size: 18px;">🔄</span>
+                        </div>
+                        <div>
+                            <div style="font-weight: 600; color: #1e293b; font-size: 13px;">Scraping & Sync</div>
+                            <div style="font-size: 11px; color: #64748b;">Pipelines automáticas</div>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 6px; align-items: center;">
+                        <div style="display: flex; gap: 4px; font-size: 9px; margin-right: 4px;">
+                            <span title="Crítico < 5min">🔴 <span id="x-critical-count-dash">0</span></span>
+                            <span title="Urgente < 1h">🟠 <span id="x-urgent-count-dash">0</span></span>
+                            <span title="Em breve < 24h">🟡 <span id="x-soon-count-dash">0</span></span>
+                        </div>
+                        <div onclick="showPage('scraping')" style="padding: 4px 8px; background: #f8fafc; border-radius: 4px; text-align: center; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='#f8fafc'">
+                            <div style="font-size: 9px; color: #64748b;">X-Mon</div>
+                            <div id="dash-xmonitor-timer" style="font-size: 10px; font-weight: 600; color: #dc2626;">--:--</div>
+                        </div>
+                        <div onclick="showPage('scraping')" style="padding: 4px 8px; background: #f8fafc; border-radius: 4px; text-align: center; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#dbeafe'" onmouseout="this.style.background='#f8fafc'">
+                            <div style="font-size: 9px; color: #64748b;">Y-Sync</div>
+                            <div id="dash-ysync-timer" style="font-size: 10px; font-weight: 600; color: #1e40af;">--:--</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Alertas Quick Access -->
+                <div style="background: white; border-radius: 10px; padding: 12px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); display: flex; align-items: center; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; gap: 10px; flex: 1;">
+                        <div style="width: 36px; height: 36px; background: linear-gradient(135deg, #f59e0b, #d97706); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                            <span style="font-size: 18px;">🔔</span>
+                        </div>
+                        <div>
+                            <div style="font-weight: 600; color: #1e293b; font-size: 13px;">Alertas</div>
+                            <div style="font-size: 11px; color: #64748b;"><span id="dash-unread-count" style="font-weight: 600; color: #f59e0b;">0</span> por ler · <span id="dash-rules-count" style="color: #64748b;">0</span> regras</div>
+                        </div>
+                    </div>
+                    <button onclick="showPage('alertas')" style="padding: 6px 8px; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer; color: #64748b; transition: all 0.2s;" onmouseover="this.style.background='#fef3c7'" onmouseout="this.style.background='#f1f5f9'" title="Ver alertas">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="16" height="16">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                        </svg>
+                    </button>
+                </div>
+
+            </div>
+
+            <!-- Dashboard Grid: 2 columns -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;">
+
+                <!-- Leilões a Terminar em Breve -->
+                <div style="background: white; border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
                         <div style="display: flex; align-items: center; gap: 8px;">
-                            <span style="font-size: 16px;">🔧</span>
-                            <span style="font-weight: 600; color: #1e293b;">Scraper Tools</span>
-                            <button onclick="refreshDbStats()" style="padding: 4px 8px; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 10px; cursor: pointer; color: #64748b;" title="Atualizar estatísticas">
-                                <span id="db-stats-spinner" style="display: none;">⏳</span>🔄
-                            </button>
+                            <span style="font-size: 16px;">⏰</span>
+                            <span style="font-weight: 600; color: #1e293b; font-size: 14px;">A Terminar em Breve</span>
                         </div>
-                        <!-- Mini Stats -->
-                        <div style="display: flex; gap: 12px; font-size: 11px;">
-                            <span style="color: #1e40af;"><strong id="db-stat-total">-</strong> total</span>
-                            <span style="color: #047857;"><strong id="db-stat-content">-</strong> completos</span>
-                            <span style="color: #dc2626;"><strong id="db-stat-incomplete">-</strong> incompletos</span>
-                            <span style="color: #7c3aed;"><strong id="db-stat-nulls">-</strong> nulls</span>
-                        </div>
-                    </div>
-
-                    <!-- Compact Actions Grid -->
-                    <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 10px;">
-                        <!-- Descobrir Novos IDs -->
-                        <button onclick="runIndependentScraper('ids')" style="padding: 10px 8px; background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 1px solid #bfdbfe; border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.2s; font-size: 11px;" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 2px 8px rgba(59,130,246,0.15)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
-                            <div style="font-size: 16px; margin-bottom: 4px;">🔍</div>
-                            <div style="font-weight: 600; color: #1e40af;">Descobrir IDs</div>
-                        </button>
-
-                        <!-- Completar Info -->
-                        <button onclick="runIndependentScraper('content')" style="padding: 10px 8px; background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border: 1px solid #6ee7b7; border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.2s; font-size: 11px;" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 2px 8px rgba(16,185,129,0.15)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
-                            <div style="font-size: 16px; margin-bottom: 4px;">📋</div>
-                            <div style="font-weight: 600; color: #047857;">Completar Info</div>
-                        </button>
-
-                        <!-- Atualizar Preços -->
-                        <button onclick="runUpdatePrices()" style="padding: 10px 8px; background: linear-gradient(135deg, #fefce8 0%, #fef08a 100%); border: 1px solid #fde047; border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.2s; font-size: 11px;" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 2px 8px rgba(234,179,8,0.15)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
-                            <div style="font-size: 16px; margin-bottom: 4px;">💰</div>
-                            <div style="font-weight: 600; color: #a16207;">Preços</div>
-                        </button>
-
-                        <!-- Corrigir NULLs -->
-                        <button onclick="runFixNulls()" style="padding: 10px 8px; background: linear-gradient(135deg, #faf5ff 0%, #e9d5ff 100%); border: 1px solid #c4b5fd; border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.2s; font-size: 11px;" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 2px 8px rgba(139,92,246,0.15)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
-                            <div style="font-size: 16px; margin-bottom: 4px;">🔧</div>
-                            <div style="font-weight: 600; color: #7c3aed;">Fix NULLs</div>
-                        </button>
-
-                        <!-- IDs Específicos -->
-                        <button onclick="document.getElementById('specific-ids-section').style.display = document.getElementById('specific-ids-section').style.display === 'none' ? 'block' : 'none'" style="padding: 10px 8px; background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%); border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.2s; font-size: 11px;" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 2px 8px rgba(100,116,139,0.15)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
-                            <div style="font-size: 16px; margin-bottom: 4px;">🎯</div>
-                            <div style="font-weight: 600; color: #475569;">IDs Manual</div>
-                        </button>
-                    </div>
-
-                    <!-- Specific IDs Input (collapsible) -->
-                    <div id="specific-ids-section" style="display: none; margin-bottom: 10px; padding: 10px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
-                        <div style="display: flex; gap: 6px; align-items: center;">
-                            <select id="independent-tipo" class="filter-select" style="padding: 8px 10px; font-size: 11px; min-width: 110px; border-radius: 6px;">
-                                <option value="">Todos</option>
-                                <option value="1">🏠 Imóveis</option>
-                                <option value="2">🚗 Veículos</option>
-                                <option value="3">📜 Direitos</option>
-                                <option value="4">🔧 Equip.</option>
-                                <option value="5">🪑 Mobil.</option>
-                                <option value="6">⚙️ Máquinas</option>
+                        <div style="display: flex; gap: 6px;">
+                            <select id="ending-filter-tipo" onchange="filterEndingSoon()" style="padding: 4px 8px; font-size: 10px; border: 1px solid #e2e8f0; border-radius: 4px; background: #f8fafc; color: #64748b;">
+                                <option value="">Todos os tipos</option>
+                                <option value="1">Imóveis</option>
+                                <option value="2">Veículos</option>
+                                <option value="3">Equipamentos</option>
+                                <option value="4">Mobiliário</option>
+                                <option value="5">Máquinas</option>
+                                <option value="6">Direitos</option>
                             </select>
-                            <input type="text" id="specific-ids-input" placeholder="LO1234562024, NP9876542024..." style="flex: 1; padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 11px; outline: none;" onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='#e2e8f0'">
-                            <button onclick="runSpecificIds()" style="padding: 8px 14px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border: none; border-radius: 6px; font-size: 11px; font-weight: 500; cursor: pointer;">Executar</button>
+                            <select id="ending-filter-distrito" onchange="filterEndingSoon()" style="padding: 4px 8px; font-size: 10px; border: 1px solid #e2e8f0; border-radius: 4px; background: #f8fafc; color: #64748b;">
+                                <option value="">Todos os distritos</option>
+                            </select>
                         </div>
                     </div>
-
-                    <!-- IDs Results Section -->
-                    <div id="ids-results-section" style="display: none; margin-bottom: 10px;">
-                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 1px solid #86efac; border-radius: 8px 8px 0 0;">
-                            <div style="display: flex; align-items: center; gap: 6px;">
-                                <span style="font-size: 11px; font-weight: 600; color: #166534;">IDs Recolhidos</span>
-                                <span id="ids-count-badge" style="background: #22c55e; color: white; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600;">0</span>
-                            </div>
-                            <div style="display: flex; gap: 4px;">
-                                <button onclick="copyIdsToClipboard()" style="padding: 4px 8px; font-size: 10px; background: white; border: 1px solid #86efac; border-radius: 4px; cursor: pointer; color: #166534;">📋</button>
-                                <button onclick="clearCollectedIds()" style="padding: 4px 8px; font-size: 10px; background: white; border: 1px solid #fca5a5; border-radius: 4px; cursor: pointer; color: #dc2626;">✕</button>
-                            </div>
-                        </div>
-                        <div id="ids-results-list" style="max-height: 120px; overflow-y: auto; background: #fafafa; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 8px 8px; padding: 8px; font-size: 11px;"></div>
+                    <!-- Header row (sortable) -->
+                    <div style="display: flex; align-items: center; padding: 6px 10px; font-size: 9px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; background: #f8fafc; border-radius: 4px; margin-bottom: 4px; border-bottom: 1px solid #e2e8f0;">
+                        <span onclick="sortEndingSoon('timer')" style="width: 72px; cursor: pointer; display: flex; align-items: center; gap: 2px;" title="Ordenar por tempo">Timer <span id="sort-icon-timer">↑</span></span>
+                        <span onclick="sortEndingSoon('reference')" style="width: 85px; cursor: pointer; display: flex; align-items: center; gap: 2px;" title="Ordenar por ID">ID <span id="sort-icon-reference"></span></span>
+                        <span onclick="sortEndingSoon('tipo')" style="width: 65px; cursor: pointer; display: flex; align-items: center; gap: 2px;" title="Ordenar por tipo">Tipo <span id="sort-icon-tipo"></span></span>
+                        <span onclick="sortEndingSoon('subtipo')" style="flex: 1; cursor: pointer; display: flex; align-items: center; gap: 2px;" title="Ordenar por subtipo">Subtipo <span id="sort-icon-subtipo"></span></span>
+                        <span onclick="sortEndingSoon('distrito')" style="width: 55px; cursor: pointer; display: flex; align-items: center; gap: 2px;" title="Ordenar por distrito">Zona <span id="sort-icon-distrito"></span></span>
+                        <span onclick="sortEndingSoon('lance_atual')" style="width: 75px; cursor: pointer; display: flex; align-items: center; gap: 2px; justify-content: flex-end;" title="Ordenar por valor">Valor <span id="sort-icon-lance_atual"></span></span>
+                        <span style="width: 24px;"></span>
                     </div>
-
-                    <!-- Maintenance Progress -->
-                    <div id="maintenance-progress" style="display: none; padding: 10px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
-                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-                            <span id="maintenance-message" style="font-size: 11px; color: #475569;">A processar...</span>
-                            <span id="maintenance-count" style="font-size: 10px; color: #64748b;">0/0</span>
-                        </div>
-                        <div style="height: 4px; background: #e2e8f0; border-radius: 2px; overflow: hidden;">
-                            <div id="maintenance-progress-bar" style="height: 100%; width: 0%; background: linear-gradient(135deg, #6366f1, #8b5cf6); transition: width 0.3s;"></div>
-                        </div>
+                    <div id="dash-ending-soon" style="display: flex; flex-direction: column; gap: 2px; max-height: 200px; overflow-y: auto;">
+                        <!-- Loading placeholder -->
+                        <div style="text-align: center; padding: 20px; color: #94a3b8; font-size: 11px;">A carregar...</div>
                     </div>
                 </div>
 
-                <!-- ========== PIPELINES AUTOMÁTICAS ========== -->
-                <div class="scraper-control-card" style="margin-bottom: 16px;">
-                    <!-- Header -->
-                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                <!-- Licitações Recentes -->
+                <div style="background: white; border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
                         <div style="display: flex; align-items: center; gap: 8px;">
-                            <span style="font-size: 16px;">⚡</span>
-                            <span style="font-weight: 600; color: #1e293b;">Pipelines Automáticas</span>
+                            <span style="font-size: 16px;">💰</span>
+                            <span style="font-weight: 600; color: #1e293b; font-size: 14px;">Licitações Recentes</span>
                         </div>
                     </div>
-
-                    <!-- Pipeline Grid (2 columns: X-Monitor + Y-Sync) -->
-                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
-
-                        <!-- X-Monitor (Combined Critical/Urgent/Soon) -->
-                        <div style="padding: 12px; background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border: 1px solid #fca5a5; border-radius: 10px;">
-                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-                                <div style="display: flex; align-items: center; gap: 6px;">
-                                    <span style="font-size: 14px;">🔴</span>
-                                    <span style="font-weight: 600; font-size: 12px; color: #dc2626;">X-Monitor</span>
-                                    <span id="x-monitor-count" style="font-size: 9px; padding: 1px 6px; background: #dc2626; color: white; border-radius: 8px; font-weight: 600;">0</span>
-                                </div>
-                                <label class="toggle-switch" style="transform: scale(0.85);">
-                                    <input type="checkbox" id="auto-pipeline-xmonitor" onchange="toggleAutoPipeline('xmonitor', this.checked)">
-                                    <span class="toggle-slider"></span>
-                                </label>
-                            </div>
-                            <div style="font-size: 10px; color: #7f1d1d; line-height: 1.4;">
-                                <div style="display: flex; gap: 8px;">
-                                    <span title="< 5min: cada 5s">🔴 <span id="x-critical-count">0</span></span>
-                                    <span title="< 1h: cada 1min">🟠 <span id="x-urgent-count">0</span></span>
-                                    <span title="< 24h: cada 10min">🟡 <span id="x-soon-count">0</span></span>
-                                </div>
-                                <div id="pipeline-timer-xmonitor" style="margin-top: 4px; font-weight: 600; color: #dc2626;">⏱️ --:--</div>
-                            </div>
-                        </div>
-
-                        <!-- Y-Sync -->
-                        <div style="padding: 12px; background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 1px solid #93c5fd; border-radius: 10px;">
-                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-                                <div style="display: flex; align-items: center; gap: 6px;">
-                                    <span style="font-size: 14px;">🔄</span>
-                                    <span style="font-weight: 600; font-size: 12px; color: #1e40af;">Y-Sync</span>
-                                </div>
-                                <label class="toggle-switch" style="transform: scale(0.85);">
-                                    <input type="checkbox" id="auto-pipeline-ysync" onchange="toggleAutoPipeline('ysync', this.checked)">
-                                    <span class="toggle-slider"></span>
-                                </label>
-                            </div>
-                            <div style="font-size: 10px; color: #1e3a8a; line-height: 1.4;">
-                                <div>🔍 Sync completo + Terminados</div>
-                                <div id="pipeline-timer-ysync" style="margin-top: 4px; font-weight: 600; color: #1e40af;">⏱️ --:--:--</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- X-Monitor Details (collapsible) -->
-                    <div id="x-monitor-details" style="display: none; margin-top: 10px; padding: 10px; background: #fafafa; border-radius: 8px; border: 1px solid #e2e8f0;">
-                        <div style="font-size: 10px; color: #475569; margin-bottom: 6px; font-weight: 600;">Intervalos de Monitorização:</div>
-                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; font-size: 10px;">
-                            <div style="padding: 6px 8px; background: #fef2f2; border-radius: 6px; text-align: center;">
-                                <div style="color: #dc2626; font-weight: 600;">🔴 Critical</div>
-                                <div style="color: #7f1d1d;">< 5min → 5s</div>
-                            </div>
-                            <div style="padding: 6px 8px; background: #fff7ed; border-radius: 6px; text-align: center;">
-                                <div style="color: #ea580c; font-weight: 600;">🟠 Urgent</div>
-                                <div style="color: #9a3412;">< 1h → 1min</div>
-                            </div>
-                            <div style="padding: 6px 8px; background: #fefce8; border-radius: 6px; text-align: center;">
-                                <div style="color: #ca8a04; font-weight: 600;">🟡 Soon</div>
-                                <div style="color: #854d0e;">< 24h → 10min</div>
-                            </div>
-                        </div>
+                    <div id="dash-recent-bids" style="display: flex; flex-direction: column; gap: 4px; max-height: 200px; overflow-y: auto;">
+                        <div style="text-align: center; padding: 20px; color: #94a3b8; font-size: 11px;">A carregar...</div>
                     </div>
                 </div>
 
-                <!-- Pipeline Completo - API Only -->
-                <div class="scraper-control-card" style="margin-top: 16px;">
-                    <!-- Pipeline Header -->
-                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <span style="font-size: 16px;">🚀</span>
-                            <span style="font-weight: 600; color: #1e293b;">Pipeline API</span>
-                            <span style="font-size: 11px; padding: 2px 8px; background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); color: #047857; border-radius: 10px; font-weight: 600;">RÁPIDO</span>
-                        </div>
+                <!-- Eventos por Distrito -->
+                <div style="background: white; border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); grid-column: span 2;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+                        <span style="font-size: 16px;">📊</span>
+                        <span style="font-weight: 600; color: #1e293b; font-size: 14px;">Top Distritos</span>
                     </div>
-
-                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
-                        <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
-                            <!-- Step 1 -->
-                            <div style="display: flex; align-items: center; gap: 6px;">
-                                <div id="stage1-circle" style="width: 28px; height: 28px; border-radius: 50%; background: #e0e7ff; color: #3b82f6; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; transition: all 0.3s ease;">1</div>
-                                <span style="font-size: 13px; font-weight: 500; color: #1e293b;">IDs</span>
-                                <span id="stage1-count" style="font-size: 11px; color: #94a3b8; font-weight: 600;"></span>
-                            </div>
-                            <div id="pipeline-line1" style="flex: 1; height: 2px; background: #e2e8f0; border-radius: 1px; transition: background 0.3s ease;"></div>
-                            <!-- Step 2 -->
-                            <div style="display: flex; align-items: center; gap: 6px;">
-                                <div id="stage2-circle" style="width: 28px; height: 28px; border-radius: 50%; background: #f1f5f9; color: #94a3b8; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; transition: all 0.3s ease;">2</div>
-                                <span id="stage2-label" style="font-size: 13px; font-weight: 500; color: #64748b;">API (All)</span>
-                                <span id="stage2-count" style="font-size: 11px; color: #94a3b8; font-weight: 600;"></span>
-                            </div>
-                            <!-- Hidden: Stage 3 not needed for API -->
-                            <div id="pipeline-line2" style="display: none;"></div>
-                            <div id="stage3-container" style="display: none;">
-                                <div id="stage3-circle"></div>
-                                <span id="stage3-count"></span>
-                            </div>
-                        </div>
-                        <button class="scraper-btn primary" id="btn-pipeline" onclick="togglePipeline()" style="padding: 10px 20px; font-size: 13px; white-space: nowrap;">
-                            ▶ Executar
-                        </button>
-                    </div>
-                    <!-- Progress Feedback -->
-                    <div id="pipeline-feedback" style="display: none; margin-top: 12px; padding: 12px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <div>
-                                <span id="feedback-status" style="font-weight: 600; color: #1e293b; font-size: 13px;">A processar...</span>
-                                <span id="feedback-action" style="font-size: 12px; color: #64748b; margin-left: 8px;"></span>
-                            </div>
-                            <span id="feedback-count" style="font-size: 14px; font-weight: 700; color: #3b82f6;">0 / 0</span>
-                        </div>
-                        <div style="margin-top: 8px; background: #e2e8f0; border-radius: 4px; height: 4px; overflow: hidden;">
-                            <div id="feedback-progress-bar" style="height: 100%; background: linear-gradient(90deg, #3b82f6, #8b5cf6); width: 0%; transition: width 0.3s ease;"></div>
-                        </div>
+                    <div id="dash-districts-breakdown" style="display: flex; flex-direction: column; gap: 8px;">
+                        <div style="text-align: center; padding: 20px; color: #94a3b8; font-size: 12px;">A carregar...</div>
                     </div>
                 </div>
 
-                <!-- Collapsible Danger Zone -->
-                <details class="danger-zone-collapsible" style="margin-top: 16px;">
-                    <summary style="cursor: pointer; padding: 12px 16px; background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border: 1px solid #fecaca; border-radius: 8px; font-weight: 600; color: #dc2626; display: flex; align-items: center; gap: 8px; user-select: none;">
-                        <span style="transition: transform 0.2s;">▶</span> ⚠️ Zona de Perigo
-                    </summary>
-                    <div style="padding: 16px; background: white; border: 1px solid #fecaca; border-top: none; border-radius: 0 0 8px 8px;">
-                        <p style="color: #7f1d1d; font-size: 12px; line-height: 1.5; margin-bottom: 12px;">
-                            Esta ação irá <strong>apagar permanentemente TODOS os eventos</strong> da base de dados.
-                        </p>
-                        <button class="scraper-btn stop" onclick="confirmClearDatabase()" style="width: auto; padding: 8px 16px; font-size: 12px;">
-                            🗑️ Limpar Base de Dados
-                        </button>
-                    </div>
-                </details>
             </div>
         </div>
 
@@ -3737,6 +3641,295 @@
             </div>
         </div>
 
+        <!-- Scraping & Sync Page -->
+        <div id="scraping" class="page">
+            <div class="page-header">
+                <h2>🔄 Scraping & Sync</h2>
+                <p>Ferramentas de scraping e sincronização de dados</p>
+            </div>
+
+            <div id="scraping-content" style="display: flex; flex-direction: column; gap: 16px;">
+                <!-- ========== SCRAPER TOOLS ========== -->
+                <div class="scraper-control-card">
+                    <!-- Header -->
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 16px;">🔧</span>
+                            <span style="font-weight: 600; color: #1e293b;">Scraper Tools</span>
+                        </div>
+                        <!-- Mini Stats -->
+                        <div style="display: flex; gap: 12px; font-size: 11px;">
+                            <span style="color: #1e40af;"><strong id="db-stat-total-scraping">-</strong> total</span>
+                            <span style="color: #047857;"><strong id="db-stat-content-scraping">-</strong> completos</span>
+                            <span style="color: #dc2626;"><strong id="db-stat-incomplete-scraping">-</strong> incompletos</span>
+                            <span style="color: #7c3aed;"><strong id="db-stat-nulls-scraping">-</strong> nulls</span>
+                        </div>
+                    </div>
+
+                    <!-- Compact Actions Grid -->
+                    <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 10px;">
+                        <!-- Descobrir Novos IDs -->
+                        <button onclick="runIndependentScraper('ids')" style="padding: 10px 8px; background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 1px solid #bfdbfe; border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.2s; font-size: 11px;" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 2px 8px rgba(59,130,246,0.15)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
+                            <div style="font-size: 16px; margin-bottom: 4px;">🔍</div>
+                            <div style="font-weight: 600; color: #1e40af;">Descobrir IDs</div>
+                        </button>
+
+                        <!-- Completar Info -->
+                        <button onclick="runIndependentScraper('content')" style="padding: 10px 8px; background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border: 1px solid #6ee7b7; border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.2s; font-size: 11px;" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 2px 8px rgba(16,185,129,0.15)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
+                            <div style="font-size: 16px; margin-bottom: 4px;">📋</div>
+                            <div style="font-weight: 600; color: #047857;">Completar Info</div>
+                        </button>
+
+                        <!-- Atualizar Preços -->
+                        <button onclick="runUpdatePrices()" style="padding: 10px 8px; background: linear-gradient(135deg, #fefce8 0%, #fef08a 100%); border: 1px solid #fde047; border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.2s; font-size: 11px;" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 2px 8px rgba(234,179,8,0.15)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
+                            <div style="font-size: 16px; margin-bottom: 4px;">💰</div>
+                            <div style="font-weight: 600; color: #a16207;">Preços</div>
+                        </button>
+
+                        <!-- Corrigir NULLs -->
+                        <button onclick="runFixNulls()" style="padding: 10px 8px; background: linear-gradient(135deg, #faf5ff 0%, #e9d5ff 100%); border: 1px solid #c4b5fd; border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.2s; font-size: 11px;" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 2px 8px rgba(139,92,246,0.15)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
+                            <div style="font-size: 16px; margin-bottom: 4px;">🔧</div>
+                            <div style="font-weight: 600; color: #7c3aed;">Fix NULLs</div>
+                        </button>
+
+                        <!-- IDs Específicos -->
+                        <button onclick="document.getElementById('specific-ids-section-scraping').style.display = document.getElementById('specific-ids-section-scraping').style.display === 'none' ? 'block' : 'none'" style="padding: 10px 8px; background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%); border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.2s; font-size: 11px;" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 2px 8px rgba(100,116,139,0.15)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
+                            <div style="font-size: 16px; margin-bottom: 4px;">🎯</div>
+                            <div style="font-weight: 600; color: #475569;">IDs Manual</div>
+                        </button>
+                    </div>
+
+                    <!-- Specific IDs Input (collapsible) -->
+                    <div id="specific-ids-section-scraping" style="display: none; margin-bottom: 10px; padding: 10px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                        <div style="display: flex; gap: 6px; align-items: center;">
+                            <select id="independent-tipo-scraping" class="filter-select" style="padding: 8px 10px; font-size: 11px; min-width: 110px; border-radius: 6px;">
+                                <option value="">Todos</option>
+                                <option value="1">🏠 Imóveis</option>
+                                <option value="2">🚗 Veículos</option>
+                                <option value="3">📜 Direitos</option>
+                                <option value="4">🔧 Equip.</option>
+                                <option value="5">🪑 Mobil.</option>
+                                <option value="6">⚙️ Máquinas</option>
+                            </select>
+                            <input type="text" id="specific-ids-input-scraping" placeholder="LO1234562024, NP9876542024..." style="flex: 1; padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 11px; outline: none;" onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='#e2e8f0'">
+                            <button onclick="runSpecificIdsScraping()" style="padding: 8px 14px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border: none; border-radius: 6px; font-size: 11px; font-weight: 500; cursor: pointer;">Executar</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ========== PIPELINES AUTOMÁTICAS ========== -->
+                <div class="scraper-control-card">
+                    <!-- Header -->
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 16px;">⚡</span>
+                            <span style="font-weight: 600; color: #1e293b;">Pipelines Automáticas</span>
+                        </div>
+                    </div>
+
+                    <!-- Pipeline Grid (2 columns: X-Monitor + Y-Sync) -->
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+
+                        <!-- X-Monitor (Combined Critical/Urgent/Soon) -->
+                        <div style="padding: 12px; background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border: 1px solid #fca5a5; border-radius: 10px;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <span style="font-size: 14px;">🔴</span>
+                                    <span style="font-weight: 600; font-size: 12px; color: #dc2626;">X-Monitor</span>
+                                    <span id="x-monitor-count-scraping" style="font-size: 9px; padding: 1px 6px; background: #dc2626; color: white; border-radius: 8px; font-weight: 600;">0</span>
+                                </div>
+                                <label class="toggle-switch" style="transform: scale(0.85);">
+                                    <input type="checkbox" id="auto-pipeline-xmonitor-scraping" onchange="toggleAutoPipeline('xmonitor', this.checked)">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div style="font-size: 10px; color: #7f1d1d; line-height: 1.4;">
+                                <div style="display: flex; gap: 8px;">
+                                    <span title="< 5min: cada 5s">🔴 <span id="x-critical-count-scraping">0</span></span>
+                                    <span title="< 1h: cada 1min">🟠 <span id="x-urgent-count-scraping">0</span></span>
+                                    <span title="< 24h: cada 10min">🟡 <span id="x-soon-count-scraping">0</span></span>
+                                </div>
+                                <div id="pipeline-timer-xmonitor-scraping" style="margin-top: 4px; font-weight: 600; color: #dc2626;">⏱️ --:--</div>
+                            </div>
+                        </div>
+
+                        <!-- Y-Sync -->
+                        <div style="padding: 12px; background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 1px solid #93c5fd; border-radius: 10px;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <span style="font-size: 14px;">🔄</span>
+                                    <span style="font-weight: 600; font-size: 12px; color: #1e40af;">Y-Sync</span>
+                                </div>
+                                <label class="toggle-switch" style="transform: scale(0.85);">
+                                    <input type="checkbox" id="auto-pipeline-ysync-scraping" onchange="toggleAutoPipeline('ysync', this.checked)">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div style="font-size: 10px; color: #1e3a8a; line-height: 1.4;">
+                                <div>🔍 Sync completo + Terminados</div>
+                                <div id="pipeline-timer-ysync-scraping" style="margin-top: 4px; font-weight: 600; color: #1e40af;">⏱️ --:--:--</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pipeline Completo - API Only -->
+                <div class="scraper-control-card">
+                    <!-- Pipeline Header -->
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 16px;">🚀</span>
+                            <span style="font-weight: 600; color: #1e293b;">Pipeline API</span>
+                            <span style="font-size: 11px; padding: 2px 8px; background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); color: #047857; border-radius: 10px; font-weight: 600;">RÁPIDO</span>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+                        <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
+                            <!-- Step 1 -->
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <div id="stage1-circle-scraping" style="width: 28px; height: 28px; border-radius: 50%; background: #e0e7ff; color: #3b82f6; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; transition: all 0.3s ease;">1</div>
+                                <span style="font-size: 13px; font-weight: 500; color: #1e293b;">IDs</span>
+                                <span id="stage1-count-scraping" style="font-size: 11px; color: #94a3b8; font-weight: 600;"></span>
+                            </div>
+                            <div id="pipeline-line1-scraping" style="flex: 1; height: 2px; background: #e2e8f0; border-radius: 1px; transition: background 0.3s ease;"></div>
+                            <!-- Step 2 -->
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <div id="stage2-circle-scraping" style="width: 28px; height: 28px; border-radius: 50%; background: #f1f5f9; color: #94a3b8; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; transition: all 0.3s ease;">2</div>
+                                <span id="stage2-label-scraping" style="font-size: 13px; font-weight: 500; color: #64748b;">API (All)</span>
+                                <span id="stage2-count-scraping" style="font-size: 11px; color: #94a3b8; font-weight: 600;"></span>
+                            </div>
+                        </div>
+                        <button class="scraper-btn primary" id="btn-pipeline-scraping" onclick="togglePipeline()" style="padding: 10px 20px; font-size: 13px; white-space: nowrap;">
+                            ▶ Executar
+                        </button>
+                    </div>
+                    <!-- Progress Feedback -->
+                    <div id="pipeline-feedback-scraping" style="display: none; margin-top: 12px; padding: 12px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <span id="feedback-status-scraping" style="font-weight: 600; color: #1e293b; font-size: 13px;">A processar...</span>
+                                <span id="feedback-action-scraping" style="font-size: 12px; color: #64748b; margin-left: 8px;"></span>
+                            </div>
+                            <span id="feedback-count-scraping" style="font-size: 14px; font-weight: 700; color: #3b82f6;">0 / 0</span>
+                        </div>
+                        <div style="margin-top: 8px; background: #e2e8f0; border-radius: 4px; height: 4px; overflow: hidden;">
+                            <div id="feedback-progress-bar-scraping" style="height: 100%; background: linear-gradient(90deg, #3b82f6, #8b5cf6); width: 0%; transition: width 0.3s ease;"></div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Settings Page -->
+        <div id="settings" class="page">
+            <div class="page-header">
+                <h2>⚙️ Definições</h2>
+                <p>Configurações do sistema</p>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 24px; max-width: 800px;">
+                <!-- General Settings Section -->
+                <div class="scraper-control-card">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+                        <span style="font-size: 16px;">🔧</span>
+                        <span style="font-weight: 600; color: #1e293b;">Configurações Gerais</span>
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                        <!-- API Endpoint -->
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: #f8fafc; border-radius: 8px;">
+                            <div>
+                                <div style="font-weight: 500; color: #1e293b; font-size: 13px;">API Endpoint</div>
+                                <div style="font-size: 11px; color: #64748b;">URL do servidor backend</div>
+                            </div>
+                            <code style="padding: 6px 12px; background: #e2e8f0; border-radius: 6px; font-size: 12px; color: #334155;">http://localhost:8000</code>
+                        </div>
+
+                        <!-- Theme (placeholder) -->
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: #f8fafc; border-radius: 8px;">
+                            <div>
+                                <div style="font-weight: 500; color: #1e293b; font-size: 13px;">Tema</div>
+                                <div style="font-size: 11px; color: #64748b;">Aparência do dashboard</div>
+                            </div>
+                            <select style="padding: 6px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 12px; background: white;">
+                                <option value="light">Claro</option>
+                                <option value="dark" disabled>Escuro (em breve)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Data Management Section -->
+                <div class="scraper-control-card">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+                        <span style="font-size: 16px;">💾</span>
+                        <span style="font-weight: 600; color: #1e293b;">Gestão de Dados</span>
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                        <!-- Export Data -->
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: #f8fafc; border-radius: 8px;">
+                            <div>
+                                <div style="font-weight: 500; color: #1e293b; font-size: 13px;">Exportar Dados</div>
+                                <div style="font-size: 11px; color: #64748b;">Descarregar todos os eventos em JSON</div>
+                            </div>
+                            <button onclick="exportAllData()" style="padding: 8px 16px; background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; border: none; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer;">
+                                📥 Exportar
+                            </button>
+                        </div>
+
+                        <!-- Clear Cache -->
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: #f8fafc; border-radius: 8px;">
+                            <div>
+                                <div style="font-weight: 500; color: #1e293b; font-size: 13px;">Limpar Cache</div>
+                                <div style="font-size: 11px; color: #64748b;">Remove dados em cache do Redis</div>
+                            </div>
+                            <button onclick="clearCache()" style="padding: 8px 16px; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; border: none; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer;">
+                                🗑️ Limpar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Danger Zone -->
+                <div class="scraper-control-card" style="border: 2px solid #fecaca; background: linear-gradient(135deg, #fef2f2 0%, #fff 100%);">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+                        <span style="font-size: 16px;">⚠️</span>
+                        <span style="font-weight: 600; color: #dc2626;">Zona de Perigo</span>
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                        <!-- Delete All Events -->
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px; background: white; border: 1px solid #fecaca; border-radius: 8px;">
+                            <div>
+                                <div style="font-weight: 500; color: #991b1b; font-size: 13px;">Apagar Todos os Eventos</div>
+                                <div style="font-size: 11px; color: #7f1d1d; line-height: 1.5;">
+                                    Esta ação irá <strong>apagar permanentemente TODOS os eventos</strong> da base de dados.<br>
+                                    Esta ação não pode ser revertida!
+                                </div>
+                            </div>
+                            <button onclick="confirmClearDatabase()" style="padding: 10px 20px; background: linear-gradient(135deg, #dc2626, #b91c1c); color: white; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap;">
+                                🗑️ Limpar Base de Dados
+                            </button>
+                        </div>
+
+                        <!-- Delete All Notifications -->
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px; background: white; border: 1px solid #fecaca; border-radius: 8px;">
+                            <div>
+                                <div style="font-weight: 500; color: #991b1b; font-size: 13px;">Apagar Todas as Notificações</div>
+                                <div style="font-size: 11px; color: #7f1d1d;">Remove todas as notificações do histórico</div>
+                            </div>
+                            <button onclick="confirmDeleteAllNotifications()" style="padding: 10px 20px; background: linear-gradient(135deg, #f87171, #ef4444); color: white; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap;">
+                                🔔 Limpar Notificações
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Create Rule Modal - Modern Design -->
         <div id="create-rule-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 9999; justify-content: center; align-items: center;">
             <div style="background: white; border-radius: 20px; width: 90%; max-width: 480px; box-shadow: 0 25px 80px rgba(0, 0, 0, 0.25); overflow: hidden; animation: slideIn 0.3s ease;">
@@ -3854,7 +4047,8 @@
     </div>
 
     <script>
-        const API_BASE = 'http://localhost:8000';
+        // Dynamic API base - works from any host/port
+        const API_BASE = window.location.origin;
 
         // Normalize event data - handles both old nested and new flat model formats
         function normalizeEvent(event) {
@@ -3908,6 +4102,8 @@
                 descricao: event.descricao,
                 observacoes: event.observacoes,
                 cancelado: event.cancelado || false,
+                terminado: event.terminado || false,
+                ativo: event.ativo !== undefined ? event.ativo : true,
                 // New fields from API
                 gestor_nome: event.gestor_nome,
                 gestor_email: event.gestor_email,
@@ -4427,23 +4623,26 @@
                 const eventsData = await eventsResponse.json();
 
                 // Normalize events to handle new API format
-                const events = normalizeEvents(eventsData.events);
-                const total = events.length;
+                const allEvents = normalizeEvents(eventsData.events);
 
-                // Filter by type (using normalized tipoEvento)
-                const imoveisEvents = events.filter(e => e.tipoEvento === 'imoveis');
-                const veiculosEvents = events.filter(e => e.tipoEvento === 'veiculos');
-                const direitosEvents = events.filter(e => e.tipoEvento === 'direitos');
-                const equipamentosEvents = events.filter(e => e.tipoEvento === 'equipamentos');
-                const mobiliarioEvents = events.filter(e => e.tipoEvento === 'mobiliario');
-                const maquinasEvents = events.filter(e => e.tipoEvento === 'maquinas');
+                // Separate active and inactive events
+                const activeEvents = allEvents.filter(e => e.ativo === true);
+                const inactiveEvents = allEvents.filter(e => e.ativo === false);
+
+                // Filter by type (using only ACTIVE events)
+                const imoveisEvents = activeEvents.filter(e => e.tipoEvento === 'imoveis');
+                const veiculosEvents = activeEvents.filter(e => e.tipoEvento === 'veiculos');
+                const direitosEvents = activeEvents.filter(e => e.tipoEvento === 'direitos');
+                const equipamentosEvents = activeEvents.filter(e => e.tipoEvento === 'equipamentos');
+                const mobiliarioEvents = activeEvents.filter(e => e.tipoEvento === 'mobiliario');
+                const maquinasEvents = activeEvents.filter(e => e.tipoEvento === 'maquinas');
 
                 // Helper function to count LO/NP
                 const countLO = (arr) => arr.filter(e => e.reference.startsWith('LO')).length;
                 const countNP = (arr) => arr.filter(e => e.reference.startsWith('NP')).length;
 
                 // Count inactive/terminated events
-                const inactiveCount = events.filter(e => e.cancelado === true).length;
+                const inactiveCount = inactiveEvents.length;
 
                 // Helper to update stat with animation on change
                 const updateStat = (id, value) => {
@@ -4462,10 +4661,10 @@
                     }
                 };
 
-                // Total
-                updateStat('stat-total', total);
-                updateStat('stat-total-lo', countLO(events));
-                updateStat('stat-total-np', countNP(events));
+                // Total (active events only)
+                updateStat('stat-total', activeEvents.length);
+                updateStat('stat-total-lo', countLO(activeEvents));
+                updateStat('stat-total-np', countNP(activeEvents));
                 updateStat('stat-total-inactive', inactiveCount);
 
                 // Imóveis
@@ -4502,6 +4701,699 @@
                 console.error('Erro ao atualizar stats:', error);
             }
         }
+
+        // ========== DASHBOARD WIDGETS ==========
+
+        async function loadDashboardWidgets() {
+            await Promise.all([
+                loadEndingSoonWidget(),
+                loadRecentBidsWidget(),
+                loadDistrictBreakdownWidget()
+            ]);
+        }
+
+        let endingSoonEventsAll = [];
+        let endingSoonEvents = [];
+        let endingSoonInterval = null;
+
+        async function loadEndingSoonWidget() {
+            const container = document.getElementById('dash-ending-soon');
+            if (!container) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/api/dashboard/ending-soon?hours=24&limit=1000`);
+                endingSoonEventsAll = await response.json();
+
+                if (endingSoonEventsAll.length === 0) {
+                    container.innerHTML = '<div style="text-align: center; padding: 20px; color: #94a3b8; font-size: 11px;">Nenhum evento a terminar nas próximas 24h</div>';
+                    return;
+                }
+
+                // Populate distrito filter
+                const distritoSelect = document.getElementById('ending-filter-distrito');
+                if (distritoSelect) {
+                    const distritos = [...new Set(endingSoonEventsAll.map(e => e.distrito).filter(Boolean))].sort();
+                    distritoSelect.innerHTML = '<option value="">Todos os distritos</option>' +
+                        distritos.map(d => `<option value="${d}">${d}</option>`).join('');
+                }
+
+                filterEndingSoon();
+
+                // Start live countdown
+                if (endingSoonInterval) clearInterval(endingSoonInterval);
+                endingSoonInterval = setInterval(updateEndingSoonTimers, 1000);
+            } catch (error) {
+                console.error('Erro ao carregar eventos a terminar:', error);
+                container.innerHTML = '<div style="text-align: center; padding: 20px; color: #ef4444; font-size: 11px;">Erro ao carregar</div>';
+            }
+        }
+
+        let endingSoonSort = { column: 'timer', direction: 'asc' };
+
+        function filterEndingSoon() {
+            const tipoFilter = document.getElementById('ending-filter-tipo')?.value || '';
+            const distritoFilter = document.getElementById('ending-filter-distrito')?.value || '';
+
+            endingSoonEvents = endingSoonEventsAll.filter(e => {
+                // Filter by tipo_id (1=Imóveis, 2=Veículos, etc)
+                if (tipoFilter && e.tipo_id !== parseInt(tipoFilter)) return false;
+                if (distritoFilter && e.distrito !== distritoFilter) return false;
+                return true;
+            });
+
+            applySortEndingSoon();
+            renderEndingSoonWidget();
+        }
+
+        function sortEndingSoon(column) {
+            if (endingSoonSort.column === column) {
+                endingSoonSort.direction = endingSoonSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                endingSoonSort.column = column;
+                endingSoonSort.direction = 'asc';
+            }
+
+            // Update sort icons
+            const columns = ['timer', 'reference', 'tipo', 'subtipo', 'distrito', 'lance_atual'];
+            columns.forEach(col => {
+                const icon = document.getElementById(`sort-icon-${col}`);
+                if (icon) {
+                    if (col === column) {
+                        icon.textContent = endingSoonSort.direction === 'asc' ? '↑' : '↓';
+                    } else {
+                        icon.textContent = '';
+                    }
+                }
+            });
+
+            applySortEndingSoon();
+            renderEndingSoonWidget();
+        }
+
+        function applySortEndingSoon() {
+            const { column, direction } = endingSoonSort;
+            const dir = direction === 'asc' ? 1 : -1;
+
+            endingSoonEvents.sort((a, b) => {
+                let valA, valB;
+
+                if (column === 'timer') {
+                    valA = new Date(a.data_fim).getTime();
+                    valB = new Date(b.data_fim).getTime();
+                } else if (column === 'lance_atual') {
+                    valA = a.lance_atual || 0;
+                    valB = b.lance_atual || 0;
+                } else {
+                    valA = (a[column] || '').toString().toLowerCase();
+                    valB = (b[column] || '').toString().toLowerCase();
+                }
+
+                if (valA < valB) return -1 * dir;
+                if (valA > valB) return 1 * dir;
+                return 0;
+            });
+        }
+
+        function renderEndingSoonWidget() {
+            const container = document.getElementById('dash-ending-soon');
+            if (!container) return;
+
+            if (!endingSoonEvents.length) {
+                container.innerHTML = '<div style="text-align: center; padding: 20px; color: #94a3b8; font-size: 11px;">Nenhum evento encontrado</div>';
+                return;
+            }
+
+            container.innerHTML = endingSoonEvents.map((event, idx) => {
+                const dataFim = new Date(event.data_fim);
+                const now = new Date();
+                const diffMs = dataFim - now;
+                const diffHours = diffMs / (1000 * 60 * 60);
+
+                // Color based on urgency
+                let bgColor, borderColor, textColor;
+                if (diffHours < 3) {
+                    bgColor = '#fef2f2'; borderColor = '#ef4444'; textColor = '#ef4444';
+                } else if (diffHours < 6) {
+                    bgColor = '#fff7ed'; borderColor = '#f97316'; textColor = '#f97316';
+                } else {
+                    bgColor = '#fefce8'; borderColor = '#eab308'; textColor = '#eab308';
+                }
+
+                const valor = event.lance_atual ? `€${event.lance_atual.toLocaleString()}` : '-';
+                const zona = event.distrito || '-';
+                // Map tipo_id to category name
+                const tipoIdToName = {1: 'Imóveis', 2: 'Veículos', 3: 'Equip.', 4: 'Mobil.', 5: 'Máq.', 6: 'Direitos'};
+                const tipo = tipoIdToName[event.tipo_id] || event.tipo || '-';
+                const subtipo = event.subtipo || '-';
+
+                // Price values for chart data attributes
+                const vBase = event.valor_base || 0;
+                const vAbertura = event.valor_abertura || 0;
+                const vMinimo = event.valor_minimo || 0;
+                const vAtual = event.lance_atual || 0;
+
+                return `
+                    <div class="ending-soon-row" data-ref="${event.reference}" style="display: flex; align-items: center; padding: 5px 10px; background: ${bgColor}; border-radius: 4px; border-left: 3px solid ${borderColor};">
+                        <span id="ending-timer-${idx}" style="font-size: 10px; font-weight: 600; color: ${textColor}; width: 72px;">--:--</span>
+                        <span style="font-size: 10px; color: #64748b; width: 85px; cursor: pointer; text-decoration: underline;" title="Ver detalhes" onclick="openInspectionModal('${event.reference}')">${event.reference}</span>
+                        <span style="font-size: 10px; color: #1e293b; width: 65px;">${tipo}</span>
+                        <span style="font-size: 10px; color: #64748b; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${subtipo}">${subtipo}</span>
+                        <span style="font-size: 10px; color: #64748b; width: 55px;">${zona}</span>
+                        <span style="font-size: 10px; font-weight: 600; color: #1e293b; width: 75px; text-align: right;">${valor}</span>
+                        <div class="price-chart-btn" data-ref="${event.reference}" data-base="${vBase}" data-abertura="${vAbertura}" data-minimo="${vMinimo}" data-atual="${vAtual}" style="width: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 12px;" title="Ver gráfico de preço">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                            <div class="price-chart-tooltip" style="display: none; position: fixed; background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); z-index: 9999; min-width: 280px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                    <span style="font-size: 11px; font-weight: 600; color: #1e293b;">Evolucao de Preco</span>
+                                    <span class="chart-variation" style="font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px;"></span>
+                                </div>
+                                <div class="chart-container" style="height: 100px; position: relative; margin-bottom: 8px;">
+                                    <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #94a3b8;">
+                                        <svg class="spin" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4m0 12v4m-8-10h4m12 0h4m-5.66-5.66l-2.82 2.82m-5.04 5.04l-2.82 2.82m0-11.32l2.82 2.82m5.04 5.04l2.82 2.82"/></svg>
+                                    </div>
+                                </div>
+                                <div class="chart-legend" style="color: #64748b;"></div>
+                                <div style="text-align: center; margin-top: 8px; padding-top: 8px; border-top: 1px solid #f1f5f9;">
+                                    <span style="font-size: 9px; color: #94a3b8;">Clica para expandir</span>
+                                </div>
+                            </div>
+                        </div>
+                        <a href="https://www.e-leiloes.pt/evento/${event.reference}" target="_blank" onclick="event.stopPropagation()" style="width: 24px; display: flex; align-items: center; justify-content: center; text-decoration: none; font-size: 12px;" title="Abrir no e-leilões">🔗</a>
+                    </div>
+                `;
+            }).join('');
+
+            // Initial timer update
+            updateEndingSoonTimers();
+
+            // Setup chart tooltip positioning
+            setupChartTooltips();
+
+            // Setup linked hover between tables
+            setupLinkedHover();
+        }
+
+        // Store loaded chart data for modal reuse
+        const chartDataCache = {};
+
+        function setupChartTooltips() {
+            document.querySelectorAll('.price-chart-btn').forEach(btn => {
+                const tooltip = btn.querySelector('.price-chart-tooltip');
+                if (!tooltip) return;
+
+                let loaded = false;
+                const ref = btn.dataset.ref;
+
+                btn.addEventListener('mouseenter', async (e) => {
+                    const rect = btn.getBoundingClientRect();
+                    tooltip.style.display = 'block';
+                    tooltip.style.top = (rect.top - tooltip.offsetHeight - 5) + 'px';
+                    tooltip.style.left = (rect.right - tooltip.offsetWidth) + 'px';
+
+                    if (rect.top - tooltip.offsetHeight - 5 < 10) {
+                        tooltip.style.top = (rect.bottom + 5) + 'px';
+                    }
+
+                    if (!loaded) {
+                        loaded = true;
+                        const vBase = parseFloat(btn.dataset.base) || 0;
+                        const vAbertura = parseFloat(btn.dataset.abertura) || 0;
+                        const vMinimo = parseFloat(btn.dataset.minimo) || 0;
+                        const vAtual = parseFloat(btn.dataset.atual) || 0;
+
+                        try {
+                            const response = await fetch(`${API_BASE}/api/dashboard/price-history/${ref}`);
+                            const history = await response.json();
+                            chartDataCache[ref] = { history, vBase, vAbertura, vMinimo, vAtual };
+                            renderPriceChart(tooltip, history, vBase, vAbertura, vMinimo, vAtual);
+                        } catch (err) {
+                            chartDataCache[ref] = { history: [{preco: vAtual}], vBase, vAbertura, vMinimo, vAtual };
+                            renderPriceChart(tooltip, [{preco: vAtual}], vBase, vAbertura, vMinimo, vAtual);
+                        }
+                    }
+                });
+
+                btn.addEventListener('mouseleave', () => {
+                    tooltip.style.display = 'none';
+                });
+
+                // Click to open expanded modal
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    tooltip.style.display = 'none';
+                    openPriceChartModal(ref, btn.dataset);
+                });
+            });
+        }
+
+        // Expanded price chart modal
+        function openPriceChartModal(ref, dataset) {
+            const vBase = parseFloat(dataset.base) || 0;
+            const vAbertura = parseFloat(dataset.abertura) || 0;
+            const vMinimo = parseFloat(dataset.minimo) || 0;
+            const vAtual = parseFloat(dataset.atual) || 0;
+
+            const modal = document.createElement('div');
+            modal.id = 'price-chart-modal';
+            modal.style.cssText = 'position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 99999;';
+            modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+            modal.innerHTML = `
+                <div style="background: white; border-radius: 12px; padding: 20px; max-width: 520px; width: 90%; box-shadow: 0 20px 50px rgba(0,0,0,0.3);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                        <div>
+                            <div style="font-size: 14px; font-weight: 600; color: #1e293b;">Evolucao de Preco</div>
+                            <div style="font-size: 11px; color: #64748b;">${ref}</div>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <a href="https://www.e-leiloes.pt/evento/${ref}" target="_blank" style="display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; background: #dbeafe; border-radius: 6px; text-decoration: none;" title="Abrir no e-leiloes.pt">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                            </a>
+                            <button onclick="this.closest('#price-chart-modal').remove()" style="display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; background: #f1f5f9; border: none; border-radius: 6px; cursor: pointer;" title="Fechar">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="chart-container" style="height: 200px; margin-bottom: 12px; display: flex; align-items: center; justify-content: center;">
+                        <svg class="spin" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><path d="M12 2v4m0 12v4m-8-10h4m12 0h4m-5.66-5.66l-2.82 2.82m-5.04 5.04l-2.82 2.82m0-11.32l2.82 2.82m5.04 5.04l2.82 2.82"/></svg>
+                    </div>
+                    <div class="chart-legend" style="color: #64748b;"></div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+
+            // Load data
+            const cached = chartDataCache[ref];
+            if (cached) {
+                renderPriceChart(modal.querySelector('div > div'), cached.history, cached.vBase, cached.vAbertura, cached.vMinimo, cached.vAtual, true);
+            } else {
+                fetch(`${API_BASE}/api/dashboard/price-history/${ref}`)
+                    .then(r => r.json())
+                    .then(history => {
+                        chartDataCache[ref] = { history, vBase, vAbertura, vMinimo, vAtual };
+                        renderPriceChart(modal.querySelector('div > div'), history, vBase, vAbertura, vMinimo, vAtual, true);
+                    })
+                    .catch(() => {
+                        renderPriceChart(modal.querySelector('div > div'), [{preco: vAtual}], vBase, vAbertura, vMinimo, vAtual, true);
+                    });
+            }
+        }
+
+        function renderPriceChart(tooltip, history, vBase, vAbertura, vMinimo, vAtual, isModal = false) {
+            const container = tooltip.querySelector('.chart-container');
+            const legend = tooltip.querySelector('.chart-legend');
+            const variationEl = tooltip.querySelector('.chart-variation');
+
+            // Prepare data with timestamps
+            let dataPoints = history.length > 0 ? history.map(h => ({
+                preco: h.preco,
+                timestamp: h.timestamp || null
+            })) : [{ preco: vAtual, timestamp: null }];
+
+            if (dataPoints.length === 1) {
+                dataPoints = [{ preco: dataPoints[0].preco * 0.95, timestamp: null }, dataPoints[0]];
+            }
+
+            const prices = dataPoints.map(d => d.preco);
+            const firstPrice = prices[0];
+            const lastPrice = prices[prices.length - 1];
+
+            // Calculate variation %
+            const variation = firstPrice > 0 ? ((lastPrice - firstPrice) / firstPrice * 100) : 0;
+            const isPositive = variation >= 0;
+
+            if (variationEl) {
+                variationEl.textContent = `${isPositive ? '+' : ''}${variation.toFixed(1)}%`;
+                variationEl.style.background = isPositive ? '#dcfce7' : '#fee2e2';
+                variationEl.style.color = isPositive ? '#16a34a' : '#dc2626';
+            }
+
+            // Price range - always include vMinimo in range so the line is visible
+            const dataMin = Math.min(...prices);
+            const dataMax = Math.max(...prices);
+            const minPrice = Math.min(dataMin, vMinimo || dataMin) * 0.95;
+            const maxPrice = Math.max(dataMax, vMinimo || dataMax) * 1.05;
+            const range = maxPrice - minPrice || 1;
+
+            // SVG dimensions - more left padding for Y-axis labels in modal
+            const width = isModal ? 480 : 252;
+            const height = isModal ? 200 : 100;
+            const padL = isModal ? 55 : 15, padR = 15, padT = 15, padB = isModal ? 30 : 12;
+            const chartW = width - padL - padR;
+            const chartH = height - padT - padB;
+
+            const getX = (i) => padL + (i / (prices.length - 1 || 1)) * chartW;
+            const getY = (p) => padT + chartH - ((p - minPrice) / range) * chartH;
+
+            // Build smooth path
+            let pathD = `M ${getX(0)} ${getY(prices[0])}`;
+            for (let i = 1; i < prices.length; i++) {
+                const x0 = getX(i - 1), y0 = getY(prices[i - 1]);
+                const x1 = getX(i), y1 = getY(prices[i]);
+                const cpx = (x0 + x1) / 2;
+                pathD += ` C ${cpx} ${y0}, ${cpx} ${y1}, ${x1} ${y1}`;
+            }
+            let areaD = pathD + ` L ${getX(prices.length - 1)} ${padT + chartH} L ${getX(0)} ${padT + chartH} Z`;
+
+            const vMinimoY = vMinimo > 0 ? getY(vMinimo) : -100;
+            const uid = 'g' + Math.random().toString(36).substr(2, 9);
+
+            const svgStyle = isModal ? 'display: block; width: 100%; background: #fafbfc; border-radius: 6px;' : 'display: block; background: #fafbfc; border-radius: 6px;';
+            let svg = `<svg viewBox="0 0 ${width} ${height}" ${isModal ? '' : `width="${width}" height="${height}"`} style="${svgStyle}">`;
+            svg += `<defs>
+                <linearGradient id="${uid}-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#22c55e" stop-opacity="0.25"/>
+                    <stop offset="100%" stop-color="#22c55e" stop-opacity="0.02"/>
+                </linearGradient>
+            </defs>`;
+
+            // Grid lines + Y-axis labels (only in modal)
+            for (let i = 0; i <= 4; i++) {
+                const y = padT + (chartH / 4) * i;
+                svg += `<line x1="${padL}" y1="${y}" x2="${width - padR}" y2="${y}" stroke="#e5e7eb" stroke-width="0.5"/>`;
+                if (isModal) {
+                    const val = maxPrice - (range / 4) * i;
+                    const label = val >= 1000 ? Math.round(val / 1000) + 'k' : Math.round(val);
+                    svg += `<text x="${padL - 8}" y="${y + 3}" font-size="9" fill="#94a3b8" text-anchor="end">${label}€</text>`;
+                }
+            }
+
+            // Valor mínimo line (always show if valid)
+            if (vMinimo > 0 && vMinimoY >= padT - 5 && vMinimoY <= padT + chartH + 5) {
+                svg += `<line x1="${padL}" y1="${vMinimoY}" x2="${width - padR}" y2="${vMinimoY}" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="5,3" opacity="0.8"/>`;
+                if (isModal) {
+                    const minLabel = vMinimo >= 1000 ? Math.round(vMinimo / 1000) + 'k' : Math.round(vMinimo);
+                    svg += `<text x="${padL - 8}" y="${vMinimoY + 3}" font-size="9" fill="#f59e0b" text-anchor="end" font-weight="500">${minLabel}€</text>`;
+                }
+            }
+
+            svg += `<path d="${areaD}" fill="url(#${uid}-grad)"/>`;
+            svg += `<path d="${pathD}" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
+
+            // Interactive data points (hidden by default, show only hovered one)
+            dataPoints.forEach((d, i) => {
+                const x = getX(i), y = getY(d.preco);
+                const isLast = i === dataPoints.length - 1;
+                const classes = isLast ? 'chart-point last-point' : 'chart-point';
+                svg += `<circle id="${uid}-pt-${i}" class="${classes}" cx="${x}" cy="${y}" r="${isLast ? 5 : 4}" fill="${isLast ? '#22c55e' : 'white'}" stroke="${isLast ? 'white' : '#22c55e'}" stroke-width="2"/>`;
+            });
+
+            // Invisible hit areas for hover detection
+            dataPoints.forEach((d, i) => {
+                const x = getX(i), y = getY(d.preco);
+                const time = d.timestamp ? new Date(d.timestamp).toLocaleString('pt-PT', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'}) : '';
+                const timeEsc = time.replace(/'/g, "\\'");
+                svg += `<circle cx="${x}" cy="${y}" r="12" fill="transparent" style="cursor: pointer;" onmouseenter="showChartPointTip(event, ${d.preco}, '${timeEsc}', '${uid}-pt-${i}')" onmouseleave="hideChartPointTip()"/>`;
+            });
+
+            // X-axis timestamps (only if modal and has data)
+            if (isModal && dataPoints.length > 1 && dataPoints[0].timestamp) {
+                const showCount = Math.min(5, dataPoints.length);
+                const step = Math.floor((dataPoints.length - 1) / (showCount - 1)) || 1;
+                for (let i = 0; i < dataPoints.length; i += step) {
+                    if (dataPoints[i].timestamp) {
+                        const x = getX(i);
+                        const time = new Date(dataPoints[i].timestamp).toLocaleString('pt-PT', {day:'2-digit', month:'2-digit'});
+                        svg += `<text x="${x}" y="${height - 5}" font-size="9" fill="#94a3b8" text-anchor="middle">${time}</text>`;
+                    }
+                }
+            }
+
+            svg += '</svg>';
+            container.innerHTML = svg;
+
+            // Legend
+            const legendSize = isModal ? '11px' : '9px';
+            const legendGap = isModal ? '8px 20px' : '3px 10px';
+            legend.innerHTML = `
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: ${legendGap}; font-size: ${legendSize}; ${isModal ? 'padding: 12px; background: #f8fafc; border-radius: 8px;' : ''}">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="width: 8px; height: 8px; background: #94a3b8; border-radius: 2px;"></span>
+                        <span style="color: #64748b;">Base</span>
+                        <strong style="color: #1e293b; margin-left: auto;">${vBase.toLocaleString()}€</strong>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="width: 8px; height: 8px; background: #3b82f6; border-radius: 2px;"></span>
+                        <span style="color: #64748b;">Abertura</span>
+                        <strong style="color: #1e293b; margin-left: auto;">${vAbertura.toLocaleString()}€</strong>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="width: 8px; height: 2px; background: #f59e0b;"></span>
+                        <span style="color: #64748b;">Minimo</span>
+                        <strong style="color: #1e293b; margin-left: auto;">${vMinimo.toLocaleString()}€</strong>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="width: 8px; height: 8px; background: #22c55e; border-radius: 50%;"></span>
+                        <span style="color: #64748b;">Atual</span>
+                        <strong style="color: #22c55e; margin-left: auto;">${vAtual.toLocaleString()}€</strong>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Chart point tooltip
+        let chartPointTip = null;
+        let activePointId = null;
+        function showChartPointTip(e, price, time, pointId) {
+            if (!chartPointTip) {
+                chartPointTip = document.createElement('div');
+                chartPointTip.style.cssText = 'position: fixed; padding: 5px 8px; background: #1e293b; color: white; font-size: 10px; border-radius: 4px; pointer-events: none; z-index: 9999999; white-space: nowrap;';
+                document.body.appendChild(chartPointTip);
+            }
+            // Show only the hovered point
+            if (activePointId) {
+                const prev = document.getElementById(activePointId);
+                if (prev) prev.classList.remove('active');
+            }
+            activePointId = pointId;
+            const pt = document.getElementById(pointId);
+            if (pt) pt.classList.add('active');
+
+            const timeStr = time ? `<span style="color: #94a3b8; margin-left: 6px;">${time}</span>` : '';
+            chartPointTip.innerHTML = `<strong style="color: #22c55e;">${price.toLocaleString()}€</strong>${timeStr}`;
+            chartPointTip.style.display = 'block';
+            chartPointTip.style.left = (e.clientX + 10) + 'px';
+            chartPointTip.style.top = (e.clientY - 25) + 'px';
+        }
+        function hideChartPointTip() {
+            if (chartPointTip) chartPointTip.style.display = 'none';
+            if (activePointId) {
+                const pt = document.getElementById(activePointId);
+                if (pt) pt.classList.remove('active');
+                activePointId = null;
+            }
+        }
+
+        function setupLinkedHover() {
+            // Remove old listeners by cloning and replacing
+            const allRows = document.querySelectorAll('.ending-soon-row, .recent-bid-row');
+
+            allRows.forEach(row => {
+                const ref = row.dataset.ref;
+                if (!ref) return;
+
+                row.addEventListener('mouseenter', () => {
+                    // Find all rows with the same reference in both tables
+                    document.querySelectorAll(`.ending-soon-row[data-ref="${ref}"], .recent-bid-row[data-ref="${ref}"]`).forEach(r => {
+                        if (r !== row) {
+                            r.classList.add('highlight-linked');
+                        }
+                    });
+                });
+
+                row.addEventListener('mouseleave', () => {
+                    // Remove highlight from all rows with the same reference
+                    document.querySelectorAll(`.ending-soon-row[data-ref="${ref}"], .recent-bid-row[data-ref="${ref}"]`).forEach(r => {
+                        r.classList.remove('highlight-linked');
+                    });
+                });
+            });
+        }
+
+        function updateEndingSoonTimers() {
+            endingSoonEvents.forEach((event, idx) => {
+                const timerEl = document.getElementById(`ending-timer-${idx}`);
+                if (!timerEl) return;
+
+                const dataFim = new Date(event.data_fim);
+                const now = new Date();
+                const diffMs = dataFim - now;
+
+                if (diffMs <= 0) {
+                    timerEl.textContent = 'Terminado';
+                    return;
+                }
+
+                const hours = Math.floor(diffMs / (1000 * 60 * 60));
+                const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                const secs = Math.floor((diffMs % (1000 * 60)) / 1000);
+
+                if (hours > 0) {
+                    timerEl.textContent = `${hours}h ${mins}m ${secs.toString().padStart(2, '0')}s`;
+                } else {
+                    timerEl.textContent = `${mins}m ${secs.toString().padStart(2, '0')}s`;
+                }
+            });
+        }
+
+        let recentBidsInterval = null;
+
+        async function loadRecentBidsWidget() {
+            const container = document.getElementById('dash-recent-bids');
+            if (!container) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/api/dashboard/recent-bids?limit=30`);
+                const bids = await response.json();
+
+                if (bids.length === 0) {
+                    container.innerHTML = '<div style="text-align: center; padding: 20px; color: #94a3b8; font-size: 11px;">Nenhuma licitação recente</div>';
+                    return;
+                }
+
+                // Separate active and inactive bids
+                const activeBids = bids.filter(b => b.ativo !== false);
+                const inactiveBids = bids.filter(b => b.ativo === false);
+
+                const renderBid = (bid) => {
+                    const anterior = bid.preco_anterior ? `€${bid.preco_anterior.toLocaleString()}` : '?';
+                    const atual = bid.preco_atual ? `€${bid.preco_atual.toLocaleString()}` : '?';
+                    const variacao = bid.variacao ? `+€${bid.variacao.toLocaleString()}` : '';
+                    const isActive = bid.ativo !== false;
+
+                    // Time ago
+                    const created = new Date(bid.timestamp);
+                    const now = new Date();
+                    const diffMs = now - created;
+                    const diffMins = Math.floor(diffMs / 60000);
+                    const diffHours = Math.floor(diffMs / 3600000);
+                    const timeAgo = diffMins < 60 ? `${diffMins}m` : `${diffHours}h`;
+
+                    // Styling based on active/inactive status
+                    const rowClass = isActive ? 'recent-bid-row' : '';
+                    const bgColor = isActive ? '#f0fdf4' : '#f8fafc';
+                    const borderColor = isActive ? '#22c55e' : '#e2e8f0';
+                    const priceColor = isActive ? '#166534' : '#94a3b8';
+                    const variacaoColor = isActive ? '#22c55e' : '#94a3b8';
+                    const textColor = isActive ? '#64748b' : '#94a3b8';
+
+                    return `
+                        <div class="${rowClass}" data-ref="${bid.reference}" style="display: flex; align-items: center; padding: 5px 10px; background: ${bgColor}; border-radius: 4px; border-left: 3px solid ${borderColor};">
+                            <span style="font-size: 10px; color: ${textColor}; width: 80px; cursor: pointer; text-decoration: underline;" onclick="openInspectionModal('${bid.reference}')">${bid.reference}</span>
+                            <span style="font-size: 10px; color: ${textColor}; flex: 1;">${anterior} → <strong style="color: ${priceColor};">${atual}</strong></span>
+                            <span style="font-size: 9px; color: ${variacaoColor}; font-weight: 500; width: 55px; text-align: right;">${variacao}</span>
+                            <span style="font-size: 9px; color: #94a3b8; width: 30px; text-align: right;">${timeAgo}</span>
+                        </div>
+                    `;
+                };
+
+                let html = '';
+
+                // Render active bids first
+                if (activeBids.length > 0) {
+                    html += activeBids.map(renderBid).join('');
+                }
+
+                // Add divider and inactive bids if any
+                if (inactiveBids.length > 0) {
+                    html += `
+                        <div style="display: flex; align-items: center; gap: 8px; padding: 8px 0; margin: 4px 0;">
+                            <div style="flex: 1; height: 1px; background: #e2e8f0;"></div>
+                            <span style="font-size: 9px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">Inativos (${inactiveBids.length})</span>
+                            <div style="flex: 1; height: 1px; background: #e2e8f0;"></div>
+                        </div>
+                    `;
+                    html += inactiveBids.map(renderBid).join('');
+                }
+
+                container.innerHTML = html;
+
+                // Setup linked hover between tables
+                setupLinkedHover();
+
+                // Start auto-refresh if not already running
+                if (!recentBidsInterval) {
+                    recentBidsInterval = setInterval(loadRecentBidsWidget, 5000);
+                }
+            } catch (error) {
+                console.error('Erro ao carregar licitações recentes:', error);
+                container.innerHTML = '<div style="text-align: center; padding: 20px; color: #ef4444; font-size: 11px;">Erro ao carregar</div>';
+            }
+        }
+
+        // Distrito bar tooltip
+        let distritoTip = null;
+        function showDistritoTip(e, label, count, color) {
+            if (!distritoTip) {
+                distritoTip = document.createElement('div');
+                distritoTip.style.cssText = 'position: fixed; padding: 6px 10px; background: white; border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(0,0,0,0.15); font-size: 11px; border-radius: 6px; pointer-events: none; z-index: 9999; white-space: nowrap;';
+                document.body.appendChild(distritoTip);
+            }
+            distritoTip.innerHTML = `<div style="display: flex; align-items: center; gap: 6px;"><span style="width: 10px; height: 10px; background: ${color}; border-radius: 2px;"></span><span style="color: #64748b;">${label}</span><span style="font-weight: 700; color: #1e293b;">${count}</span></div>`;
+            distritoTip.style.display = 'block';
+            distritoTip.style.left = (e.clientX + 12) + 'px';
+            distritoTip.style.top = (e.clientY - 30) + 'px';
+        }
+        function hideDistritoTip() {
+            if (distritoTip) distritoTip.style.display = 'none';
+        }
+
+        async function loadDistrictBreakdownWidget() {
+            const container = document.getElementById('dash-districts-breakdown');
+            if (!container) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/api/dashboard/stats-by-distrito?limit=5`);
+                const districts = await response.json();
+
+                if (districts.length === 0) {
+                    container.innerHTML = '<div style="text-align: center; padding: 20px; color: #94a3b8; font-size: 11px;">Sem dados</div>';
+                    return;
+                }
+
+                const maxTotal = Math.max(...districts.map(d => d.total));
+                const types = [
+                    { key: 'imoveis', label: 'Imoveis', color: '#3b82f6' },
+                    { key: 'veiculos', label: 'Veiculos', color: '#22c55e' },
+                    { key: 'direitos', label: 'Direitos', color: '#f59e0b' },
+                    { key: 'equipamentos', label: 'Equip.', color: '#8b5cf6' },
+                    { key: 'mobiliario', label: 'Mobil.', color: '#ec4899' },
+                    { key: 'maquinas', label: 'Maquinas', color: '#64748b' }
+                ];
+
+                container.innerHTML = districts.map((d, idx) => {
+                    const barWidth = Math.round((d.total / maxTotal) * 100);
+
+                    // Stacked bar segments with hover tooltip
+                    const segments = types.filter(t => d[t.key] > 0).map(t => {
+                        const pct = (d[t.key] / d.total) * 100;
+                        return `<div class="distrito-seg" style="width: ${pct}%; background: ${t.color}; height: 100%; position: relative; cursor: pointer; transition: opacity 0.15s;" data-label="${t.label}" data-count="${d[t.key]}" onmouseenter="this.style.opacity='0.8'; showDistritoTip(event, '${t.label}', ${d[t.key]}, '${t.color}');" onmouseleave="this.style.opacity='1'; hideDistritoTip();"></div>`;
+                    }).join('');
+
+                    return `
+                        <div style="display: flex; align-items: center; gap: 10px; padding: 4px 0;">
+                            <span style="font-size: 11px; font-weight: 500; color: #475569; width: 70px; text-align: right;">${d.distrito}</span>
+                            <div style="flex: 1; height: 16px; background: #f1f5f9; border-radius: 3px; overflow: hidden;">
+                                <div style="display: flex; height: 100%; width: ${barWidth}%; transition: width 0.3s;">${segments}</div>
+                            </div>
+                            <span style="font-size: 11px; font-weight: 600; color: #1e293b; width: 28px;">${d.total}</span>
+                        </div>
+                    `;
+                }).join('') + `
+                <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; padding-top: 8px; border-top: 1px solid #e2e8f0;">
+                    ${types.map(t => `<span style="font-size: 9px; color: #64748b; display: flex; align-items: center; gap: 3px;"><span style="width: 8px; height: 8px; background: ${t.color}; border-radius: 2px;"></span>${t.label}</span>`).join('')}
+                </div>`;
+
+            } catch (error) {
+                console.error('Erro ao carregar stats por distrito:', error);
+                container.innerHTML = '<div style="text-align: center; padding: 20px; color: #ef4444; font-size: 11px;">Erro</div>';
+            }
+        }
+
+        // Load dashboard widgets on page load and refresh periodically
+        loadDashboardWidgets();
+        setInterval(loadDashboardWidgets, 60000); // Refresh every minute
 
         // Scraper Control Functions
         let scraperPollInterval = null;
@@ -5554,10 +6446,7 @@
         // ========== DB MAINTENANCE FUNCTIONS ==========
 
         // Refresh DB stats
-        async function refreshDbStats() {
-            const spinner = document.getElementById('db-stats-spinner');
-            if (spinner) spinner.style.display = 'inline';
-
+        async function refreshDbStats(silent = false) {
             try {
                 const response = await fetch(`${API_BASE}/api/db/stats`);
                 const data = await response.json();
@@ -5566,18 +6455,21 @@
                     const el = document.getElementById(id);
                     if (el) el.textContent = val || 0;
                 };
-                setEl('db-stat-total', data.total);
-                setEl('db-stat-content', data.with_content);
-                setEl('db-stat-incomplete', data.incomplete);
-                setEl('db-stat-nulls', data.null_lance_atual);
+                // Update scraping page stats
+                setEl('db-stat-total-scraping', data.total);
+                setEl('db-stat-content-scraping', data.with_content);
+                setEl('db-stat-incomplete-scraping', data.incomplete);
+                setEl('db-stat-nulls-scraping', data.null_lance_atual);
 
-                addLog('📊 Estatísticas da BD atualizadas', 'info');
+                if (!silent) addLog('📊 Estatísticas da BD atualizadas', 'info');
             } catch (e) {
-                addLog(`❌ Erro ao carregar estatísticas: ${e.message}`, 'error');
-            } finally {
-                if (spinner) spinner.style.display = 'none';
+                if (!silent) addLog(`❌ Erro ao carregar estatísticas: ${e.message}`, 'error');
             }
         }
+
+        // Auto-refresh DB stats every 10 seconds
+        refreshDbStats(true);
+        setInterval(() => refreshDbStats(true), 10000);
 
         // Fix NULL lance_atual values
         async function runFixNulls() {
@@ -6363,6 +7255,7 @@
 
         // Pipeline countdown timers storage
         let pipelineNextRuns = {};
+        let pipelineEnabled = {}; // Store enabled status from API
         let pipelineCountdownInterval = null;
 
         function formatCountdown(seconds) {
@@ -6385,34 +7278,54 @@
             const now = new Date();
 
             for (const [type, nextRunStr] of Object.entries(pipelineNextRuns)) {
-                const timerEl = document.getElementById(`pipeline-timer-${type}`);
-                if (!timerEl) continue;
+                const timerEl = document.getElementById(`pipeline-timer-${type}-scraping`);
+                const dashTimerEl = document.getElementById(`dash-${type}-timer`);
 
-                const checkbox = document.getElementById(`auto-pipeline-${type}`);
-                const isEnabled = checkbox && checkbox.checked;
+                // Use stored enabled status (from API), fallback to checkbox if available
+                const checkbox = document.getElementById(`auto-pipeline-${type}-scraping`);
+                const isEnabled = pipelineEnabled[type] !== undefined ? pipelineEnabled[type] : (checkbox && checkbox.checked);
+
+                let displayText = '--:--';
+                let displayColor = '#94a3b8';
 
                 if (!isEnabled) {
-                    timerEl.textContent = '⏸️ Desativada';
-                    timerEl.style.color = '#94a3b8';
-                    continue;
-                }
-
-                if (!nextRunStr) {
-                    timerEl.textContent = '⏱️ A aguardar...';
-                    continue;
-                }
-
-                const nextRun = new Date(nextRunStr);
-                const diffSeconds = (nextRun - now) / 1000;
-
-                if (diffSeconds <= 0) {
-                    timerEl.textContent = '🔄 A executar...';
-                    timerEl.style.color = '#f59e0b';
+                    displayText = 'OFF';
+                    displayColor = '#94a3b8';
+                } else if (!nextRunStr) {
+                    displayText = '...';
+                    displayColor = '#64748b';
                 } else {
-                    timerEl.textContent = formatCountdown(diffSeconds);
-                    // Reset color based on pipeline type
-                    if (type === 'xmonitor') timerEl.style.color = '#dc2626';
-                    else if (type === 'ysync') timerEl.style.color = '#1e40af';
+                    const nextRun = new Date(nextRunStr);
+                    const diffSeconds = (nextRun - now) / 1000;
+
+                    if (diffSeconds <= 0) {
+                        displayText = 'A executar';
+                        displayColor = '#f59e0b';
+                    } else {
+                        // Full format for scraping page
+                        if (timerEl) {
+                            timerEl.textContent = formatCountdown(diffSeconds);
+                            if (type === 'xmonitor') timerEl.style.color = '#dc2626';
+                            else if (type === 'ysync') timerEl.style.color = '#1e40af';
+                        }
+                        // Compact format for dashboard
+                        const mins = Math.floor(diffSeconds / 60);
+                        const secs = Math.floor(diffSeconds % 60);
+                        displayText = `${mins}:${secs.toString().padStart(2, '0')}`;
+                        displayColor = type === 'xmonitor' ? '#dc2626' : '#1e40af';
+                    }
+                }
+
+                // Update scraping page timer
+                if (timerEl && (displayText === 'OFF' || displayText === '...' || displayText === 'A executar')) {
+                    timerEl.textContent = displayText === 'OFF' ? '⏸️ Desativada' : (displayText === '...' ? '⏱️ A aguardar...' : '🔄 A executar...');
+                    timerEl.style.color = displayColor;
+                }
+
+                // Update dashboard timer
+                if (dashTimerEl) {
+                    dashTimerEl.textContent = displayText;
+                    dashTimerEl.style.color = displayColor;
                 }
             }
         }
@@ -6431,16 +7344,18 @@
 
                     // Update UI with current status and store next_run times
                     for (const [type, config] of Object.entries(data.pipelines || {})) {
-                        const checkbox = document.getElementById(`auto-pipeline-${type}`);
+                        // Update checkbox on scraping page
+                        const checkbox = document.getElementById(`auto-pipeline-${type}-scraping`);
                         if (checkbox) {
                             checkbox.checked = config.enabled;
                         }
 
-                        // Store next_run for countdown timer
+                        // Store enabled status and next_run for countdown timer
+                        pipelineEnabled[type] = config.enabled;
                         pipelineNextRuns[type] = config.next_run;
 
-                        // If pipeline is running, show running state
-                        const timerEl = document.getElementById(`pipeline-timer-${type}`);
+                        // If pipeline is running, show running state on scraping page
+                        const timerEl = document.getElementById(`pipeline-timer-${type}-scraping`);
                         if (timerEl && config.is_running) {
                             timerEl.textContent = '🔄 A executar...';
                             timerEl.style.color = '#f59e0b';
@@ -6453,6 +7368,12 @@
                         const setCount = (id, val) => {
                             const el = document.getElementById(id);
                             if (el) el.textContent = val || 0;
+                            // Also update scraping page element
+                            const elScraping = document.getElementById(id + '-scraping');
+                            if (elScraping) elScraping.textContent = val || 0;
+                            // Also update dashboard element
+                            const elDash = document.getElementById(id + '-dash');
+                            if (elDash) elDash.textContent = val || 0;
                         };
                         setCount('x-monitor-count', stats.total);
                         setCount('x-critical-count', stats.critical);
@@ -6846,6 +7767,9 @@
                 // Update count
                 const activeRules = rules.filter(r => r.active).length;
                 document.getElementById('alertas-rules-count').textContent = activeRules;
+                // Update dashboard count
+                const dashRulesEl = document.getElementById('dash-rules-count');
+                if (dashRulesEl) dashRulesEl.textContent = activeRules;
 
                 if (rules.length === 0) {
                     tbody.innerHTML = `<tr><td colspan="6" style="padding: 60px 40px; text-align: center; color: #94a3b8;">
@@ -6903,6 +7827,9 @@
                 const unreadCount = notifications.filter(n => !n.read).length;
                 const countEl = document.getElementById('alertas-unread-count');
                 if (countEl) countEl.textContent = unreadCount;
+                // Update dashboard count
+                const dashUnreadEl = document.getElementById('dash-unread-count');
+                if (dashUnreadEl) dashUnreadEl.textContent = unreadCount;
 
                 if (notifications.length === 0) {
                     container.innerHTML = `
@@ -6916,12 +7843,32 @@
                 container.innerHTML = notifications.map(notif => {
                     const timeAgo = getTimeAgo(new Date(notif.created_at));
 
+                    // Get notification type badge
+                    const typeInfo = {
+                        'new_event': { label: 'Novo', icon: '🆕', color: '#3b82f6', bg: '#eff6ff' },
+                        'price_change': { label: 'Preço', icon: '💰', color: '#f59e0b', bg: '#fef3c7' },
+                        'ending_soon': { label: 'A Terminar', icon: '⏰', color: '#ef4444', bg: '#fef2f2' },
+                        'event_ended': { label: 'Terminado', icon: '🏁', color: '#6b7280', bg: '#f3f4f6' }
+                    };
+                    const type = typeInfo[notif.notification_type] || typeInfo['new_event'];
+
+                    // Price variation for price_change
+                    const priceVariation = notif.notification_type === 'price_change' && notif.preco_variacao
+                        ? `<span style="color: ${notif.preco_variacao < 0 ? '#ef4444' : '#059669'}; font-weight: 600; font-size: 11px;">${notif.preco_variacao > 0 ? '+' : ''}€${notif.preco_variacao.toLocaleString()}</span>`
+                        : '';
+
                     return `
-                        <div onclick="markNotificationRead(${notif.id})" style="background: ${notif.read ? 'white' : '#f0f9ff'}; border: 1px solid ${notif.read ? '#e2e8f0' : '#bae6fd'}; border-radius: 10px; padding: 14px 16px; cursor: pointer; transition: all 0.2s;">
+                        <div style="background: ${notif.read ? 'white' : '#f0f9ff'}; border: 1px solid ${notif.read ? '#e2e8f0' : '#bae6fd'}; border-radius: 10px; padding: 14px 16px; transition: all 0.2s;">
                             <div style="display: flex; gap: 14px; align-items: center;">
+                                <div style="width: 32px; height: 32px; border-radius: 8px; background: ${type.bg}; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0;" title="${type.label}">
+                                    ${type.icon}
+                                </div>
                                 <div style="flex: 1; min-width: 0;">
-                                    <div style="font-weight: ${notif.read ? '400' : '600'}; font-size: 13px; margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                                        ${notif.event_titulo || notif.event_reference}
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                                        <span style="font-weight: ${notif.read ? '400' : '600'}; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                            ${notif.event_titulo || notif.event_reference}
+                                        </span>
+                                        ${priceVariation}
                                     </div>
                                     <div style="font-size: 12px; color: #64748b;">
                                         ${notif.event_tipo || ''} ${notif.event_subtipo ? `· ${notif.event_subtipo}` : ''} ${notif.event_distrito ? `· ${notif.event_distrito}` : ''}
@@ -6929,7 +7876,12 @@
                                     </div>
                                 </div>
                                 <div style="font-size: 11px; color: #94a3b8; white-space: nowrap;">${timeAgo}</div>
-                                <button onclick="event.stopPropagation(); openInspectionModal('${notif.event_reference}')" style="background: #f1f5f9; border: none; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #64748b; transition: all 0.2s;" title="Ver evento">
+                                <button onclick="markNotificationRead(${notif.id}, ${!notif.read})" style="background: ${notif.read ? '#f1f5f9' : '#dbeafe'}; border: none; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: ${notif.read ? '#94a3b8' : '#3b82f6'}; transition: all 0.2s;" title="${notif.read ? 'Marcar como não lida' : 'Marcar como lida'}">
+                                    <svg fill="${notif.read ? 'none' : 'currentColor'}" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="16" height="16">
+                                        <circle cx="12" cy="12" r="4"/>
+                                    </svg>
+                                </button>
+                                <button onclick="openInspectionModal('${notif.event_reference}')" style="background: #f1f5f9; border: none; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #64748b; transition: all 0.2s;" title="Ver evento">
                                     <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="16" height="16">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
@@ -6948,8 +7900,6 @@
 
         // Delete all notifications
         async function deleteAllNotifications() {
-            if (!confirm('Tem certeza que deseja eliminar todas as notificações?')) return;
-
             try {
                 await fetch(`${API_BASE}/api/notifications/delete-all`, { method: 'DELETE' });
                 loadNotifications();
@@ -6959,6 +7909,65 @@
                 console.error('Erro ao eliminar notificações:', error);
                 showToast('Erro', 'Não foi possível eliminar as notificações', 'error');
             }
+        }
+
+        // Confirm delete all notifications (Settings page)
+        function confirmDeleteAllNotifications() {
+            if (confirm('Tem certeza que deseja eliminar TODAS as notificações?\n\nEsta ação não pode ser revertida!')) {
+                deleteAllNotifications();
+            }
+        }
+
+        // Export all events data (Settings page)
+        async function exportAllData() {
+            try {
+                showToast('A exportar...', 'Preparando dados para download', 'info');
+                const response = await fetch(`${API_BASE}/api/events?limit=100000`);
+                if (!response.ok) throw new Error('Erro ao obter dados');
+
+                const data = await response.json();
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `e-leiloes-export-${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                showToast('Exportação concluída', `${data.events?.length || 0} eventos exportados`, 'success');
+            } catch (error) {
+                console.error('Erro ao exportar:', error);
+                showToast('Erro', 'Não foi possível exportar os dados', 'error');
+            }
+        }
+
+        // Clear Redis cache (Settings page)
+        async function clearCache() {
+            if (!confirm('Tem certeza que deseja limpar o cache?\n\nIsto pode temporariamente afetar a performance.')) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/api/cache/clear`, { method: 'POST' });
+                if (response.ok) {
+                    showToast('Cache limpo', 'O cache foi limpo com sucesso', 'success');
+                } else {
+                    throw new Error('Erro ao limpar cache');
+                }
+            } catch (error) {
+                console.error('Erro ao limpar cache:', error);
+                showToast('Erro', 'Não foi possível limpar o cache', 'error');
+            }
+        }
+
+        // Run specific IDs from Scraping page
+        function runSpecificIdsScraping() {
+            const input = document.getElementById('specific-ids-input-scraping').value.trim();
+            if (!input) {
+                showToast('Erro', 'Introduza pelo menos um ID', 'error');
+                return;
+            }
+            runIndependentScraperWithIds(input);
         }
 
         // Toggle event-specific notification
@@ -7025,17 +8034,35 @@
         // Update notification badge in sidebar
         async function updateNotificationBadge() {
             try {
-                const response = await fetch(`${API_BASE}/api/notifications/count`);
-                const data = await response.json();
-                const badge = document.getElementById('nav-alerts-badge');
+                // Fetch unread count
+                const countResponse = await fetch(`${API_BASE}/api/notifications/count`);
+                const countData = await countResponse.json();
 
+                // Update nav badge
+                const badge = document.getElementById('nav-alerts-badge');
                 if (badge) {
-                    if (data.unread > 0) {
-                        badge.textContent = data.unread > 99 ? '99+' : data.unread;
+                    if (countData.unread > 0) {
+                        badge.textContent = countData.unread > 99 ? '99+' : countData.unread;
                         badge.style.display = 'inline';
                     } else {
                         badge.style.display = 'none';
                     }
+                }
+
+                // Update dashboard widget unread count
+                const dashUnreadEl = document.getElementById('dash-unread-count');
+                if (dashUnreadEl) {
+                    dashUnreadEl.textContent = countData.unread || 0;
+                }
+
+                // Fetch rules count for dashboard
+                const rulesResponse = await fetch(`${API_BASE}/api/notification-rules`);
+                const rules = await rulesResponse.json();
+                const activeRules = rules.filter(r => r.active).length;
+
+                const dashRulesEl = document.getElementById('dash-rules-count');
+                if (dashRulesEl) {
+                    dashRulesEl.textContent = activeRules;
                 }
             } catch (error) {
                 console.error('Erro ao atualizar badge:', error);
@@ -7166,10 +8193,10 @@
             }
         }
 
-        // Mark notification as read
-        async function markNotificationRead(notifId) {
+        // Mark notification as read or unread
+        async function markNotificationRead(notifId, read = true) {
             try {
-                await fetch(`${API_BASE}/api/notifications/${notifId}/read`, { method: 'POST' });
+                await fetch(`${API_BASE}/api/notifications/${notifId}/read?read=${read}`, { method: 'POST' });
                 loadNotifications();
                 updateNotificationBadge();
             } catch (error) {
@@ -7203,6 +8230,80 @@
 
         // Initial badge update
         updateNotificationBadge();
+
+        // ============== LIVE PRICE UPDATES (SSE) ==============
+
+        let sseConnection = null;
+
+        function connectToLiveUpdates() {
+            if (sseConnection) {
+                sseConnection.close();
+            }
+
+            sseConnection = new EventSource(`${API_BASE}/api/events/live`);
+
+            sseConnection.onopen = () => {
+                console.log('🔴 SSE: Connected to live price updates');
+            };
+
+            sseConnection.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+
+                    if (data.type === 'price_update') {
+                        // Show toast notification for price change
+                        const priceChange = data.new_price - data.old_price;
+                        const changeSymbol = priceChange >= 0 ? '+' : '';
+                        const changeColor = priceChange >= 0 ? '🔺' : '🔻';
+
+                        showToast(
+                            `${changeColor} Alteração de Preço`,
+                            `${data.reference}: €${data.old_price?.toLocaleString() || 0} → €${data.new_price?.toLocaleString() || 0} (${changeSymbol}€${priceChange?.toLocaleString() || 0})`,
+                            priceChange >= 0 ? 'warning' : 'success'
+                        );
+
+                        // Update badge instantly
+                        updateNotificationBadge();
+
+                        // If on alertas page, refresh notifications
+                        if (currentPage === 'alertas') {
+                            loadNotifications();
+                        }
+                    } else if (data.type === 'event_ended') {
+                        // Show toast notification for ended event
+                        const finalPrice = data.final_price?.toLocaleString() || '0';
+                        const titulo = data.titulo?.substring(0, 50) || data.reference;
+
+                        showToast(
+                            `🏁 Leilão Terminado`,
+                            `${data.reference}: ${titulo}... - Preço final: €${finalPrice}`,
+                            'info'
+                        );
+
+                        // Update badge instantly
+                        updateNotificationBadge();
+
+                        // If on alertas page, refresh notifications
+                        if (currentPage === 'alertas') {
+                            loadNotifications();
+                        }
+                    } else if (data.type === 'connected') {
+                        console.log('🔴 SSE:', data.message);
+                    }
+                } catch (e) {
+                    // Ignore parsing errors (keepalive pings)
+                }
+            };
+
+            sseConnection.onerror = (error) => {
+                console.log('🔴 SSE: Connection error, reconnecting in 5s...');
+                sseConnection.close();
+                setTimeout(connectToLiveUpdates, 5000);
+            };
+        }
+
+        // Connect to live updates on page load
+        connectToLiveUpdates();
 
         // ============== TOAST NOTIFICATION SYSTEM ==============
 
@@ -7253,10 +8354,16 @@
         async function loadQuickNotificationStates() {
             try {
                 const response = await fetch(`${API_BASE}/api/notification-rules`);
+                if (!response.ok) {
+                    console.error('Failed to load notification rules:', response.status);
+                    return;
+                }
                 const rules = await response.json();
+                console.log('Loaded notification rules:', rules);
 
                 // Find the single "Quick Notifications" rule
                 quickNotificationRule = rules.find(r => r.name === 'Quick Notifications') || null;
+                console.log('Quick notification rule:', quickNotificationRule);
 
                 // Update all button states
                 Object.keys(tipoNames).forEach(tipo => {
@@ -7287,6 +8394,7 @@
 
         async function toggleQuickNotification(tipo, tipoId) {
             const btn = document.getElementById(`notify-btn-${tipo}`);
+            console.log('Toggle quick notification:', tipo, 'Current rule:', quickNotificationRule);
 
             try {
                 if (quickNotificationRule) {
@@ -7327,6 +8435,7 @@
                     }
                 } else {
                     // Create new rule with this tipo
+                    console.log('Creating new Quick Notifications rule for:', tipo);
                     const response = await fetch(`${API_BASE}/api/notification-rules`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -7338,10 +8447,16 @@
                         })
                     });
 
+                    console.log('Create rule response status:', response.status);
                     if (response.ok) {
                         const data = await response.json();
-                        quickNotificationRule = { id: data.id, active: true, tipos: [tipo] };
+                        console.log('Rule created:', data);
+                        quickNotificationRule = { id: data.id, active: true, tipos: [tipo], name: 'Quick Notifications' };
                         showToast('Notificações ativadas', `Será notificado de novos ${tipoNames[tipo].toLowerCase()}`, 'success');
+                    } else {
+                        const errorText = await response.text();
+                        console.error('Failed to create rule:', response.status, errorText);
+                        showToast('Erro', 'Não foi possível criar a regra de notificação', 'error');
                     }
                 }
 

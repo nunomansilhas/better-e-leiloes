@@ -19,7 +19,7 @@ if sys.platform == 'win32':
 from dotenv import load_dotenv
 load_dotenv()
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Query
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Query, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -396,13 +396,13 @@ async def get_notifications_count():
 
 
 @app.post("/api/notifications/{notification_id}/read")
-async def mark_notification_read(notification_id: int):
-    """Mark a notification as read"""
+async def mark_notification_read(notification_id: int, read: bool = True):
+    """Mark a notification as read or unread"""
     async with get_db() as db:
-        success = await db.mark_notification_read(notification_id)
+        success = await db.mark_notification_read(notification_id, read=read)
         if not success:
             raise HTTPException(status_code=404, detail="Notification not found")
-        return JSONResponse({"success": True})
+        return JSONResponse({"success": True, "read": read})
 
 
 @app.post("/api/notifications/read-all")
@@ -432,8 +432,9 @@ async def get_notification_rules(active_only: bool = Query(False)):
 
 
 @app.post("/api/notification-rules")
-async def create_notification_rule(rule: dict):
+async def create_notification_rule(rule: dict = Body(...)):
     """Create a new notification rule"""
+    print(f"📝 Creating notification rule: {rule}")
     required_fields = ["name", "rule_type"]
     for field in required_fields:
         if field not in rule:
@@ -445,16 +446,24 @@ async def create_notification_rule(rule: dict):
 
     async with get_db() as db:
         rule_id = await db.create_notification_rule(rule)
+        print(f"✅ Rule created with ID: {rule_id}")
+        # Invalidate rules cache
+        from notification_engine import get_notification_engine
+        get_notification_engine().invalidate_cache(rule["rule_type"])
         return JSONResponse({"id": rule_id, "success": True})
 
 
 @app.put("/api/notification-rules/{rule_id}")
-async def update_notification_rule(rule_id: int, updates: dict):
+async def update_notification_rule(rule_id: int, updates: dict = Body(...)):
     """Update a notification rule"""
+    print(f"📝 Updating rule {rule_id}: {updates}")
     async with get_db() as db:
         success = await db.update_notification_rule(rule_id, updates)
         if not success:
             raise HTTPException(status_code=404, detail="Rule not found")
+        # Invalidate all rules cache (rule_type might have changed)
+        from notification_engine import get_notification_engine
+        get_notification_engine().invalidate_cache()
         return JSONResponse({"success": True})
 
 
@@ -465,6 +474,9 @@ async def delete_notification_rule(rule_id: int):
         success = await db.delete_notification_rule(rule_id)
         if not success:
             raise HTTPException(status_code=404, detail="Rule not found")
+        # Invalidate all rules cache
+        from notification_engine import get_notification_engine
+        get_notification_engine().invalidate_cache()
         return JSONResponse({"success": True})
 
 
@@ -475,6 +487,9 @@ async def toggle_notification_rule(rule_id: int, active: bool = Query(...)):
         success = await db.update_notification_rule(rule_id, {"active": active})
         if not success:
             raise HTTPException(status_code=404, detail="Rule not found")
+        # Invalidate all rules cache
+        from notification_engine import get_notification_engine
+        get_notification_engine().invalidate_cache()
         return JSONResponse({"success": True, "active": active})
 
 
@@ -1347,6 +1362,72 @@ async def get_db_extended_stats():
     async with get_db() as db:
         stats = await db.get_extended_stats()
         return stats
+
+
+@app.get("/api/dashboard/ending-soon")
+async def get_events_ending_soon(hours: int = 24, limit: int = 5):
+    """Get events ending within the next X hours"""
+    async with get_db() as db:
+        events = await db.get_events_ending_soon(hours=hours, limit=limit)
+        return JSONResponse(events)
+
+
+@app.get("/api/dashboard/activity")
+async def get_recent_activity():
+    """Get recent activity stats for dashboard"""
+    async with get_db() as db:
+        activity = await db.get_recent_activity()
+        return JSONResponse(activity)
+
+
+@app.get("/api/dashboard/stats-by-distrito")
+async def get_stats_by_distrito(limit: int = 5):
+    """Get event counts by distrito with breakdown by type"""
+    async with get_db() as db:
+        stats = await db.get_stats_by_distrito(limit=limit)
+        return JSONResponse(stats)
+
+
+@app.get("/api/dashboard/recent-bids")
+async def get_recent_bids(limit: int = 30, hours: int = 24):
+    """Get recent price changes from JSON history file (last 24h by default)"""
+    from price_history import get_recent_changes
+    bids = await get_recent_changes(limit=limit, hours=hours)
+
+    # Add ativo status from database for each event
+    if bids:
+        async with get_db() as db:
+            references = [b["reference"] for b in bids]
+            # Get ativo status for all references
+            from sqlalchemy import select
+            from database import EventDB
+            result = await db.session.execute(
+                select(EventDB.reference, EventDB.ativo)
+                .where(EventDB.reference.in_(references))
+            )
+            ativo_map = {row.reference: row.ativo for row in result}
+
+            # Add ativo to each bid
+            for bid in bids:
+                bid["ativo"] = ativo_map.get(bid["reference"], True)
+
+    return JSONResponse(bids)
+
+
+@app.get("/api/dashboard/price-history/{reference}")
+async def get_price_history(reference: str):
+    """Get complete price history for a specific event"""
+    from price_history import get_event_history
+    history = await get_event_history(reference)
+    return JSONResponse(history)
+
+
+@app.get("/api/dashboard/price-history-stats")
+async def get_price_history_stats():
+    """Get statistics about price history tracking"""
+    from price_history import get_stats
+    stats = await get_stats()
+    return JSONResponse(stats)
 
 
 @app.post("/api/db/fix-nulls")

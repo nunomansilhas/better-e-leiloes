@@ -10,6 +10,9 @@ from pathlib import Path
 from typing import Dict, Any, Optional, Callable
 from dataclasses import dataclass, asdict
 
+# Price history tracking
+from price_history import record_price_change
+
 
 @dataclass
 class PipelineConfig:
@@ -501,12 +504,22 @@ class AutoPipelinesManager:
                                 # Update event in database - only update price if we got a valid one
                                 if price_changed and new_price is not None:
                                     event.lance_atual = new_price
+                                    # Record to price history JSON
+                                    await record_price_change(event.reference, new_price, old_price)
                                 if time_extended and new_end is not None:
                                     event.data_fim = new_end
 
                                 async with get_db() as db:
                                     await db.save_event(event)
                                     await cache_manager.set(event.reference, event)
+
+                                    # Process price change notifications (Tier 1)
+                                    if price_changed and old_price is not None:
+                                        from notification_engine import get_notification_engine
+                                        notification_engine = get_notification_engine()
+                                        await notification_engine.process_price_change(
+                                            event, old_price, new_price, db
+                                        )
 
                                 # Broadcast price update to SSE clients
                                 from main import broadcast_price_update
@@ -774,12 +787,22 @@ class AutoPipelinesManager:
                                 # Update event - only update price if we got a valid one
                                 if price_changed and new_price is not None:
                                     event.lance_atual = new_price
+                                    # Record to price history JSON
+                                    await record_price_change(event.reference, new_price, old_price)
                                 if time_extended and new_end is not None:
                                     event.data_fim = new_end
 
                                 async with get_db() as db:
                                     await db.save_event(event)
                                     await cache_manager.set(event.reference, event)
+
+                                    # Process price change notifications (Tier 2)
+                                    if price_changed and old_price is not None:
+                                        from notification_engine import get_notification_engine
+                                        notification_engine = get_notification_engine()
+                                        await notification_engine.process_price_change(
+                                            event, old_price, new_price, db
+                                        )
 
                                 # Broadcast price update to SSE clients
                                 from main import broadcast_price_update
@@ -937,12 +960,22 @@ class AutoPipelinesManager:
                                 # Update event - only update price if we got a valid one
                                 if price_changed and new_price is not None:
                                     event.lance_atual = new_price
+                                    # Record to price history JSON
+                                    await record_price_change(event.reference, new_price, old_price)
                                 if time_extended and new_end is not None:
                                     event.data_fim = new_end
 
                                 async with get_db() as db:
                                     await db.save_event(event)
                                     await cache_manager.set(event.reference, event)
+
+                                    # Process price change notifications (Tier 3)
+                                    if price_changed and old_price is not None:
+                                        from notification_engine import get_notification_engine
+                                        notification_engine = get_notification_engine()
+                                        await notification_engine.process_price_change(
+                                            event, old_price, new_price, db
+                                        )
 
                                 # Broadcast price update to SSE clients
                                 from main import broadcast_price_update
@@ -1078,11 +1111,34 @@ class AutoPipelinesManager:
                             if price_changed or time_extended:
                                 if price_changed:
                                     event.lance_atual = new_price
+                                    # Record to price history JSON
+                                    await record_price_change(event.reference, new_price, old_price)
                                 if time_extended:
                                     event.data_fim = new_end
 
                                 async with get_db() as db:
                                     await db.save_event(event)
+
+                                    # Process price change notifications
+                                    if price_changed and old_price is not None:
+                                        from notification_engine import get_notification_engine
+                                        notification_engine = get_notification_engine()
+                                        await notification_engine.process_price_change(
+                                            event, old_price, new_price, db
+                                        )
+
+                                    # Process ending_soon notifications
+                                    if event.data_fim:
+                                        from notification_engine import get_notification_engine
+                                        notification_engine = get_notification_engine()
+                                        remaining = (event.data_fim - datetime.now()).total_seconds() / 60
+                                        if 0 < remaining <= 1440:  # Within 24 hours
+                                            try:
+                                                await notification_engine.process_ending_soon(
+                                                    event, int(remaining), db
+                                                )
+                                            except Exception as e:
+                                                pass  # Silent fail for ending_soon
 
                                 # Record to history
                                 from xmonitor_history import record_event_update
@@ -1199,32 +1255,100 @@ class AutoPipelinesManager:
                     if candidates:
                         print(f"    📋 {len(candidates)} candidatos a terminado")
 
+                        # OPTIMIZED: Batch API call instead of one-by-one
+                        refs = [e.reference for e in candidates]
+                        api_results = await scraper.scrape_volatile_via_api(refs)
+
+                        # Create lookup map for quick access
+                        api_map = {r['reference']: r for r in api_results}
+
+                        # Import notification function
+                        from notification_engine import create_event_ended_notification
+
                         for event in candidates:
                             try:
-                                # Quick check via API
-                                api_data = await scraper.scrape_volatile_via_api([event.reference])
+                                data = api_map.get(event.reference)
 
-                                if api_data and len(api_data) > 0:
-                                    data = api_data[0]
+                                if data:
                                     new_end = data.get('dataFim')
                                     if new_end and new_end < now:
-                                        event.terminado = True
-                                        event.cancelado = True
-                                        await db.save_event(event)
-                                        await cache_manager.set(event.reference, event)
+                                        # Only update specific fields, not full save
+                                        await db.update_event_fields(
+                                            event.reference,
+                                            {'terminado': True, 'cancelado': True, 'ativo': False}
+                                        )
+                                        await cache_manager.invalidate(event.reference)
                                         terminated_count += 1
                                         print(f"    🔴 Terminado: {event.reference}")
 
-                            except Exception as e:
-                                if "404" in str(e) or "not found" in str(e).lower():
-                                    event.terminado = True
-                                    await db.save_event(event)
+                                        # Create notification for ended event
+                                        await create_event_ended_notification({
+                                            'reference': event.reference,
+                                            'titulo': event.titulo,
+                                            'tipo': event.tipo,
+                                            'subtipo': event.subtipo,
+                                            'distrito': event.distrito,
+                                            'lance_atual': data.get('lanceAtual') or event.lance_atual,
+                                            'valor_base': event.valor_base,
+                                            'data_fim': new_end
+                                        }, db)
+
+                                        # Broadcast event_ended via SSE
+                                        from main import broadcast_price_update
+                                        await broadcast_price_update({
+                                            "type": "event_ended",
+                                            "reference": event.reference,
+                                            "titulo": event.titulo,
+                                            "tipo": event.tipo,
+                                            "final_price": data.get('lanceAtual') or event.lance_atual,
+                                            "valor_base": event.valor_base,
+                                            "timestamp": datetime.now().isoformat()
+                                        })
+                                else:
+                                    # Not in API results = likely 404/not found
+                                    await db.update_event_fields(
+                                        event.reference,
+                                        {'terminado': True, 'ativo': False}
+                                    )
                                     terminated_count += 1
                                     print(f"    🔴 Não encontrado: {event.reference}")
+
+                                    # Create notification for ended event (not found)
+                                    await create_event_ended_notification({
+                                        'reference': event.reference,
+                                        'titulo': event.titulo,
+                                        'tipo': event.tipo,
+                                        'subtipo': event.subtipo,
+                                        'distrito': event.distrito,
+                                        'lance_atual': event.lance_atual,
+                                        'valor_base': event.valor_base,
+                                        'data_fim': event.data_fim
+                                    }, db)
+
+                                    # Broadcast event_ended via SSE
+                                    from main import broadcast_price_update
+                                    await broadcast_price_update({
+                                        "type": "event_ended",
+                                        "reference": event.reference,
+                                        "titulo": event.titulo,
+                                        "tipo": event.tipo,
+                                        "final_price": event.lance_atual,
+                                        "valor_base": event.valor_base,
+                                        "timestamp": datetime.now().isoformat()
+                                    })
+
+                            except Exception as e:
+                                print(f"    ❌ Erro {event.reference}: {str(e)[:50]}")
                     else:
                         print(f"    ✓ Nenhum evento terminado")
 
                 print(f"  ✅ Y-Sync completo: {new_ids_count} novos, {terminated_count} terminados")
+
+                # Stage 3: Cleanup old notifications (runs every Y-Sync = every 2h)
+                print(f"  🗑️ Stage 3: Limpeza de notificações antigas...")
+                from notification_engine import cleanup_old_notifications
+                async with get_db() as db:
+                    await cleanup_old_notifications(db, days=30)
 
             finally:
                 await scraper.close()
