@@ -2681,10 +2681,10 @@
         .ending-soon-row, .recent-bid-row {
             transition: background 0.15s ease;
         }
-        .ending-soon-row:hover {
+        .ending-soon-row:hover, .ending-soon-row.highlight-linked {
             background: #dbeafe !important;
         }
-        .recent-bid-row:hover {
+        .recent-bid-row:hover, .recent-bid-row.highlight-linked {
             background: #dcfce7 !important;
         }
 
@@ -4849,7 +4849,7 @@
                 const vAtual = event.lance_atual || 0;
 
                 return `
-                    <div class="ending-soon-row" style="display: flex; align-items: center; padding: 5px 10px; background: ${bgColor}; border-radius: 4px; border-left: 3px solid ${borderColor};">
+                    <div class="ending-soon-row" data-ref="${event.reference}" style="display: flex; align-items: center; padding: 5px 10px; background: ${bgColor}; border-radius: 4px; border-left: 3px solid ${borderColor};">
                         <span id="ending-timer-${idx}" style="font-size: 10px; font-weight: 600; color: ${textColor}; width: 72px;">--:--</span>
                         <span style="font-size: 10px; color: #64748b; width: 85px; cursor: pointer; text-decoration: underline;" title="Ver detalhes" onclick="openInspectionModal('${event.reference}')">${event.reference}</span>
                         <span style="font-size: 10px; color: #1e293b; width: 65px;">${tipo}</span>
@@ -4877,6 +4877,9 @@
 
             // Setup chart tooltip positioning
             setupChartTooltips();
+
+            // Setup linked hover between tables
+            setupLinkedHover();
         }
 
         function setupChartTooltips() {
@@ -5022,6 +5025,32 @@
             `;
         }
 
+        function setupLinkedHover() {
+            // Remove old listeners by cloning and replacing
+            const allRows = document.querySelectorAll('.ending-soon-row, .recent-bid-row');
+
+            allRows.forEach(row => {
+                const ref = row.dataset.ref;
+                if (!ref) return;
+
+                row.addEventListener('mouseenter', () => {
+                    // Find all rows with the same reference in both tables
+                    document.querySelectorAll(`.ending-soon-row[data-ref="${ref}"], .recent-bid-row[data-ref="${ref}"]`).forEach(r => {
+                        if (r !== row) {
+                            r.classList.add('highlight-linked');
+                        }
+                    });
+                });
+
+                row.addEventListener('mouseleave', () => {
+                    // Remove highlight from all rows with the same reference
+                    document.querySelectorAll(`.ending-soon-row[data-ref="${ref}"], .recent-bid-row[data-ref="${ref}"]`).forEach(r => {
+                        r.classList.remove('highlight-linked');
+                    });
+                });
+            });
+        }
+
         function updateEndingSoonTimers() {
             endingSoonEvents.forEach((event, idx) => {
                 const timerEl = document.getElementById(`ending-timer-${idx}`);
@@ -5077,7 +5106,7 @@
                     const timeAgo = diffMins < 60 ? `${diffMins}m` : `${diffHours}h`;
 
                     return `
-                        <div class="recent-bid-row" style="display: flex; align-items: center; padding: 5px 10px; background: #f0fdf4; border-radius: 4px; border-left: 3px solid #22c55e;">
+                        <div class="recent-bid-row" data-ref="${bid.reference}" style="display: flex; align-items: center; padding: 5px 10px; background: #f0fdf4; border-radius: 4px; border-left: 3px solid #22c55e;">
                             <span style="font-size: 10px; color: #64748b; width: 80px; cursor: pointer; text-decoration: underline;" onclick="openInspectionModal('${bid.reference}')">${bid.reference}</span>
                             <span style="font-size: 10px; color: #64748b; flex: 1;">${anterior} → <strong style="color: #166534;">${atual}</strong></span>
                             <span style="font-size: 9px; color: #22c55e; font-weight: 500; width: 55px; text-align: right;">${variacao}</span>
@@ -5085,6 +5114,9 @@
                         </div>
                     `;
                 }).join('');
+
+                // Setup linked hover between tables
+                setupLinkedHover();
 
                 // Start auto-refresh if not already running
                 if (!recentBidsInterval) {
