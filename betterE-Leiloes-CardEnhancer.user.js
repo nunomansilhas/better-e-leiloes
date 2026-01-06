@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      11.0
-// @description  v11.0 - Side-by-side card layout: Values | Details
+// @version      11.1
+// @description  v11.1 - Cleaner side-by-side design, no gap
 // @author       Nuno Mansilhas
 // @match        https://e-leiloes.pt/*
 // @match        https://www.e-leiloes.pt/*
@@ -315,129 +315,124 @@
             font-size: 11px !important;
         }
 
-        /* Card content wrapper - direct child of card, fills remaining space */
+        /* Card content wrapper - fills remaining space, pushes countdown to bottom */
         .p-evento[data-better-enhanced="true"] > .better-card-content {
             flex: 1 1 auto !important;
             display: flex !important;
             flex-direction: column !important;
-            justify-content: flex-start !important;
             min-height: 0 !important;
         }
 
-        /* Values and Lance rows - compact */
-        .p-evento[data-better-enhanced="true"] .better-valores-row,
-        .p-evento[data-better-enhanced="true"] .better-lance-row {
-            flex-shrink: 0 !important;
-        }
-
-        /* COUNTDOWN - ALWAYS at bottom */
-        .p-evento[data-better-enhanced="true"] .better-countdown-row {
-            margin-top: auto !important;
-            flex-shrink: 0 !important;
-        }
-
         /* ============================================ */
-        /* SIDE-BY-SIDE CONTENT GRID                   */
+        /* SIDE-BY-SIDE CONTENT - CLEAN MINIMAL DESIGN */
         /* ============================================ */
 
         .p-evento[data-better-enhanced="true"] .better-content-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 8px;
-            padding: 6px 8px;
-            background: white;
-            border-top: 1px solid #f3f4f6;
-            transition: background-color 0.2s ease;
+            gap: 12px;
+            padding: 8px 10px;
+            flex: 1;
         }
 
-        .p-evento[data-better-enhanced="true"]:hover .better-content-grid {
-            background: #f9fafb !important;
-        }
-
-        /* Left column: Values stacked */
+        /* Left column: Values */
         .p-evento[data-better-enhanced="true"] .better-values-col {
             display: flex;
             flex-direction: column;
-            gap: 3px;
+            gap: 2px;
         }
 
         .p-evento[data-better-enhanced="true"] .better-value-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 2px 6px;
-            background: #f9fafb;
-            border-radius: 4px;
-            border: 1px solid #e5e7eb;
+            padding: 3px 0;
+            border-bottom: 1px solid #f3f4f6;
+        }
+
+        .p-evento[data-better-enhanced="true"] .better-value-row:last-child {
+            border-bottom: none;
         }
 
         .p-evento[data-better-enhanced="true"] .better-value-row.highlight {
-            background: #fef3c7;
-            border-color: #fcd34d;
+            background: linear-gradient(90deg, #fef3c7 0%, transparent 100%);
+            margin: 2px -4px;
+            padding: 4px 4px;
+            border-radius: 4px;
+            border-bottom: none;
         }
 
         .p-evento[data-better-enhanced="true"] .better-value-label {
-            color: #6b7280;
+            color: #9ca3af;
             font-size: 9px;
-            font-weight: 600;
+            font-weight: 500;
             text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .p-evento[data-better-enhanced="true"] .better-value-row.highlight .better-value-label {
+            color: #92400e;
+            font-weight: 600;
         }
 
         .p-evento[data-better-enhanced="true"] .better-value-amount {
-            color: #111827;
-            font-size: 10px;
-            font-weight: 700;
-            font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+            color: #374151;
+            font-size: 11px;
+            font-weight: 600;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         }
 
         .p-evento[data-better-enhanced="true"] .better-value-row.highlight .better-value-amount {
             color: #92400e;
+            font-weight: 700;
+            font-size: 12px;
         }
 
         /* Right column: Details */
         .p-evento[data-better-enhanced="true"] .better-details-col {
             display: flex;
             flex-direction: column;
-            gap: 3px;
+            gap: 2px;
+            border-left: 2px solid #e5e7eb;
+            padding-left: 10px;
         }
 
         .p-evento[data-better-enhanced="true"] .better-detail-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 2px 6px;
-            background: #f0f9ff;
-            border-radius: 4px;
-            border: 1px solid #bae6fd;
+            padding: 3px 0;
         }
 
         .p-evento[data-better-enhanced="true"] .better-detail-label {
-            color: #0369a1;
+            color: #9ca3af;
             font-size: 9px;
-            font-weight: 600;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
         }
 
         .p-evento[data-better-enhanced="true"] .better-detail-value {
-            color: #0c4a6e;
+            color: #1f2937;
             font-size: 10px;
             font-weight: 500;
             text-align: right;
-            max-width: 70px;
+            max-width: 80px;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
         }
 
-        /* Zone: Countdown - compact, always at bottom */
+        /* Zone: Countdown - clean bottom bar */
         .p-evento[data-better-enhanced="true"] .better-countdown-row {
-            background: #f9fafb;
-            padding: 6px 8px;
+            background: linear-gradient(180deg, #f9fafb 0%, #f3f4f6 100%);
+            padding: 8px 10px;
             border-top: 1px solid #e5e7eb;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-top: auto;
             border-radius: 0 0 16px 16px;
+            flex-shrink: 0;
         }
 
         .p-evento[data-better-enhanced="true"] .native-ref-prefix.lo { color: #3b82f6 !important; }
@@ -1118,7 +1113,7 @@
     }
 
     function init() {
-        console.log('🚀 Better E-Leilões Card Enhancer v11.0 - Side-by-side Values | Details');
+        console.log('🚀 Better E-Leilões Card Enhancer v11.1 - Clean Side-by-side Design');
 
         integrateWithNativeFloatingButtons();
         enhanceAllCards();
@@ -1127,7 +1122,7 @@
 
         observer.observe(document.body, { childList: true, subtree: true });
 
-        console.log('✅ Card enhancer v11.0 ativo!');
+        console.log('✅ Card enhancer v11.1 ativo!');
     }
 
     if (document.readyState === 'loading') {
