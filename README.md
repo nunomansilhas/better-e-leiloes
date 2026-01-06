@@ -2,9 +2,23 @@
 
 Sistema completo de monitorização e scraping para **e-leiloes.pt** com dashboard web, pipelines automáticas, sistema de notificações e alertas em tempo real.
 
-## Versão Atual: v2.0 (Janeiro 2025)
+## Versão Atual: v2.1 (Janeiro 2026)
 
-### Novidades Recentes
+### Novidades v2.1
+
+- **🔴 Notificações SSE em Tempo Real** - Toast alerts instantâneos para alterações de preço e leilões terminados
+- **🏁 Alertas de Leilão Terminado** - Notificação automática quando eventos terminam com preço final
+- **📊 Gráfico de Evolução de Preço** - Modal interativo com:
+  - Hover tooltips nos pontos de dados
+  - Indicador de variação percentual
+  - Linha de valor mínimo sempre visível
+  - Botão para expandir em modal maior
+  - Loading spinner e Y-axis labels
+- **🔔 Tipos de Notificação Visual** - Badges com ícones: 🆕 Novo, 💰 Preço, ⏰ A Terminar, 🏁 Terminado
+- **⚡ Badge Instantâneo** - Atualização imediata do contador de alertas via SSE
+- **🌐 API Base Dinâmico** - Funciona automaticamente em qualquer host/porta
+
+### Novidades v2.0
 
 - **Sistema de Notificações** - Regras personalizáveis para alertas de novos eventos e alterações de preço
 - **Quick Notifications** - Ativar notificações por tipo de evento com um clique
@@ -159,6 +173,17 @@ Dashboard disponível em: **http://localhost:8000**
 | POST | `/api/auto-pipelines/{type}/toggle` | Ativar/desativar |
 | GET | `/api/x-monitor/history` | Histórico X-Monitor |
 
+### Server-Sent Events (SSE)
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| GET | `/api/events/live` | Stream de atualizações em tempo real |
+
+**Eventos SSE:**
+- `price_update` - Alteração de preço (old_price, new_price, reference)
+- `event_ended` - Leilão terminado (final_price, titulo, reference)
+- `connected` - Confirmação de conexão
+- `ping` - Keepalive (a cada 30s)
+
 ## Funcionalidades do Dashboard
 
 ### Páginas de Eventos
@@ -199,6 +224,9 @@ Dashboard disponível em: **http://localhost:8000**
 │  │  Eventos    │  │  Alertas    │  │  Scrapers           │  │
 │  │  6 Páginas  │  │  & Regras   │  │  & Pipelines        │  │
 │  └─────────────┘  └─────────────┘  └─────────────────────┘  │
+│                         ▲                                    │
+│                         │ SSE (EventSource)                  │
+│                    Toast Notifications                       │
 └───────────────────────────┬─────────────────────────────────┘
                             │ REST API + SSE
 ┌───────────────────────────┴─────────────────────────────────┐
@@ -206,7 +234,10 @@ Dashboard disponível em: **http://localhost:8000**
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
 │  │ Notification│  │  Playwright │  │  Auto Pipelines     │  │
 │  │   Engine    │  │  (Scraper)  │  │  X-Monitor/Y-Sync   │  │
-│  └─────────────┘  └─────────────┘  └─────────────────────┘  │
+│  └──────┬──────┘  └─────────────┘  └──────────┬──────────┘  │
+│         │                                      │             │
+│         └──────────► SSE Broadcast ◄───────────┘             │
+│                    (price_update, event_ended)               │
 └───────────────────────────┬─────────────────────────────────┘
                             │
               ┌─────────────┴─────────────┐
@@ -231,7 +262,7 @@ Dashboard disponível em: **http://localhost:8000**
 CREATE TABLE notification_rules (
     id INT PRIMARY KEY AUTO_INCREMENT,
     name VARCHAR(100),
-    rule_type VARCHAR(50),  -- 'new_event', 'price_change'
+    rule_type VARCHAR(50),  -- 'new_event', 'price_change', 'ending_soon'
     active BOOLEAN,
     tipos JSON,             -- ["imoveis", "veiculos"]
     distritos JSON,         -- ["Lisboa", "Porto"]
@@ -245,16 +276,23 @@ CREATE TABLE notification_rules (
 -- Notificações
 CREATE TABLE notifications (
     id INT PRIMARY KEY AUTO_INCREMENT,
-    rule_id INT,
-    notification_type VARCHAR(50),
+    rule_id INT,            -- NULL para system notifications (event_ended)
+    notification_type VARCHAR(50),  -- 'new_event', 'price_change', 'ending_soon', 'event_ended'
     event_reference VARCHAR(50),
     event_titulo VARCHAR(500),
     preco_anterior FLOAT,
     preco_atual FLOAT,
+    preco_variacao FLOAT,   -- Variação para price_change
     read BOOLEAN DEFAULT FALSE,
     created_at DATETIME
 );
 ```
+
+**Tipos de Notificação:**
+- `new_event` - Novo evento que corresponde a uma regra
+- `price_change` - Alteração de preço (com variação)
+- `ending_soon` - Evento prestes a terminar
+- `event_ended` - Leilão terminado (system notification, sem regra)
 
 ## Tecnologias
 
