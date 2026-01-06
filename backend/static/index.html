@@ -3017,7 +3017,6 @@
                     <div style="display: flex; align-items: center; padding: 6px 10px; font-size: 9px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; background: #f8fafc; border-radius: 4px; margin-bottom: 4px; border-bottom: 1px solid #e2e8f0;">
                         <span onclick="sortEndingSoon('timer')" style="width: 72px; cursor: pointer; display: flex; align-items: center; gap: 2px;" title="Ordenar por tempo">Timer <span id="sort-icon-timer">↑</span></span>
                         <span onclick="sortEndingSoon('reference')" style="width: 70px; cursor: pointer; display: flex; align-items: center; gap: 2px;" title="Ordenar por ID">ID <span id="sort-icon-reference"></span></span>
-                        <span onclick="sortEndingSoon('modalidade')" style="width: 36px; cursor: pointer; display: flex; align-items: center; gap: 2px;" title="Ordenar por modalidade">Mod <span id="sort-icon-modalidade"></span></span>
                         <span onclick="sortEndingSoon('tipo')" style="width: 60px; cursor: pointer; display: flex; align-items: center; gap: 2px;" title="Ordenar por tipo">Tipo <span id="sort-icon-tipo"></span></span>
                         <span onclick="sortEndingSoon('subtipo')" style="flex: 1; cursor: pointer; display: flex; align-items: center; gap: 2px;" title="Ordenar por subtipo">Subtipo <span id="sort-icon-subtipo"></span></span>
                         <span onclick="sortEndingSoon('distrito')" style="width: 55px; cursor: pointer; display: flex; align-items: center; gap: 2px;" title="Ordenar por distrito">Zona <span id="sort-icon-distrito"></span></span>
@@ -4775,7 +4774,7 @@
             }
 
             // Update sort icons
-            const columns = ['timer', 'reference', 'modalidade', 'tipo', 'subtipo', 'distrito', 'lance_atual'];
+            const columns = ['timer', 'reference', 'tipo', 'subtipo', 'distrito', 'lance_atual'];
             columns.forEach(col => {
                 const icon = document.getElementById(`sort-icon-${col}`);
                 if (icon) {
@@ -4844,13 +4843,11 @@
                 const zona = event.distrito || '-';
                 const tipo = event.tipo || '-';
                 const subtipo = event.subtipo || '-';
-                const mod = event.modalidade || '-';
 
                 return `
                     <div style="display: flex; align-items: center; padding: 5px 10px; background: ${bgColor}; border-radius: 4px; border-left: 3px solid ${borderColor};">
                         <span id="ending-timer-${idx}" style="font-size: 10px; font-weight: 600; color: ${textColor}; width: 72px;">--:--</span>
                         <span style="font-size: 10px; color: #64748b; width: 70px; cursor: pointer; text-decoration: underline;" title="Ver detalhes" onclick="openInspectionModal('${event.reference}')">${event.reference}</span>
-                        <span style="font-size: 10px; color: #8b5cf6; width: 36px; font-weight: 500;">${mod}</span>
                         <span style="font-size: 10px; color: #1e293b; width: 60px;">${tipo}</span>
                         <span style="font-size: 10px; color: #64748b; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${subtipo}">${subtipo}</span>
                         <span style="font-size: 10px; color: #64748b; width: 55px;">${zona}</span>
