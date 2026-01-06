@@ -5028,11 +5028,11 @@
                 variationEl.style.color = isPositive ? '#16a34a' : '#dc2626';
             }
 
-            // Price range
+            // Price range - always include vMinimo in range so the line is visible
             const dataMin = Math.min(...prices);
             const dataMax = Math.max(...prices);
             const minPrice = Math.min(dataMin, vMinimo || dataMin) * 0.95;
-            const maxPrice = dataMax * 1.05;
+            const maxPrice = Math.max(dataMax, vMinimo || dataMax) * 1.05;
             const range = maxPrice - minPrice || 1;
 
             // SVG dimensions - more left padding for Y-axis labels in modal
