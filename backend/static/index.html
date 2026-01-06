@@ -5035,10 +5035,10 @@
             const maxPrice = dataMax * 1.05;
             const range = maxPrice - minPrice || 1;
 
-            // SVG dimensions
+            // SVG dimensions - more left padding for Y-axis labels in modal
             const width = isModal ? 480 : 252;
             const height = isModal ? 200 : 100;
-            const padL = 15, padR = 15, padT = 15, padB = isModal ? 30 : 12;
+            const padL = isModal ? 55 : 15, padR = 15, padT = 15, padB = isModal ? 30 : 12;
             const chartW = width - padL - padR;
             const chartH = height - padT - padB;
 
@@ -5067,16 +5067,24 @@
                 </linearGradient>
             </defs>`;
 
-            // Grid lines
+            // Grid lines + Y-axis labels (only in modal)
             for (let i = 0; i <= 4; i++) {
                 const y = padT + (chartH / 4) * i;
                 svg += `<line x1="${padL}" y1="${y}" x2="${width - padR}" y2="${y}" stroke="#e5e7eb" stroke-width="0.5"/>`;
+                if (isModal) {
+                    const val = maxPrice - (range / 4) * i;
+                    const label = val >= 1000 ? Math.round(val / 1000) + 'k' : Math.round(val);
+                    svg += `<text x="${padL - 8}" y="${y + 3}" font-size="9" fill="#94a3b8" text-anchor="end">${label}€</text>`;
+                }
             }
 
-            // Valor mínimo line
-            if (vMinimoY >= padT && vMinimoY <= padT + chartH) {
-                svg += `<line x1="${padL}" y1="${vMinimoY}" x2="${width - padR}" y2="${vMinimoY}" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="5,3" opacity="0.7"/>`;
-                svg += `<text x="${width - padR - 2}" y="${vMinimoY - 3}" font-size="8" fill="#f59e0b" text-anchor="end">Min</text>`;
+            // Valor mínimo line (always show if valid)
+            if (vMinimo > 0 && vMinimoY >= padT - 5 && vMinimoY <= padT + chartH + 5) {
+                svg += `<line x1="${padL}" y1="${vMinimoY}" x2="${width - padR}" y2="${vMinimoY}" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="5,3" opacity="0.8"/>`;
+                if (isModal) {
+                    const minLabel = vMinimo >= 1000 ? Math.round(vMinimo / 1000) + 'k' : Math.round(vMinimo);
+                    svg += `<text x="${padL - 8}" y="${vMinimoY + 3}" font-size="9" fill="#f59e0b" text-anchor="end" font-weight="500">${minLabel}€</text>`;
+                }
             }
 
             svg += `<path d="${areaD}" fill="url(#${uid}-grad)"/>`;
