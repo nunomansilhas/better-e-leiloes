@@ -8013,17 +8013,35 @@
         // Update notification badge in sidebar
         async function updateNotificationBadge() {
             try {
-                const response = await fetch(`${API_BASE}/api/notifications/count`);
-                const data = await response.json();
-                const badge = document.getElementById('nav-alerts-badge');
+                // Fetch unread count
+                const countResponse = await fetch(`${API_BASE}/api/notifications/count`);
+                const countData = await countResponse.json();
 
+                // Update nav badge
+                const badge = document.getElementById('nav-alerts-badge');
                 if (badge) {
-                    if (data.unread > 0) {
-                        badge.textContent = data.unread > 99 ? '99+' : data.unread;
+                    if (countData.unread > 0) {
+                        badge.textContent = countData.unread > 99 ? '99+' : countData.unread;
                         badge.style.display = 'inline';
                     } else {
                         badge.style.display = 'none';
                     }
+                }
+
+                // Update dashboard widget unread count
+                const dashUnreadEl = document.getElementById('dash-unread-count');
+                if (dashUnreadEl) {
+                    dashUnreadEl.textContent = countData.unread || 0;
+                }
+
+                // Fetch rules count for dashboard
+                const rulesResponse = await fetch(`${API_BASE}/api/notification-rules`);
+                const rules = await rulesResponse.json();
+                const activeRules = rules.filter(r => r.active).length;
+
+                const dashRulesEl = document.getElementById('dash-rules-count');
+                if (dashRulesEl) {
+                    dashRulesEl.textContent = activeRules;
                 }
             } catch (error) {
                 console.error('Erro ao atualizar badge:', error);
