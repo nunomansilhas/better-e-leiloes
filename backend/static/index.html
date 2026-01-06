@@ -3020,12 +3020,12 @@
                         <div style="display: flex; gap: 6px;">
                             <select id="ending-filter-tipo" onchange="filterEndingSoon()" style="padding: 4px 8px; font-size: 10px; border: 1px solid #e2e8f0; border-radius: 4px; background: #f8fafc; color: #64748b;">
                                 <option value="">Todos os tipos</option>
-                                <option value="Imóveis">Imóveis</option>
-                                <option value="Veículos">Veículos</option>
-                                <option value="Direitos">Direitos</option>
-                                <option value="Equipamentos">Equipamentos</option>
-                                <option value="Mobiliário">Mobiliário</option>
-                                <option value="Máquinas">Máquinas</option>
+                                <option value="1">Imóveis</option>
+                                <option value="2">Veículos</option>
+                                <option value="3">Equipamentos</option>
+                                <option value="4">Mobiliário</option>
+                                <option value="5">Máquinas</option>
+                                <option value="6">Direitos</option>
                             </select>
                             <select id="ending-filter-distrito" onchange="filterEndingSoon()" style="padding: 4px 8px; font-size: 10px; border: 1px solid #e2e8f0; border-radius: 4px; background: #f8fafc; color: #64748b;">
                                 <option value="">Todos os distritos</option>
@@ -4759,7 +4759,8 @@
             const distritoFilter = document.getElementById('ending-filter-distrito')?.value || '';
 
             endingSoonEvents = endingSoonEventsAll.filter(e => {
-                if (tipoFilter && e.tipo !== tipoFilter) return false;
+                // Filter by tipo_id (1=Imóveis, 2=Veículos, etc)
+                if (tipoFilter && e.tipo_id !== parseInt(tipoFilter)) return false;
                 if (distritoFilter && e.distrito !== distritoFilter) return false;
                 return true;
             });
@@ -4844,7 +4845,9 @@
 
                 const valor = event.lance_atual ? `€${event.lance_atual.toLocaleString()}` : '-';
                 const zona = event.distrito || '-';
-                const tipo = event.tipo || '-';
+                // Map tipo_id to category name
+                const tipoIdToName = {1: 'Imóveis', 2: 'Veículos', 3: 'Equip.', 4: 'Mobil.', 5: 'Máq.', 6: 'Direitos'};
+                const tipo = tipoIdToName[event.tipo_id] || event.tipo || '-';
                 const subtipo = event.subtipo || '-';
 
                 // Price values for chart data attributes

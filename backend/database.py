@@ -871,6 +871,7 @@ class DatabaseManager:
         return [{
             "reference": e.reference,
             "titulo": e.titulo,
+            "tipo_id": e.tipo_id,
             "tipo": e.tipo,
             "subtipo": e.subtipo,
             "distrito": e.distrito,
