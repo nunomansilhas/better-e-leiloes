@@ -2936,51 +2936,44 @@
             </div>
 
             <!-- Quick Access Cards -->
-            <div id="dashboard-content" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;">
+            <div id="dashboard-content" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 16px;">
                 <!-- Scraping & Sync Quick Access -->
-                <div class="scraper-control-card" onclick="showPage('scraping')" style="cursor: pointer; transition: all 0.2s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #3b82f6, #2563eb); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
-                            <span style="font-size: 24px;">🔄</span>
+                <div style="background: white; border-radius: 10px; padding: 12px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: all 0.2s;" onclick="showPage('scraping')" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.12)'" onmouseout="this.style.transform=''; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.08)'">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="width: 36px; height: 36px; background: linear-gradient(135deg, #3b82f6, #2563eb); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                            <span style="font-size: 18px;">🔄</span>
                         </div>
                         <div>
-                            <div style="font-weight: 600; color: #1e293b; font-size: 14px;">Scraping & Sync</div>
-                            <div style="font-size: 12px; color: #64748b;">Ferramentas e pipelines</div>
+                            <div style="font-weight: 600; color: #1e293b; font-size: 13px;">Scraping & Sync</div>
+                            <div style="font-size: 11px; color: #64748b;">Pipelines automáticas</div>
                         </div>
                     </div>
-                    <div style="display: flex; gap: 8px; margin-top: 12px;">
-                        <div style="flex: 1; padding: 8px; background: #f8fafc; border-radius: 6px; text-align: center;">
-                            <div style="font-size: 10px; color: #64748b;">X-Monitor</div>
-                            <div id="dash-xmonitor-status" style="font-size: 11px; font-weight: 600; color: #dc2626;">●</div>
+                    <div style="display: flex; gap: 6px; align-items: center;">
+                        <div style="padding: 4px 8px; background: #f8fafc; border-radius: 4px; text-align: center;">
+                            <div style="font-size: 9px; color: #64748b;">X-Mon</div>
+                            <div id="dash-xmonitor-timer" style="font-size: 10px; font-weight: 600; color: #dc2626;">--:--</div>
                         </div>
-                        <div style="flex: 1; padding: 8px; background: #f8fafc; border-radius: 6px; text-align: center;">
-                            <div style="font-size: 10px; color: #64748b;">Y-Sync</div>
-                            <div id="dash-ysync-status" style="font-size: 11px; font-weight: 600; color: #3b82f6;">●</div>
+                        <div style="padding: 4px 8px; background: #f8fafc; border-radius: 4px; text-align: center;">
+                            <div style="font-size: 9px; color: #64748b;">Y-Sync</div>
+                            <div id="dash-ysync-timer" style="font-size: 10px; font-weight: 600; color: #1e40af;">--:--</div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Alertas Quick Access -->
-                <div class="scraper-control-card" onclick="showPage('alertas')" style="cursor: pointer; transition: all 0.2s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #f59e0b, #d97706); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
-                            <span style="font-size: 24px;">🔔</span>
+                <div style="background: white; border-radius: 10px; padding: 12px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); display: flex; align-items: center; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; gap: 10px; cursor: pointer; flex: 1;" onclick="showPage('alertas')">
+                        <div style="width: 36px; height: 36px; background: linear-gradient(135deg, #f59e0b, #d97706); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                            <span style="font-size: 18px;">🔔</span>
                         </div>
                         <div>
-                            <div style="font-weight: 600; color: #1e293b; font-size: 14px;">Alertas</div>
-                            <div style="font-size: 12px; color: #64748b;">Gerir notificações</div>
+                            <div style="font-weight: 600; color: #1e293b; font-size: 13px;">Alertas</div>
+                            <div style="font-size: 11px; color: #64748b;"><span id="dash-unread-count" style="font-weight: 600; color: #f59e0b;">0</span> por ler · <span id="dash-rules-count" style="color: #64748b;">0</span> regras</div>
                         </div>
                     </div>
-                    <div style="display: flex; gap: 8px; margin-top: 12px;">
-                        <div style="flex: 1; padding: 8px; background: #f8fafc; border-radius: 6px; text-align: center;">
-                            <div style="font-size: 10px; color: #64748b;">Por ler</div>
-                            <div id="dash-unread-count" style="font-size: 14px; font-weight: 600; color: #f59e0b;">0</div>
-                        </div>
-                        <div style="flex: 1; padding: 8px; background: #f8fafc; border-radius: 6px; text-align: center;">
-                            <div style="font-size: 10px; color: #64748b;">Regras</div>
-                            <div id="dash-rules-count" style="font-size: 14px; font-weight: 600; color: #64748b;">0</div>
-                        </div>
-                    </div>
+                    <button id="dash-mark-read-btn" onclick="event.stopPropagation(); markAllNotificationsRead()" style="padding: 6px 10px; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 10px; cursor: pointer; color: #64748b; white-space: nowrap; transition: all 0.2s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'" title="Marcar todas como lidas">
+                        Marcar lidas
+                    </button>
                 </div>
 
             </div>
@@ -6487,33 +6480,52 @@
 
             for (const [type, nextRunStr] of Object.entries(pipelineNextRuns)) {
                 const timerEl = document.getElementById(`pipeline-timer-${type}`);
-                if (!timerEl) continue;
+                const dashTimerEl = document.getElementById(`dash-${type}-timer`);
 
                 const checkbox = document.getElementById(`auto-pipeline-${type}`);
                 const isEnabled = checkbox && checkbox.checked;
 
+                let displayText = '--:--';
+                let displayColor = '#94a3b8';
+
                 if (!isEnabled) {
-                    timerEl.textContent = '⏸️ Desativada';
-                    timerEl.style.color = '#94a3b8';
-                    continue;
-                }
-
-                if (!nextRunStr) {
-                    timerEl.textContent = '⏱️ A aguardar...';
-                    continue;
-                }
-
-                const nextRun = new Date(nextRunStr);
-                const diffSeconds = (nextRun - now) / 1000;
-
-                if (diffSeconds <= 0) {
-                    timerEl.textContent = '🔄 A executar...';
-                    timerEl.style.color = '#f59e0b';
+                    displayText = 'OFF';
+                    displayColor = '#94a3b8';
+                } else if (!nextRunStr) {
+                    displayText = '...';
+                    displayColor = '#64748b';
                 } else {
-                    timerEl.textContent = formatCountdown(diffSeconds);
-                    // Reset color based on pipeline type
-                    if (type === 'xmonitor') timerEl.style.color = '#dc2626';
-                    else if (type === 'ysync') timerEl.style.color = '#1e40af';
+                    const nextRun = new Date(nextRunStr);
+                    const diffSeconds = (nextRun - now) / 1000;
+
+                    if (diffSeconds <= 0) {
+                        displayText = 'A executar';
+                        displayColor = '#f59e0b';
+                    } else {
+                        // Full format for scraping page
+                        if (timerEl) {
+                            timerEl.textContent = formatCountdown(diffSeconds);
+                            if (type === 'xmonitor') timerEl.style.color = '#dc2626';
+                            else if (type === 'ysync') timerEl.style.color = '#1e40af';
+                        }
+                        // Compact format for dashboard
+                        const mins = Math.floor(diffSeconds / 60);
+                        const secs = Math.floor(diffSeconds % 60);
+                        displayText = `${mins}:${secs.toString().padStart(2, '0')}`;
+                        displayColor = type === 'xmonitor' ? '#dc2626' : '#1e40af';
+                    }
+                }
+
+                // Update scraping page timer
+                if (timerEl && (displayText === 'OFF' || displayText === '...' || displayText === 'A executar')) {
+                    timerEl.textContent = displayText === 'OFF' ? '⏸️ Desativada' : (displayText === '...' ? '⏱️ A aguardar...' : '🔄 A executar...');
+                    timerEl.style.color = displayColor;
+                }
+
+                // Update dashboard timer
+                if (dashTimerEl) {
+                    dashTimerEl.textContent = displayText;
+                    dashTimerEl.style.color = displayColor;
                 }
             }
         }
@@ -6947,6 +6959,9 @@
                 // Update count
                 const activeRules = rules.filter(r => r.active).length;
                 document.getElementById('alertas-rules-count').textContent = activeRules;
+                // Update dashboard count
+                const dashRulesEl = document.getElementById('dash-rules-count');
+                if (dashRulesEl) dashRulesEl.textContent = activeRules;
 
                 if (rules.length === 0) {
                     tbody.innerHTML = `<tr><td colspan="6" style="padding: 60px 40px; text-align: center; color: #94a3b8;">
@@ -7004,6 +7019,9 @@
                 const unreadCount = notifications.filter(n => !n.read).length;
                 const countEl = document.getElementById('alertas-unread-count');
                 if (countEl) countEl.textContent = unreadCount;
+                // Update dashboard count
+                const dashUnreadEl = document.getElementById('dash-unread-count');
+                if (dashUnreadEl) dashUnreadEl.textContent = unreadCount;
 
                 if (notifications.length === 0) {
                     container.innerHTML = `
