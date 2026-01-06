@@ -1112,7 +1112,7 @@ class DatabaseManager:
 
     async def notification_exists(
         self,
-        rule_id: int,
+        rule_id: Optional[int],
         event_reference: str,
         notification_type: str,
         hours: int = 24
@@ -1124,13 +1124,20 @@ class DatabaseManager:
         from datetime import timedelta
         cutoff = datetime.utcnow() - timedelta(hours=hours)
 
+        conditions = [
+            NotificationDB.event_reference == event_reference,
+            NotificationDB.notification_type == notification_type,
+            NotificationDB.created_at > cutoff
+        ]
+
+        # Handle None rule_id (system notifications)
+        if rule_id is None:
+            conditions.append(NotificationDB.rule_id.is_(None))
+        else:
+            conditions.append(NotificationDB.rule_id == rule_id)
+
         result = await self.session.execute(
-            select(func.count(NotificationDB.id)).where(
-                NotificationDB.rule_id == rule_id,
-                NotificationDB.event_reference == event_reference,
-                NotificationDB.notification_type == notification_type,
-                NotificationDB.created_at > cutoff
-            )
+            select(func.count(NotificationDB.id)).where(*conditions)
         )
         count = result.scalar() or 0
         return count > 0

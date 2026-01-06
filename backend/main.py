@@ -19,7 +19,7 @@ if sys.platform == 'win32':
 from dotenv import load_dotenv
 load_dotenv()
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Query
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Query, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -432,8 +432,9 @@ async def get_notification_rules(active_only: bool = Query(False)):
 
 
 @app.post("/api/notification-rules")
-async def create_notification_rule(rule: dict):
+async def create_notification_rule(rule: dict = Body(...)):
     """Create a new notification rule"""
+    print(f"📝 Creating notification rule: {rule}")
     required_fields = ["name", "rule_type"]
     for field in required_fields:
         if field not in rule:
@@ -445,6 +446,7 @@ async def create_notification_rule(rule: dict):
 
     async with get_db() as db:
         rule_id = await db.create_notification_rule(rule)
+        print(f"✅ Rule created with ID: {rule_id}")
         # Invalidate rules cache
         from notification_engine import get_notification_engine
         get_notification_engine().invalidate_cache(rule["rule_type"])
@@ -452,8 +454,9 @@ async def create_notification_rule(rule: dict):
 
 
 @app.put("/api/notification-rules/{rule_id}")
-async def update_notification_rule(rule_id: int, updates: dict):
+async def update_notification_rule(rule_id: int, updates: dict = Body(...)):
     """Update a notification rule"""
+    print(f"📝 Updating rule {rule_id}: {updates}")
     async with get_db() as db:
         success = await db.update_notification_rule(rule_id, updates)
         if not success:

@@ -1238,6 +1238,9 @@ class AutoPipelinesManager:
                         # Create lookup map for quick access
                         api_map = {r['reference']: r for r in api_results}
 
+                        # Import notification function
+                        from notification_engine import create_event_ended_notification
+
                         for event in candidates:
                             try:
                                 data = api_map.get(event.reference)
@@ -1253,6 +1256,18 @@ class AutoPipelinesManager:
                                         await cache_manager.invalidate(event.reference)
                                         terminated_count += 1
                                         print(f"    🔴 Terminado: {event.reference}")
+
+                                        # Create notification for ended event
+                                        await create_event_ended_notification({
+                                            'reference': event.reference,
+                                            'titulo': event.titulo,
+                                            'tipo': event.tipo,
+                                            'subtipo': event.subtipo,
+                                            'distrito': event.distrito,
+                                            'lance_atual': data.get('lanceAtual') or event.lance_atual,
+                                            'valor_base': event.valor_base,
+                                            'data_fim': new_end
+                                        }, db)
                                 else:
                                     # Not in API results = likely 404/not found
                                     await db.update_event_fields(
@@ -1261,6 +1276,18 @@ class AutoPipelinesManager:
                                     )
                                     terminated_count += 1
                                     print(f"    🔴 Não encontrado: {event.reference}")
+
+                                    # Create notification for ended event (not found)
+                                    await create_event_ended_notification({
+                                        'reference': event.reference,
+                                        'titulo': event.titulo,
+                                        'tipo': event.tipo,
+                                        'subtipo': event.subtipo,
+                                        'distrito': event.distrito,
+                                        'lance_atual': event.lance_atual,
+                                        'valor_base': event.valor_base,
+                                        'data_fim': event.data_fim
+                                    }, db)
 
                             except Exception as e:
                                 print(f"    ❌ Erro {event.reference}: {str(e)[:50]}")

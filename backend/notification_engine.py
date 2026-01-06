@@ -9,7 +9,7 @@ Optimizations:
 - ending_soon notifications support
 """
 import asyncio
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, Union
 from datetime import datetime, timedelta
 from models import EventData
 
@@ -370,6 +370,53 @@ async def process_ending_soon_batch(events: List[EventData], db_manager) -> int:
             print(f"  ❌ Erro ending_soon {event.reference}: {str(e)[:50]}")
 
     return total_notifications
+
+
+async def create_event_ended_notification(event_data: dict, db_manager) -> Optional[int]:
+    """
+    Cria uma notificação quando um evento termina.
+    Inclui dados finais: último lance, data de fim, etc.
+
+    Args:
+        event_data: Dict com reference, titulo, tipo, subtipo, distrito, lance_atual, data_fim
+        db_manager: Database manager instance
+
+    Returns:
+        notification_id if created, None otherwise
+    """
+    try:
+        ref = event_data.get('reference')
+        if not ref:
+            return None
+
+        # Check if notification already exists for this event ending (prevent duplicates)
+        if await db_manager.notification_exists(
+            rule_id=None,  # System notification, not rule-based
+            event_reference=ref,
+            notification_type="event_ended",
+            hours=24
+        ):
+            return None
+
+        # Create notification with final event data
+        notification_id = await db_manager.create_notification({
+            "rule_id": None,  # System notification
+            "notification_type": "event_ended",
+            "event_reference": ref,
+            "event_titulo": event_data.get('titulo', ''),
+            "event_tipo": event_data.get('tipo', ''),
+            "event_subtipo": event_data.get('subtipo', ''),
+            "event_distrito": event_data.get('distrito', ''),
+            "preco_atual": event_data.get('lance_atual') or event_data.get('valor_base', 0),
+            "preco_anterior": event_data.get('valor_base', 0),  # Store base value for reference
+        })
+
+        print(f"  🏁 Notificação evento terminado: {ref}")
+        return notification_id
+
+    except Exception as e:
+        print(f"  ❌ Erro criar notificação event_ended {event_data.get('reference', '?')}: {str(e)[:50]}")
+        return None
 
 
 async def cleanup_old_notifications(db_manager, days: int = 30) -> int:
