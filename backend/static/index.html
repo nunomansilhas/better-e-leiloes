@@ -2755,11 +2755,18 @@
                 <span>Alertas</span>
                 <span class="nav-badge" id="nav-alerts-badge" style="display: none;">0</span>
             </div>
-            <div class="nav-item" onclick="scrollToPipelines()">
+            <div class="nav-item" onclick="showPage('scraping')" data-page="scraping">
                 <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
                 </svg>
-                <span>Scrapers</span>
+                <span>Scraping & Sync</span>
+            </div>
+            <div class="nav-item" onclick="showPage('settings')" data-page="settings">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+                <span>Definições</span>
             </div>
         </nav>
 
@@ -2794,13 +2801,6 @@
             </div>
 
             <div class="nav-divider"></div>
-            <div class="nav-item" onclick="openSettings()">
-                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                </svg>
-                <span>Settings</span>
-            </div>
             <div class="nav-item" onclick="toggleSidebarLock()">
                 <svg id="lockIcon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"/>
@@ -2935,245 +2935,75 @@
                 </div>
             </div>
 
-            <div id="dashboard-content">
-                <!-- ========== SCRAPER TOOLS ========== -->
-                <div class="scraper-control-card" style="margin-bottom: 16px;">
-                    <!-- Header -->
-                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+            <!-- Quick Access Cards -->
+            <div id="dashboard-content" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;">
+                <!-- Scraping & Sync Quick Access -->
+                <div class="scraper-control-card" onclick="showPage('scraping')" style="cursor: pointer; transition: all 0.2s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #3b82f6, #2563eb); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                            <span style="font-size: 24px;">🔄</span>
+                        </div>
+                        <div>
+                            <div style="font-weight: 600; color: #1e293b; font-size: 14px;">Scraping & Sync</div>
+                            <div style="font-size: 12px; color: #64748b;">Ferramentas e pipelines</div>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 8px; margin-top: 12px;">
+                        <div style="flex: 1; padding: 8px; background: #f8fafc; border-radius: 6px; text-align: center;">
+                            <div style="font-size: 10px; color: #64748b;">X-Monitor</div>
+                            <div id="dash-xmonitor-status" style="font-size: 11px; font-weight: 600; color: #dc2626;">●</div>
+                        </div>
+                        <div style="flex: 1; padding: 8px; background: #f8fafc; border-radius: 6px; text-align: center;">
+                            <div style="font-size: 10px; color: #64748b;">Y-Sync</div>
+                            <div id="dash-ysync-status" style="font-size: 11px; font-weight: 600; color: #3b82f6;">●</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Alertas Quick Access -->
+                <div class="scraper-control-card" onclick="showPage('alertas')" style="cursor: pointer; transition: all 0.2s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #f59e0b, #d97706); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                            <span style="font-size: 24px;">🔔</span>
+                        </div>
+                        <div>
+                            <div style="font-weight: 600; color: #1e293b; font-size: 14px;">Alertas</div>
+                            <div style="font-size: 12px; color: #64748b;">Gerir notificações</div>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 8px; margin-top: 12px;">
+                        <div style="flex: 1; padding: 8px; background: #f8fafc; border-radius: 6px; text-align: center;">
+                            <div style="font-size: 10px; color: #64748b;">Por ler</div>
+                            <div id="dash-unread-count" style="font-size: 14px; font-weight: 600; color: #f59e0b;">0</div>
+                        </div>
+                        <div style="flex: 1; padding: 8px; background: #f8fafc; border-radius: 6px; text-align: center;">
+                            <div style="font-size: 10px; color: #64748b;">Regras</div>
+                            <div id="dash-rules-count" style="font-size: 14px; font-weight: 600; color: #64748b;">0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Console Log (mini) -->
+                <div class="scraper-control-card" style="grid-column: span 2;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
                         <div style="display: flex; align-items: center; gap: 8px;">
-                            <span style="font-size: 16px;">🔧</span>
-                            <span style="font-weight: 600; color: #1e293b;">Scraper Tools</span>
-                            <button onclick="refreshDbStats()" style="padding: 4px 8px; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 10px; cursor: pointer; color: #64748b;" title="Atualizar estatísticas">
-                                <span id="db-stats-spinner" style="display: none;">⏳</span>🔄
+                            <span style="font-size: 14px;">📋</span>
+                            <span style="font-weight: 600; color: #1e293b; font-size: 13px;">Console Log</span>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <label style="display: flex; align-items: center; gap: 4px; font-size: 10px; color: #64748b;">
+                                <input type="checkbox" id="auto-scroll" checked onchange="autoScroll = this.checked">
+                                Auto-scroll
+                            </label>
+                            <button onclick="clearConsole()" style="padding: 3px 6px; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 9px; cursor: pointer; color: #64748b;">
+                                Limpar
                             </button>
                         </div>
-                        <!-- Mini Stats -->
-                        <div style="display: flex; gap: 12px; font-size: 11px;">
-                            <span style="color: #1e40af;"><strong id="db-stat-total">-</strong> total</span>
-                            <span style="color: #047857;"><strong id="db-stat-content">-</strong> completos</span>
-                            <span style="color: #dc2626;"><strong id="db-stat-incomplete">-</strong> incompletos</span>
-                            <span style="color: #7c3aed;"><strong id="db-stat-nulls">-</strong> nulls</span>
-                        </div>
                     </div>
-
-                    <!-- Compact Actions Grid -->
-                    <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 10px;">
-                        <!-- Descobrir Novos IDs -->
-                        <button onclick="runIndependentScraper('ids')" style="padding: 10px 8px; background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 1px solid #bfdbfe; border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.2s; font-size: 11px;" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 2px 8px rgba(59,130,246,0.15)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
-                            <div style="font-size: 16px; margin-bottom: 4px;">🔍</div>
-                            <div style="font-weight: 600; color: #1e40af;">Descobrir IDs</div>
-                        </button>
-
-                        <!-- Completar Info -->
-                        <button onclick="runIndependentScraper('content')" style="padding: 10px 8px; background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border: 1px solid #6ee7b7; border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.2s; font-size: 11px;" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 2px 8px rgba(16,185,129,0.15)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
-                            <div style="font-size: 16px; margin-bottom: 4px;">📋</div>
-                            <div style="font-weight: 600; color: #047857;">Completar Info</div>
-                        </button>
-
-                        <!-- Atualizar Preços -->
-                        <button onclick="runUpdatePrices()" style="padding: 10px 8px; background: linear-gradient(135deg, #fefce8 0%, #fef08a 100%); border: 1px solid #fde047; border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.2s; font-size: 11px;" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 2px 8px rgba(234,179,8,0.15)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
-                            <div style="font-size: 16px; margin-bottom: 4px;">💰</div>
-                            <div style="font-weight: 600; color: #a16207;">Preços</div>
-                        </button>
-
-                        <!-- Corrigir NULLs -->
-                        <button onclick="runFixNulls()" style="padding: 10px 8px; background: linear-gradient(135deg, #faf5ff 0%, #e9d5ff 100%); border: 1px solid #c4b5fd; border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.2s; font-size: 11px;" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 2px 8px rgba(139,92,246,0.15)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
-                            <div style="font-size: 16px; margin-bottom: 4px;">🔧</div>
-                            <div style="font-weight: 600; color: #7c3aed;">Fix NULLs</div>
-                        </button>
-
-                        <!-- IDs Específicos -->
-                        <button onclick="document.getElementById('specific-ids-section').style.display = document.getElementById('specific-ids-section').style.display === 'none' ? 'block' : 'none'" style="padding: 10px 8px; background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%); border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.2s; font-size: 11px;" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 2px 8px rgba(100,116,139,0.15)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
-                            <div style="font-size: 16px; margin-bottom: 4px;">🎯</div>
-                            <div style="font-weight: 600; color: #475569;">IDs Manual</div>
-                        </button>
-                    </div>
-
-                    <!-- Specific IDs Input (collapsible) -->
-                    <div id="specific-ids-section" style="display: none; margin-bottom: 10px; padding: 10px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
-                        <div style="display: flex; gap: 6px; align-items: center;">
-                            <select id="independent-tipo" class="filter-select" style="padding: 8px 10px; font-size: 11px; min-width: 110px; border-radius: 6px;">
-                                <option value="">Todos</option>
-                                <option value="1">🏠 Imóveis</option>
-                                <option value="2">🚗 Veículos</option>
-                                <option value="3">📜 Direitos</option>
-                                <option value="4">🔧 Equip.</option>
-                                <option value="5">🪑 Mobil.</option>
-                                <option value="6">⚙️ Máquinas</option>
-                            </select>
-                            <input type="text" id="specific-ids-input" placeholder="LO1234562024, NP9876542024..." style="flex: 1; padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 11px; outline: none;" onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='#e2e8f0'">
-                            <button onclick="runSpecificIds()" style="padding: 8px 14px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border: none; border-radius: 6px; font-size: 11px; font-weight: 500; cursor: pointer;">Executar</button>
-                        </div>
-                    </div>
-
-                    <!-- IDs Results Section -->
-                    <div id="ids-results-section" style="display: none; margin-bottom: 10px;">
-                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 1px solid #86efac; border-radius: 8px 8px 0 0;">
-                            <div style="display: flex; align-items: center; gap: 6px;">
-                                <span style="font-size: 11px; font-weight: 600; color: #166534;">IDs Recolhidos</span>
-                                <span id="ids-count-badge" style="background: #22c55e; color: white; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600;">0</span>
-                            </div>
-                            <div style="display: flex; gap: 4px;">
-                                <button onclick="copyIdsToClipboard()" style="padding: 4px 8px; font-size: 10px; background: white; border: 1px solid #86efac; border-radius: 4px; cursor: pointer; color: #166534;">📋</button>
-                                <button onclick="clearCollectedIds()" style="padding: 4px 8px; font-size: 10px; background: white; border: 1px solid #fca5a5; border-radius: 4px; cursor: pointer; color: #dc2626;">✕</button>
-                            </div>
-                        </div>
-                        <div id="ids-results-list" style="max-height: 120px; overflow-y: auto; background: #fafafa; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 8px 8px; padding: 8px; font-size: 11px;"></div>
-                    </div>
-
-                    <!-- Maintenance Progress -->
-                    <div id="maintenance-progress" style="display: none; padding: 10px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
-                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-                            <span id="maintenance-message" style="font-size: 11px; color: #475569;">A processar...</span>
-                            <span id="maintenance-count" style="font-size: 10px; color: #64748b;">0/0</span>
-                        </div>
-                        <div style="height: 4px; background: #e2e8f0; border-radius: 2px; overflow: hidden;">
-                            <div id="maintenance-progress-bar" style="height: 100%; width: 0%; background: linear-gradient(135deg, #6366f1, #8b5cf6); transition: width 0.3s;"></div>
-                        </div>
+                    <div id="console-log" style="height: 120px; background: #0f172a; color: #e2e8f0; border-radius: 8px; padding: 10px; font-family: 'Fira Code', 'Consolas', monospace; font-size: 10px; overflow-y: auto; line-height: 1.5;">
+                        <div style="color: #64748b;">// Console pronto...</div>
                     </div>
                 </div>
-
-                <!-- ========== PIPELINES AUTOMÁTICAS ========== -->
-                <div class="scraper-control-card" style="margin-bottom: 16px;">
-                    <!-- Header -->
-                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <span style="font-size: 16px;">⚡</span>
-                            <span style="font-weight: 600; color: #1e293b;">Pipelines Automáticas</span>
-                        </div>
-                    </div>
-
-                    <!-- Pipeline Grid (2 columns: X-Monitor + Y-Sync) -->
-                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
-
-                        <!-- X-Monitor (Combined Critical/Urgent/Soon) -->
-                        <div style="padding: 12px; background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border: 1px solid #fca5a5; border-radius: 10px;">
-                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-                                <div style="display: flex; align-items: center; gap: 6px;">
-                                    <span style="font-size: 14px;">🔴</span>
-                                    <span style="font-weight: 600; font-size: 12px; color: #dc2626;">X-Monitor</span>
-                                    <span id="x-monitor-count" style="font-size: 9px; padding: 1px 6px; background: #dc2626; color: white; border-radius: 8px; font-weight: 600;">0</span>
-                                </div>
-                                <label class="toggle-switch" style="transform: scale(0.85);">
-                                    <input type="checkbox" id="auto-pipeline-xmonitor" onchange="toggleAutoPipeline('xmonitor', this.checked)">
-                                    <span class="toggle-slider"></span>
-                                </label>
-                            </div>
-                            <div style="font-size: 10px; color: #7f1d1d; line-height: 1.4;">
-                                <div style="display: flex; gap: 8px;">
-                                    <span title="< 5min: cada 5s">🔴 <span id="x-critical-count">0</span></span>
-                                    <span title="< 1h: cada 1min">🟠 <span id="x-urgent-count">0</span></span>
-                                    <span title="< 24h: cada 10min">🟡 <span id="x-soon-count">0</span></span>
-                                </div>
-                                <div id="pipeline-timer-xmonitor" style="margin-top: 4px; font-weight: 600; color: #dc2626;">⏱️ --:--</div>
-                            </div>
-                        </div>
-
-                        <!-- Y-Sync -->
-                        <div style="padding: 12px; background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 1px solid #93c5fd; border-radius: 10px;">
-                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-                                <div style="display: flex; align-items: center; gap: 6px;">
-                                    <span style="font-size: 14px;">🔄</span>
-                                    <span style="font-weight: 600; font-size: 12px; color: #1e40af;">Y-Sync</span>
-                                </div>
-                                <label class="toggle-switch" style="transform: scale(0.85);">
-                                    <input type="checkbox" id="auto-pipeline-ysync" onchange="toggleAutoPipeline('ysync', this.checked)">
-                                    <span class="toggle-slider"></span>
-                                </label>
-                            </div>
-                            <div style="font-size: 10px; color: #1e3a8a; line-height: 1.4;">
-                                <div>🔍 Sync completo + Terminados</div>
-                                <div id="pipeline-timer-ysync" style="margin-top: 4px; font-weight: 600; color: #1e40af;">⏱️ --:--:--</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- X-Monitor Details (collapsible) -->
-                    <div id="x-monitor-details" style="display: none; margin-top: 10px; padding: 10px; background: #fafafa; border-radius: 8px; border: 1px solid #e2e8f0;">
-                        <div style="font-size: 10px; color: #475569; margin-bottom: 6px; font-weight: 600;">Intervalos de Monitorização:</div>
-                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; font-size: 10px;">
-                            <div style="padding: 6px 8px; background: #fef2f2; border-radius: 6px; text-align: center;">
-                                <div style="color: #dc2626; font-weight: 600;">🔴 Critical</div>
-                                <div style="color: #7f1d1d;">< 5min → 5s</div>
-                            </div>
-                            <div style="padding: 6px 8px; background: #fff7ed; border-radius: 6px; text-align: center;">
-                                <div style="color: #ea580c; font-weight: 600;">🟠 Urgent</div>
-                                <div style="color: #9a3412;">< 1h → 1min</div>
-                            </div>
-                            <div style="padding: 6px 8px; background: #fefce8; border-radius: 6px; text-align: center;">
-                                <div style="color: #ca8a04; font-weight: 600;">🟡 Soon</div>
-                                <div style="color: #854d0e;">< 24h → 10min</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Pipeline Completo - API Only -->
-                <div class="scraper-control-card" style="margin-top: 16px;">
-                    <!-- Pipeline Header -->
-                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <span style="font-size: 16px;">🚀</span>
-                            <span style="font-weight: 600; color: #1e293b;">Pipeline API</span>
-                            <span style="font-size: 11px; padding: 2px 8px; background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); color: #047857; border-radius: 10px; font-weight: 600;">RÁPIDO</span>
-                        </div>
-                    </div>
-
-                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
-                        <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
-                            <!-- Step 1 -->
-                            <div style="display: flex; align-items: center; gap: 6px;">
-                                <div id="stage1-circle" style="width: 28px; height: 28px; border-radius: 50%; background: #e0e7ff; color: #3b82f6; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; transition: all 0.3s ease;">1</div>
-                                <span style="font-size: 13px; font-weight: 500; color: #1e293b;">IDs</span>
-                                <span id="stage1-count" style="font-size: 11px; color: #94a3b8; font-weight: 600;"></span>
-                            </div>
-                            <div id="pipeline-line1" style="flex: 1; height: 2px; background: #e2e8f0; border-radius: 1px; transition: background 0.3s ease;"></div>
-                            <!-- Step 2 -->
-                            <div style="display: flex; align-items: center; gap: 6px;">
-                                <div id="stage2-circle" style="width: 28px; height: 28px; border-radius: 50%; background: #f1f5f9; color: #94a3b8; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; transition: all 0.3s ease;">2</div>
-                                <span id="stage2-label" style="font-size: 13px; font-weight: 500; color: #64748b;">API (All)</span>
-                                <span id="stage2-count" style="font-size: 11px; color: #94a3b8; font-weight: 600;"></span>
-                            </div>
-                            <!-- Hidden: Stage 3 not needed for API -->
-                            <div id="pipeline-line2" style="display: none;"></div>
-                            <div id="stage3-container" style="display: none;">
-                                <div id="stage3-circle"></div>
-                                <span id="stage3-count"></span>
-                            </div>
-                        </div>
-                        <button class="scraper-btn primary" id="btn-pipeline" onclick="togglePipeline()" style="padding: 10px 20px; font-size: 13px; white-space: nowrap;">
-                            ▶ Executar
-                        </button>
-                    </div>
-                    <!-- Progress Feedback -->
-                    <div id="pipeline-feedback" style="display: none; margin-top: 12px; padding: 12px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <div>
-                                <span id="feedback-status" style="font-weight: 600; color: #1e293b; font-size: 13px;">A processar...</span>
-                                <span id="feedback-action" style="font-size: 12px; color: #64748b; margin-left: 8px;"></span>
-                            </div>
-                            <span id="feedback-count" style="font-size: 14px; font-weight: 700; color: #3b82f6;">0 / 0</span>
-                        </div>
-                        <div style="margin-top: 8px; background: #e2e8f0; border-radius: 4px; height: 4px; overflow: hidden;">
-                            <div id="feedback-progress-bar" style="height: 100%; background: linear-gradient(90deg, #3b82f6, #8b5cf6); width: 0%; transition: width 0.3s ease;"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Collapsible Danger Zone -->
-                <details class="danger-zone-collapsible" style="margin-top: 16px;">
-                    <summary style="cursor: pointer; padding: 12px 16px; background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border: 1px solid #fecaca; border-radius: 8px; font-weight: 600; color: #dc2626; display: flex; align-items: center; gap: 8px; user-select: none;">
-                        <span style="transition: transform 0.2s;">▶</span> ⚠️ Zona de Perigo
-                    </summary>
-                    <div style="padding: 16px; background: white; border: 1px solid #fecaca; border-top: none; border-radius: 0 0 8px 8px;">
-                        <p style="color: #7f1d1d; font-size: 12px; line-height: 1.5; margin-bottom: 12px;">
-                            Esta ação irá <strong>apagar permanentemente TODOS os eventos</strong> da base de dados.
-                        </p>
-                        <button class="scraper-btn stop" onclick="confirmClearDatabase()" style="width: auto; padding: 8px 16px; font-size: 12px;">
-                            🗑️ Limpar Base de Dados
-                        </button>
-                    </div>
-                </details>
             </div>
         </div>
 
@@ -3733,6 +3563,319 @@
                             <tr><td colspan="6" style="padding: 40px; text-align: center; color: #94a3b8;">A carregar...</td></tr>
                         </tbody>
                     </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scraping & Sync Page -->
+        <div id="scraping" class="page">
+            <div class="page-header">
+                <h2>🔄 Scraping & Sync</h2>
+                <p>Ferramentas de scraping e sincronização de dados</p>
+            </div>
+
+            <div id="scraping-content" style="display: flex; flex-direction: column; gap: 16px;">
+                <!-- ========== SCRAPER TOOLS ========== -->
+                <div class="scraper-control-card">
+                    <!-- Header -->
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 16px;">🔧</span>
+                            <span style="font-weight: 600; color: #1e293b;">Scraper Tools</span>
+                            <button onclick="refreshDbStats()" style="padding: 4px 8px; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 10px; cursor: pointer; color: #64748b;" title="Atualizar estatísticas">
+                                <span id="db-stats-spinner-scraping" style="display: none;">⏳</span>🔄
+                            </button>
+                        </div>
+                        <!-- Mini Stats -->
+                        <div style="display: flex; gap: 12px; font-size: 11px;">
+                            <span style="color: #1e40af;"><strong id="db-stat-total-scraping">-</strong> total</span>
+                            <span style="color: #047857;"><strong id="db-stat-content-scraping">-</strong> completos</span>
+                            <span style="color: #dc2626;"><strong id="db-stat-incomplete-scraping">-</strong> incompletos</span>
+                            <span style="color: #7c3aed;"><strong id="db-stat-nulls-scraping">-</strong> nulls</span>
+                        </div>
+                    </div>
+
+                    <!-- Compact Actions Grid -->
+                    <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 10px;">
+                        <!-- Descobrir Novos IDs -->
+                        <button onclick="runIndependentScraper('ids')" style="padding: 10px 8px; background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 1px solid #bfdbfe; border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.2s; font-size: 11px;" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 2px 8px rgba(59,130,246,0.15)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
+                            <div style="font-size: 16px; margin-bottom: 4px;">🔍</div>
+                            <div style="font-weight: 600; color: #1e40af;">Descobrir IDs</div>
+                        </button>
+
+                        <!-- Completar Info -->
+                        <button onclick="runIndependentScraper('content')" style="padding: 10px 8px; background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border: 1px solid #6ee7b7; border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.2s; font-size: 11px;" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 2px 8px rgba(16,185,129,0.15)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
+                            <div style="font-size: 16px; margin-bottom: 4px;">📋</div>
+                            <div style="font-weight: 600; color: #047857;">Completar Info</div>
+                        </button>
+
+                        <!-- Atualizar Preços -->
+                        <button onclick="runUpdatePrices()" style="padding: 10px 8px; background: linear-gradient(135deg, #fefce8 0%, #fef08a 100%); border: 1px solid #fde047; border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.2s; font-size: 11px;" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 2px 8px rgba(234,179,8,0.15)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
+                            <div style="font-size: 16px; margin-bottom: 4px;">💰</div>
+                            <div style="font-weight: 600; color: #a16207;">Preços</div>
+                        </button>
+
+                        <!-- Corrigir NULLs -->
+                        <button onclick="runFixNulls()" style="padding: 10px 8px; background: linear-gradient(135deg, #faf5ff 0%, #e9d5ff 100%); border: 1px solid #c4b5fd; border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.2s; font-size: 11px;" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 2px 8px rgba(139,92,246,0.15)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
+                            <div style="font-size: 16px; margin-bottom: 4px;">🔧</div>
+                            <div style="font-weight: 600; color: #7c3aed;">Fix NULLs</div>
+                        </button>
+
+                        <!-- IDs Específicos -->
+                        <button onclick="document.getElementById('specific-ids-section-scraping').style.display = document.getElementById('specific-ids-section-scraping').style.display === 'none' ? 'block' : 'none'" style="padding: 10px 8px; background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%); border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.2s; font-size: 11px;" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 2px 8px rgba(100,116,139,0.15)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
+                            <div style="font-size: 16px; margin-bottom: 4px;">🎯</div>
+                            <div style="font-weight: 600; color: #475569;">IDs Manual</div>
+                        </button>
+                    </div>
+
+                    <!-- Specific IDs Input (collapsible) -->
+                    <div id="specific-ids-section-scraping" style="display: none; margin-bottom: 10px; padding: 10px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                        <div style="display: flex; gap: 6px; align-items: center;">
+                            <select id="independent-tipo-scraping" class="filter-select" style="padding: 8px 10px; font-size: 11px; min-width: 110px; border-radius: 6px;">
+                                <option value="">Todos</option>
+                                <option value="1">🏠 Imóveis</option>
+                                <option value="2">🚗 Veículos</option>
+                                <option value="3">📜 Direitos</option>
+                                <option value="4">🔧 Equip.</option>
+                                <option value="5">🪑 Mobil.</option>
+                                <option value="6">⚙️ Máquinas</option>
+                            </select>
+                            <input type="text" id="specific-ids-input-scraping" placeholder="LO1234562024, NP9876542024..." style="flex: 1; padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 11px; outline: none;" onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='#e2e8f0'">
+                            <button onclick="runSpecificIdsScraping()" style="padding: 8px 14px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border: none; border-radius: 6px; font-size: 11px; font-weight: 500; cursor: pointer;">Executar</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ========== PIPELINES AUTOMÁTICAS ========== -->
+                <div class="scraper-control-card">
+                    <!-- Header -->
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 16px;">⚡</span>
+                            <span style="font-weight: 600; color: #1e293b;">Pipelines Automáticas</span>
+                        </div>
+                    </div>
+
+                    <!-- Pipeline Grid (2 columns: X-Monitor + Y-Sync) -->
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+
+                        <!-- X-Monitor (Combined Critical/Urgent/Soon) -->
+                        <div style="padding: 12px; background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border: 1px solid #fca5a5; border-radius: 10px;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <span style="font-size: 14px;">🔴</span>
+                                    <span style="font-weight: 600; font-size: 12px; color: #dc2626;">X-Monitor</span>
+                                    <span id="x-monitor-count-scraping" style="font-size: 9px; padding: 1px 6px; background: #dc2626; color: white; border-radius: 8px; font-weight: 600;">0</span>
+                                </div>
+                                <label class="toggle-switch" style="transform: scale(0.85);">
+                                    <input type="checkbox" id="auto-pipeline-xmonitor-scraping" onchange="toggleAutoPipeline('xmonitor', this.checked)">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div style="font-size: 10px; color: #7f1d1d; line-height: 1.4;">
+                                <div style="display: flex; gap: 8px;">
+                                    <span title="< 5min: cada 5s">🔴 <span id="x-critical-count-scraping">0</span></span>
+                                    <span title="< 1h: cada 1min">🟠 <span id="x-urgent-count-scraping">0</span></span>
+                                    <span title="< 24h: cada 10min">🟡 <span id="x-soon-count-scraping">0</span></span>
+                                </div>
+                                <div id="pipeline-timer-xmonitor-scraping" style="margin-top: 4px; font-weight: 600; color: #dc2626;">⏱️ --:--</div>
+                            </div>
+                        </div>
+
+                        <!-- Y-Sync -->
+                        <div style="padding: 12px; background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 1px solid #93c5fd; border-radius: 10px;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <span style="font-size: 14px;">🔄</span>
+                                    <span style="font-weight: 600; font-size: 12px; color: #1e40af;">Y-Sync</span>
+                                </div>
+                                <label class="toggle-switch" style="transform: scale(0.85);">
+                                    <input type="checkbox" id="auto-pipeline-ysync-scraping" onchange="toggleAutoPipeline('ysync', this.checked)">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div style="font-size: 10px; color: #1e3a8a; line-height: 1.4;">
+                                <div>🔍 Sync completo + Terminados</div>
+                                <div id="pipeline-timer-ysync-scraping" style="margin-top: 4px; font-weight: 600; color: #1e40af;">⏱️ --:--:--</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pipeline Completo - API Only -->
+                <div class="scraper-control-card">
+                    <!-- Pipeline Header -->
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 16px;">🚀</span>
+                            <span style="font-weight: 600; color: #1e293b;">Pipeline API</span>
+                            <span style="font-size: 11px; padding: 2px 8px; background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); color: #047857; border-radius: 10px; font-weight: 600;">RÁPIDO</span>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+                        <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
+                            <!-- Step 1 -->
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <div id="stage1-circle-scraping" style="width: 28px; height: 28px; border-radius: 50%; background: #e0e7ff; color: #3b82f6; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; transition: all 0.3s ease;">1</div>
+                                <span style="font-size: 13px; font-weight: 500; color: #1e293b;">IDs</span>
+                                <span id="stage1-count-scraping" style="font-size: 11px; color: #94a3b8; font-weight: 600;"></span>
+                            </div>
+                            <div id="pipeline-line1-scraping" style="flex: 1; height: 2px; background: #e2e8f0; border-radius: 1px; transition: background 0.3s ease;"></div>
+                            <!-- Step 2 -->
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <div id="stage2-circle-scraping" style="width: 28px; height: 28px; border-radius: 50%; background: #f1f5f9; color: #94a3b8; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; transition: all 0.3s ease;">2</div>
+                                <span id="stage2-label-scraping" style="font-size: 13px; font-weight: 500; color: #64748b;">API (All)</span>
+                                <span id="stage2-count-scraping" style="font-size: 11px; color: #94a3b8; font-weight: 600;"></span>
+                            </div>
+                        </div>
+                        <button class="scraper-btn primary" id="btn-pipeline-scraping" onclick="togglePipeline()" style="padding: 10px 20px; font-size: 13px; white-space: nowrap;">
+                            ▶ Executar
+                        </button>
+                    </div>
+                    <!-- Progress Feedback -->
+                    <div id="pipeline-feedback-scraping" style="display: none; margin-top: 12px; padding: 12px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <span id="feedback-status-scraping" style="font-weight: 600; color: #1e293b; font-size: 13px;">A processar...</span>
+                                <span id="feedback-action-scraping" style="font-size: 12px; color: #64748b; margin-left: 8px;"></span>
+                            </div>
+                            <span id="feedback-count-scraping" style="font-size: 14px; font-weight: 700; color: #3b82f6;">0 / 0</span>
+                        </div>
+                        <div style="margin-top: 8px; background: #e2e8f0; border-radius: 4px; height: 4px; overflow: hidden;">
+                            <div id="feedback-progress-bar-scraping" style="height: 100%; background: linear-gradient(90deg, #3b82f6, #8b5cf6); width: 0%; transition: width 0.3s ease;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Console Log Section -->
+                <div class="scraper-control-card">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 16px;">📋</span>
+                            <span style="font-weight: 600; color: #1e293b;">Console Log</span>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <label style="display: flex; align-items: center; gap: 4px; font-size: 11px; color: #64748b;">
+                                <input type="checkbox" id="auto-scroll-scraping" checked onchange="autoScroll = this.checked">
+                                Auto-scroll
+                            </label>
+                            <button onclick="clearConsole()" style="padding: 4px 8px; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 10px; cursor: pointer; color: #64748b;">
+                                Limpar
+                            </button>
+                        </div>
+                    </div>
+                    <div id="console-log-scraping" style="height: 200px; background: #0f172a; color: #e2e8f0; border-radius: 8px; padding: 12px; font-family: 'Fira Code', 'Consolas', monospace; font-size: 11px; overflow-y: auto; line-height: 1.6;">
+                        <div style="color: #64748b;">// Console pronto...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Page -->
+        <div id="settings" class="page">
+            <div class="page-header">
+                <h2>⚙️ Definições</h2>
+                <p>Configurações do sistema</p>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 24px; max-width: 800px;">
+                <!-- General Settings Section -->
+                <div class="scraper-control-card">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+                        <span style="font-size: 16px;">🔧</span>
+                        <span style="font-weight: 600; color: #1e293b;">Configurações Gerais</span>
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                        <!-- API Endpoint -->
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: #f8fafc; border-radius: 8px;">
+                            <div>
+                                <div style="font-weight: 500; color: #1e293b; font-size: 13px;">API Endpoint</div>
+                                <div style="font-size: 11px; color: #64748b;">URL do servidor backend</div>
+                            </div>
+                            <code style="padding: 6px 12px; background: #e2e8f0; border-radius: 6px; font-size: 12px; color: #334155;">http://localhost:8000</code>
+                        </div>
+
+                        <!-- Theme (placeholder) -->
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: #f8fafc; border-radius: 8px;">
+                            <div>
+                                <div style="font-weight: 500; color: #1e293b; font-size: 13px;">Tema</div>
+                                <div style="font-size: 11px; color: #64748b;">Aparência do dashboard</div>
+                            </div>
+                            <select style="padding: 6px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 12px; background: white;">
+                                <option value="light">Claro</option>
+                                <option value="dark" disabled>Escuro (em breve)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Data Management Section -->
+                <div class="scraper-control-card">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+                        <span style="font-size: 16px;">💾</span>
+                        <span style="font-weight: 600; color: #1e293b;">Gestão de Dados</span>
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                        <!-- Export Data -->
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: #f8fafc; border-radius: 8px;">
+                            <div>
+                                <div style="font-weight: 500; color: #1e293b; font-size: 13px;">Exportar Dados</div>
+                                <div style="font-size: 11px; color: #64748b;">Descarregar todos os eventos em JSON</div>
+                            </div>
+                            <button onclick="exportAllData()" style="padding: 8px 16px; background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; border: none; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer;">
+                                📥 Exportar
+                            </button>
+                        </div>
+
+                        <!-- Clear Cache -->
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: #f8fafc; border-radius: 8px;">
+                            <div>
+                                <div style="font-weight: 500; color: #1e293b; font-size: 13px;">Limpar Cache</div>
+                                <div style="font-size: 11px; color: #64748b;">Remove dados em cache do Redis</div>
+                            </div>
+                            <button onclick="clearCache()" style="padding: 8px 16px; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; border: none; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer;">
+                                🗑️ Limpar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Danger Zone -->
+                <div class="scraper-control-card" style="border: 2px solid #fecaca; background: linear-gradient(135deg, #fef2f2 0%, #fff 100%);">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+                        <span style="font-size: 16px;">⚠️</span>
+                        <span style="font-weight: 600; color: #dc2626;">Zona de Perigo</span>
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                        <!-- Delete All Events -->
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px; background: white; border: 1px solid #fecaca; border-radius: 8px;">
+                            <div>
+                                <div style="font-weight: 500; color: #991b1b; font-size: 13px;">Apagar Todos os Eventos</div>
+                                <div style="font-size: 11px; color: #7f1d1d; line-height: 1.5;">
+                                    Esta ação irá <strong>apagar permanentemente TODOS os eventos</strong> da base de dados.<br>
+                                    Esta ação não pode ser revertida!
+                                </div>
+                            </div>
+                            <button onclick="confirmClearDatabase()" style="padding: 10px 20px; background: linear-gradient(135deg, #dc2626, #b91c1c); color: white; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap;">
+                                🗑️ Limpar Base de Dados
+                            </button>
+                        </div>
+
+                        <!-- Delete All Notifications -->
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px; background: white; border: 1px solid #fecaca; border-radius: 8px;">
+                            <div>
+                                <div style="font-weight: 500; color: #991b1b; font-size: 13px;">Apagar Todas as Notificações</div>
+                                <div style="font-size: 11px; color: #7f1d1d;">Remove todas as notificações do histórico</div>
+                            </div>
+                            <button onclick="confirmDeleteAllNotifications()" style="padding: 10px 20px; background: linear-gradient(135deg, #f87171, #ef4444); color: white; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap;">
+                                🔔 Limpar Notificações
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -6948,8 +7091,6 @@
 
         // Delete all notifications
         async function deleteAllNotifications() {
-            if (!confirm('Tem certeza que deseja eliminar todas as notificações?')) return;
-
             try {
                 await fetch(`${API_BASE}/api/notifications/delete-all`, { method: 'DELETE' });
                 loadNotifications();
@@ -6959,6 +7100,65 @@
                 console.error('Erro ao eliminar notificações:', error);
                 showToast('Erro', 'Não foi possível eliminar as notificações', 'error');
             }
+        }
+
+        // Confirm delete all notifications (Settings page)
+        function confirmDeleteAllNotifications() {
+            if (confirm('Tem certeza que deseja eliminar TODAS as notificações?\n\nEsta ação não pode ser revertida!')) {
+                deleteAllNotifications();
+            }
+        }
+
+        // Export all events data (Settings page)
+        async function exportAllData() {
+            try {
+                showToast('A exportar...', 'Preparando dados para download', 'info');
+                const response = await fetch(`${API_BASE}/api/events?limit=100000`);
+                if (!response.ok) throw new Error('Erro ao obter dados');
+
+                const data = await response.json();
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `e-leiloes-export-${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                showToast('Exportação concluída', `${data.events?.length || 0} eventos exportados`, 'success');
+            } catch (error) {
+                console.error('Erro ao exportar:', error);
+                showToast('Erro', 'Não foi possível exportar os dados', 'error');
+            }
+        }
+
+        // Clear Redis cache (Settings page)
+        async function clearCache() {
+            if (!confirm('Tem certeza que deseja limpar o cache?\n\nIsto pode temporariamente afetar a performance.')) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/api/cache/clear`, { method: 'POST' });
+                if (response.ok) {
+                    showToast('Cache limpo', 'O cache foi limpo com sucesso', 'success');
+                } else {
+                    throw new Error('Erro ao limpar cache');
+                }
+            } catch (error) {
+                console.error('Erro ao limpar cache:', error);
+                showToast('Erro', 'Não foi possível limpar o cache', 'error');
+            }
+        }
+
+        // Run specific IDs from Scraping page
+        function runSpecificIdsScraping() {
+            const input = document.getElementById('specific-ids-input-scraping').value.trim();
+            if (!input) {
+                showToast('Erro', 'Introduza pelo menos um ID', 'error');
+                return;
+            }
+            runIndependentScraperWithIds(input);
         }
 
         // Toggle event-specific notification
