@@ -8230,6 +8230,62 @@
         // Initial badge update
         updateNotificationBadge();
 
+        // ============== LIVE PRICE UPDATES (SSE) ==============
+
+        let sseConnection = null;
+
+        function connectToLiveUpdates() {
+            if (sseConnection) {
+                sseConnection.close();
+            }
+
+            sseConnection = new EventSource(`${API_BASE}/api/live/price-updates`);
+
+            sseConnection.onopen = () => {
+                console.log('🔴 SSE: Connected to live price updates');
+            };
+
+            sseConnection.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+
+                    if (data.type === 'price_update') {
+                        // Show toast notification for price change
+                        const priceChange = data.new_price - data.old_price;
+                        const changeSymbol = priceChange >= 0 ? '+' : '';
+                        const changeColor = priceChange >= 0 ? '🔺' : '🔻';
+
+                        showToast(
+                            `${changeColor} Alteração de Preço`,
+                            `${data.reference}: €${data.old_price?.toLocaleString() || 0} → €${data.new_price?.toLocaleString() || 0} (${changeSymbol}€${priceChange?.toLocaleString() || 0})`,
+                            priceChange >= 0 ? 'warning' : 'success'
+                        );
+
+                        // Update badge instantly
+                        updateNotificationBadge();
+
+                        // If on alertas page, refresh notifications
+                        if (currentPage === 'alertas') {
+                            loadNotifications();
+                        }
+                    } else if (data.type === 'connected') {
+                        console.log('🔴 SSE:', data.message);
+                    }
+                } catch (e) {
+                    // Ignore parsing errors (keepalive pings)
+                }
+            };
+
+            sseConnection.onerror = (error) => {
+                console.log('🔴 SSE: Connection error, reconnecting in 5s...');
+                sseConnection.close();
+                setTimeout(connectToLiveUpdates, 5000);
+            };
+        }
+
+        // Connect to live updates on page load
+        connectToLiveUpdates();
+
         // ============== TOAST NOTIFICATION SYSTEM ==============
 
         function showToast(title, message, type = 'info') {
