@@ -1385,6 +1385,14 @@ async def get_stats_by_distrito(limit: int = 5):
         return JSONResponse(stats)
 
 
+@app.get("/api/dashboard/recent-bids")
+async def get_recent_bids(limit: int = 20):
+    """Get recent price changes for dashboard"""
+    async with get_db() as db:
+        bids = await db.get_recent_price_changes(limit=limit)
+        return JSONResponse(bids)
+
+
 @app.post("/api/db/fix-nulls")
 async def fix_null_lance_atual():
     """

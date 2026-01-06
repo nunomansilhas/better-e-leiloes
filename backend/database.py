@@ -960,6 +960,26 @@ class DatabaseManager:
             "price_updates": price_updates
         }
 
+    async def get_recent_price_changes(self, limit: int = 20) -> List[dict]:
+        """Get recent price change notifications for dashboard"""
+        result = await self.session.execute(
+            select(NotificationDB)
+            .where(NotificationDB.notification_type == 'price_change')
+            .where(NotificationDB.preco_anterior.isnot(None))
+            .where(NotificationDB.preco_atual.isnot(None))
+            .order_by(NotificationDB.created_at.desc())
+            .limit(limit)
+        )
+        notifications = result.scalars().all()
+
+        return [{
+            "reference": n.event_reference,
+            "preco_anterior": n.preco_anterior,
+            "preco_atual": n.preco_atual,
+            "variacao": n.preco_variacao,
+            "created_at": n.created_at.isoformat() if n.created_at else None
+        } for n in notifications]
+
     # ========== NOTIFICATION RULES ==========
 
     async def get_notification_rules(self, active_only: bool = False) -> List[dict]:
