@@ -3557,9 +3557,6 @@
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <span style="font-size: 16px;">🔧</span>
                             <span style="font-weight: 600; color: #1e293b;">Scraper Tools</span>
-                            <button onclick="refreshDbStats()" style="padding: 4px 8px; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 10px; cursor: pointer; color: #64748b;" title="Atualizar estatísticas">
-                                <span id="db-stats-spinner-scraping" style="display: none;">⏳</span>🔄
-                            </button>
                         </div>
                         <!-- Mini Stats -->
                         <div style="display: flex; gap: 12px; font-size: 11px;">
@@ -5651,10 +5648,7 @@
         // ========== DB MAINTENANCE FUNCTIONS ==========
 
         // Refresh DB stats
-        async function refreshDbStats() {
-            const spinner = document.getElementById('db-stats-spinner');
-            if (spinner) spinner.style.display = 'inline';
-
+        async function refreshDbStats(silent = false) {
             try {
                 const response = await fetch(`${API_BASE}/api/db/stats`);
                 const data = await response.json();
@@ -5663,18 +5657,21 @@
                     const el = document.getElementById(id);
                     if (el) el.textContent = val || 0;
                 };
-                setEl('db-stat-total', data.total);
-                setEl('db-stat-content', data.with_content);
-                setEl('db-stat-incomplete', data.incomplete);
-                setEl('db-stat-nulls', data.null_lance_atual);
+                // Update scraping page stats
+                setEl('db-stat-total-scraping', data.total);
+                setEl('db-stat-content-scraping', data.with_content);
+                setEl('db-stat-incomplete-scraping', data.incomplete);
+                setEl('db-stat-nulls-scraping', data.null_lance_atual);
 
-                addLog('📊 Estatísticas da BD atualizadas', 'info');
+                if (!silent) addLog('📊 Estatísticas da BD atualizadas', 'info');
             } catch (e) {
-                addLog(`❌ Erro ao carregar estatísticas: ${e.message}`, 'error');
-            } finally {
-                if (spinner) spinner.style.display = 'none';
+                if (!silent) addLog(`❌ Erro ao carregar estatísticas: ${e.message}`, 'error');
             }
         }
+
+        // Auto-refresh DB stats every 10 seconds
+        refreshDbStats(true);
+        setInterval(() => refreshDbStats(true), 10000);
 
         // Fix NULL lance_atual values
         async function runFixNulls() {
