@@ -2993,34 +2993,19 @@
                         </div>
                         <span style="font-size: 11px; color: #94a3b8;">próximas 24h</span>
                     </div>
-                    <div id="dash-ending-soon" style="display: flex; flex-direction: column; gap: 8px;">
+                    <div id="dash-ending-soon" style="display: flex; flex-direction: column; gap: 6px;">
                         <!-- Template items -->
-                        <div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: #fef2f2; border-radius: 8px; border-left: 3px solid #ef4444;">
-                            <div style="flex: 1; min-width: 0;">
-                                <div style="font-size: 12px; font-weight: 500; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Apartamento T2 Lisboa</div>
-                                <div style="font-size: 11px; color: #64748b;">LO · €125.000</div>
-                            </div>
-                            <div style="text-align: right;">
-                                <div style="font-size: 11px; font-weight: 600; color: #ef4444;">2h 34m</div>
-                            </div>
+                        <div style="display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: #fef2f2; border-radius: 6px; border-left: 3px solid #ef4444;">
+                            <span style="font-size: 11px; font-weight: 600; color: #ef4444; min-width: 50px;">2h 34m</span>
+                            <span style="font-size: 11px; color: #1e293b; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Apartamento T2 Lisboa</span>
                         </div>
-                        <div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: #fff7ed; border-radius: 8px; border-left: 3px solid #f97316;">
-                            <div style="flex: 1; min-width: 0;">
-                                <div style="font-size: 12px; font-weight: 500; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">BMW Série 3 2019</div>
-                                <div style="font-size: 11px; color: #64748b;">LO · €18.500</div>
-                            </div>
-                            <div style="text-align: right;">
-                                <div style="font-size: 11px; font-weight: 600; color: #f97316;">5h 12m</div>
-                            </div>
+                        <div style="display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: #fff7ed; border-radius: 6px; border-left: 3px solid #f97316;">
+                            <span style="font-size: 11px; font-weight: 600; color: #f97316; min-width: 50px;">5h 12m</span>
+                            <span style="font-size: 11px; color: #1e293b; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">BMW Série 3 2019</span>
                         </div>
-                        <div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: #fefce8; border-radius: 8px; border-left: 3px solid #eab308;">
-                            <div style="flex: 1; min-width: 0;">
-                                <div style="font-size: 12px; font-weight: 500; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Moradia T4 Cascais</div>
-                                <div style="font-size: 11px; color: #64748b;">NP · €450.000</div>
-                            </div>
-                            <div style="text-align: right;">
-                                <div style="font-size: 11px; font-weight: 600; color: #eab308;">18h 45m</div>
-                            </div>
+                        <div style="display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: #fefce8; border-radius: 6px; border-left: 3px solid #eab308;">
+                            <span style="font-size: 11px; font-weight: 600; color: #eab308; min-width: 50px;">18h 45m</span>
+                            <span style="font-size: 11px; color: #1e293b; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Moradia T4 Cascais</span>
                         </div>
                     </div>
                 </div>
@@ -4744,18 +4729,11 @@
                     const timeStr = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
 
                     const titulo = event.titulo || event.reference;
-                    const preco = event.lance_atual ? `€${event.lance_atual.toLocaleString()}` : '';
-                    const mod = event.modalidade || '';
 
                     return `
-                        <div onclick="openInspectionModal('${event.reference}')" style="display: flex; align-items: center; gap: 10px; padding: 10px; background: ${bgColor}; border-radius: 8px; border-left: 3px solid ${borderColor}; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.transform='translateX(2px)'" onmouseout="this.style.transform=''">
-                            <div style="flex: 1; min-width: 0;">
-                                <div style="font-size: 12px; font-weight: 500; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${titulo}</div>
-                                <div style="font-size: 11px; color: #64748b;">${mod} ${preco ? `· ${preco}` : ''}</div>
-                            </div>
-                            <div style="text-align: right;">
-                                <div style="font-size: 11px; font-weight: 600; color: ${textColor};">${timeStr}</div>
-                            </div>
+                        <div onclick="openInspectionModal('${event.reference}')" style="display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: ${bgColor}; border-radius: 6px; border-left: 3px solid ${borderColor}; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.transform='translateX(2px)'" onmouseout="this.style.transform=''">
+                            <span style="font-size: 11px; font-weight: 600; color: ${textColor}; min-width: 50px;">${timeStr}</span>
+                            <span style="font-size: 11px; color: #1e293b; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${titulo}</span>
                         </div>
                     `;
                 }).join('');
