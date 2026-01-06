@@ -2676,11 +2676,12 @@
         .price-chart-btn {
             position: relative;
         }
-        .price-chart-btn:hover svg { stroke: #3b82f6; }
+        .price-chart-btn:hover > svg { stroke: #3b82f6; }
         @keyframes spin { to { transform: rotate(360deg); } }
         .spin { animation: spin 1s linear infinite; }
-        .chart-point { cursor: pointer; transition: r 0.15s; }
-        .chart-point:hover { r: 6; }
+        .chart-point { cursor: pointer; opacity: 0; transition: opacity 0.15s, r 0.15s; }
+        .chart-point:hover, .chart-point.last-point { opacity: 1; }
+        svg:hover .chart-point { opacity: 1; }
 
         /* Row hover effects for tables */
         .ending-soon-row, .recent-bid-row {
@@ -5079,12 +5080,21 @@
             svg += `<path d="${areaD}" fill="url(#${uid}-grad)"/>`;
             svg += `<path d="${pathD}" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
 
-            // Interactive data points
+            // Interactive data points (hidden by default, show on SVG hover)
             dataPoints.forEach((d, i) => {
                 const x = getX(i), y = getY(d.preco);
                 const time = d.timestamp ? new Date(d.timestamp).toLocaleString('pt-PT', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'}) : '';
                 const isLast = i === dataPoints.length - 1;
-                svg += `<circle class="chart-point" cx="${x}" cy="${y}" r="${isLast ? 5 : 4}" fill="${isLast ? '#22c55e' : 'white'}" stroke="${isLast ? 'white' : '#22c55e'}" stroke-width="2" data-price="${d.preco}" data-time="${time}" onmouseenter="showChartPointTip(evt, ${d.preco}, '${time}')" onmouseleave="hideChartPointTip()"/>`;
+                const classes = isLast ? 'chart-point last-point' : 'chart-point';
+                svg += `<circle class="${classes}" cx="${x}" cy="${y}" r="${isLast ? 5 : 4}" fill="${isLast ? '#22c55e' : 'white'}" stroke="${isLast ? 'white' : '#22c55e'}" stroke-width="2"/>`;
+            });
+
+            // Add invisible larger hit areas for better hover detection
+            dataPoints.forEach((d, i) => {
+                const x = getX(i), y = getY(d.preco);
+                const time = d.timestamp ? new Date(d.timestamp).toLocaleString('pt-PT', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'}) : '';
+                const timeEsc = time.replace(/'/g, "\\'");
+                svg += `<circle cx="${x}" cy="${y}" r="12" fill="transparent" style="cursor: pointer;" onmouseenter="showChartPointTip(event, ${d.preco}, '${timeEsc}')" onmouseleave="hideChartPointTip()"/>`;
             });
 
             // X-axis timestamps (only if modal and has data)
