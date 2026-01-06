@@ -142,11 +142,11 @@ class NotificationEngine:
                 print(f"    ❌ Rule {rule['name']}: event doesn't match filters")
                 return None
 
-            # Check for duplicates (prevent same notification within 1h for price changes)
+            # Check for duplicates (prevent spam - same event+rule within 5 min)
             if await db_manager.notification_exists(
-                rule["id"], event.reference, "price_change", hours=1
+                rule["id"], event.reference, "price_change", hours=0.083  # ~5 minutes
             ):
-                print(f"    ⏭️ Rule {rule['name']}: duplicate (notified within 1h)")
+                print(f"    ⏭️ Rule {rule['name']}: duplicate (notified within 5min)")
                 return None
 
             notification_id = await db_manager.create_notification({
