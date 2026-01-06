@@ -2676,6 +2676,11 @@
         .price-chart-btn {
             position: relative;
         }
+        .price-chart-btn:hover svg { stroke: #3b82f6; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spin { animation: spin 1s linear infinite; }
+        .chart-point { cursor: pointer; transition: r 0.15s; }
+        .chart-point:hover { r: 6; }
 
         /* Row hover effects for tables */
         .ending-soon-row, .recent-bid-row {
@@ -4853,14 +4858,21 @@
                         <span style="font-size: 10px; color: #64748b; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${subtipo}">${subtipo}</span>
                         <span style="font-size: 10px; color: #64748b; width: 55px;">${zona}</span>
                         <span style="font-size: 10px; font-weight: 600; color: #1e293b; width: 75px; text-align: right;">${valor}</span>
-                        <div class="price-chart-btn" data-ref="${event.reference}" data-base="${vBase}" data-abertura="${vAbertura}" data-minimo="${vMinimo}" data-atual="${vAtual}" style="width: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 12px;">
-                            📊
-                            <div class="price-chart-tooltip" style="display: none; position: fixed; background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); z-index: 9999; min-width: 248px;">
-                                <div style="font-size: 11px; font-weight: 600; color: #1e293b; margin-bottom: 10px;">📈 Evolução de Preço</div>
-                                <div class="chart-container" style="height: 90px; position: relative; margin-bottom: 10px;">
-                                    <div style="text-align: center; padding: 30px; color: #94a3b8; font-size: 10px;">A carregar...</div>
+                        <div class="price-chart-btn" data-ref="${event.reference}" data-base="${vBase}" data-abertura="${vAbertura}" data-minimo="${vMinimo}" data-atual="${vAtual}" style="width: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 12px;" title="Ver gráfico de preço">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                            <div class="price-chart-tooltip" style="display: none; position: fixed; background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); z-index: 9999; min-width: 280px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                    <span style="font-size: 11px; font-weight: 600; color: #1e293b;">Evolucao de Preco</span>
+                                    <span class="chart-variation" style="font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px;"></span>
                                 </div>
-                                <div class="chart-legend" style="color: #64748b;">
+                                <div class="chart-container" style="height: 100px; position: relative; margin-bottom: 8px;">
+                                    <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #94a3b8;">
+                                        <svg class="spin" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4m0 12v4m-8-10h4m12 0h4m-5.66-5.66l-2.82 2.82m-5.04 5.04l-2.82 2.82m0-11.32l2.82 2.82m5.04 5.04l2.82 2.82"/></svg>
+                                    </div>
+                                </div>
+                                <div class="chart-legend" style="color: #64748b;"></div>
+                                <div style="text-align: center; margin-top: 8px; padding-top: 8px; border-top: 1px solid #f1f5f9;">
+                                    <span style="font-size: 9px; color: #94a3b8;">Clica para expandir</span>
                                 </div>
                             </div>
                         </div>
@@ -4879,12 +4891,16 @@
             setupLinkedHover();
         }
 
+        // Store loaded chart data for modal reuse
+        const chartDataCache = {};
+
         function setupChartTooltips() {
             document.querySelectorAll('.price-chart-btn').forEach(btn => {
                 const tooltip = btn.querySelector('.price-chart-tooltip');
                 if (!tooltip) return;
 
                 let loaded = false;
+                const ref = btn.dataset.ref;
 
                 btn.addEventListener('mouseenter', async (e) => {
                     const rect = btn.getBoundingClientRect();
@@ -4892,15 +4908,12 @@
                     tooltip.style.top = (rect.top - tooltip.offsetHeight - 5) + 'px';
                     tooltip.style.left = (rect.right - tooltip.offsetWidth) + 'px';
 
-                    // Adjust if going off screen top
                     if (rect.top - tooltip.offsetHeight - 5 < 10) {
                         tooltip.style.top = (rect.bottom + 5) + 'px';
                     }
 
-                    // Load chart data if not already loaded
                     if (!loaded) {
                         loaded = true;
-                        const ref = btn.dataset.ref;
                         const vBase = parseFloat(btn.dataset.base) || 0;
                         const vAbertura = parseFloat(btn.dataset.abertura) || 0;
                         const vMinimo = parseFloat(btn.dataset.minimo) || 0;
@@ -4909,9 +4922,10 @@
                         try {
                             const response = await fetch(`${API_BASE}/api/dashboard/price-history/${ref}`);
                             const history = await response.json();
+                            chartDataCache[ref] = { history, vBase, vAbertura, vMinimo, vAtual };
                             renderPriceChart(tooltip, history, vBase, vAbertura, vMinimo, vAtual);
                         } catch (err) {
-                            // If no history, show just current values
+                            chartDataCache[ref] = { history: [{preco: vAtual}], vBase, vAbertura, vMinimo, vAtual };
                             renderPriceChart(tooltip, [{preco: vAtual}], vBase, vAbertura, vMinimo, vAtual);
                         }
                     }
@@ -4920,18 +4934,99 @@
                 btn.addEventListener('mouseleave', () => {
                     tooltip.style.display = 'none';
                 });
+
+                // Click to open expanded modal
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    tooltip.style.display = 'none';
+                    openPriceChartModal(ref, btn.dataset);
+                });
             });
         }
 
-        function renderPriceChart(tooltip, history, vBase, vAbertura, vMinimo, vAtual) {
+        // Expanded price chart modal
+        function openPriceChartModal(ref, dataset) {
+            const vBase = parseFloat(dataset.base) || 0;
+            const vAbertura = parseFloat(dataset.abertura) || 0;
+            const vMinimo = parseFloat(dataset.minimo) || 0;
+            const vAtual = parseFloat(dataset.atual) || 0;
+
+            const modal = document.createElement('div');
+            modal.id = 'price-chart-modal';
+            modal.style.cssText = 'position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 99999;';
+            modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+            modal.innerHTML = `
+                <div style="background: white; border-radius: 12px; padding: 20px; max-width: 520px; width: 90%; box-shadow: 0 20px 50px rgba(0,0,0,0.3);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                        <div>
+                            <div style="font-size: 14px; font-weight: 600; color: #1e293b;">Evolucao de Preco</div>
+                            <div style="font-size: 11px; color: #64748b;">${ref}</div>
+                        </div>
+                        <span class="chart-variation" style="font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 6px;"></span>
+                    </div>
+                    <div class="chart-container" style="height: 180px; margin-bottom: 12px;">
+                        <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #94a3b8;">
+                            <svg class="spin" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4m0 12v4m-8-10h4m12 0h4m-5.66-5.66l-2.82 2.82m-5.04 5.04l-2.82 2.82m0-11.32l2.82 2.82m5.04 5.04l2.82 2.82"/></svg>
+                        </div>
+                    </div>
+                    <div class="chart-legend" style="color: #64748b; margin-bottom: 16px;"></div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <a href="https://www.e-leiloes.pt/evento/${ref}" target="_blank" style="font-size: 11px; color: #3b82f6; text-decoration: none;">Ver no e-leiloes.pt</a>
+                        <button onclick="this.closest('#price-chart-modal').remove()" style="padding: 6px 16px; background: #f1f5f9; border: none; border-radius: 6px; font-size: 11px; color: #475569; cursor: pointer;">Fechar</button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+
+            // Load data
+            const cached = chartDataCache[ref];
+            if (cached) {
+                renderPriceChart(modal.querySelector('div > div'), cached.history, cached.vBase, cached.vAbertura, cached.vMinimo, cached.vAtual, true);
+            } else {
+                fetch(`${API_BASE}/api/dashboard/price-history/${ref}`)
+                    .then(r => r.json())
+                    .then(history => {
+                        chartDataCache[ref] = { history, vBase, vAbertura, vMinimo, vAtual };
+                        renderPriceChart(modal.querySelector('div > div'), history, vBase, vAbertura, vMinimo, vAtual, true);
+                    })
+                    .catch(() => {
+                        renderPriceChart(modal.querySelector('div > div'), [{preco: vAtual}], vBase, vAbertura, vMinimo, vAtual, true);
+                    });
+            }
+        }
+
+        function renderPriceChart(tooltip, history, vBase, vAbertura, vMinimo, vAtual, isModal = false) {
             const container = tooltip.querySelector('.chart-container');
             const legend = tooltip.querySelector('.chart-legend');
+            const variationEl = tooltip.querySelector('.chart-variation');
 
-            // Get price points
-            let prices = history.length > 0 ? history.map(h => h.preco) : [vAtual];
-            if (prices.length === 1) prices = [prices[0] * 0.9, prices[0]];
+            // Prepare data with timestamps
+            let dataPoints = history.length > 0 ? history.map(h => ({
+                preco: h.preco,
+                timestamp: h.timestamp || null
+            })) : [{ preco: vAtual, timestamp: null }];
 
-            // Add padding to price range for better visualization
+            if (dataPoints.length === 1) {
+                dataPoints = [{ preco: dataPoints[0].preco * 0.95, timestamp: null }, dataPoints[0]];
+            }
+
+            const prices = dataPoints.map(d => d.preco);
+            const firstPrice = prices[0];
+            const lastPrice = prices[prices.length - 1];
+
+            // Calculate variation %
+            const variation = firstPrice > 0 ? ((lastPrice - firstPrice) / firstPrice * 100) : 0;
+            const isPositive = variation >= 0;
+
+            if (variationEl) {
+                variationEl.textContent = `${isPositive ? '+' : ''}${variation.toFixed(1)}%`;
+                variationEl.style.background = isPositive ? '#dcfce7' : '#fee2e2';
+                variationEl.style.color = isPositive ? '#16a34a' : '#dc2626';
+            }
+
+            // Price range
             const dataMin = Math.min(...prices);
             const dataMax = Math.max(...prices);
             const minPrice = Math.min(dataMin, vMinimo || dataMin) * 0.95;
@@ -4939,17 +5034,16 @@
             const range = maxPrice - minPrice || 1;
 
             // SVG dimensions
-            const width = 220;
-            const height = 90;
-            const padL = 8, padR = 8, padT = 12, padB = 8;
+            const width = isModal ? 450 : 252;
+            const height = isModal ? 180 : 100;
+            const padL = 10, padR = 10, padT = 15, padB = isModal ? 25 : 12;
             const chartW = width - padL - padR;
             const chartH = height - padT - padB;
 
-            // Calculate coordinates
             const getX = (i) => padL + (i / (prices.length - 1 || 1)) * chartW;
             const getY = (p) => padT + chartH - ((p - minPrice) / range) * chartH;
 
-            // Build smooth path using bezier curves
+            // Build smooth path
             let pathD = `M ${getX(0)} ${getY(prices[0])}`;
             for (let i = 1; i < prices.length; i++) {
                 const x0 = getX(i - 1), y0 = getY(prices[i - 1]);
@@ -4957,69 +5051,85 @@
                 const cpx = (x0 + x1) / 2;
                 pathD += ` C ${cpx} ${y0}, ${cpx} ${y1}, ${x1} ${y1}`;
             }
-
-            // Area path
             let areaD = pathD + ` L ${getX(prices.length - 1)} ${padT + chartH} L ${getX(0)} ${padT + chartH} Z`;
 
-            // Valor mínimo Y position
             const vMinimoY = vMinimo > 0 ? getY(vMinimo) : -100;
+            const uid = 'g' + Math.random().toString(36).substr(2, 9);
 
-            // Build SVG
             let svg = `<svg width="${width}" height="${height}" style="display: block; background: #fafbfc; border-radius: 6px;">`;
-
-            // Gradient definitions
             svg += `<defs>
-                <linearGradient id="areaGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <linearGradient id="${uid}-grad" x1="0%" y1="0%" x2="0%" y2="100%">
                     <stop offset="0%" stop-color="#22c55e" stop-opacity="0.25"/>
                     <stop offset="100%" stop-color="#22c55e" stop-opacity="0.02"/>
                 </linearGradient>
-                <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-                    <feGaussianBlur stdDeviation="2" result="blur"/>
-                    <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-                </filter>
             </defs>`;
 
-            // Subtle horizontal grid lines
-            for (let i = 0; i <= 3; i++) {
-                const y = padT + (chartH / 3) * i;
+            // Grid lines
+            for (let i = 0; i <= 4; i++) {
+                const y = padT + (chartH / 4) * i;
                 svg += `<line x1="${padL}" y1="${y}" x2="${width - padR}" y2="${y}" stroke="#e5e7eb" stroke-width="0.5"/>`;
             }
 
-            // Valor mínimo horizontal line
+            // Valor mínimo line
             if (vMinimoY >= padT && vMinimoY <= padT + chartH) {
-                svg += `<line x1="${padL}" y1="${vMinimoY}" x2="${width - padR}" y2="${vMinimoY}" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="6,3" opacity="0.8"/>`;
+                svg += `<line x1="${padL}" y1="${vMinimoY}" x2="${width - padR}" y2="${vMinimoY}" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="5,3" opacity="0.7"/>`;
+                svg += `<text x="${width - padR - 2}" y="${vMinimoY - 3}" font-size="8" fill="#f59e0b" text-anchor="end">Min</text>`;
             }
 
-            // Area fill
-            svg += `<path d="${areaD}" fill="url(#areaGrad)"/>`;
+            svg += `<path d="${areaD}" fill="url(#${uid}-grad)"/>`;
+            svg += `<path d="${pathD}" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
 
-            // Main line
-            svg += `<path d="${pathD}" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)"/>`;
+            // Interactive data points
+            dataPoints.forEach((d, i) => {
+                const x = getX(i), y = getY(d.preco);
+                const time = d.timestamp ? new Date(d.timestamp).toLocaleString('pt-PT', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'}) : '';
+                const isLast = i === dataPoints.length - 1;
+                svg += `<circle class="chart-point" cx="${x}" cy="${y}" r="${isLast ? 5 : 4}" fill="${isLast ? '#22c55e' : 'white'}" stroke="${isLast ? 'white' : '#22c55e'}" stroke-width="2" data-price="${d.preco}" data-time="${time}" onmouseenter="showChartPointTip(evt, ${d.preco}, '${time}')" onmouseleave="hideChartPointTip()"/>`;
+            });
 
-            // Data points (only show if few points)
-            if (prices.length <= 12) {
-                prices.forEach((p, i) => {
-                    const x = getX(i), y = getY(p);
-                    svg += `<circle cx="${x}" cy="${y}" r="4" fill="white" stroke="#22c55e" stroke-width="2"/>`;
-                });
+            // X-axis timestamps (only if modal and has data)
+            if (isModal && dataPoints.length > 1 && dataPoints[0].timestamp) {
+                const showCount = Math.min(5, dataPoints.length);
+                const step = Math.floor((dataPoints.length - 1) / (showCount - 1)) || 1;
+                for (let i = 0; i < dataPoints.length; i += step) {
+                    if (dataPoints[i].timestamp) {
+                        const x = getX(i);
+                        const time = new Date(dataPoints[i].timestamp).toLocaleString('pt-PT', {day:'2-digit', month:'2-digit'});
+                        svg += `<text x="${x}" y="${height - 5}" font-size="9" fill="#94a3b8" text-anchor="middle">${time}</text>`;
+                    }
+                }
             }
-
-            // Last point highlight
-            const lastX = getX(prices.length - 1), lastY = getY(prices[prices.length - 1]);
-            svg += `<circle cx="${lastX}" cy="${lastY}" r="5" fill="#22c55e" stroke="white" stroke-width="2"/>`;
 
             svg += '</svg>';
             container.innerHTML = svg;
 
-            // Compact legend
+            // Legend
             legend.innerHTML = `
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; font-size: 9px;">
-                    <span><span style="color: #94a3b8;">Base:</span> <strong>€${vBase.toLocaleString()}</strong></span>
-                    <span><span style="color: #3b82f6;">Abertura:</span> <strong>€${vAbertura.toLocaleString()}</strong></span>
-                    <span><span style="color: #f59e0b;">── Mínimo:</span> <strong>€${vMinimo.toLocaleString()}</strong></span>
-                    <span><span style="color: #22c55e;">● Atual:</span> <strong style="color: #22c55e;">€${vAtual.toLocaleString()}</strong></span>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 3px 10px; font-size: 9px;">
+                    <span><span style="color: #94a3b8;">Base:</span> <strong>${vBase.toLocaleString()}€</strong></span>
+                    <span><span style="color: #3b82f6;">Abertura:</span> <strong>${vAbertura.toLocaleString()}€</strong></span>
+                    <span><span style="color: #f59e0b;">-- Minimo:</span> <strong>${vMinimo.toLocaleString()}€</strong></span>
+                    <span><span style="color: #22c55e;">Atual:</span> <strong style="color: #22c55e;">${vAtual.toLocaleString()}€</strong></span>
                 </div>
             `;
+        }
+
+        // Chart point tooltip
+        let chartPointTip = null;
+        function showChartPointTip(e, price, time) {
+            if (!chartPointTip) {
+                chartPointTip = document.createElement('div');
+                chartPointTip.style.cssText = 'position: fixed; padding: 5px 8px; background: #1e293b; color: white; font-size: 10px; border-radius: 4px; pointer-events: none; z-index: 99999; white-space: nowrap;';
+                document.body.appendChild(chartPointTip);
+            }
+            const timeStr = time ? `<span style="color: #94a3b8; margin-left: 6px;">${time}</span>` : '';
+            chartPointTip.innerHTML = `<strong style="color: #22c55e;">${price.toLocaleString()}€</strong>${timeStr}`;
+            chartPointTip.style.display = 'block';
+            chartPointTip.style.left = (e.clientX + 10) + 'px';
+            chartPointTip.style.top = (e.clientY - 25) + 'px';
+        }
+        function hideChartPointTip() {
+            if (chartPointTip) chartPointTip.style.display = 'none';
         }
 
         function setupLinkedHover() {
