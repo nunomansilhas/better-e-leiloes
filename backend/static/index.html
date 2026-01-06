@@ -4442,8 +4442,8 @@
                 const countLO = (arr) => arr.filter(e => e.reference.startsWith('LO')).length;
                 const countNP = (arr) => arr.filter(e => e.reference.startsWith('NP')).length;
 
-                // Count inactive/terminated events
-                const inactiveCount = events.filter(e => e.cancelado === true).length;
+                // Count inactive/terminated events (ativo=false means event is finished)
+                const inactiveCount = events.filter(e => e.ativo === false).length;
 
                 // Helper to update stat with animation on change
                 const updateStat = (id, value) => {

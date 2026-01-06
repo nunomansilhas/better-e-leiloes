@@ -608,6 +608,35 @@ class DatabaseManager:
         event_db = result.scalar_one_or_none()
         return event_db.to_model() if event_db else None
 
+    async def update_event_fields(self, reference: str, fields: dict) -> bool:
+        """
+        Update only specific fields of an event (partial update).
+        This prevents overwriting other fields with stale data.
+
+        Args:
+            reference: Event reference
+            fields: Dict of field names and values to update
+
+        Returns:
+            True if event was updated, False if not found
+        """
+        result = await self.session.execute(
+            select(EventDB).where(EventDB.reference == reference)
+        )
+        event_db = result.scalar_one_or_none()
+
+        if not event_db:
+            return False
+
+        # Only update the specified fields
+        for field_name, value in fields.items():
+            if hasattr(event_db, field_name):
+                setattr(event_db, field_name, value)
+
+        event_db.updated_at = datetime.utcnow()
+        await self.session.commit()
+        return True
+
     async def list_events(
         self,
         page: int = 1,

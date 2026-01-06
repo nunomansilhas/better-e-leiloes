@@ -56,17 +56,30 @@ class CacheManager:
         """Guarda no cache (TTL em segundos)"""
         key = f"event:{reference}"
         value = event.model_dump_json()
-        
+
         if self.redis_client:
             try:
                 await self.redis_client.setex(key, ttl, value)
                 return
             except:
                 pass
-        
+
         # Fallback para memória
         self.memory_cache[key] = event.model_dump()
-    
+
+    async def invalidate(self, reference: str):
+        """Remove um evento do cache (invalida)"""
+        key = f"event:{reference}"
+
+        if self.redis_client:
+            try:
+                await self.redis_client.delete(key)
+            except:
+                pass
+
+        # Remove da memória também
+        self.memory_cache.pop(key, None)
+
     async def clear_all(self):
         """Limpa todo o cache"""
         if self.redis_client:

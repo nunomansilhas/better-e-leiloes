@@ -1207,28 +1207,39 @@ class AutoPipelinesManager:
                     if candidates:
                         print(f"    📋 {len(candidates)} candidatos a terminado")
 
+                        # OPTIMIZED: Batch API call instead of one-by-one
+                        refs = [e.reference for e in candidates]
+                        api_results = await scraper.scrape_volatile_via_api(refs)
+
+                        # Create lookup map for quick access
+                        api_map = {r['reference']: r for r in api_results}
+
                         for event in candidates:
                             try:
-                                # Quick check via API
-                                api_data = await scraper.scrape_volatile_via_api([event.reference])
+                                data = api_map.get(event.reference)
 
-                                if api_data and len(api_data) > 0:
-                                    data = api_data[0]
+                                if data:
                                     new_end = data.get('dataFim')
                                     if new_end and new_end < now:
-                                        event.terminado = True
-                                        event.cancelado = True
-                                        await db.save_event(event)
-                                        await cache_manager.set(event.reference, event)
+                                        # Only update specific fields, not full save
+                                        await db.update_event_fields(
+                                            event.reference,
+                                            {'terminado': True, 'cancelado': True, 'ativo': False}
+                                        )
+                                        await cache_manager.invalidate(event.reference)
                                         terminated_count += 1
                                         print(f"    🔴 Terminado: {event.reference}")
-
-                            except Exception as e:
-                                if "404" in str(e) or "not found" in str(e).lower():
-                                    event.terminado = True
-                                    await db.save_event(event)
+                                else:
+                                    # Not in API results = likely 404/not found
+                                    await db.update_event_fields(
+                                        event.reference,
+                                        {'terminado': True, 'ativo': False}
+                                    )
                                     terminated_count += 1
                                     print(f"    🔴 Não encontrado: {event.reference}")
+
+                            except Exception as e:
+                                print(f"    ❌ Erro {event.reference}: {str(e)[:50]}")
                     else:
                         print(f"    ✓ Nenhum evento terminado")
 
