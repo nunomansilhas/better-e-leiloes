@@ -867,6 +867,7 @@ class DatabaseManager:
         )
         events = result.scalars().all()
 
+        modalidades = {1: 'LO', 2: 'NP'}
         return [{
             "reference": e.reference,
             "titulo": e.titulo,
@@ -875,7 +876,7 @@ class DatabaseManager:
             "distrito": e.distrito,
             "lance_atual": e.lance_atual,
             "data_fim": e.data_fim.isoformat() if e.data_fim else None,
-            "modalidade": e.modalidade
+            "modalidade": modalidades.get(e.modalidade_id, '')
         } for e in events]
 
     async def get_stats_by_distrito(self, limit: int = 10) -> List[dict]:
@@ -904,13 +905,13 @@ class DatabaseManager:
         return [
             {
                 "distrito": row.distrito,
-                "total": row.total,
-                "imoveis": row.imoveis or 0,
-                "veiculos": row.veiculos or 0,
-                "direitos": row.direitos or 0,
-                "equipamentos": row.equipamentos or 0,
-                "mobiliario": row.mobiliario or 0,
-                "maquinas": row.maquinas or 0
+                "total": int(row.total),
+                "imoveis": int(row.imoveis or 0),
+                "veiculos": int(row.veiculos or 0),
+                "direitos": int(row.direitos or 0),
+                "equipamentos": int(row.equipamentos or 0),
+                "mobiliario": int(row.mobiliario or 0),
+                "maquinas": int(row.maquinas or 0)
             }
             for row in result.fetchall()
         ]
@@ -921,10 +922,10 @@ class DatabaseManager:
         now = datetime.utcnow()
         last_24h = now - timedelta(hours=24)
 
-        # New events in last 24h
+        # New events in last 24h (using scraped_at)
         new_events_result = await self.session.execute(
             select(func.count(EventDB.reference))
-            .where(EventDB.created_at >= last_24h)
+            .where(EventDB.scraped_at >= last_24h)
         )
         new_events = new_events_result.scalar() or 0
 
@@ -948,7 +949,7 @@ class DatabaseManager:
         updated_result = await self.session.execute(
             select(func.count(EventDB.reference))
             .where(EventDB.updated_at >= last_24h)
-            .where(EventDB.created_at < last_24h)  # Exclude new events
+            .where(EventDB.scraped_at < last_24h)  # Exclude new events
         )
         price_updates = updated_result.scalar() or 0
 

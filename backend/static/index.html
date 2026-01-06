@@ -3066,10 +3066,13 @@
                             <span style="font-size: 16px;">🗺️</span>
                             <span style="font-weight: 600; color: #1e293b; font-size: 14px;">Eventos por Distrito</span>
                         </div>
-                        <div style="display: flex; gap: 10px; font-size: 9px;">
-                            <span style="display: flex; align-items: center; gap: 3px;"><span style="width: 8px; height: 8px; background: #22c55e; border-radius: 2px;"></span>Imóveis</span>
-                            <span style="display: flex; align-items: center; gap: 3px;"><span style="width: 8px; height: 8px; background: #8b5cf6; border-radius: 2px;"></span>Veículos</span>
-                            <span style="display: flex; align-items: center; gap: 3px;"><span style="width: 8px; height: 8px; background: #f97316; border-radius: 2px;"></span>Outros</span>
+                        <div style="display: flex; gap: 8px; font-size: 9px; flex-wrap: wrap;">
+                            <span style="display: flex; align-items: center; gap: 2px;"><span style="width: 8px; height: 8px; background: #22c55e; border-radius: 2px;"></span>Imóveis</span>
+                            <span style="display: flex; align-items: center; gap: 2px;"><span style="width: 8px; height: 8px; background: #8b5cf6; border-radius: 2px;"></span>Veículos</span>
+                            <span style="display: flex; align-items: center; gap: 2px;"><span style="width: 8px; height: 8px; background: #f97316; border-radius: 2px;"></span>Direitos</span>
+                            <span style="display: flex; align-items: center; gap: 2px;"><span style="width: 8px; height: 8px; background: #06b6d4; border-radius: 2px;"></span>Equip.</span>
+                            <span style="display: flex; align-items: center; gap: 2px;"><span style="width: 8px; height: 8px; background: #eab308; border-radius: 2px;"></span>Mobil.</span>
+                            <span style="display: flex; align-items: center; gap: 2px;"><span style="width: 8px; height: 8px; background: #ef4444; border-radius: 2px;"></span>Máq.</span>
                         </div>
                     </div>
                     <div id="dash-districts-breakdown" style="display: flex; flex-direction: column; gap: 10px;">
@@ -4805,19 +4808,42 @@
 
                 const maxTotal = Math.max(...districts.map(d => d.total));
 
+                // Colors for each type
+                const colors = {
+                    imoveis: '#22c55e',
+                    veiculos: '#8b5cf6',
+                    direitos: '#f97316',
+                    equipamentos: '#06b6d4',
+                    mobiliario: '#eab308',
+                    maquinas: '#ef4444'
+                };
+
                 container.innerHTML = districts.map(d => {
                     const totalWidth = (d.total / maxTotal) * 100;
-                    const imoveisWidth = (d.imoveis / d.total) * totalWidth;
-                    const veiculosWidth = (d.veiculos / d.total) * totalWidth;
-                    const outrosWidth = totalWidth - imoveisWidth - veiculosWidth;
+
+                    // Build bar segments for all types
+                    const segments = [
+                        { key: 'imoveis', value: d.imoveis, label: 'Imóveis' },
+                        { key: 'veiculos', value: d.veiculos, label: 'Veículos' },
+                        { key: 'direitos', value: d.direitos, label: 'Direitos' },
+                        { key: 'equipamentos', value: d.equipamentos, label: 'Equipamentos' },
+                        { key: 'mobiliario', value: d.mobiliario, label: 'Mobiliário' },
+                        { key: 'maquinas', value: d.maquinas, label: 'Máquinas' }
+                    ];
+
+                    const barsHtml = segments
+                        .filter(s => s.value > 0)
+                        .map(s => {
+                            const width = (s.value / d.total) * totalWidth;
+                            return `<div style="width: ${width}%; height: 100%; background: ${colors[s.key]};" title="${s.label}: ${s.value}"></div>`;
+                        })
+                        .join('');
 
                     return `
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <span style="font-size: 11px; color: #64748b; width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${d.distrito}">${d.distrito}</span>
                             <div style="flex: 1; height: 16px; background: #f1f5f9; border-radius: 4px; overflow: hidden; display: flex;">
-                                ${d.imoveis > 0 ? `<div style="width: ${imoveisWidth}%; height: 100%; background: #22c55e;" title="Imóveis: ${d.imoveis}"></div>` : ''}
-                                ${d.veiculos > 0 ? `<div style="width: ${veiculosWidth}%; height: 100%; background: #8b5cf6;" title="Veículos: ${d.veiculos}"></div>` : ''}
-                                ${(d.direitos + d.equipamentos + d.mobiliario + d.maquinas) > 0 ? `<div style="width: ${outrosWidth}%; height: 100%; background: #f97316;" title="Outros: ${d.direitos + d.equipamentos + d.mobiliario + d.maquinas}"></div>` : ''}
+                                ${barsHtml}
                             </div>
                             <span style="font-size: 11px; font-weight: 600; color: #1e293b; width: 35px; text-align: right;">${d.total}</span>
                         </div>
