@@ -2991,33 +2991,31 @@
 
                 <!-- Leilões a Terminar em Breve -->
                 <div style="background: white; border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
-                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <span style="font-size: 16px;">⏰</span>
                             <span style="font-weight: 600; color: #1e293b; font-size: 14px;">A Terminar em Breve</span>
                         </div>
-                        <span style="font-size: 11px; color: #94a3b8;">próximas 24h</span>
-                    </div>
-                    <!-- Filters -->
-                    <div style="display: flex; gap: 8px; margin-bottom: 10px;">
-                        <select id="ending-filter-tipo" onchange="filterEndingSoon()" style="flex: 1; padding: 4px 8px; font-size: 10px; border: 1px solid #e2e8f0; border-radius: 4px; background: #f8fafc; color: #64748b;">
-                            <option value="">Todos os tipos</option>
-                            <option value="Imóveis">Imóveis</option>
-                            <option value="Veículos">Veículos</option>
-                            <option value="Direitos">Direitos</option>
-                            <option value="Equipamentos">Equipamentos</option>
-                            <option value="Mobiliário">Mobiliário</option>
-                            <option value="Máquinas">Máquinas</option>
-                        </select>
-                        <select id="ending-filter-distrito" onchange="filterEndingSoon()" style="flex: 1; padding: 4px 8px; font-size: 10px; border: 1px solid #e2e8f0; border-radius: 4px; background: #f8fafc; color: #64748b;">
-                            <option value="">Todos os distritos</option>
-                        </select>
+                        <div style="display: flex; gap: 6px;">
+                            <select id="ending-filter-tipo" onchange="filterEndingSoon()" style="padding: 4px 8px; font-size: 10px; border: 1px solid #e2e8f0; border-radius: 4px; background: #f8fafc; color: #64748b;">
+                                <option value="">Todos os tipos</option>
+                                <option value="Imóveis">Imóveis</option>
+                                <option value="Veículos">Veículos</option>
+                                <option value="Direitos">Direitos</option>
+                                <option value="Equipamentos">Equipamentos</option>
+                                <option value="Mobiliário">Mobiliário</option>
+                                <option value="Máquinas">Máquinas</option>
+                            </select>
+                            <select id="ending-filter-distrito" onchange="filterEndingSoon()" style="padding: 4px 8px; font-size: 10px; border: 1px solid #e2e8f0; border-radius: 4px; background: #f8fafc; color: #64748b;">
+                                <option value="">Todos os distritos</option>
+                            </select>
+                        </div>
                     </div>
                     <!-- Header row (sortable) -->
                     <div style="display: flex; align-items: center; padding: 6px 10px; font-size: 9px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; background: #f8fafc; border-radius: 4px; margin-bottom: 4px; border-bottom: 1px solid #e2e8f0;">
                         <span onclick="sortEndingSoon('timer')" style="width: 72px; cursor: pointer; display: flex; align-items: center; gap: 2px;" title="Ordenar por tempo">Timer <span id="sort-icon-timer">↑</span></span>
-                        <span onclick="sortEndingSoon('reference')" style="width: 70px; cursor: pointer; display: flex; align-items: center; gap: 2px;" title="Ordenar por ID">ID <span id="sort-icon-reference"></span></span>
-                        <span onclick="sortEndingSoon('tipo')" style="width: 60px; cursor: pointer; display: flex; align-items: center; gap: 2px;" title="Ordenar por tipo">Tipo <span id="sort-icon-tipo"></span></span>
+                        <span onclick="sortEndingSoon('reference')" style="width: 85px; cursor: pointer; display: flex; align-items: center; gap: 2px;" title="Ordenar por ID">ID <span id="sort-icon-reference"></span></span>
+                        <span onclick="sortEndingSoon('tipo')" style="width: 65px; cursor: pointer; display: flex; align-items: center; gap: 2px;" title="Ordenar por tipo">Tipo <span id="sort-icon-tipo"></span></span>
                         <span onclick="sortEndingSoon('subtipo')" style="flex: 1; cursor: pointer; display: flex; align-items: center; gap: 2px;" title="Ordenar por subtipo">Subtipo <span id="sort-icon-subtipo"></span></span>
                         <span onclick="sortEndingSoon('distrito')" style="width: 55px; cursor: pointer; display: flex; align-items: center; gap: 2px;" title="Ordenar por distrito">Zona <span id="sort-icon-distrito"></span></span>
                         <span onclick="sortEndingSoon('lance_atual')" style="width: 75px; cursor: pointer; display: flex; align-items: center; gap: 2px; justify-content: flex-end;" title="Ordenar por valor">Valor <span id="sort-icon-lance_atual"></span></span>
@@ -4847,8 +4845,8 @@
                 return `
                     <div style="display: flex; align-items: center; padding: 5px 10px; background: ${bgColor}; border-radius: 4px; border-left: 3px solid ${borderColor};">
                         <span id="ending-timer-${idx}" style="font-size: 10px; font-weight: 600; color: ${textColor}; width: 72px;">--:--</span>
-                        <span style="font-size: 10px; color: #64748b; width: 70px; cursor: pointer; text-decoration: underline;" title="Ver detalhes" onclick="openInspectionModal('${event.reference}')">${event.reference}</span>
-                        <span style="font-size: 10px; color: #1e293b; width: 60px;">${tipo}</span>
+                        <span style="font-size: 10px; color: #64748b; width: 85px; cursor: pointer; text-decoration: underline;" title="Ver detalhes" onclick="openInspectionModal('${event.reference}')">${event.reference}</span>
+                        <span style="font-size: 10px; color: #1e293b; width: 65px;">${tipo}</span>
                         <span style="font-size: 10px; color: #64748b; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${subtipo}">${subtipo}</span>
                         <span style="font-size: 10px; color: #64748b; width: 55px;">${zona}</span>
                         <span style="font-size: 10px; font-weight: 600; color: #1e293b; width: 75px; text-align: right;">${valor}</span>
