@@ -4964,7 +4964,9 @@
                             <div style="font-size: 14px; font-weight: 600; color: #1e293b;">Evolucao de Preco</div>
                             <div style="font-size: 11px; color: #64748b;">${ref}</div>
                         </div>
-                        <span class="chart-variation" style="font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 6px;"></span>
+                        <a href="https://www.e-leiloes.pt/evento/${ref}" target="_blank" style="display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; background: #f1f5f9; border-radius: 6px; text-decoration: none;" title="Abrir no e-leiloes.pt">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                        </a>
                     </div>
                     <div class="chart-container" style="height: 180px; margin-bottom: 12px;">
                         <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #94a3b8;">
@@ -4972,8 +4974,7 @@
                         </div>
                     </div>
                     <div class="chart-legend" style="color: #64748b; margin-bottom: 16px;"></div>
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <a href="https://www.e-leiloes.pt/evento/${ref}" target="_blank" style="font-size: 11px; color: #3b82f6; text-decoration: none;">Ver no e-leiloes.pt</a>
+                    <div style="text-align: right;">
                         <button onclick="this.closest('#price-chart-modal').remove()" style="padding: 6px 16px; background: #f1f5f9; border: none; border-radius: 6px; font-size: 11px; color: #475569; cursor: pointer;">Fechar</button>
                     </div>
                 </div>
