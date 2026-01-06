@@ -875,6 +875,9 @@ class DatabaseManager:
             "subtipo": e.subtipo,
             "distrito": e.distrito,
             "lance_atual": e.lance_atual,
+            "valor_base": e.valor_base,
+            "valor_abertura": e.valor_abertura,
+            "valor_minimo": e.valor_minimo,
             "data_fim": e.data_fim.isoformat() if e.data_fim else None,
             "modalidade": modalidades.get(e.modalidade_id, '')
         } for e in events]

@@ -2671,6 +2671,11 @@
             animation: loadingSkeleton 1.5s infinite;
             border-radius: 4px;
         }
+
+        /* Price chart tooltip hover */
+        .price-chart-btn:hover .price-chart-tooltip {
+            display: block !important;
+        }
     </style>
 </head>
 <body>
@@ -4821,6 +4826,19 @@
                 const tipo = event.tipo || '-';
                 const subtipo = event.subtipo || '-';
 
+                // Price values for chart
+                const vBase = event.valor_base || 0;
+                const vAbertura = event.valor_abertura || 0;
+                const vMinimo = event.valor_minimo || 0;
+                const vAtual = event.lance_atual || 0;
+                const maxVal = Math.max(vBase, vAbertura, vMinimo, vAtual) || 1;
+
+                // Calculate bar heights (max 50px)
+                const hBase = Math.round((vBase / maxVal) * 50);
+                const hAbertura = Math.round((vAbertura / maxVal) * 50);
+                const hMinimo = Math.round((vMinimo / maxVal) * 50);
+                const hAtual = Math.round((vAtual / maxVal) * 50);
+
                 return `
                     <div style="display: flex; align-items: center; padding: 5px 10px; background: ${bgColor}; border-radius: 4px; border-left: 3px solid ${borderColor};">
                         <span id="ending-timer-${idx}" style="font-size: 10px; font-weight: 600; color: ${textColor}; width: 72px;">--:--</span>
@@ -4829,6 +4847,36 @@
                         <span style="font-size: 10px; color: #64748b; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${subtipo}">${subtipo}</span>
                         <span style="font-size: 10px; color: #64748b; width: 55px;">${zona}</span>
                         <span style="font-size: 10px; font-weight: 600; color: #1e293b; width: 75px; text-align: right;">${valor}</span>
+                        <div class="price-chart-btn" style="width: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 12px; position: relative;">
+                            📊
+                            <div class="price-chart-tooltip" style="display: none; position: absolute; bottom: 100%; right: 0; background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1000; min-width: 180px;">
+                                <div style="font-size: 10px; font-weight: 600; color: #1e293b; margin-bottom: 8px;">Evolução de Preço</div>
+                                <div style="display: flex; align-items: flex-end; gap: 8px; height: 60px; padding-bottom: 4px; border-bottom: 1px solid #e2e8f0;">
+                                    <div style="display: flex; flex-direction: column; align-items: center; flex: 1;">
+                                        <div style="width: 20px; background: #94a3b8; border-radius: 2px 2px 0 0; height: ${hBase}px;"></div>
+                                        <span style="font-size: 8px; color: #94a3b8; margin-top: 2px;">Base</span>
+                                    </div>
+                                    <div style="display: flex; flex-direction: column; align-items: center; flex: 1;">
+                                        <div style="width: 20px; background: #3b82f6; border-radius: 2px 2px 0 0; height: ${hAbertura}px;"></div>
+                                        <span style="font-size: 8px; color: #3b82f6; margin-top: 2px;">Abert.</span>
+                                    </div>
+                                    <div style="display: flex; flex-direction: column; align-items: center; flex: 1;">
+                                        <div style="width: 20px; background: #f59e0b; border-radius: 2px 2px 0 0; height: ${hMinimo}px;"></div>
+                                        <span style="font-size: 8px; color: #f59e0b; margin-top: 2px;">Mín.</span>
+                                    </div>
+                                    <div style="display: flex; flex-direction: column; align-items: center; flex: 1;">
+                                        <div style="width: 20px; background: #22c55e; border-radius: 2px 2px 0 0; height: ${hAtual}px;"></div>
+                                        <span style="font-size: 8px; color: #22c55e; margin-top: 2px;">Atual</span>
+                                    </div>
+                                </div>
+                                <div style="margin-top: 6px; font-size: 9px; color: #64748b;">
+                                    <div style="display: flex; justify-content: space-between;"><span>Base:</span> <strong>€${vBase.toLocaleString()}</strong></div>
+                                    <div style="display: flex; justify-content: space-between;"><span>Abertura:</span> <strong>€${vAbertura.toLocaleString()}</strong></div>
+                                    <div style="display: flex; justify-content: space-between;"><span>Mínimo:</span> <strong>€${vMinimo.toLocaleString()}</strong></div>
+                                    <div style="display: flex; justify-content: space-between; color: #22c55e;"><span>Atual:</span> <strong>€${vAtual.toLocaleString()}</strong></div>
+                                </div>
+                            </div>
+                        </div>
                         <a href="https://www.e-leiloes.pt/evento/${event.reference}" target="_blank" onclick="event.stopPropagation()" style="width: 24px; display: flex; align-items: center; justify-content: center; text-decoration: none; font-size: 12px;" title="Abrir no e-leilões">🔗</a>
                     </div>
                 `;

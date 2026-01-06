@@ -83,7 +83,7 @@ async def get_event_history(reference: str) -> List[dict]:
 async def get_recent_changes(limit: int = 30) -> List[dict]:
     """
     Get recent price changes across all events.
-    Returns list of changes with reference, old price, new price, and timestamp.
+    Returns only the LATEST change per event (no duplicates).
     """
     async with _file_lock:
         history = _load_history()
@@ -92,15 +92,15 @@ async def get_recent_changes(limit: int = 30) -> List[dict]:
 
         for reference, prices in history.items():
             if len(prices) >= 2:
-                # Get last change for this event
-                for i in range(len(prices) - 1, 0, -1):
-                    changes.append({
-                        "reference": reference,
-                        "preco_anterior": prices[i-1]["preco"],
-                        "preco_atual": prices[i]["preco"],
-                        "variacao": prices[i]["preco"] - prices[i-1]["preco"],
-                        "timestamp": prices[i]["timestamp"]
-                    })
+                # Only get the LAST change for this event
+                i = len(prices) - 1
+                changes.append({
+                    "reference": reference,
+                    "preco_anterior": prices[i-1]["preco"],
+                    "preco_atual": prices[i]["preco"],
+                    "variacao": prices[i]["preco"] - prices[i-1]["preco"],
+                    "timestamp": prices[i]["timestamp"]
+                })
 
         # Sort by timestamp (most recent first)
         changes.sort(key=lambda x: x["timestamp"], reverse=True)
