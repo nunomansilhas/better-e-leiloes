@@ -2980,6 +2980,170 @@
                 </div>
 
             </div>
+
+            <!-- Dashboard Grid: 2 columns -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;">
+
+                <!-- Leilões a Terminar em Breve -->
+                <div style="background: white; border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 16px;">⏰</span>
+                            <span style="font-weight: 600; color: #1e293b; font-size: 14px;">A Terminar em Breve</span>
+                        </div>
+                        <span style="font-size: 11px; color: #94a3b8;">próximas 24h</span>
+                    </div>
+                    <div id="dash-ending-soon" style="display: flex; flex-direction: column; gap: 8px;">
+                        <!-- Template items -->
+                        <div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: #fef2f2; border-radius: 8px; border-left: 3px solid #ef4444;">
+                            <div style="flex: 1; min-width: 0;">
+                                <div style="font-size: 12px; font-weight: 500; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Apartamento T2 Lisboa</div>
+                                <div style="font-size: 11px; color: #64748b;">LO · €125.000</div>
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="font-size: 11px; font-weight: 600; color: #ef4444;">2h 34m</div>
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: #fff7ed; border-radius: 8px; border-left: 3px solid #f97316;">
+                            <div style="flex: 1; min-width: 0;">
+                                <div style="font-size: 12px; font-weight: 500; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">BMW Série 3 2019</div>
+                                <div style="font-size: 11px; color: #64748b;">LO · €18.500</div>
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="font-size: 11px; font-weight: 600; color: #f97316;">5h 12m</div>
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: #fefce8; border-radius: 8px; border-left: 3px solid #eab308;">
+                            <div style="flex: 1; min-width: 0;">
+                                <div style="font-size: 12px; font-weight: 500; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Moradia T4 Cascais</div>
+                                <div style="font-size: 11px; color: #64748b;">NP · €450.000</div>
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="font-size: 11px; font-weight: 600; color: #eab308;">18h 45m</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Atividade Recente -->
+                <div style="background: white; border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 16px;">📊</span>
+                            <span style="font-weight: 600; color: #1e293b; font-size: 14px;">Atividade Recente</span>
+                        </div>
+                        <span style="font-size: 11px; color: #94a3b8;">últimas 24h</span>
+                    </div>
+                    <div id="dash-recent-activity" style="display: flex; flex-direction: column; gap: 6px;">
+                        <!-- Template items -->
+                        <div style="display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: #f0fdf4; border-radius: 6px;">
+                            <span style="font-size: 12px;">🆕</span>
+                            <span style="font-size: 11px; color: #166534; flex: 1;">12 novos eventos descobertos</span>
+                            <span style="font-size: 10px; color: #94a3b8;">há 2m</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: #eff6ff; border-radius: 6px;">
+                            <span style="font-size: 12px;">💰</span>
+                            <span style="font-size: 11px; color: #1e40af; flex: 1;">8 preços atualizados</span>
+                            <span style="font-size: 10px; color: #94a3b8;">há 15m</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: #faf5ff; border-radius: 6px;">
+                            <span style="font-size: 12px;">🔔</span>
+                            <span style="font-size: 11px; color: #7c3aed; flex: 1;">3 alertas disparados</span>
+                            <span style="font-size: 10px; color: #94a3b8;">há 1h</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: #fef2f2; border-radius: 6px;">
+                            <span style="font-size: 12px;">🏁</span>
+                            <span style="font-size: 11px; color: #dc2626; flex: 1;">5 leilões terminados</span>
+                            <span style="font-size: 10px; color: #94a3b8;">há 3h</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Gráfico Tendência de Preços (Placeholder) -->
+                <div style="background: white; border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 16px;">📈</span>
+                            <span style="font-weight: 600; color: #1e293b; font-size: 14px;">Tendência de Preços</span>
+                        </div>
+                        <select style="padding: 4px 8px; font-size: 10px; border: 1px solid #e2e8f0; border-radius: 4px; color: #64748b; background: white;">
+                            <option>Últimos 7 dias</option>
+                            <option>Últimos 30 dias</option>
+                            <option>Últimos 90 dias</option>
+                        </select>
+                    </div>
+                    <div id="dash-price-chart" style="height: 120px; background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%); border-radius: 8px; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden;">
+                        <!-- Fake chart lines -->
+                        <svg width="100%" height="100%" style="position: absolute; top: 0; left: 0;">
+                            <polyline points="0,80 40,70 80,75 120,50 160,55 200,40 240,45 280,30 320,35 360,20" fill="none" stroke="#3b82f6" stroke-width="2" opacity="0.6"/>
+                            <polyline points="0,90 40,85 80,88 120,70 160,72 200,60 240,65 280,50 320,55 360,40" fill="none" stroke="#10b981" stroke-width="2" opacity="0.6"/>
+                        </svg>
+                        <div style="z-index: 1; text-align: center;">
+                            <div style="font-size: 11px; color: #94a3b8;">Gráfico em breve</div>
+                        </div>
+                    </div>
+                    <div style="display: flex; justify-content: center; gap: 16px; margin-top: 10px;">
+                        <div style="display: flex; align-items: center; gap: 4px;">
+                            <div style="width: 8px; height: 8px; background: #3b82f6; border-radius: 50%;"></div>
+                            <span style="font-size: 10px; color: #64748b;">Imóveis</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 4px;">
+                            <div style="width: 8px; height: 8px; background: #10b981; border-radius: 50%;"></div>
+                            <span style="font-size: 10px; color: #64748b;">Veículos</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Distribuição por Distrito -->
+                <div style="background: white; border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 16px;">🗺️</span>
+                            <span style="font-weight: 600; color: #1e293b; font-size: 14px;">Top Distritos</span>
+                        </div>
+                        <span style="font-size: 11px; color: #94a3b8;">imóveis ativos</span>
+                    </div>
+                    <div id="dash-districts" style="display: flex; flex-direction: column; gap: 8px;">
+                        <!-- Template items -->
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-size: 11px; color: #64748b; width: 60px;">Lisboa</span>
+                            <div style="flex: 1; height: 8px; background: #f1f5f9; border-radius: 4px; overflow: hidden;">
+                                <div style="width: 78%; height: 100%; background: linear-gradient(90deg, #3b82f6, #60a5fa); border-radius: 4px;"></div>
+                            </div>
+                            <span style="font-size: 11px; font-weight: 600; color: #1e293b; width: 30px; text-align: right;">234</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-size: 11px; color: #64748b; width: 60px;">Porto</span>
+                            <div style="flex: 1; height: 8px; background: #f1f5f9; border-radius: 4px; overflow: hidden;">
+                                <div style="width: 52%; height: 100%; background: linear-gradient(90deg, #3b82f6, #60a5fa); border-radius: 4px;"></div>
+                            </div>
+                            <span style="font-size: 11px; font-weight: 600; color: #1e293b; width: 30px; text-align: right;">156</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-size: 11px; color: #64748b; width: 60px;">Setúbal</span>
+                            <div style="flex: 1; height: 8px; background: #f1f5f9; border-radius: 4px; overflow: hidden;">
+                                <div style="width: 35%; height: 100%; background: linear-gradient(90deg, #3b82f6, #60a5fa); border-radius: 4px;"></div>
+                            </div>
+                            <span style="font-size: 11px; font-weight: 600; color: #1e293b; width: 30px; text-align: right;">105</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-size: 11px; color: #64748b; width: 60px;">Faro</span>
+                            <div style="flex: 1; height: 8px; background: #f1f5f9; border-radius: 4px; overflow: hidden;">
+                                <div style="width: 28%; height: 100%; background: linear-gradient(90deg, #3b82f6, #60a5fa); border-radius: 4px;"></div>
+                            </div>
+                            <span style="font-size: 11px; font-weight: 600; color: #1e293b; width: 30px; text-align: right;">84</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-size: 11px; color: #64748b; width: 60px;">Braga</span>
+                            <div style="flex: 1; height: 8px; background: #f1f5f9; border-radius: 4px; overflow: hidden;">
+                                <div style="width: 22%; height: 100%; background: linear-gradient(90deg, #3b82f6, #60a5fa); border-radius: 4px;"></div>
+                            </div>
+                            <span style="font-size: 11px; font-weight: 600; color: #1e293b; width: 30px; text-align: right;">67</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
         </div>
 
         <!-- Imóveis Page -->
