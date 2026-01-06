@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>E-Leiloes Dashboard - Definicoes</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #f8fafc;
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .header-logo {
+      width: 64px;
+      height: 64px;
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 16px;
+    }
+
+    .header-logo svg {
+      width: 32px;
+      height: 32px;
+      color: white;
+    }
+
+    .header h1 {
+      font-size: 24px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 4px;
+    }
+
+    .header p {
+      font-size: 14px;
+      color: #64748b;
+    }
+
+    /* Section */
+    .section {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    .section-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1e293b;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-title svg {
+      width: 18px;
+      height: 18px;
+      color: #6366f1;
+    }
+
+    /* Form Groups */
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      color: #475569;
+      margin-bottom: 6px;
+    }
+
+    .form-hint {
+      font-size: 11px;
+      color: #94a3b8;
+      margin-top: 4px;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 14px;
+      color: #1e293b;
+      background: white;
+      transition: all 0.2s;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: #6366f1;
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    }
+
+    .form-input::placeholder {
+      color: #94a3b8;
+    }
+
+    /* Toggle */
+    .toggle-group {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid #f1f5f9;
+    }
+
+    .toggle-group:last-child {
+      border-bottom: none;
+    }
+
+    .toggle-info {
+      flex: 1;
+    }
+
+    .toggle-label {
+      font-size: 14px;
+      font-weight: 500;
+      color: #1e293b;
+    }
+
+    .toggle-hint {
+      font-size: 12px;
+      color: #94a3b8;
+      margin-top: 2px;
+    }
+
+    .toggle {
+      position: relative;
+      width: 48px;
+      height: 28px;
+    }
+
+    .toggle input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #e2e8f0;
+      transition: 0.3s;
+      border-radius: 28px;
+    }
+
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 22px;
+      width: 22px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: 0.3s;
+      border-radius: 50%;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .toggle input:checked + .toggle-slider {
+      background-color: #6366f1;
+    }
+
+    .toggle input:checked + .toggle-slider:before {
+      transform: translateX(20px);
+    }
+
+    /* Buttons */
+    .btn-group {
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .btn {
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+    }
+
+    .btn-primary {
+      background: #6366f1;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #4f46e5;
+    }
+
+    .btn-secondary {
+      background: #f1f5f9;
+      color: #475569;
+      border: 1px solid #e2e8f0;
+    }
+
+    .btn-secondary:hover {
+      background: #e2e8f0;
+    }
+
+    .btn-danger {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+
+    .btn-danger:hover {
+      background: #fecaca;
+    }
+
+    /* Connection Test */
+    .connection-test {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      background: #f8fafc;
+      border-radius: 8px;
+      margin-top: 12px;
+    }
+
+    .connection-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #94a3b8;
+    }
+
+    .connection-dot.success {
+      background: #22c55e;
+    }
+
+    .connection-dot.error {
+      background: #ef4444;
+    }
+
+    .connection-dot.testing {
+      background: #f59e0b;
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .connection-text {
+      flex: 1;
+      font-size: 13px;
+      color: #64748b;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #1e293b;
+      color: white;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 13px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.3s;
+    }
+
+    .toast.visible {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    .toast.success {
+      background: #22c55e;
+    }
+
+    .toast.error {
+      background: #ef4444;
+    }
+
+    /* Footer */
+    .footer {
+      text-align: center;
+      padding: 20px;
+      color: #94a3b8;
+      font-size: 12px;
+    }
+
+    .footer a {
+      color: #6366f1;
+      text-decoration: none;
+    }
+
+    .footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <div class="header-logo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+        </svg>
+      </div>
+      <h1>Definicoes da Extensao</h1>
+      <p>Configure a extensao E-Leiloes Dashboard</p>
+    </div>
+
+    <!-- Server Settings -->
+    <div class="section">
+      <h2 class="section-title">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"/>
+        </svg>
+        Servidor
+      </h2>
+
+      <div class="form-group">
+        <label class="form-label" for="backendUrl">URL do Backend</label>
+        <input type="url" id="backendUrl" class="form-input" placeholder="http://localhost:8000">
+        <p class="form-hint">URL do servidor E-Leiloes Dashboard</p>
+      </div>
+
+      <div class="connection-test">
+        <div class="connection-dot" id="connectionDot"></div>
+        <span class="connection-text" id="connectionText">Nao testado</span>
+        <button class="btn btn-secondary" id="btnTestConnection" style="padding: 6px 12px; font-size: 12px;">
+          Testar
+        </button>
+      </div>
+    </div>
+
+    <!-- Notifications Settings -->
+    <div class="section">
+      <h2 class="section-title">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+        </svg>
+        Notificacoes
+      </h2>
+
+      <div class="toggle-group">
+        <div class="toggle-info">
+          <div class="toggle-label">Notificacoes do sistema</div>
+          <div class="toggle-hint">Receber alertas de alteracoes de preco</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="notificationsEnabled">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-group">
+        <div class="toggle-info">
+          <div class="toggle-label">Som de notificacao</div>
+          <div class="toggle-hint">Reproduzir som quando chega uma notificacao</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="soundEnabled">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Connection Settings -->
+    <div class="section">
+      <h2 class="section-title">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+        </svg>
+        Ligacao
+      </h2>
+
+      <div class="toggle-group">
+        <div class="toggle-info">
+          <div class="toggle-label">Ligar automaticamente</div>
+          <div class="toggle-hint">Conectar ao servidor quando o browser inicia</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="autoConnect">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Data Management -->
+    <div class="section">
+      <h2 class="section-title">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"/>
+        </svg>
+        Dados
+      </h2>
+
+      <div class="btn-group" style="margin-top: 0;">
+        <button class="btn btn-secondary" id="btnExportData">Exportar Dados</button>
+        <button class="btn btn-danger" id="btnClearData">Limpar Dados</button>
+      </div>
+    </div>
+
+    <!-- Save Button -->
+    <div class="btn-group">
+      <button class="btn btn-primary" id="btnSave">Guardar Definicoes</button>
+      <button class="btn btn-secondary" id="btnReset">Repor Predefinicoes</button>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      E-Leiloes Dashboard Extension v1.0.0 |
+      <a href="https://github.com/nunomansilhas/better-e-leiloes" target="_blank">GitHub</a>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <script src="options.js"></script>
+</body>
+</html>

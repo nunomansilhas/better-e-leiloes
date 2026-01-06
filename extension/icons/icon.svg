@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1e293b"/>
+      <stop offset="100%" style="stop-color:#0f172a"/>
+    </linearGradient>
+    <linearGradient id="houseGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366f1"/>
+      <stop offset="100%" style="stop-color:#8b5cf6"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="128" height="128" rx="24" fill="url(#bgGrad)"/>
+
+  <!-- House icon -->
+  <g transform="translate(24, 28)" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Roof -->
+    <path d="M8 40L40 12L72 40"/>
+    <!-- House body -->
+    <path d="M16 36V68C16 70 18 72 20 72H32V52C32 50 34 48 36 48H44C46 48 48 50 48 52V72H60C62 72 64 70 64 68V36"/>
+    <!-- Chimney -->
+    <path d="M52 24V16H60V32"/>
+  </g>
+
+  <!-- Notification badge -->
+  <circle cx="100" cy="28" r="18" fill="#ef4444"/>
+  <text x="100" y="34" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="white" text-anchor="middle">!</text>
+</svg>
