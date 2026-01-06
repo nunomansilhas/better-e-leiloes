@@ -3059,87 +3059,22 @@
                     </div>
                 </div>
 
-                <!-- Gráfico Tendência de Preços (Placeholder) -->
-                <div style="background: white; border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
-                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <span style="font-size: 16px;">📈</span>
-                            <span style="font-weight: 600; color: #1e293b; font-size: 14px;">Tendência de Preços</span>
-                        </div>
-                        <select style="padding: 4px 8px; font-size: 10px; border: 1px solid #e2e8f0; border-radius: 4px; color: #64748b; background: white;">
-                            <option>Últimos 7 dias</option>
-                            <option>Últimos 30 dias</option>
-                            <option>Últimos 90 dias</option>
-                        </select>
-                    </div>
-                    <div id="dash-price-chart" style="height: 120px; background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%); border-radius: 8px; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden;">
-                        <!-- Fake chart lines -->
-                        <svg width="100%" height="100%" style="position: absolute; top: 0; left: 0;">
-                            <polyline points="0,80 40,70 80,75 120,50 160,55 200,40 240,45 280,30 320,35 360,20" fill="none" stroke="#3b82f6" stroke-width="2" opacity="0.6"/>
-                            <polyline points="0,90 40,85 80,88 120,70 160,72 200,60 240,65 280,50 320,55 360,40" fill="none" stroke="#10b981" stroke-width="2" opacity="0.6"/>
-                        </svg>
-                        <div style="z-index: 1; text-align: center;">
-                            <div style="font-size: 11px; color: #94a3b8;">Gráfico em breve</div>
-                        </div>
-                    </div>
-                    <div style="display: flex; justify-content: center; gap: 16px; margin-top: 10px;">
-                        <div style="display: flex; align-items: center; gap: 4px;">
-                            <div style="width: 8px; height: 8px; background: #3b82f6; border-radius: 50%;"></div>
-                            <span style="font-size: 10px; color: #64748b;">Imóveis</span>
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 4px;">
-                            <div style="width: 8px; height: 8px; background: #10b981; border-radius: 50%;"></div>
-                            <span style="font-size: 10px; color: #64748b;">Veículos</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Distribuição por Distrito -->
-                <div style="background: white; border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
-                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                <!-- Eventos por Distrito (com breakdown por tipo) -->
+                <div style="background: white; border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); grid-column: span 2;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <span style="font-size: 16px;">🗺️</span>
-                            <span style="font-weight: 600; color: #1e293b; font-size: 14px;">Top Distritos</span>
+                            <span style="font-weight: 600; color: #1e293b; font-size: 14px;">Eventos por Distrito</span>
                         </div>
-                        <span style="font-size: 11px; color: #94a3b8;">imóveis ativos</span>
+                        <div style="display: flex; gap: 10px; font-size: 9px;">
+                            <span style="display: flex; align-items: center; gap: 3px;"><span style="width: 8px; height: 8px; background: #22c55e; border-radius: 2px;"></span>Imóveis</span>
+                            <span style="display: flex; align-items: center; gap: 3px;"><span style="width: 8px; height: 8px; background: #8b5cf6; border-radius: 2px;"></span>Veículos</span>
+                            <span style="display: flex; align-items: center; gap: 3px;"><span style="width: 8px; height: 8px; background: #f97316; border-radius: 2px;"></span>Outros</span>
+                        </div>
                     </div>
-                    <div id="dash-districts" style="display: flex; flex-direction: column; gap: 8px;">
-                        <!-- Template items -->
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <span style="font-size: 11px; color: #64748b; width: 60px;">Lisboa</span>
-                            <div style="flex: 1; height: 8px; background: #f1f5f9; border-radius: 4px; overflow: hidden;">
-                                <div style="width: 78%; height: 100%; background: linear-gradient(90deg, #3b82f6, #60a5fa); border-radius: 4px;"></div>
-                            </div>
-                            <span style="font-size: 11px; font-weight: 600; color: #1e293b; width: 30px; text-align: right;">234</span>
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <span style="font-size: 11px; color: #64748b; width: 60px;">Porto</span>
-                            <div style="flex: 1; height: 8px; background: #f1f5f9; border-radius: 4px; overflow: hidden;">
-                                <div style="width: 52%; height: 100%; background: linear-gradient(90deg, #3b82f6, #60a5fa); border-radius: 4px;"></div>
-                            </div>
-                            <span style="font-size: 11px; font-weight: 600; color: #1e293b; width: 30px; text-align: right;">156</span>
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <span style="font-size: 11px; color: #64748b; width: 60px;">Setúbal</span>
-                            <div style="flex: 1; height: 8px; background: #f1f5f9; border-radius: 4px; overflow: hidden;">
-                                <div style="width: 35%; height: 100%; background: linear-gradient(90deg, #3b82f6, #60a5fa); border-radius: 4px;"></div>
-                            </div>
-                            <span style="font-size: 11px; font-weight: 600; color: #1e293b; width: 30px; text-align: right;">105</span>
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <span style="font-size: 11px; color: #64748b; width: 60px;">Faro</span>
-                            <div style="flex: 1; height: 8px; background: #f1f5f9; border-radius: 4px; overflow: hidden;">
-                                <div style="width: 28%; height: 100%; background: linear-gradient(90deg, #3b82f6, #60a5fa); border-radius: 4px;"></div>
-                            </div>
-                            <span style="font-size: 11px; font-weight: 600; color: #1e293b; width: 30px; text-align: right;">84</span>
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <span style="font-size: 11px; color: #64748b; width: 60px;">Braga</span>
-                            <div style="flex: 1; height: 8px; background: #f1f5f9; border-radius: 4px; overflow: hidden;">
-                                <div style="width: 22%; height: 100%; background: linear-gradient(90deg, #3b82f6, #60a5fa); border-radius: 4px;"></div>
-                            </div>
-                            <span style="font-size: 11px; font-weight: 600; color: #1e293b; width: 30px; text-align: right;">67</span>
-                        </div>
+                    <div id="dash-districts-breakdown" style="display: flex; flex-direction: column; gap: 10px;">
+                        <!-- Will be populated by JS -->
+                        <div style="text-align: center; padding: 20px; color: #94a3b8; font-size: 12px;">A carregar...</div>
                     </div>
                 </div>
 
@@ -4760,6 +4695,143 @@
                 console.error('Erro ao atualizar stats:', error);
             }
         }
+
+        // ========== DASHBOARD WIDGETS ==========
+
+        async function loadDashboardWidgets() {
+            await Promise.all([
+                loadEndingSoonWidget(),
+                loadRecentActivityWidget(),
+                loadDistrictBreakdownWidget()
+            ]);
+        }
+
+        async function loadEndingSoonWidget() {
+            const container = document.getElementById('dash-ending-soon');
+            if (!container) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/api/dashboard/ending-soon?hours=24&limit=5`);
+                const events = await response.json();
+
+                if (events.length === 0) {
+                    container.innerHTML = '<div style="text-align: center; padding: 20px; color: #94a3b8; font-size: 11px;">Nenhum evento a terminar nas próximas 24h</div>';
+                    return;
+                }
+
+                container.innerHTML = events.map(event => {
+                    const dataFim = new Date(event.data_fim);
+                    const now = new Date();
+                    const diffMs = dataFim - now;
+                    const diffHours = diffMs / (1000 * 60 * 60);
+
+                    // Color based on urgency
+                    let bgColor, borderColor, textColor;
+                    if (diffHours < 3) {
+                        bgColor = '#fef2f2'; borderColor = '#ef4444'; textColor = '#ef4444';
+                    } else if (diffHours < 6) {
+                        bgColor = '#fff7ed'; borderColor = '#f97316'; textColor = '#f97316';
+                    } else {
+                        bgColor = '#fefce8'; borderColor = '#eab308'; textColor = '#eab308';
+                    }
+
+                    // Format time remaining
+                    const hours = Math.floor(diffMs / (1000 * 60 * 60));
+                    const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                    const timeStr = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+
+                    const titulo = event.titulo || event.reference;
+                    const preco = event.lance_atual ? `€${event.lance_atual.toLocaleString()}` : '';
+                    const mod = event.modalidade || '';
+
+                    return `
+                        <div onclick="openInspectionModal('${event.reference}')" style="display: flex; align-items: center; gap: 10px; padding: 10px; background: ${bgColor}; border-radius: 8px; border-left: 3px solid ${borderColor}; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.transform='translateX(2px)'" onmouseout="this.style.transform=''">
+                            <div style="flex: 1; min-width: 0;">
+                                <div style="font-size: 12px; font-weight: 500; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${titulo}</div>
+                                <div style="font-size: 11px; color: #64748b;">${mod} ${preco ? `· ${preco}` : ''}</div>
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="font-size: 11px; font-weight: 600; color: ${textColor};">${timeStr}</div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (error) {
+                console.error('Erro ao carregar eventos a terminar:', error);
+                container.innerHTML = '<div style="text-align: center; padding: 20px; color: #ef4444; font-size: 11px;">Erro ao carregar</div>';
+            }
+        }
+
+        async function loadRecentActivityWidget() {
+            const container = document.getElementById('dash-recent-activity');
+            if (!container) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/api/dashboard/activity`);
+                const activity = await response.json();
+
+                const items = [
+                    { icon: '🆕', text: `${activity.new_events} novos eventos descobertos`, color: '#166534', bg: '#f0fdf4' },
+                    { icon: '💰', text: `${activity.price_updates} preços atualizados`, color: '#1e40af', bg: '#eff6ff' },
+                    { icon: '🔔', text: `${activity.notifications} alertas disparados`, color: '#7c3aed', bg: '#faf5ff' },
+                    { icon: '🏁', text: `${activity.ended_events} leilões terminados`, color: '#dc2626', bg: '#fef2f2' }
+                ];
+
+                container.innerHTML = items.map(item => `
+                    <div style="display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: ${item.bg}; border-radius: 6px;">
+                        <span style="font-size: 12px;">${item.icon}</span>
+                        <span style="font-size: 11px; color: ${item.color}; flex: 1;">${item.text}</span>
+                        <span style="font-size: 10px; color: #94a3b8;">24h</span>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Erro ao carregar atividade recente:', error);
+                container.innerHTML = '<div style="text-align: center; padding: 20px; color: #ef4444; font-size: 11px;">Erro ao carregar</div>';
+            }
+        }
+
+        async function loadDistrictBreakdownWidget() {
+            const container = document.getElementById('dash-districts-breakdown');
+            if (!container) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/api/dashboard/stats-by-distrito?limit=5`);
+                const districts = await response.json();
+
+                if (districts.length === 0) {
+                    container.innerHTML = '<div style="text-align: center; padding: 20px; color: #94a3b8; font-size: 11px;">Sem dados de distritos</div>';
+                    return;
+                }
+
+                const maxTotal = Math.max(...districts.map(d => d.total));
+
+                container.innerHTML = districts.map(d => {
+                    const totalWidth = (d.total / maxTotal) * 100;
+                    const imoveisWidth = (d.imoveis / d.total) * totalWidth;
+                    const veiculosWidth = (d.veiculos / d.total) * totalWidth;
+                    const outrosWidth = totalWidth - imoveisWidth - veiculosWidth;
+
+                    return `
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-size: 11px; color: #64748b; width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${d.distrito}">${d.distrito}</span>
+                            <div style="flex: 1; height: 16px; background: #f1f5f9; border-radius: 4px; overflow: hidden; display: flex;">
+                                ${d.imoveis > 0 ? `<div style="width: ${imoveisWidth}%; height: 100%; background: #22c55e;" title="Imóveis: ${d.imoveis}"></div>` : ''}
+                                ${d.veiculos > 0 ? `<div style="width: ${veiculosWidth}%; height: 100%; background: #8b5cf6;" title="Veículos: ${d.veiculos}"></div>` : ''}
+                                ${(d.direitos + d.equipamentos + d.mobiliario + d.maquinas) > 0 ? `<div style="width: ${outrosWidth}%; height: 100%; background: #f97316;" title="Outros: ${d.direitos + d.equipamentos + d.mobiliario + d.maquinas}"></div>` : ''}
+                            </div>
+                            <span style="font-size: 11px; font-weight: 600; color: #1e293b; width: 35px; text-align: right;">${d.total}</span>
+                        </div>
+                    `;
+                }).join('');
+            } catch (error) {
+                console.error('Erro ao carregar stats por distrito:', error);
+                container.innerHTML = '<div style="text-align: center; padding: 20px; color: #ef4444; font-size: 11px;">Erro ao carregar</div>';
+            }
+        }
+
+        // Load dashboard widgets on page load and refresh periodically
+        loadDashboardWidgets();
+        setInterval(loadDashboardWidgets, 60000); // Refresh every minute
 
         // Scraper Control Functions
         let scraperPollInterval = null;

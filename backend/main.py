@@ -1361,6 +1361,30 @@ async def get_db_extended_stats():
         return stats
 
 
+@app.get("/api/dashboard/ending-soon")
+async def get_events_ending_soon(hours: int = 24, limit: int = 5):
+    """Get events ending within the next X hours"""
+    async with get_db() as db:
+        events = await db.get_events_ending_soon(hours=hours, limit=limit)
+        return JSONResponse(events)
+
+
+@app.get("/api/dashboard/activity")
+async def get_recent_activity():
+    """Get recent activity stats for dashboard"""
+    async with get_db() as db:
+        activity = await db.get_recent_activity()
+        return JSONResponse(activity)
+
+
+@app.get("/api/dashboard/stats-by-distrito")
+async def get_stats_by_distrito(limit: int = 5):
+    """Get event counts by distrito with breakdown by type"""
+    async with get_db() as db:
+        stats = await db.get_stats_by_distrito(limit=limit)
+        return JSONResponse(stats)
+
+
 @app.post("/api/db/fix-nulls")
 async def fix_null_lance_atual():
     """

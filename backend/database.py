@@ -850,6 +850,115 @@ class DatabaseManager:
         )
         return list(result.scalars().all())
 
+    async def get_events_ending_soon(self, hours: int = 24, limit: int = 10) -> List[dict]:
+        """Get events ending within the next X hours"""
+        from datetime import timedelta
+        now = datetime.utcnow()
+        end_time = now + timedelta(hours=hours)
+
+        result = await self.session.execute(
+            select(EventDB)
+            .where(EventDB.data_fim.isnot(None))
+            .where(EventDB.data_fim > now)
+            .where(EventDB.data_fim <= end_time)
+            .where(EventDB.cancelado == False)
+            .order_by(EventDB.data_fim.asc())
+            .limit(limit)
+        )
+        events = result.scalars().all()
+
+        return [{
+            "reference": e.reference,
+            "titulo": e.titulo,
+            "tipo": e.tipo,
+            "subtipo": e.subtipo,
+            "distrito": e.distrito,
+            "lance_atual": e.lance_atual,
+            "data_fim": e.data_fim.isoformat() if e.data_fim else None,
+            "modalidade": e.modalidade
+        } for e in events]
+
+    async def get_stats_by_distrito(self, limit: int = 10) -> List[dict]:
+        """Get event counts by distrito with breakdown by tipo"""
+        from sqlalchemy import case
+
+        # Get top distritos by total count
+        result = await self.session.execute(
+            select(
+                EventDB.distrito,
+                func.count(EventDB.reference).label('total'),
+                func.sum(case((EventDB.tipo_id == 1, 1), else_=0)).label('imoveis'),
+                func.sum(case((EventDB.tipo_id == 2, 1), else_=0)).label('veiculos'),
+                func.sum(case((EventDB.tipo_id == 3, 1), else_=0)).label('direitos'),
+                func.sum(case((EventDB.tipo_id == 4, 1), else_=0)).label('equipamentos'),
+                func.sum(case((EventDB.tipo_id == 5, 1), else_=0)).label('mobiliario'),
+                func.sum(case((EventDB.tipo_id == 6, 1), else_=0)).label('maquinas')
+            )
+            .where(EventDB.distrito.isnot(None))
+            .where(EventDB.cancelado == False)
+            .group_by(EventDB.distrito)
+            .order_by(func.count(EventDB.reference).desc())
+            .limit(limit)
+        )
+
+        return [
+            {
+                "distrito": row.distrito,
+                "total": row.total,
+                "imoveis": row.imoveis or 0,
+                "veiculos": row.veiculos or 0,
+                "direitos": row.direitos or 0,
+                "equipamentos": row.equipamentos or 0,
+                "mobiliario": row.mobiliario or 0,
+                "maquinas": row.maquinas or 0
+            }
+            for row in result.fetchall()
+        ]
+
+    async def get_recent_activity(self) -> dict:
+        """Get recent activity stats for dashboard"""
+        from datetime import timedelta
+        now = datetime.utcnow()
+        last_24h = now - timedelta(hours=24)
+
+        # New events in last 24h
+        new_events_result = await self.session.execute(
+            select(func.count(EventDB.reference))
+            .where(EventDB.created_at >= last_24h)
+        )
+        new_events = new_events_result.scalar() or 0
+
+        # Events that ended in last 24h
+        ended_result = await self.session.execute(
+            select(func.count(EventDB.reference))
+            .where(EventDB.data_fim.isnot(None))
+            .where(EventDB.data_fim >= last_24h)
+            .where(EventDB.data_fim <= now)
+        )
+        ended_events = ended_result.scalar() or 0
+
+        # Notifications triggered in last 24h
+        notifications_result = await self.session.execute(
+            select(func.count(NotificationDB.id))
+            .where(NotificationDB.created_at >= last_24h)
+        )
+        notifications = notifications_result.scalar() or 0
+
+        # Price updates (events updated in last 24h - approximation)
+        updated_result = await self.session.execute(
+            select(func.count(EventDB.reference))
+            .where(EventDB.updated_at >= last_24h)
+            .where(EventDB.created_at < last_24h)  # Exclude new events
+        )
+        price_updates = updated_result.scalar() or 0
+
+        return {
+            "new_events": new_events,
+            "ended_events": ended_events,
+            "notifications": notifications,
+            "price_updates": price_updates
+        }
+
     # ========== NOTIFICATION RULES ==========
 
     async def get_notification_rules(self, active_only: bool = False) -> List[dict]:
