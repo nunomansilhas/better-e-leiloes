@@ -1,0 +1,51 @@
+{
+  "manifest_version": 3,
+  "name": "Better E-Leilões",
+  "version": "11.1",
+  "description": "Melhora os cards do site e-leiloes.pt com carousel de imagens, layout otimizado, countdown e integração com o dashboard.",
+  "author": "Nuno Mansilhas",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "https://e-leiloes.pt/*",
+    "https://www.e-leiloes.pt/*",
+    "http://e-leiloes.pt/*",
+    "http://www.e-leiloes.pt/*",
+    "http://localhost:8000/*",
+    "http://127.0.0.1:8000/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    },
+    "default_title": "Better E-Leilões"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://e-leiloes.pt/*",
+        "https://www.e-leiloes.pt/*",
+        "http://e-leiloes.pt/*",
+        "http://www.e-leiloes.pt/*"
+      ],
+      "css": ["content.css"],
+      "js": ["content.js"],
+      "run_at": "document_end"
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  }
+}

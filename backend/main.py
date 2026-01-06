@@ -30,6 +30,8 @@ import json
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from datetime import datetime
+import zipfile
+import io
 
 from models import EventData, EventListResponse, ScraperStatus, ValoresLeilao
 from database import init_db, get_db
@@ -166,6 +168,7 @@ async def root():
 
 
 @app.get("/health")
+@app.get("/api/health")
 async def health():
     """Health check"""
     return {
@@ -173,6 +176,37 @@ async def health():
         "service": "E-Leiloes Data API",
         "version": "1.0.0"
     }
+
+
+@app.get("/api/extension/download")
+async def download_extension():
+    """Download Chrome extension as ZIP file"""
+    # Get the extension directory path
+    extension_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "extension")
+
+    if not os.path.exists(extension_dir):
+        raise HTTPException(status_code=404, detail="Extension directory not found")
+
+    # Create ZIP in memory
+    zip_buffer = io.BytesIO()
+
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        for root, dirs, files in os.walk(extension_dir):
+            for file in files:
+                file_path = os.path.join(root, file)
+                # Archive name should be relative to extension_dir
+                arcname = os.path.relpath(file_path, extension_dir)
+                zip_file.write(file_path, arcname)
+
+    zip_buffer.seek(0)
+
+    return StreamingResponse(
+        zip_buffer,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": "attachment; filename=better-e-leiloes-extension.zip"
+        }
+    )
 
 
 @app.get("/api/pipeline/status")
