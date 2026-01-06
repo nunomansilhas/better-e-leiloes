@@ -5115,12 +5115,30 @@
             container.innerHTML = svg;
 
             // Legend
+            const legendSize = isModal ? '11px' : '9px';
+            const legendGap = isModal ? '8px 20px' : '3px 10px';
             legend.innerHTML = `
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 3px 10px; font-size: 9px;">
-                    <span><span style="color: #94a3b8;">Base:</span> <strong>${vBase.toLocaleString()}€</strong></span>
-                    <span><span style="color: #3b82f6;">Abertura:</span> <strong>${vAbertura.toLocaleString()}€</strong></span>
-                    <span><span style="color: #f59e0b;">-- Minimo:</span> <strong>${vMinimo.toLocaleString()}€</strong></span>
-                    <span><span style="color: #22c55e;">Atual:</span> <strong style="color: #22c55e;">${vAtual.toLocaleString()}€</strong></span>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: ${legendGap}; font-size: ${legendSize}; ${isModal ? 'padding: 12px; background: #f8fafc; border-radius: 8px;' : ''}">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="width: 8px; height: 8px; background: #94a3b8; border-radius: 2px;"></span>
+                        <span style="color: #64748b;">Base</span>
+                        <strong style="color: #1e293b; margin-left: auto;">${vBase.toLocaleString()}€</strong>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="width: 8px; height: 8px; background: #3b82f6; border-radius: 2px;"></span>
+                        <span style="color: #64748b;">Abertura</span>
+                        <strong style="color: #1e293b; margin-left: auto;">${vAbertura.toLocaleString()}€</strong>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="width: 8px; height: 2px; background: #f59e0b;"></span>
+                        <span style="color: #64748b;">Minimo</span>
+                        <strong style="color: #1e293b; margin-left: auto;">${vMinimo.toLocaleString()}€</strong>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="width: 8px; height: 8px; background: #22c55e; border-radius: 50%;"></span>
+                        <span style="color: #64748b;">Atual</span>
+                        <strong style="color: #22c55e; margin-left: auto;">${vAtual.toLocaleString()}€</strong>
+                    </div>
                 </div>
             `;
         }
