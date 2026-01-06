@@ -3024,7 +3024,7 @@
                         <span style="min-width: 70px; text-align: right;">Valor</span>
                         <span style="min-width: 24px;"></span>
                     </div>
-                    <div id="dash-ending-soon" style="display: flex; flex-direction: column; gap: 4px; max-height: 280px; overflow-y: auto;">
+                    <div id="dash-ending-soon" style="display: flex; flex-direction: column; gap: 4px; max-height: 120px; overflow-y: auto;">
                         <!-- Loading placeholder -->
                         <div style="text-align: center; padding: 20px; color: #94a3b8; font-size: 11px;">A carregar...</div>
                     </div>
@@ -4723,7 +4723,7 @@
             if (!container) return;
 
             try {
-                const response = await fetch(`${API_BASE}/api/dashboard/ending-soon?hours=24&limit=50`);
+                const response = await fetch(`${API_BASE}/api/dashboard/ending-soon?hours=24&limit=1000`);
                 endingSoonEventsAll = await response.json();
 
                 if (endingSoonEventsAll.length === 0) {
