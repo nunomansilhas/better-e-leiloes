@@ -4726,7 +4726,8 @@
                     // Format time remaining
                     const hours = Math.floor(diffMs / (1000 * 60 * 60));
                     const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-                    const timeStr = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+                    const secs = Math.floor((diffMs % (1000 * 60)) / 1000);
+                    const timeStr = hours > 0 ? `${hours}h ${mins}m` : `${mins}m ${secs.toString().padStart(2, '0')}s`;
 
                     const titulo = event.titulo || event.reference;
 
@@ -6810,6 +6811,9 @@
                         const setCount = (id, val) => {
                             const el = document.getElementById(id);
                             if (el) el.textContent = val || 0;
+                            // Also update scraping page element
+                            const elScraping = document.getElementById(id + '-scraping');
+                            if (elScraping) elScraping.textContent = val || 0;
                         };
                         setCount('x-monitor-count', stats.total);
                         setCount('x-critical-count', stats.critical);
