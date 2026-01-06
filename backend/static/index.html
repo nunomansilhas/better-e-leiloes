@@ -2949,6 +2949,11 @@
                         </div>
                     </div>
                     <div style="display: flex; gap: 6px; align-items: center;">
+                        <div style="display: flex; gap: 4px; font-size: 9px; margin-right: 4px;">
+                            <span title="Crítico < 5min">🔴 <span id="x-critical-count-dash">0</span></span>
+                            <span title="Urgente < 1h">🟠 <span id="x-urgent-count-dash">0</span></span>
+                            <span title="Em breve < 24h">🟡 <span id="x-soon-count-dash">0</span></span>
+                        </div>
                         <div onclick="showPage('scraping')" style="padding: 4px 8px; background: #f8fafc; border-radius: 4px; text-align: center; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='#f8fafc'">
                             <div style="font-size: 9px; color: #64748b;">X-Mon</div>
                             <div id="dash-xmonitor-timer" style="font-size: 10px; font-weight: 600; color: #dc2626;">--:--</div>
@@ -4694,54 +4699,91 @@
             ]);
         }
 
+        let endingSoonEvents = [];
+        let endingSoonInterval = null;
+
         async function loadEndingSoonWidget() {
             const container = document.getElementById('dash-ending-soon');
             if (!container) return;
 
             try {
                 const response = await fetch(`${API_BASE}/api/dashboard/ending-soon?hours=24&limit=5`);
-                const events = await response.json();
+                endingSoonEvents = await response.json();
 
-                if (events.length === 0) {
+                if (endingSoonEvents.length === 0) {
                     container.innerHTML = '<div style="text-align: center; padding: 20px; color: #94a3b8; font-size: 11px;">Nenhum evento a terminar nas próximas 24h</div>';
                     return;
                 }
 
-                container.innerHTML = events.map(event => {
-                    const dataFim = new Date(event.data_fim);
-                    const now = new Date();
-                    const diffMs = dataFim - now;
-                    const diffHours = diffMs / (1000 * 60 * 60);
+                renderEndingSoonWidget();
 
-                    // Color based on urgency
-                    let bgColor, borderColor, textColor;
-                    if (diffHours < 3) {
-                        bgColor = '#fef2f2'; borderColor = '#ef4444'; textColor = '#ef4444';
-                    } else if (diffHours < 6) {
-                        bgColor = '#fff7ed'; borderColor = '#f97316'; textColor = '#f97316';
-                    } else {
-                        bgColor = '#fefce8'; borderColor = '#eab308'; textColor = '#eab308';
-                    }
-
-                    // Format time remaining
-                    const hours = Math.floor(diffMs / (1000 * 60 * 60));
-                    const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-                    const secs = Math.floor((diffMs % (1000 * 60)) / 1000);
-                    const timeStr = hours > 0 ? `${hours}h ${mins}m` : `${mins}m ${secs.toString().padStart(2, '0')}s`;
-
-                    const titulo = event.titulo || event.reference;
-
-                    return `
-                        <div onclick="openInspectionModal('${event.reference}')" style="display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: ${bgColor}; border-radius: 6px; border-left: 3px solid ${borderColor}; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.transform='translateX(2px)'" onmouseout="this.style.transform=''">
-                            <span style="font-size: 11px; font-weight: 600; color: ${textColor}; min-width: 50px;">${timeStr}</span>
-                            <span style="font-size: 11px; color: #1e293b; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${titulo}</span>
-                        </div>
-                    `;
-                }).join('');
+                // Start live countdown
+                if (endingSoonInterval) clearInterval(endingSoonInterval);
+                endingSoonInterval = setInterval(updateEndingSoonTimers, 1000);
             } catch (error) {
                 console.error('Erro ao carregar eventos a terminar:', error);
                 container.innerHTML = '<div style="text-align: center; padding: 20px; color: #ef4444; font-size: 11px;">Erro ao carregar</div>';
             }
+        }
+
+        function renderEndingSoonWidget() {
+            const container = document.getElementById('dash-ending-soon');
+            if (!container || !endingSoonEvents.length) return;
+
+            container.innerHTML = endingSoonEvents.map((event, idx) => {
+                const dataFim = new Date(event.data_fim);
+                const now = new Date();
+                const diffMs = dataFim - now;
+                const diffHours = diffMs / (1000 * 60 * 60);
+
+                // Color based on urgency
+                let bgColor, borderColor, textColor;
+                if (diffHours < 3) {
+                    bgColor = '#fef2f2'; borderColor = '#ef4444'; textColor = '#ef4444';
+                } else if (diffHours < 6) {
+                    bgColor = '#fff7ed'; borderColor = '#f97316'; textColor = '#f97316';
+                } else {
+                    bgColor = '#fefce8'; borderColor = '#eab308'; textColor = '#eab308';
+                }
+
+                const titulo = event.titulo || event.reference;
+
+                return `
+                    <div onclick="openInspectionModal('${event.reference}')" data-endat="${event.data_fim}" style="display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: ${bgColor}; border-radius: 6px; border-left: 3px solid ${borderColor}; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.transform='translateX(2px)'" onmouseout="this.style.transform=''">
+                        <span id="ending-timer-${idx}" style="font-size: 11px; font-weight: 600; color: ${textColor}; min-width: 60px;">--:--</span>
+                        <span style="font-size: 11px; color: #1e293b; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${titulo}</span>
+                    </div>
+                `;
+            }).join('');
+
+            // Initial timer update
+            updateEndingSoonTimers();
+        }
+
+        function updateEndingSoonTimers() {
+            endingSoonEvents.forEach((event, idx) => {
+                const timerEl = document.getElementById(`ending-timer-${idx}`);
+                if (!timerEl) return;
+
+                const dataFim = new Date(event.data_fim);
+                const now = new Date();
+                const diffMs = dataFim - now;
+
+                if (diffMs <= 0) {
+                    timerEl.textContent = 'Terminado';
+                    return;
+                }
+
+                const hours = Math.floor(diffMs / (1000 * 60 * 60));
+                const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                const secs = Math.floor((diffMs % (1000 * 60)) / 1000);
+
+                if (hours > 0) {
+                    timerEl.textContent = `${hours}h ${mins}m ${secs.toString().padStart(2, '0')}s`;
+                } else {
+                    timerEl.textContent = `${mins}m ${secs.toString().padStart(2, '0')}s`;
+                }
+            });
         }
 
         async function loadRecentActivityWidget() {
@@ -6814,6 +6856,9 @@
                             // Also update scraping page element
                             const elScraping = document.getElementById(id + '-scraping');
                             if (elScraping) elScraping.textContent = val || 0;
+                            // Also update dashboard element
+                            const elDash = document.getElementById(id + '-dash');
+                            if (elDash) elDash.textContent = val || 0;
                         };
                         setCount('x-monitor-count', stats.total);
                         setCount('x-critical-count', stats.critical);
