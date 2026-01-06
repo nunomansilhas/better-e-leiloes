@@ -4964,19 +4964,19 @@
                             <div style="font-size: 14px; font-weight: 600; color: #1e293b;">Evolucao de Preco</div>
                             <div style="font-size: 11px; color: #64748b;">${ref}</div>
                         </div>
-                        <a href="https://www.e-leiloes.pt/evento/${ref}" target="_blank" style="display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; background: #f1f5f9; border-radius: 6px; text-decoration: none;" title="Abrir no e-leiloes.pt">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                        </a>
-                    </div>
-                    <div class="chart-container" style="height: 180px; margin-bottom: 12px;">
-                        <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #94a3b8;">
-                            <svg class="spin" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4m0 12v4m-8-10h4m12 0h4m-5.66-5.66l-2.82 2.82m-5.04 5.04l-2.82 2.82m0-11.32l2.82 2.82m5.04 5.04l2.82 2.82"/></svg>
+                        <div style="display: flex; gap: 8px;">
+                            <a href="https://www.e-leiloes.pt/evento/${ref}" target="_blank" style="display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; background: #dbeafe; border-radius: 6px; text-decoration: none;" title="Abrir no e-leiloes.pt">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                            </a>
+                            <button onclick="this.closest('#price-chart-modal').remove()" style="display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; background: #f1f5f9; border: none; border-radius: 6px; cursor: pointer;" title="Fechar">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                            </button>
                         </div>
                     </div>
-                    <div class="chart-legend" style="color: #64748b; margin-bottom: 16px;"></div>
-                    <div style="text-align: right;">
-                        <button onclick="this.closest('#price-chart-modal').remove()" style="padding: 6px 16px; background: #f1f5f9; border: none; border-radius: 6px; font-size: 11px; color: #475569; cursor: pointer;">Fechar</button>
+                    <div class="chart-container" style="height: 200px; margin-bottom: 12px; display: flex; align-items: center; justify-content: center;">
+                        <svg class="spin" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><path d="M12 2v4m0 12v4m-8-10h4m12 0h4m-5.66-5.66l-2.82 2.82m-5.04 5.04l-2.82 2.82m0-11.32l2.82 2.82m5.04 5.04l2.82 2.82"/></svg>
                     </div>
+                    <div class="chart-legend" style="color: #64748b;"></div>
                 </div>
             `;
 
@@ -5036,9 +5036,9 @@
             const range = maxPrice - minPrice || 1;
 
             // SVG dimensions
-            const width = isModal ? 450 : 252;
-            const height = isModal ? 180 : 100;
-            const padL = 10, padR = 10, padT = 15, padB = isModal ? 25 : 12;
+            const width = isModal ? 480 : 252;
+            const height = isModal ? 200 : 100;
+            const padL = 15, padR = 15, padT = 15, padB = isModal ? 30 : 12;
             const chartW = width - padL - padR;
             const chartH = height - padT - padB;
 
@@ -5058,7 +5058,8 @@
             const vMinimoY = vMinimo > 0 ? getY(vMinimo) : -100;
             const uid = 'g' + Math.random().toString(36).substr(2, 9);
 
-            let svg = `<svg width="${width}" height="${height}" style="display: block; background: #fafbfc; border-radius: 6px;">`;
+            const svgStyle = isModal ? 'display: block; width: 100%; background: #fafbfc; border-radius: 6px;' : 'display: block; background: #fafbfc; border-radius: 6px;';
+            let svg = `<svg viewBox="0 0 ${width} ${height}" ${isModal ? '' : `width="${width}" height="${height}"`} style="${svgStyle}">`;
             svg += `<defs>
                 <linearGradient id="${uid}-grad" x1="0%" y1="0%" x2="0%" y2="100%">
                     <stop offset="0%" stop-color="#22c55e" stop-opacity="0.25"/>
