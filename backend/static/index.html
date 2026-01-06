@@ -2841,15 +2841,15 @@
                 <div class="stats-total-card">
                     <div class="stats-total-icon">📦</div>
                     <span class="stats-total-value" id="stat-total">0</span>
-                    <span class="stats-total-label">Total</span>
+                    <span class="stats-total-label">Ativos</span>
                     <div class="stats-total-breakdown">
                         <span><span class="lo" id="stat-total-lo">0</span> LO</span>
                         <span><span class="np" id="stat-total-np">0</span> NP</span>
                     </div>
-                    <div class="stats-inactive-row" title="Eventos terminados ou cancelados">
+                    <div class="stats-inactive-row" title="Eventos terminados ou inativos">
                         <span class="inactive-dot"></span>
                         <span class="inactive-value" id="stat-total-inactive">0</span>
-                        <span class="inactive-label">terminados</span>
+                        <span class="inactive-label">inativos</span>
                     </div>
                 </div>
 
@@ -4106,6 +4106,8 @@
                 descricao: event.descricao,
                 observacoes: event.observacoes,
                 cancelado: event.cancelado || false,
+                terminado: event.terminado || false,
+                ativo: event.ativo !== undefined ? event.ativo : true,
                 // New fields from API
                 gestor_nome: event.gestor_nome,
                 gestor_email: event.gestor_email,
@@ -4625,23 +4627,26 @@
                 const eventsData = await eventsResponse.json();
 
                 // Normalize events to handle new API format
-                const events = normalizeEvents(eventsData.events);
-                const total = events.length;
+                const allEvents = normalizeEvents(eventsData.events);
 
-                // Filter by type (using normalized tipoEvento)
-                const imoveisEvents = events.filter(e => e.tipoEvento === 'imoveis');
-                const veiculosEvents = events.filter(e => e.tipoEvento === 'veiculos');
-                const direitosEvents = events.filter(e => e.tipoEvento === 'direitos');
-                const equipamentosEvents = events.filter(e => e.tipoEvento === 'equipamentos');
-                const mobiliarioEvents = events.filter(e => e.tipoEvento === 'mobiliario');
-                const maquinasEvents = events.filter(e => e.tipoEvento === 'maquinas');
+                // Separate active and inactive events
+                const activeEvents = allEvents.filter(e => e.ativo === true);
+                const inactiveEvents = allEvents.filter(e => e.ativo === false);
+
+                // Filter by type (using only ACTIVE events)
+                const imoveisEvents = activeEvents.filter(e => e.tipoEvento === 'imoveis');
+                const veiculosEvents = activeEvents.filter(e => e.tipoEvento === 'veiculos');
+                const direitosEvents = activeEvents.filter(e => e.tipoEvento === 'direitos');
+                const equipamentosEvents = activeEvents.filter(e => e.tipoEvento === 'equipamentos');
+                const mobiliarioEvents = activeEvents.filter(e => e.tipoEvento === 'mobiliario');
+                const maquinasEvents = activeEvents.filter(e => e.tipoEvento === 'maquinas');
 
                 // Helper function to count LO/NP
                 const countLO = (arr) => arr.filter(e => e.reference.startsWith('LO')).length;
                 const countNP = (arr) => arr.filter(e => e.reference.startsWith('NP')).length;
 
-                // Count inactive/terminated events (ativo=false means event is finished)
-                const inactiveCount = events.filter(e => e.ativo === false).length;
+                // Count inactive/terminated events
+                const inactiveCount = inactiveEvents.length;
 
                 // Helper to update stat with animation on change
                 const updateStat = (id, value) => {
@@ -4660,10 +4665,10 @@
                     }
                 };
 
-                // Total
-                updateStat('stat-total', total);
-                updateStat('stat-total-lo', countLO(events));
-                updateStat('stat-total-np', countNP(events));
+                // Total (active events only)
+                updateStat('stat-total', activeEvents.length);
+                updateStat('stat-total-lo', countLO(activeEvents));
+                updateStat('stat-total-np', countNP(activeEvents));
                 updateStat('stat-total-inactive', inactiveCount);
 
                 // Imóveis
