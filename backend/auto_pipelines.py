@@ -513,6 +513,14 @@ class AutoPipelinesManager:
                                     await db.save_event(event)
                                     await cache_manager.set(event.reference, event)
 
+                                    # Process price change notifications (Tier 1)
+                                    if price_changed and old_price is not None:
+                                        from notification_engine import get_notification_engine
+                                        notification_engine = get_notification_engine()
+                                        await notification_engine.process_price_change(
+                                            event, old_price, new_price, db
+                                        )
+
                                 # Broadcast price update to SSE clients
                                 from main import broadcast_price_update
                                 await broadcast_price_update({
@@ -788,6 +796,14 @@ class AutoPipelinesManager:
                                     await db.save_event(event)
                                     await cache_manager.set(event.reference, event)
 
+                                    # Process price change notifications (Tier 2)
+                                    if price_changed and old_price is not None:
+                                        from notification_engine import get_notification_engine
+                                        notification_engine = get_notification_engine()
+                                        await notification_engine.process_price_change(
+                                            event, old_price, new_price, db
+                                        )
+
                                 # Broadcast price update to SSE clients
                                 from main import broadcast_price_update
                                 await broadcast_price_update({
@@ -952,6 +968,14 @@ class AutoPipelinesManager:
                                 async with get_db() as db:
                                     await db.save_event(event)
                                     await cache_manager.set(event.reference, event)
+
+                                    # Process price change notifications (Tier 3)
+                                    if price_changed and old_price is not None:
+                                        from notification_engine import get_notification_engine
+                                        notification_engine = get_notification_engine()
+                                        await notification_engine.process_price_change(
+                                            event, old_price, new_price, db
+                                        )
 
                                 # Broadcast price update to SSE clients
                                 from main import broadcast_price_update

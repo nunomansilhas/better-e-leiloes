@@ -118,7 +118,9 @@ class NotificationEngine:
         """
         Processa uma alteração de preço e cria notificações se match com regras.
         """
+        print(f"  📊 Processing price change: {event.reference} ({old_price} -> {new_price})")
         rules = await self._get_rules_cached("price_change", db_manager)
+        print(f"  📊 Found {len(rules)} price_change rules")
         if not rules:
             return []
 
@@ -130,17 +132,21 @@ class NotificationEngine:
             variacao_min = rule.get("variacao_min")
             if variacao_min is not None:
                 if variacao_min < 0 and variacao > variacao_min:
+                    print(f"    ❌ Rule {rule['name']}: variation {variacao} > min {variacao_min}")
                     return None
                 elif variacao_min > 0 and variacao < variacao_min:
+                    print(f"    ❌ Rule {rule['name']}: variation {variacao} < min {variacao_min}")
                     return None
 
             if not self._event_matches_rule(event, rule):
+                print(f"    ❌ Rule {rule['name']}: event doesn't match filters")
                 return None
 
             # Check for duplicates (prevent same notification within 1h for price changes)
             if await db_manager.notification_exists(
                 rule["id"], event.reference, "price_change", hours=1
             ):
+                print(f"    ⏭️ Rule {rule['name']}: duplicate (notified within 1h)")
                 return None
 
             notification_id = await db_manager.create_notification({
