@@ -3040,7 +3040,7 @@
                             <span style="font-weight: 600; color: #1e293b; font-size: 14px;">Licitações Recentes</span>
                         </div>
                     </div>
-                    <div id="dash-recent-bids" style="display: flex; flex-direction: column; gap: 4px; max-height: 120px; overflow-y: auto;">
+                    <div id="dash-recent-bids" style="display: flex; flex-direction: column; gap: 4px; max-height: 200px; overflow-y: auto;">
                         <div style="text-align: center; padding: 20px; color: #94a3b8; font-size: 11px;">A carregar...</div>
                     </div>
                 </div>
@@ -4842,12 +4842,12 @@
                         <span style="font-size: 10px; font-weight: 600; color: #1e293b; width: 75px; text-align: right;">${valor}</span>
                         <div class="price-chart-btn" data-ref="${event.reference}" data-base="${vBase}" data-abertura="${vAbertura}" data-minimo="${vMinimo}" data-atual="${vAtual}" style="width: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 12px;">
                             📊
-                            <div class="price-chart-tooltip" style="display: none; position: fixed; background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 9999; min-width: 240px;">
-                                <div style="font-size: 10px; font-weight: 600; color: #1e293b; margin-bottom: 8px;">Evolução de Preço</div>
-                                <div class="chart-container" style="height: 80px; position: relative; margin-bottom: 8px;">
-                                    <div style="text-align: center; padding: 20px; color: #94a3b8; font-size: 10px;">A carregar...</div>
+                            <div class="price-chart-tooltip" style="display: none; position: fixed; background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); z-index: 9999; min-width: 248px;">
+                                <div style="font-size: 11px; font-weight: 600; color: #1e293b; margin-bottom: 10px;">📈 Evolução de Preço</div>
+                                <div class="chart-container" style="height: 90px; position: relative; margin-bottom: 10px;">
+                                    <div style="text-align: center; padding: 30px; color: #94a3b8; font-size: 10px;">A carregar...</div>
                                 </div>
-                                <div class="chart-legend" style="font-size: 9px; color: #64748b; display: flex; flex-wrap: wrap; gap: 8px;">
+                                <div class="chart-legend" style="color: #64748b;">
                                 </div>
                             </div>
                         </div>
@@ -4911,83 +4911,98 @@
             const container = tooltip.querySelector('.chart-container');
             const legend = tooltip.querySelector('.chart-legend');
 
-            // Get price points (use history or just current)
+            // Get price points
             let prices = history.length > 0 ? history.map(h => h.preco) : [vAtual];
-            if (prices.length === 1) prices = [prices[0] * 0.95, prices[0]]; // Show some growth if single point
+            if (prices.length === 1) prices = [prices[0] * 0.9, prices[0]];
 
-            const minPrice = Math.min(...prices, vMinimo || Infinity);
-            const maxPrice = Math.max(...prices, vMinimo || 0);
+            // Add padding to price range for better visualization
+            const dataMin = Math.min(...prices);
+            const dataMax = Math.max(...prices);
+            const minPrice = Math.min(dataMin, vMinimo || dataMin) * 0.95;
+            const maxPrice = dataMax * 1.05;
             const range = maxPrice - minPrice || 1;
 
             // SVG dimensions
-            const width = 216;
-            const height = 70;
-            const padding = 5;
+            const width = 220;
+            const height = 90;
+            const padL = 8, padR = 8, padT = 12, padB = 8;
+            const chartW = width - padL - padR;
+            const chartH = height - padT - padB;
 
-            // Calculate points for line
-            const points = prices.map((p, i) => {
-                const x = padding + (i / (prices.length - 1 || 1)) * (width - padding * 2);
-                const y = height - padding - ((p - minPrice) / range) * (height - padding * 2);
-                return `${x},${y}`;
-            }).join(' ');
+            // Calculate coordinates
+            const getX = (i) => padL + (i / (prices.length - 1 || 1)) * chartW;
+            const getY = (p) => padT + chartH - ((p - minPrice) / range) * chartH;
 
-            // Calculate valor minimo line position
-            const vMinimoY = vMinimo > 0 ? height - padding - ((vMinimo - minPrice) / range) * (height - padding * 2) : -1;
-
-            // Build SVG
-            let svg = `<svg width="${width}" height="${height}" style="display: block;">`;
-
-            // Grid lines
-            svg += `<line x1="${padding}" y1="${height - padding}" x2="${width - padding}" y2="${height - padding}" stroke="#e2e8f0" stroke-width="1"/>`;
-
-            // Valor mínimo horizontal line
-            if (vMinimoY >= 0 && vMinimoY <= height) {
-                svg += `<line x1="${padding}" y1="${vMinimoY}" x2="${width - padding}" y2="${vMinimoY}" stroke="#f59e0b" stroke-width="1" stroke-dasharray="4,2"/>`;
-                svg += `<text x="${width - padding - 2}" y="${vMinimoY - 3}" font-size="8" fill="#f59e0b" text-anchor="end">Mín.</text>`;
+            // Build smooth path using bezier curves
+            let pathD = `M ${getX(0)} ${getY(prices[0])}`;
+            for (let i = 1; i < prices.length; i++) {
+                const x0 = getX(i - 1), y0 = getY(prices[i - 1]);
+                const x1 = getX(i), y1 = getY(prices[i]);
+                const cpx = (x0 + x1) / 2;
+                pathD += ` C ${cpx} ${y0}, ${cpx} ${y1}, ${x1} ${y1}`;
             }
 
-            // Price line (gradient green)
-            svg += `<polyline points="${points}" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
+            // Area path
+            let areaD = pathD + ` L ${getX(prices.length - 1)} ${padT + chartH} L ${getX(0)} ${padT + chartH} Z`;
+
+            // Valor mínimo Y position
+            const vMinimoY = vMinimo > 0 ? getY(vMinimo) : -100;
+
+            // Build SVG
+            let svg = `<svg width="${width}" height="${height}" style="display: block; background: #fafbfc; border-radius: 6px;">`;
+
+            // Gradient definitions
+            svg += `<defs>
+                <linearGradient id="areaGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#22c55e" stop-opacity="0.25"/>
+                    <stop offset="100%" stop-color="#22c55e" stop-opacity="0.02"/>
+                </linearGradient>
+                <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feGaussianBlur stdDeviation="2" result="blur"/>
+                    <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                </filter>
+            </defs>`;
+
+            // Subtle horizontal grid lines
+            for (let i = 0; i <= 3; i++) {
+                const y = padT + (chartH / 3) * i;
+                svg += `<line x1="${padL}" y1="${y}" x2="${width - padR}" y2="${y}" stroke="#e5e7eb" stroke-width="0.5"/>`;
+            }
+
+            // Valor mínimo horizontal line
+            if (vMinimoY >= padT && vMinimoY <= padT + chartH) {
+                svg += `<line x1="${padL}" y1="${vMinimoY}" x2="${width - padR}" y2="${vMinimoY}" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="6,3" opacity="0.8"/>`;
+            }
 
             // Area fill
-            const areaPoints = `${padding},${height - padding} ${points} ${width - padding},${height - padding}`;
-            svg += `<polygon points="${areaPoints}" fill="url(#greenGradient)" opacity="0.3"/>`;
+            svg += `<path d="${areaD}" fill="url(#areaGrad)"/>`;
 
-            // Gradient definition
-            svg += `<defs><linearGradient id="greenGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" style="stop-color:#22c55e;stop-opacity:0.4"/>
-                <stop offset="100%" style="stop-color:#22c55e;stop-opacity:0"/>
-            </linearGradient></defs>`;
+            // Main line
+            svg += `<path d="${pathD}" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)"/>`;
 
-            // Points on line
-            prices.forEach((p, i) => {
-                const x = padding + (i / (prices.length - 1 || 1)) * (width - padding * 2);
-                const y = height - padding - ((p - minPrice) / range) * (height - padding * 2);
-                svg += `<circle cx="${x}" cy="${y}" r="3" fill="#22c55e" stroke="white" stroke-width="1"/>`;
-            });
+            // Data points (only show if few points)
+            if (prices.length <= 12) {
+                prices.forEach((p, i) => {
+                    const x = getX(i), y = getY(p);
+                    svg += `<circle cx="${x}" cy="${y}" r="4" fill="white" stroke="#22c55e" stroke-width="2"/>`;
+                });
+            }
+
+            // Last point highlight
+            const lastX = getX(prices.length - 1), lastY = getY(prices[prices.length - 1]);
+            svg += `<circle cx="${lastX}" cy="${lastY}" r="5" fill="#22c55e" stroke="white" stroke-width="2"/>`;
 
             svg += '</svg>';
-
             container.innerHTML = svg;
 
-            // Legend with Base and Abertura
+            // Compact legend
             legend.innerHTML = `
-                <span style="display: flex; align-items: center; gap: 3px;">
-                    <span style="width: 8px; height: 8px; background: #94a3b8; border-radius: 2px;"></span>
-                    Base: <strong>€${vBase.toLocaleString()}</strong>
-                </span>
-                <span style="display: flex; align-items: center; gap: 3px;">
-                    <span style="width: 8px; height: 8px; background: #3b82f6; border-radius: 2px;"></span>
-                    Abertura: <strong>€${vAbertura.toLocaleString()}</strong>
-                </span>
-                <span style="display: flex; align-items: center; gap: 3px;">
-                    <span style="width: 12px; height: 2px; background: #f59e0b;"></span>
-                    Mín: <strong>€${vMinimo.toLocaleString()}</strong>
-                </span>
-                <span style="display: flex; align-items: center; gap: 3px;">
-                    <span style="width: 8px; height: 8px; background: #22c55e; border-radius: 50%;"></span>
-                    Atual: <strong style="color: #22c55e;">€${vAtual.toLocaleString()}</strong>
-                </span>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; font-size: 9px;">
+                    <span><span style="color: #94a3b8;">Base:</span> <strong>€${vBase.toLocaleString()}</strong></span>
+                    <span><span style="color: #3b82f6;">Abertura:</span> <strong>€${vAbertura.toLocaleString()}</strong></span>
+                    <span><span style="color: #f59e0b;">── Mínimo:</span> <strong>€${vMinimo.toLocaleString()}</strong></span>
+                    <span><span style="color: #22c55e;">● Atual:</span> <strong style="color: #22c55e;">€${vAtual.toLocaleString()}</strong></span>
+                </div>
             `;
         }
 
