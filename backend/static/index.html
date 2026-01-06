@@ -2999,19 +2999,8 @@
                         <span style="font-size: 11px; color: #94a3b8;">próximas 24h</span>
                     </div>
                     <div id="dash-ending-soon" style="display: flex; flex-direction: column; gap: 6px;">
-                        <!-- Template items -->
-                        <div style="display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: #fef2f2; border-radius: 6px; border-left: 3px solid #ef4444;">
-                            <span style="font-size: 11px; font-weight: 600; color: #ef4444; min-width: 50px;">2h 34m</span>
-                            <span style="font-size: 11px; color: #1e293b; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Apartamento T2 Lisboa</span>
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: #fff7ed; border-radius: 6px; border-left: 3px solid #f97316;">
-                            <span style="font-size: 11px; font-weight: 600; color: #f97316; min-width: 50px;">5h 12m</span>
-                            <span style="font-size: 11px; color: #1e293b; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">BMW Série 3 2019</span>
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: #fefce8; border-radius: 6px; border-left: 3px solid #eab308;">
-                            <span style="font-size: 11px; font-weight: 600; color: #eab308; min-width: 50px;">18h 45m</span>
-                            <span style="font-size: 11px; color: #1e293b; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Moradia T4 Cascais</span>
-                        </div>
+                        <!-- Loading placeholder -->
+                        <div style="text-align: center; padding: 20px; color: #94a3b8; font-size: 11px;">A carregar...</div>
                     </div>
                 </div>
 
@@ -4746,12 +4735,19 @@
                     bgColor = '#fefce8'; borderColor = '#eab308'; textColor = '#eab308';
                 }
 
-                const titulo = event.titulo || event.reference;
+                const valor = event.lance_atual ? `€${event.lance_atual.toLocaleString()}` : '-';
+                const zona = event.distrito || '-';
+                const tipo = event.tipo || '-';
+                const subtipo = event.subtipo || '-';
 
                 return `
-                    <div onclick="openInspectionModal('${event.reference}')" data-endat="${event.data_fim}" style="display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: ${bgColor}; border-radius: 6px; border-left: 3px solid ${borderColor}; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.transform='translateX(2px)'" onmouseout="this.style.transform=''">
-                        <span id="ending-timer-${idx}" style="font-size: 11px; font-weight: 600; color: ${textColor}; min-width: 60px;">--:--</span>
-                        <span style="font-size: 11px; color: #1e293b; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${titulo}</span>
+                    <div onclick="openInspectionModal('${event.reference}')" data-endat="${event.data_fim}" style="display: flex; align-items: center; gap: 6px; padding: 8px 10px; background: ${bgColor}; border-radius: 6px; border-left: 3px solid ${borderColor}; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.transform='translateX(2px)'" onmouseout="this.style.transform=''">
+                        <span id="ending-timer-${idx}" style="font-size: 10px; font-weight: 600; color: ${textColor}; min-width: 70px;">--:--</span>
+                        <span style="font-size: 10px; color: #64748b; min-width: 65px;" title="ID">${event.reference}</span>
+                        <span style="font-size: 10px; color: #1e293b; min-width: 55px;" title="Tipo">${tipo}</span>
+                        <span style="font-size: 10px; color: #64748b; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="Subtipo">${subtipo}</span>
+                        <span style="font-size: 10px; color: #64748b; min-width: 50px;" title="Zona">${zona}</span>
+                        <span style="font-size: 10px; font-weight: 600; color: #1e293b; min-width: 60px; text-align: right;" title="Valor">${valor}</span>
                     </div>
                 `;
             }).join('');
