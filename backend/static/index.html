@@ -6483,11 +6483,11 @@
             const now = new Date();
 
             for (const [type, nextRunStr] of Object.entries(pipelineNextRuns)) {
-                const timerEl = document.getElementById(`pipeline-timer-${type}`);
+                const timerEl = document.getElementById(`pipeline-timer-${type}-scraping`);
                 const dashTimerEl = document.getElementById(`dash-${type}-timer`);
 
                 // Use stored enabled status (from API), fallback to checkbox if available
-                const checkbox = document.getElementById(`auto-pipeline-${type}`);
+                const checkbox = document.getElementById(`auto-pipeline-${type}-scraping`);
                 const isEnabled = pipelineEnabled[type] !== undefined ? pipelineEnabled[type] : (checkbox && checkbox.checked);
 
                 let displayText = '--:--';
@@ -6549,7 +6549,8 @@
 
                     // Update UI with current status and store next_run times
                     for (const [type, config] of Object.entries(data.pipelines || {})) {
-                        const checkbox = document.getElementById(`auto-pipeline-${type}`);
+                        // Update checkbox on scraping page
+                        const checkbox = document.getElementById(`auto-pipeline-${type}-scraping`);
                         if (checkbox) {
                             checkbox.checked = config.enabled;
                         }
@@ -6558,8 +6559,8 @@
                         pipelineEnabled[type] = config.enabled;
                         pipelineNextRuns[type] = config.next_run;
 
-                        // If pipeline is running, show running state
-                        const timerEl = document.getElementById(`pipeline-timer-${type}`);
+                        // If pipeline is running, show running state on scraping page
+                        const timerEl = document.getElementById(`pipeline-timer-${type}-scraping`);
                         if (timerEl && config.is_running) {
                             timerEl.textContent = '🔄 A executar...';
                             timerEl.style.color = '#f59e0b';
