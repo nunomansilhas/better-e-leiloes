@@ -2679,21 +2679,18 @@
 
         /* Row hover effects for tables */
         .ending-soon-row, .recent-bid-row {
-            transition: all 0.15s ease;
+            transition: background 0.15s ease;
         }
         .ending-soon-row:hover {
-            background: #f0f9ff !important;
-            transform: scale(1.01);
-            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
-            z-index: 1;
-            position: relative;
+            background: #dbeafe !important;
         }
         .recent-bid-row:hover {
-            background: #f0fdf4 !important;
-            transform: scale(1.01);
-            box-shadow: 0 2px 8px rgba(34, 197, 94, 0.15);
-            z-index: 1;
-            position: relative;
+            background: #dcfce7 !important;
+        }
+
+        /* Prevent horizontal scroll on widget containers */
+        #dash-ending-soon, #dash-recent-bids {
+            overflow-x: hidden;
         }
     </style>
 </head>
