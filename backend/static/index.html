@@ -5104,6 +5104,7 @@
                     const anterior = bid.preco_anterior ? `€${bid.preco_anterior.toLocaleString()}` : '?';
                     const atual = bid.preco_atual ? `€${bid.preco_atual.toLocaleString()}` : '?';
                     const variacao = bid.variacao ? `+€${bid.variacao.toLocaleString()}` : '';
+                    const isActive = bid.ativo !== false;
 
                     // Time ago
                     const created = new Date(bid.timestamp);
@@ -5113,12 +5114,20 @@
                     const diffHours = Math.floor(diffMs / 3600000);
                     const timeAgo = diffMins < 60 ? `${diffMins}m` : `${diffHours}h`;
 
+                    // Styling based on active/inactive status
+                    const rowClass = isActive ? 'recent-bid-row' : '';
+                    const bgColor = isActive ? '#f0fdf4' : '#f1f5f9';
+                    const borderColor = isActive ? '#22c55e' : '#cbd5e1';
+                    const priceColor = isActive ? '#166534' : '#64748b';
+                    const variacaoColor = isActive ? '#22c55e' : '#94a3b8';
+
                     return `
-                        <div class="recent-bid-row" data-ref="${bid.reference}" style="display: flex; align-items: center; padding: 5px 10px; background: #f0fdf4; border-radius: 4px; border-left: 3px solid #22c55e;">
+                        <div class="${rowClass}" data-ref="${bid.reference}" style="display: flex; align-items: center; padding: 5px 10px; background: ${bgColor}; border-radius: 4px; border-left: 3px solid ${borderColor}; ${!isActive ? 'opacity: 0.7;' : ''}">
                             <span style="font-size: 10px; color: #64748b; width: 80px; cursor: pointer; text-decoration: underline;" onclick="openInspectionModal('${bid.reference}')">${bid.reference}</span>
-                            <span style="font-size: 10px; color: #64748b; flex: 1;">${anterior} → <strong style="color: #166534;">${atual}</strong></span>
-                            <span style="font-size: 9px; color: #22c55e; font-weight: 500; width: 55px; text-align: right;">${variacao}</span>
+                            <span style="font-size: 10px; color: #64748b; flex: 1;">${anterior} → <strong style="color: ${priceColor};">${atual}</strong></span>
+                            <span style="font-size: 9px; color: ${variacaoColor}; font-weight: 500; width: 55px; text-align: right;">${variacao}</span>
                             <span style="font-size: 9px; color: #94a3b8; width: 30px; text-align: right;">${timeAgo}</span>
+                            ${!isActive ? '<span style="font-size: 8px; color: #94a3b8; margin-left: 4px;" title="Evento inativo">⏸</span>' : ''}
                         </div>
                     `;
                 }).join('');

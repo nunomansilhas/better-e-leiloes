@@ -1386,10 +1386,28 @@ async def get_stats_by_distrito(limit: int = 5):
 
 
 @app.get("/api/dashboard/recent-bids")
-async def get_recent_bids(limit: int = 30):
-    """Get recent price changes from JSON history file"""
+async def get_recent_bids(limit: int = 30, hours: int = 24):
+    """Get recent price changes from JSON history file (last 24h by default)"""
     from price_history import get_recent_changes
-    bids = await get_recent_changes(limit=limit)
+    bids = await get_recent_changes(limit=limit, hours=hours)
+
+    # Add ativo status from database for each event
+    if bids:
+        async with get_db() as db:
+            references = [b["reference"] for b in bids]
+            # Get ativo status for all references
+            from sqlalchemy import select
+            from database import EventDB
+            result = await db.session.execute(
+                select(EventDB.reference, EventDB.ativo)
+                .where(EventDB.reference.in_(references))
+            )
+            ativo_map = {row.reference: row.ativo for row in result}
+
+            # Add ativo to each bid
+            for bid in bids:
+                bid["ativo"] = ativo_map.get(bid["reference"], True)
+
     return JSONResponse(bids)
 
 

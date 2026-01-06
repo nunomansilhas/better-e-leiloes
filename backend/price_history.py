@@ -80,27 +80,41 @@ async def get_event_history(reference: str) -> List[dict]:
         return history.get(reference, [])
 
 
-async def get_recent_changes(limit: int = 30) -> List[dict]:
+async def get_recent_changes(limit: int = 30, hours: int = 24) -> List[dict]:
     """
     Get recent price changes across all events.
     Returns only the LATEST change per event (no duplicates).
+    Filters to only show changes from the last X hours.
     """
+    from datetime import timedelta
+
     async with _file_lock:
         history = _load_history()
 
         changes = []
+        cutoff_time = datetime.utcnow() - timedelta(hours=hours)
 
         for reference, prices in history.items():
             if len(prices) >= 2:
                 # Only get the LAST change for this event
                 i = len(prices) - 1
-                changes.append({
-                    "reference": reference,
-                    "preco_anterior": prices[i-1]["preco"],
-                    "preco_atual": prices[i]["preco"],
-                    "variacao": prices[i]["preco"] - prices[i-1]["preco"],
-                    "timestamp": prices[i]["timestamp"]
-                })
+                timestamp_str = prices[i]["timestamp"]
+
+                # Parse timestamp
+                try:
+                    timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                except:
+                    timestamp = datetime.utcnow()
+
+                # Only include if within the time window
+                if timestamp >= cutoff_time:
+                    changes.append({
+                        "reference": reference,
+                        "preco_anterior": prices[i-1]["preco"],
+                        "preco_atual": prices[i]["preco"],
+                        "variacao": prices[i]["preco"] - prices[i-1]["preco"],
+                        "timestamp": prices[i]["timestamp"]
+                    })
 
         # Sort by timestamp (most recent first)
         changes.sort(key=lambda x: x["timestamp"], reverse=True)
