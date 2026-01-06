@@ -1065,14 +1065,14 @@ class DatabaseManager:
         )
         return result.scalar() or 0
 
-    async def mark_notification_read(self, notification_id: int) -> bool:
-        """Mark a notification as read"""
+    async def mark_notification_read(self, notification_id: int, read: bool = True) -> bool:
+        """Mark a notification as read or unread"""
         result = await self.session.execute(
             select(NotificationDB).where(NotificationDB.id == notification_id)
         )
         notification = result.scalar_one_or_none()
         if notification:
-            notification.read = True
+            notification.read = read
             await self.session.commit()
             return True
         return False

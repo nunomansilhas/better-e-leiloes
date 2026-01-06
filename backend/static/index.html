@@ -7042,7 +7042,7 @@
                     const timeAgo = getTimeAgo(new Date(notif.created_at));
 
                     return `
-                        <div onclick="markNotificationRead(${notif.id})" style="background: ${notif.read ? 'white' : '#f0f9ff'}; border: 1px solid ${notif.read ? '#e2e8f0' : '#bae6fd'}; border-radius: 10px; padding: 14px 16px; cursor: pointer; transition: all 0.2s;">
+                        <div style="background: ${notif.read ? 'white' : '#f0f9ff'}; border: 1px solid ${notif.read ? '#e2e8f0' : '#bae6fd'}; border-radius: 10px; padding: 14px 16px; transition: all 0.2s;">
                             <div style="display: flex; gap: 14px; align-items: center;">
                                 <div style="flex: 1; min-width: 0;">
                                     <div style="font-weight: ${notif.read ? '400' : '600'}; font-size: 13px; margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
@@ -7054,7 +7054,12 @@
                                     </div>
                                 </div>
                                 <div style="font-size: 11px; color: #94a3b8; white-space: nowrap;">${timeAgo}</div>
-                                <button onclick="event.stopPropagation(); openInspectionModal('${notif.event_reference}')" style="background: #f1f5f9; border: none; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #64748b; transition: all 0.2s;" title="Ver evento">
+                                <button onclick="markNotificationRead(${notif.id}, ${!notif.read})" style="background: ${notif.read ? '#f1f5f9' : '#dbeafe'}; border: none; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: ${notif.read ? '#94a3b8' : '#3b82f6'}; transition: all 0.2s;" title="${notif.read ? 'Marcar como não lida' : 'Marcar como lida'}">
+                                    <svg fill="${notif.read ? 'none' : 'currentColor'}" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="16" height="16">
+                                        <circle cx="12" cy="12" r="4"/>
+                                    </svg>
+                                </button>
+                                <button onclick="openInspectionModal('${notif.event_reference}')" style="background: #f1f5f9; border: none; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #64748b; transition: all 0.2s;" title="Ver evento">
                                     <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="16" height="16">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
@@ -7348,10 +7353,10 @@
             }
         }
 
-        // Mark notification as read
-        async function markNotificationRead(notifId) {
+        // Mark notification as read or unread
+        async function markNotificationRead(notifId, read = true) {
             try {
-                await fetch(`${API_BASE}/api/notifications/${notifId}/read`, { method: 'POST' });
+                await fetch(`${API_BASE}/api/notifications/${notifId}/read?read=${read}`, { method: 'POST' });
                 loadNotifications();
                 updateNotificationBadge();
             } catch (error) {

@@ -396,13 +396,13 @@ async def get_notifications_count():
 
 
 @app.post("/api/notifications/{notification_id}/read")
-async def mark_notification_read(notification_id: int):
-    """Mark a notification as read"""
+async def mark_notification_read(notification_id: int, read: bool = True):
+    """Mark a notification as read or unread"""
     async with get_db() as db:
-        success = await db.mark_notification_read(notification_id)
+        success = await db.mark_notification_read(notification_id, read=read)
         if not success:
             raise HTTPException(status_code=404, detail="Notification not found")
-        return JSONResponse({"success": True})
+        return JSONResponse({"success": True, "read": read})
 
 
 @app.post("/api/notifications/read-all")
