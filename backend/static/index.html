@@ -4883,7 +4883,7 @@
                     const variacao = bid.variacao ? `+€${bid.variacao.toLocaleString()}` : '';
 
                     // Time ago
-                    const created = new Date(bid.created_at);
+                    const created = new Date(bid.timestamp);
                     const now = new Date();
                     const diffMs = now - created;
                     const diffMins = Math.floor(diffMs / 60000);

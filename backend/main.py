@@ -1386,11 +1386,27 @@ async def get_stats_by_distrito(limit: int = 5):
 
 
 @app.get("/api/dashboard/recent-bids")
-async def get_recent_bids(limit: int = 20):
-    """Get recent price changes for dashboard"""
-    async with get_db() as db:
-        bids = await db.get_recent_price_changes(limit=limit)
-        return JSONResponse(bids)
+async def get_recent_bids(limit: int = 30):
+    """Get recent price changes from JSON history file"""
+    from price_history import get_recent_changes
+    bids = await get_recent_changes(limit=limit)
+    return JSONResponse(bids)
+
+
+@app.get("/api/dashboard/price-history/{reference}")
+async def get_price_history(reference: str):
+    """Get complete price history for a specific event"""
+    from price_history import get_event_history
+    history = await get_event_history(reference)
+    return JSONResponse(history)
+
+
+@app.get("/api/dashboard/price-history-stats")
+async def get_price_history_stats():
+    """Get statistics about price history tracking"""
+    from price_history import get_stats
+    stats = await get_stats()
+    return JSONResponse(stats)
 
 
 @app.post("/api/db/fix-nulls")
