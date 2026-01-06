@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      10.5
-// @description  v10.5 - Clean icons without outline, same size as native
+// @version      11.0
+// @description  v11.0 - Side-by-side card layout: Values | Details
 // @author       Nuno Mansilhas
 // @match        https://e-leiloes.pt/*
 // @match        https://www.e-leiloes.pt/*
@@ -336,74 +336,96 @@
             flex-shrink: 0 !important;
         }
 
-        /* Zone: Values (VB/VA/VM) - COMPACT LAYOUT */
-        .p-evento[data-better-enhanced="true"] .better-valores-row {
+        /* ============================================ */
+        /* SIDE-BY-SIDE CONTENT GRID                   */
+        /* ============================================ */
+
+        .p-evento[data-better-enhanced="true"] .better-content-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            padding: 6px 8px;
             background: white;
-            padding: 4px 4px 2px 4px;
-            gap: 3px;
             border-top: 1px solid #f3f4f6;
-            display: flex;
-            justify-content: center;
-            align-items: center;
             transition: background-color 0.2s ease;
         }
 
-        .p-evento[data-better-enhanced="true"]:hover .better-valores-row {
+        .p-evento[data-better-enhanced="true"]:hover .better-content-grid {
             background: #f9fafb !important;
         }
 
-        .p-evento[data-better-enhanced="true"] .better-valor-item {
-            background: #f9fafb;
-            border: 1px solid #e5e7eb;
-            border-radius: 4px;
-            padding: 3px 5px;
-            min-width: 70px;
+        /* Left column: Values stacked */
+        .p-evento[data-better-enhanced="true"] .better-values-col {
             display: flex;
             flex-direction: column;
-            align-items: center;
-            gap: 0px;
+            gap: 3px;
         }
 
-        .p-evento[data-better-enhanced="true"] .better-valor-label {
+        .p-evento[data-better-enhanced="true"] .better-value-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 2px 6px;
+            background: #f9fafb;
+            border-radius: 4px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .p-evento[data-better-enhanced="true"] .better-value-row.highlight {
+            background: #fef3c7;
+            border-color: #fcd34d;
+        }
+
+        .p-evento[data-better-enhanced="true"] .better-value-label {
             color: #6b7280;
-            font-size: 8px;
+            font-size: 9px;
             font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: 0.3px;
         }
 
-        .p-evento[data-better-enhanced="true"] .better-valor-amount {
+        .p-evento[data-better-enhanced="true"] .better-value-amount {
             color: #111827;
             font-size: 10px;
             font-weight: 700;
             font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
-            white-space: nowrap;
         }
 
-        /* Zone: Lance - compact */
-        .p-evento[data-better-enhanced="true"] .better-lance-row {
-            padding: 2px 4px 4px 4px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background: white;
-            transition: background-color 0.2s ease;
-        }
-
-        .p-evento[data-better-enhanced="true"]:hover .better-lance-row {
-            background: #f9fafb !important;
-        }
-
-        .p-evento[data-better-enhanced="true"] .better-valor-item.lance-atual {
-            background: #fef3c7;
-            border-color: #fcd34d;
-            min-width: 90px;
-            padding: 4px 10px;
-        }
-
-        .p-evento[data-better-enhanced="true"] .better-valor-item.lance-atual .better-valor-amount {
-            font-size: 11px;
+        .p-evento[data-better-enhanced="true"] .better-value-row.highlight .better-value-amount {
             color: #92400e;
+        }
+
+        /* Right column: Details */
+        .p-evento[data-better-enhanced="true"] .better-details-col {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .p-evento[data-better-enhanced="true"] .better-detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 2px 6px;
+            background: #f0f9ff;
+            border-radius: 4px;
+            border: 1px solid #bae6fd;
+        }
+
+        .p-evento[data-better-enhanced="true"] .better-detail-label {
+            color: #0369a1;
+            font-size: 9px;
+            font-weight: 600;
+        }
+
+        .p-evento[data-better-enhanced="true"] .better-detail-value {
+            color: #0c4a6e;
+            font-size: 10px;
+            font-weight: 500;
+            text-align: right;
+            max-width: 70px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         /* Zone: Countdown - compact, always at bottom */
@@ -422,54 +444,8 @@
         .p-evento[data-better-enhanced="true"] .native-ref-prefix.np { color: #f59e0b !important; }
 
         /* ============================================ */
-        /* VALORES E COUNTDOWN BASE                    */
+        /* COUNTDOWN BASE                              */
         /* ============================================ */
-
-        .better-valores-row {
-            display: flex;
-            flex-wrap: nowrap;
-            justify-content: center;
-        }
-
-        .better-valor-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 2px;
-        }
-
-        .better-valor-label {
-            font-weight: 600;
-        }
-
-        .better-valor-amount {
-            font-weight: 700;
-        }
-
-        /* Lance row - separate centered row */
-        .better-lance-row {
-            display: flex;
-            justify-content: center;
-            padding: 6px 12px;
-            background: white;
-        }
-
-        /* Countdown - Row 5 (locked to bottom) */
-        .better-countdown-row {
-            padding: 8px 12px;
-            background: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-top: auto;
-            border-radius: 0 0 16px 16px;
-        }
-
-        /* Card flex layout - countdown wrapper is direct child */
-        .p-evento[data-better-enhanced="true"] {
-            display: flex;
-            flex-direction: column;
-        }
 
         .better-countdown {
             display: flex;
@@ -955,20 +931,47 @@
                 });
             }
 
-            // Values - VB/VA/VM in one row, Lance in separate row (API v2 format)
-            let valoresHTML = '';
-            const topItems = [];
-            if (apiData.valor_base) topItems.push(`<div class="better-valor-item"><span class="better-valor-label">VB:</span><span class="better-valor-amount">${formatCurrency(apiData.valor_base)}</span></div>`);
-            if (apiData.valor_abertura) topItems.push(`<div class="better-valor-item"><span class="better-valor-label">VA:</span><span class="better-valor-amount">${formatCurrency(apiData.valor_abertura)}</span></div>`);
-            if (apiData.valor_minimo) topItems.push(`<div class="better-valor-item"><span class="better-valor-label">VM:</span><span class="better-valor-amount">${formatCurrency(apiData.valor_minimo)}</span></div>`);
+            // Values - Side-by-side layout: Values (left) | Details (right)
+            // Left column: VB, VA, VM, Lance stacked
+            let valuesHTML = '';
+            if (apiData.valor_base) valuesHTML += `<div class="better-value-row"><span class="better-value-label">VB</span><span class="better-value-amount">${formatCurrency(apiData.valor_base)}</span></div>`;
+            if (apiData.valor_abertura) valuesHTML += `<div class="better-value-row"><span class="better-value-label">VA</span><span class="better-value-amount">${formatCurrency(apiData.valor_abertura)}</span></div>`;
+            if (apiData.valor_minimo) valuesHTML += `<div class="better-value-row"><span class="better-value-label">VM</span><span class="better-value-amount">${formatCurrency(apiData.valor_minimo)}</span></div>`;
+            valuesHTML += `<div class="better-value-row highlight"><span class="better-value-label">Lance</span><span class="better-value-amount">${apiData.lance_atual ? formatCurrency(apiData.lance_atual) : '0 €'}</span></div>`;
 
-            const lanceHTML = `<div class="better-lance-row"><div class="better-valor-item lance-atual"><span class="better-valor-label">Lance:</span><span class="better-valor-amount">${apiData.lance_atual ? formatCurrency(apiData.lance_atual) : '0 €'}</span></div></div>`;
+            // Right column: Dynamic details based on event type
+            let detailsHTML = '';
+            const tipoId = apiData.tipo_id || 0;
+            const isImovel = tipoId === 1 || (apiData.tipo && apiData.tipo.toLowerCase().includes('imov'));
+            const isVeiculo = tipoId === 2 || (apiData.tipo && (apiData.tipo.toLowerCase().includes('veic') || apiData.tipo.toLowerCase().includes('auto')));
 
-            if (topItems.length > 0) {
-                valoresHTML = `<div class="better-valores-row">${topItems.join('')}</div>${lanceHTML}`;
+            if (isImovel) {
+                // Imóvel: Tipologia, Área, Subtipo
+                if (apiData.tipologia) detailsHTML += `<div class="better-detail-row"><span class="better-detail-label">Tipo</span><span class="better-detail-value">${apiData.tipologia}</span></div>`;
+                if (apiData.area_util) detailsHTML += `<div class="better-detail-row"><span class="better-detail-label">Área</span><span class="better-detail-value">${apiData.area_util} m²</span></div>`;
+                else if (apiData.area_bruta) detailsHTML += `<div class="better-detail-row"><span class="better-detail-label">Área</span><span class="better-detail-value">${apiData.area_bruta} m²</span></div>`;
+                if (apiData.subtipo) detailsHTML += `<div class="better-detail-row"><span class="better-detail-label">Subtipo</span><span class="better-detail-value">${apiData.subtipo}</span></div>`;
+            } else if (isVeiculo) {
+                // Veículo: Matrícula, Marca, Modelo
+                if (apiData.matricula) detailsHTML += `<div class="better-detail-row"><span class="better-detail-label">Matrícula</span><span class="better-detail-value">${apiData.matricula}</span></div>`;
+                if (apiData.marca) detailsHTML += `<div class="better-detail-row"><span class="better-detail-label">Marca</span><span class="better-detail-value">${apiData.marca}</span></div>`;
+                if (apiData.modelo) detailsHTML += `<div class="better-detail-row"><span class="better-detail-label">Modelo</span><span class="better-detail-value">${apiData.modelo}</span></div>`;
+                if (apiData.subtipo && !apiData.marca) detailsHTML += `<div class="better-detail-row"><span class="better-detail-label">Tipo</span><span class="better-detail-value">${apiData.subtipo}</span></div>`;
             } else {
-                valoresHTML = lanceHTML;
+                // Other: Subtipo, Tipo
+                if (apiData.subtipo) detailsHTML += `<div class="better-detail-row"><span class="better-detail-label">Subtipo</span><span class="better-detail-value">${apiData.subtipo}</span></div>`;
+                if (apiData.tipo) detailsHTML += `<div class="better-detail-row"><span class="better-detail-label">Tipo</span><span class="better-detail-value">${apiData.tipo}</span></div>`;
             }
+            // Always add location if available
+            if (apiData.concelho) detailsHTML += `<div class="better-detail-row"><span class="better-detail-label">Local</span><span class="better-detail-value" title="${apiData.concelho}${apiData.distrito ? ', ' + apiData.distrito : ''}">${apiData.concelho}</span></div>`;
+            else if (apiData.distrito) detailsHTML += `<div class="better-detail-row"><span class="better-detail-label">Distrito</span><span class="better-detail-value">${apiData.distrito}</span></div>`;
+
+            // Fallback if no details found
+            if (!detailsHTML) {
+                if (apiData.tipo) detailsHTML += `<div class="better-detail-row"><span class="better-detail-label">Tipo</span><span class="better-detail-value">${apiData.tipo}</span></div>`;
+            }
+
+            const valoresHTML = `<div class="better-content-grid"><div class="better-values-col">${valuesHTML}</div><div class="better-details-col">${detailsHTML}</div></div>`;
 
             // Countdown (API v2: data_fim)
             let countdownHTML = '';
@@ -1115,7 +1118,7 @@
     }
 
     function init() {
-        console.log('🚀 Better E-Leilões Card Enhancer v10.5 - Clean Icons Native Size');
+        console.log('🚀 Better E-Leilões Card Enhancer v11.0 - Side-by-side Values | Details');
 
         integrateWithNativeFloatingButtons();
         enhanceAllCards();
@@ -1124,7 +1127,7 @@
 
         observer.observe(document.body, { childList: true, subtree: true });
 
-        console.log('✅ Card enhancer v10.5 ativo!');
+        console.log('✅ Card enhancer v11.0 ativo!');
     }
 
     if (document.readyState === 'loading') {
