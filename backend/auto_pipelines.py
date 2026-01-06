@@ -1292,6 +1292,18 @@ class AutoPipelinesManager:
                                             'valor_base': event.valor_base,
                                             'data_fim': new_end
                                         }, db)
+
+                                        # Broadcast event_ended via SSE
+                                        from main import broadcast_price_update
+                                        await broadcast_price_update({
+                                            "type": "event_ended",
+                                            "reference": event.reference,
+                                            "titulo": event.titulo,
+                                            "tipo": event.tipo,
+                                            "final_price": data.get('lanceAtual') or event.lance_atual,
+                                            "valor_base": event.valor_base,
+                                            "timestamp": datetime.now().isoformat()
+                                        })
                                 else:
                                     # Not in API results = likely 404/not found
                                     await db.update_event_fields(
@@ -1312,6 +1324,18 @@ class AutoPipelinesManager:
                                         'valor_base': event.valor_base,
                                         'data_fim': event.data_fim
                                     }, db)
+
+                                    # Broadcast event_ended via SSE
+                                    from main import broadcast_price_update
+                                    await broadcast_price_update({
+                                        "type": "event_ended",
+                                        "reference": event.reference,
+                                        "titulo": event.titulo,
+                                        "tipo": event.tipo,
+                                        "final_price": event.lance_atual,
+                                        "valor_base": event.valor_base,
+                                        "timestamp": datetime.now().isoformat()
+                                    })
 
                             except Exception as e:
                                 print(f"    ❌ Erro {event.reference}: {str(e)[:50]}")

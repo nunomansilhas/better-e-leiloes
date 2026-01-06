@@ -8268,6 +8268,24 @@
                         if (currentPage === 'alertas') {
                             loadNotifications();
                         }
+                    } else if (data.type === 'event_ended') {
+                        // Show toast notification for ended event
+                        const finalPrice = data.final_price?.toLocaleString() || '0';
+                        const titulo = data.titulo?.substring(0, 50) || data.reference;
+
+                        showToast(
+                            `🏁 Leilão Terminado`,
+                            `${data.reference}: ${titulo}... - Preço final: €${finalPrice}`,
+                            'info'
+                        );
+
+                        // Update badge instantly
+                        updateNotificationBadge();
+
+                        // If on alertas page, refresh notifications
+                        if (currentPage === 'alertas') {
+                            loadNotifications();
+                        }
                     } else if (data.type === 'connected') {
                         console.log('🔴 SSE:', data.message);
                     }
