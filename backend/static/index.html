@@ -4240,10 +4240,19 @@
                     if (!response.ok) throw new Error('Event not found');
                     const apiEvent = await response.json();
 
+                    // Extract images from fotos array (API returns {image, thumbnail} objects)
+                    let imagens = [];
+                    if (apiEvent.fotos && Array.isArray(apiEvent.fotos)) {
+                        imagens = apiEvent.fotos.map(f => f.image || f.thumbnail).filter(Boolean);
+                    }
+                    if (imagens.length === 0 && apiEvent.capa) {
+                        imagens = [apiEvent.capa];
+                    }
+
                     // Convert API response to expected format
                     event = {
                         reference: apiEvent.reference,
-                        imagens: apiEvent.imagens || [apiEvent.capa],
+                        imagens: imagens,
                         capa: apiEvent.capa,
                         tipoEvento: apiEvent.tipo_id === 1 ? 'imoveis' : 'veiculos',
                         detalhes: {
@@ -4357,9 +4366,12 @@
                         <span class="inspection-label">Valor Mínimo</span>
                         <span class="inspection-value ${event.valores?.valorMinimo ? 'price' : 'empty'}">${formatPrice(event.valores?.valorMinimo)}</span>
                     </div>
-                    <div class="inspection-row">
+                    <div class="inspection-row" style="display: flex; align-items: center;">
                         <span class="inspection-label">Lance Atual</span>
-                        <span class="inspection-value ${event.valores?.lanceAtual ? 'price' : 'empty'}">${formatPrice(event.valores?.lanceAtual)}</span>
+                        <span class="inspection-lance-atual-value" style="flex: 1;"><span class="inspection-value ${event.valores?.lanceAtual ? 'price' : 'empty'}">${formatPrice(event.valores?.lanceAtual)}</span></span>
+                        <button onclick="refreshModalPrice('${event.reference}')" style="background: none; border: none; padding: 4px; cursor: pointer; color: #64748b; display: flex; align-items: center; transition: color 0.2s;" title="Atualizar lance" onmouseover="this.style.color='#3b82f6'" onmouseout="this.style.color='#64748b'">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                        </button>
                     </div>
                 </div>
 
@@ -4519,10 +4531,73 @@
             counter.textContent = `${inspectionCurrentIndex + 1} / ${images.length}`;
         }
 
-        // Reload event from modal (wrapper function)
+        // Reload event from modal (refresh in-place)
         async function reloadEventFromModal(reference) {
-            closeInspectionModal();
-            await reloadEvent(reference);
+            try {
+                showToast('A atualizar...', 'A recolher dados mais recentes', 'info');
+
+                // Force fetch from API (bypass cache)
+                const response = await fetch(`${API_BASE}/api/events/${reference}?t=${Date.now()}`);
+                if (!response.ok) throw new Error('Failed to fetch');
+                const apiEvent = await response.json();
+
+                // Also try to get volatile data (latest price)
+                try {
+                    const volatileRes = await fetch(`${API_BASE}/api/volatile/${reference}`);
+                    if (volatileRes.ok) {
+                        const volatileData = await volatileRes.json();
+                        if (volatileData.lanceAtual) apiEvent.lance_atual = volatileData.lanceAtual;
+                        if (volatileData.dataFim) apiEvent.data_fim = volatileData.dataFim;
+                    }
+                } catch (e) { /* ignore volatile errors */ }
+
+                // Re-open modal with fresh data (will use API data since we clear cache entry)
+                const type = document.querySelector('.page.active')?.id;
+                if (allLoadedEvents[type]) {
+                    const idx = allLoadedEvents[type].findIndex(e => e.reference === reference);
+                    if (idx >= 0) {
+                        // Update cached entry with new lance_atual
+                        allLoadedEvents[type][idx].valores.lanceAtual = apiEvent.lance_atual;
+                        allLoadedEvents[type][idx].dataFim = apiEvent.data_fim;
+                    }
+                }
+
+                // Re-open modal (will rebuild with fresh data)
+                await openInspectionModal(reference);
+                showToast('Atualizado', 'Dados atualizados com sucesso', 'success');
+            } catch (error) {
+                console.error('Error reloading event:', error);
+                showToast('Erro', 'Não foi possível atualizar', 'error');
+            }
+        }
+
+        // Refresh only the price (lance atual) for modal
+        async function refreshModalPrice(reference) {
+            try {
+                const priceElement = document.querySelector('.inspection-lance-atual-value');
+                if (priceElement) {
+                    priceElement.innerHTML = '<span style="color: #94a3b8;">...</span>';
+                }
+
+                const response = await fetch(`${API_BASE}/api/volatile/${reference}`);
+                if (!response.ok) throw new Error('Failed to fetch');
+                const data = await response.json();
+
+                if (data.lanceAtual !== undefined && priceElement) {
+                    const formatted = new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(data.lanceAtual);
+                    priceElement.innerHTML = `<span class="inspection-value price">${formatted}</span>`;
+
+                    // Update stored event
+                    if (inspectionCurrentEvent) {
+                        inspectionCurrentEvent.valores.lanceAtual = data.lanceAtual;
+                    }
+
+                    showToast('Lance atualizado', formatted, 'success');
+                }
+            } catch (error) {
+                console.error('Error refreshing price:', error);
+                showToast('Erro', 'Não foi possível atualizar o lance', 'error');
+            }
         }
 
         // Close modal on escape key
