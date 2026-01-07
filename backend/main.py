@@ -1449,7 +1449,7 @@ async def get_price_history_stats():
 
 @app.get("/api/dashboard/recent-events")
 async def get_recent_events(limit: int = 20, days: int = 7):
-    """Get recently started events (sorted by data_inicio DESC)"""
+    """Get recently scraped events (sorted by scraped_at DESC)"""
     from sqlalchemy import select
     from database import EventDB
     from datetime import timedelta
@@ -1459,10 +1459,10 @@ async def get_recent_events(limit: int = 20, days: int = 7):
     async with get_db() as db:
         result = await db.session.execute(
             select(EventDB)
-            .where(EventDB.data_inicio >= cutoff)
+            .where(EventDB.scraped_at >= cutoff)
             .where(EventDB.cancelado == False)
             .where(EventDB.terminado == False)
-            .order_by(EventDB.data_inicio.desc())
+            .order_by(EventDB.scraped_at.desc())
             .limit(limit)
         )
         events = result.scalars().all()
@@ -1478,7 +1478,8 @@ async def get_recent_events(limit: int = 20, days: int = 7):
             "lance_atual": e.lance_atual,
             "valor_base": e.valor_base,
             "data_fim": e.data_fim.isoformat() if e.data_fim else None,
-            "data_inicio": e.data_inicio.isoformat() if e.data_inicio else None
+            "data_inicio": e.data_inicio.isoformat() if e.data_inicio else None,
+            "scraped_at": e.scraped_at.isoformat() if e.scraped_at else None
         } for e in events])
 
 
