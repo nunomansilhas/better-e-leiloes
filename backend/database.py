@@ -608,6 +608,18 @@ class DatabaseManager:
         event_db = result.scalar_one_or_none()
         return event_db.to_model() if event_db else None
 
+    async def get_events_batch(self, references: list) -> dict:
+        """Busca múltiplos eventos em UMA única query SQL - super rápido!"""
+        if not references:
+            return {}
+
+        result = await self.session.execute(
+            select(EventDB).where(EventDB.reference.in_(references))
+        )
+        events_db = result.scalars().all()
+
+        return {event.reference: event.to_model() for event in events_db}
+
     async def update_event_fields(self, reference: str, fields: dict) -> bool:
         """
         Update only specific fields of an event (partial update).

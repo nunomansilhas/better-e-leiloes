@@ -580,7 +580,7 @@ async def get_event(reference: str):
 async def get_events_batch(references: List[str] = Body(..., embed=True)):
     """
     Obtém múltiplos eventos de uma só vez (batch request).
-    Optimizado para a extensão Chrome - 1 request em vez de N.
+    Optimizado para a extensão Chrome - 1 request + 1 query SQL.
 
     - **references**: Lista de referências (ex: ["LO1234562024", "NP9876542024"])
 
@@ -593,23 +593,27 @@ async def get_events_batch(references: List[str] = Body(..., embed=True)):
         raise HTTPException(status_code=400, detail="Maximum 100 references per batch")
 
     events = {}
-    not_found = []
+    refs_to_fetch = []
 
-    async with get_db() as db:
-        for ref in references:
-            # Check cache first
-            cached = await cache_manager.get(ref)
-            if cached:
-                events[ref] = cached
-                continue
+    # Step 1: Check cache for all references
+    for ref in references:
+        cached = await cache_manager.get(ref)
+        if cached:
+            events[ref] = cached
+        else:
+            refs_to_fetch.append(ref)
 
-            # Check database
-            event = await db.get_event(ref)
-            if event:
+    # Step 2: Single SQL query for all missing refs
+    if refs_to_fetch:
+        async with get_db() as db:
+            db_events = await db.get_events_batch(refs_to_fetch)
+            for ref, event in db_events.items():
                 await cache_manager.set(ref, event)
                 events[ref] = event
-            else:
-                not_found.append(ref)
+
+    # Step 3: Identify not found
+    found_refs = set(events.keys())
+    not_found = [ref for ref in references if ref not in found_refs]
 
     return {"events": events, "not_found": not_found}
 
