@@ -5653,17 +5653,37 @@
             card.className = 'new-event-card';
             card.dataset.reference = e.reference;
             card.onclick = () => openNewEventModal(e.reference);
-            card.style.cssText = `
-                flex-shrink: 0;
-                width: 150px;
-                background: white;
-                border-radius: 10px;
-                overflow: hidden;
-                cursor: pointer;
-                transition: all 0.3s ease;
-                border: 1px solid #e2e8f0;
-                ${animate ? 'opacity: 0; transform: translateX(-20px);' : 'opacity: 1; transform: translateX(0);'}
-            `;
+
+            // For animation: start with 0 width to create push effect
+            if (animate) {
+                card.style.cssText = `
+                    flex-shrink: 0;
+                    max-width: 0;
+                    width: 150px;
+                    opacity: 0;
+                    overflow: hidden;
+                    background: white;
+                    border-radius: 10px;
+                    cursor: pointer;
+                    border: 1px solid #e2e8f0;
+                    margin-right: -10px;
+                    transition: max-width 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
+                                opacity 0.4s ease-out 0.1s,
+                                margin-right 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+                `;
+            } else {
+                card.style.cssText = `
+                    flex-shrink: 0;
+                    width: 150px;
+                    background: white;
+                    border-radius: 10px;
+                    overflow: hidden;
+                    cursor: pointer;
+                    transition: transform 0.2s ease, box-shadow 0.2s ease;
+                    border: 1px solid #e2e8f0;
+                `;
+            }
+
             card.innerHTML = `
                 <div style="height: 80px; background: ${hasImage ? `url('${e.capa}') center/cover` : 'linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%)'}; position: relative;">
                     ${!hasImage ? '<span style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 28px; opacity: 0.4;">🏠</span>' : ''}
@@ -5678,8 +5698,10 @@
                 </div>
             `;
 
-            card.onmouseover = () => { card.style.transform = 'translateY(-3px)'; card.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)'; };
-            card.onmouseout = () => { card.style.transform = ''; card.style.boxShadow = ''; };
+            if (!animate) {
+                card.onmouseover = () => { card.style.transform = 'translateY(-3px)'; card.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)'; };
+                card.onmouseout = () => { card.style.transform = ''; card.style.boxShadow = ''; };
+            }
 
             return card;
         }
@@ -5697,21 +5719,31 @@
             // Check if event already exists
             if (track.querySelector(`[data-reference="${eventData.reference}"]`)) return;
 
-            // Create and insert card at the beginning (with animation)
+            // Create card with animation enabled
             const card = createNewEventCard(eventData, true);
             track.insertBefore(card, track.firstChild);
 
-            // Scroll to start first
-            track.scrollTo({ left: 0, behavior: 'smooth' });
-
-            // Animate in with proper delay for smooth transition
+            // Trigger the push animation
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
-                    card.style.transition = 'opacity 0.4s ease-out, transform 0.4s ease-out';
+                    // Expand from 0 to full width - this pushes other cards
+                    card.style.maxWidth = '150px';
+                    card.style.marginRight = '0';
                     card.style.opacity = '1';
-                    card.style.transform = 'translateX(0)';
+                    card.style.overflow = 'hidden';
+
+                    // After animation completes, enable hover effects
+                    setTimeout(() => {
+                        card.style.transition = 'transform 0.2s ease, box-shadow 0.2s ease';
+                        card.style.overflow = 'hidden';
+                        card.onmouseover = () => { card.style.transform = 'translateY(-3px)'; card.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)'; };
+                        card.onmouseout = () => { card.style.transform = ''; card.style.boxShadow = ''; };
+                    }, 600);
                 });
             });
+
+            // Scroll to start to see new event
+            track.scrollTo({ left: 0, behavior: 'smooth' });
 
             // Update count
             const currentCount = parseInt(countBadge?.textContent || '0');
