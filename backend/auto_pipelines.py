@@ -511,8 +511,8 @@ class AutoPipelinesManager:
                                 # Update event in database - only update price if we got a valid one
                                 if price_changed and new_price is not None:
                                     event.lance_atual = new_price
-                                    # Record to price history JSON
-                                    await record_price_change(event.reference, new_price, old_price)
+                                    # Record to price history DB
+                                    await record_price_change(event.reference, new_price, old_price, source='xmonitor')
                                 if time_extended and new_end is not None:
                                     event.data_fim = new_end
 
@@ -794,8 +794,8 @@ class AutoPipelinesManager:
                                 # Update event - only update price if we got a valid one
                                 if price_changed and new_price is not None:
                                     event.lance_atual = new_price
-                                    # Record to price history JSON
-                                    await record_price_change(event.reference, new_price, old_price)
+                                    # Record to price history DB
+                                    await record_price_change(event.reference, new_price, old_price, source='xmonitor')
                                 if time_extended and new_end is not None:
                                     event.data_fim = new_end
 
@@ -967,8 +967,8 @@ class AutoPipelinesManager:
                                 # Update event - only update price if we got a valid one
                                 if price_changed and new_price is not None:
                                     event.lance_atual = new_price
-                                    # Record to price history JSON
-                                    await record_price_change(event.reference, new_price, old_price)
+                                    # Record to price history DB
+                                    await record_price_change(event.reference, new_price, old_price, source='xmonitor')
                                 if time_extended and new_end is not None:
                                     event.data_fim = new_end
 
@@ -1118,8 +1118,8 @@ class AutoPipelinesManager:
                             if price_changed or time_extended:
                                 if price_changed:
                                     event.lance_atual = new_price
-                                    # Record to price history JSON
-                                    await record_price_change(event.reference, new_price, old_price)
+                                    # Record to price history DB
+                                    await record_price_change(event.reference, new_price, old_price, source='xmonitor')
                                 if time_extended:
                                     event.data_fim = new_end
 
@@ -1300,7 +1300,7 @@ class AutoPipelinesManager:
 
                                     # Check for price change and record it
                                     if new_price is not None and old_price != new_price:
-                                        await record_price_change(event.reference, new_price, old_price)
+                                        await record_price_change(event.reference, new_price, old_price, source='ysync')
                                         print(f"    💰 Y-Sync: Preço alterado {event.reference}: {old_price} → {new_price}")
 
                                         # Process notification for price change

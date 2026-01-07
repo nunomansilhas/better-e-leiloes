@@ -1447,6 +1447,63 @@ async def get_price_history_stats():
     return JSONResponse(stats)
 
 
+@app.get("/api/dashboard/recent-price-changes")
+async def get_recent_price_changes(limit: int = 30, hours: int = 24):
+    """Get recent price changes from the database"""
+    from price_history import get_recent_changes
+    changes = await get_recent_changes(limit=limit, hours=hours)
+    return JSONResponse(changes)
+
+
+@app.post("/api/db/migrate-price-history")
+async def migrate_price_history_to_db():
+    """
+    Migrate price history from JSON file to database.
+    This is a one-time migration endpoint.
+    """
+    import json
+    from pathlib import Path
+    from price_history import migrate_from_json
+
+    json_path = Path(__file__).parent / "data" / "price_history.json"
+
+    if not json_path.exists():
+        return JSONResponse({
+            "success": False,
+            "message": "JSON file not found",
+            "records_imported": 0
+        })
+
+    try:
+        with open(json_path, 'r') as f:
+            json_data = json.load(f)
+
+        if not json_data:
+            return JSONResponse({
+                "success": True,
+                "message": "JSON file is empty, nothing to migrate",
+                "records_imported": 0
+            })
+
+        count = await migrate_from_json(json_data)
+
+        # Backup the old JSON file
+        backup_path = json_path.with_suffix('.json.bak')
+        json_path.rename(backup_path)
+
+        return JSONResponse({
+            "success": True,
+            "message": f"Successfully migrated {count} records. Old file backed up to {backup_path.name}",
+            "records_imported": count
+        })
+    except Exception as e:
+        return JSONResponse({
+            "success": False,
+            "message": f"Migration failed: {str(e)}",
+            "records_imported": 0
+        }, status_code=500)
+
+
 @app.get("/api/dashboard/recent-events")
 async def get_recent_events(limit: int = 20, days: int = 7):
     """Get recently scraped events (sorted by scraped_at DESC)"""
