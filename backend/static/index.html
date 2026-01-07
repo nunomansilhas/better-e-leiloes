@@ -3078,6 +3078,24 @@
                     </div>
                 </div>
 
+                <!-- New Events Banner -->
+                <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-radius: 12px; padding: 12px 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); grid-column: span 2; overflow: hidden;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 14px;">🆕</span>
+                            <span style="font-weight: 600; color: #f8fafc; font-size: 13px;">Novos Eventos</span>
+                            <span id="new-events-count" style="background: #3b82f6; color: white; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px;">0</span>
+                        </div>
+                        <div style="display: flex; gap: 6px;">
+                            <button onclick="scrollNewEvents('left')" style="background: rgba(255,255,255,0.1); border: none; width: 24px; height: 24px; border-radius: 6px; color: #94a3b8; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">‹</button>
+                            <button onclick="scrollNewEvents('right')" style="background: rgba(255,255,255,0.1); border: none; width: 24px; height: 24px; border-radius: 6px; color: #94a3b8; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">›</button>
+                        </div>
+                    </div>
+                    <div id="new-events-track" style="display: flex; gap: 12px; overflow-x: auto; scroll-behavior: smooth; padding-bottom: 4px; scrollbar-width: none; -ms-overflow-style: none;">
+                        <div style="color: #64748b; font-size: 11px; padding: 20px; white-space: nowrap;">A carregar novos eventos...</div>
+                    </div>
+                </div>
+
             </div>
         </div>
 
@@ -4725,7 +4743,8 @@
             await Promise.all([
                 loadEndingSoonWidget(),
                 loadRecentBidsWidget(),
-                loadDistrictBreakdownWidget()
+                loadDistrictBreakdownWidget(),
+                loadNewEventsWidget()
             ]);
         }
 
@@ -5406,6 +5425,72 @@
                 console.error('Erro ao carregar stats por distrito:', error);
                 container.innerHTML = '<div style="text-align: center; padding: 20px; color: #ef4444; font-size: 11px;">Erro</div>';
             }
+        }
+
+        // New Events Widget
+        async function loadNewEventsWidget() {
+            const track = document.getElementById('new-events-track');
+            const countBadge = document.getElementById('new-events-count');
+            if (!track) return;
+
+            try {
+                // Get newest events (sorted by data_inicio desc, limit 20)
+                const response = await fetch(`${API_BASE}/api/events?limit=20&sort=dataInicio_desc`);
+                const data = await response.json();
+                const events = data.events || [];
+
+                if (countBadge) countBadge.textContent = events.length;
+
+                if (events.length === 0) {
+                    track.innerHTML = '<div style="color: #64748b; font-size: 11px; padding: 20px; white-space: nowrap;">Nenhum evento novo</div>';
+                    return;
+                }
+
+                track.innerHTML = events.map(e => {
+                    const img = e.fotos?.[0]?.thumbnail || e.fotos?.[0]?.image || 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%23334155" width="100" height="100"/><text x="50" y="55" text-anchor="middle" fill="%2394a3b8" font-size="12">Sem foto</text></svg>';
+                    const price = e.lance_atual || e.valor_base || 0;
+                    const refPrefix = e.reference?.substring(0, 2) || '';
+                    const prefixColor = refPrefix === 'LO' ? '#3b82f6' : '#f59e0b';
+                    const timeLeft = e.data_fim ? getTimeLeftShort(new Date(e.data_fim)) : '-';
+                    const tipo = e.tipo?.substring(0, 3) || '';
+
+                    return `
+                        <div onclick="window.open('https://e-leiloes.pt/evento/${e.reference}', '_blank')" style="flex-shrink: 0; width: 140px; background: rgba(255,255,255,0.05); border-radius: 8px; overflow: hidden; cursor: pointer; transition: all 0.2s; border: 1px solid rgba(255,255,255,0.1);" onmouseover="this.style.transform='translateY(-2px)'; this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.transform=''; this.style.background='rgba(255,255,255,0.05)'">
+                            <div style="height: 70px; background: url('${img}') center/cover; position: relative;">
+                                <span style="position: absolute; top: 4px; left: 4px; background: ${prefixColor}; color: white; font-size: 8px; font-weight: 700; padding: 2px 5px; border-radius: 4px;">${refPrefix}</span>
+                                <span style="position: absolute; bottom: 4px; right: 4px; background: rgba(0,0,0,0.7); color: white; font-size: 8px; padding: 2px 5px; border-radius: 4px;">${timeLeft}</span>
+                            </div>
+                            <div style="padding: 6px;">
+                                <div style="font-size: 10px; font-weight: 600; color: #f8fafc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${formatCurrency(price)}</div>
+                                <div style="font-size: 8px; color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${e.titulo || ''}">${e.distrito || tipo || '-'}</div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+            } catch (error) {
+                console.error('Erro ao carregar novos eventos:', error);
+                track.innerHTML = '<div style="color: #ef4444; font-size: 11px; padding: 20px;">Erro ao carregar</div>';
+            }
+        }
+
+        function scrollNewEvents(direction) {
+            const track = document.getElementById('new-events-track');
+            if (!track) return;
+            const scrollAmount = 300;
+            track.scrollBy({ left: direction === 'right' ? scrollAmount : -scrollAmount, behavior: 'smooth' });
+        }
+
+        function getTimeLeftShort(endDate) {
+            const now = new Date();
+            const diff = endDate - now;
+            if (diff <= 0) return 'Fim';
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            if (days > 0) return `${days}d`;
+            if (hours > 0) return `${hours}h`;
+            return `${mins}m`;
         }
 
         // Load dashboard widgets on page load and refresh periodically
