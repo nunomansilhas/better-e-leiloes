@@ -807,19 +807,12 @@
         console.log(`✅ ${cards.length} cards in ${(performance.now() - startTime).toFixed(0)}ms`);
     }
 
-    // Debounced observer to avoid excessive API calls
+    // Simple debounce - process ALL pending cards, never skip
     let enhanceTimeout = null;
-    let isEnhancing = false;
 
     const observer = new MutationObserver(() => {
-        if (isEnhancing) return;
-
         clearTimeout(enhanceTimeout);
-        enhanceTimeout = setTimeout(async () => {
-            isEnhancing = true;
-            await enhanceAllCards();
-            isEnhancing = false;
-        }, 100); // Debounce 100ms
+        enhanceTimeout = setTimeout(() => enhanceAllCards(), 50);
     });
 
     function updateAllCountdowns() {
