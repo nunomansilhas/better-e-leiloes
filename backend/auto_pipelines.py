@@ -1271,11 +1271,38 @@ class AutoPipelinesManager:
 
                                 if data:
                                     new_end = data.get('dataFim')
+                                    new_price = data.get('lanceAtual')
+                                    old_price = event.lance_atual
+
+                                    # Check for price change and record it
+                                    if new_price is not None and old_price != new_price:
+                                        await record_price_change(event.reference, new_price, old_price)
+                                        print(f"    💰 Y-Sync: Preço alterado {event.reference}: {old_price} → {new_price}")
+
+                                        # Process notification for price change
+                                        from notification_engine import get_notification_engine
+                                        notification_engine = get_notification_engine()
+                                        await notification_engine.process_price_change(event, old_price, new_price, db)
+
+                                        # Update price in DB
+                                        await db.update_event_fields(event.reference, {'lance_atual': new_price})
+
+                                        # Broadcast price update via SSE
+                                        from main import broadcast_price_update
+                                        await broadcast_price_update({
+                                            "type": "price_update",
+                                            "reference": event.reference,
+                                            "titulo": event.titulo,
+                                            "old_price": old_price,
+                                            "new_price": new_price,
+                                            "timestamp": datetime.now().isoformat()
+                                        })
+
                                     if new_end and new_end < now:
                                         # Only update specific fields, not full save
                                         await db.update_event_fields(
                                             event.reference,
-                                            {'terminado': True, 'cancelado': True, 'ativo': False}
+                                            {'terminado': True, 'cancelado': True, 'ativo': False, 'lance_atual': new_price or old_price}
                                         )
                                         await cache_manager.invalidate(event.reference)
                                         terminated_count += 1
@@ -1288,7 +1315,7 @@ class AutoPipelinesManager:
                                             'tipo': event.tipo,
                                             'subtipo': event.subtipo,
                                             'distrito': event.distrito,
-                                            'lance_atual': data.get('lanceAtual') or event.lance_atual,
+                                            'lance_atual': new_price or old_price,
                                             'valor_base': event.valor_base,
                                             'data_fim': new_end
                                         }, db)
@@ -1300,7 +1327,7 @@ class AutoPipelinesManager:
                                             "reference": event.reference,
                                             "titulo": event.titulo,
                                             "tipo": event.tipo,
-                                            "final_price": data.get('lanceAtual') or event.lance_atual,
+                                            "final_price": new_price or old_price,
                                             "valor_base": event.valor_base,
                                             "timestamp": datetime.now().isoformat()
                                         })
