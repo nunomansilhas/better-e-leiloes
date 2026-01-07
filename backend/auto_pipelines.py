@@ -205,10 +205,22 @@ class AutoPipelinesManager:
 
     def get_status(self) -> Dict[str, Any]:
         """Get status of all pipelines"""
-        # Calculate X-Monitor stats from cached events
-        critical_count = len(self._critical_events_cache) if self._critical_events_cache else 0
-        urgent_count = len(self._urgent_events_cache) if self._urgent_events_cache else 0
-        soon_count = len(self._soon_events_cache) if self._soon_events_cache else 0
+        # Calculate X-Monitor stats with EXCLUSIVE tier counts (no overlap)
+        now = datetime.now()
+        critical_count = 0
+        urgent_count = 0
+        soon_count = 0
+
+        # Count from soon cache (largest) and categorize by actual time remaining
+        for event in self._soon_events_cache or []:
+            if event.data_fim:
+                seconds = (event.data_fim - now).total_seconds()
+                if 0 < seconds <= 300:  # < 5 min = Critical
+                    critical_count += 1
+                elif 300 < seconds <= 3600:  # 5-60 min = Urgent
+                    urgent_count += 1
+                elif 3600 < seconds <= 86400:  # 1-24h = Soon
+                    soon_count += 1
 
         return {
             "pipelines": {k: asdict(v) for k, v in self.pipelines.items()},
