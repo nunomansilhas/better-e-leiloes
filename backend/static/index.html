@@ -5499,21 +5499,179 @@
         }
 
         // New Events Banner Functions
+        async function openNewEventModal(reference) {
+            try {
+                // Fetch full event data from API
+                const response = await fetch(`${API_BASE}/api/events/${reference}`);
+                if (!response.ok) throw new Error('Failed to fetch event');
+                const event = await response.json();
+
+                // Convert to expected format for inspection modal
+                const formattedEvent = {
+                    reference: event.reference,
+                    imagens: event.imagens || [event.capa],
+                    capa: event.capa,
+                    tipoEvento: event.tipo_id === 1 ? 'imoveis' : 'veiculos',
+                    detalhes: {
+                        tipo: event.tipo,
+                        subtipo: event.subtipo
+                    },
+                    valores: {
+                        valorBase: event.valor_base,
+                        valorAbertura: event.valor_abertura,
+                        valorMinimo: event.valor_minimo,
+                        lanceAtual: event.lance_atual
+                    },
+                    localizacao: {
+                        distrito: event.distrito,
+                        concelho: event.concelho,
+                        freguesia: event.freguesia,
+                        morada: event.morada
+                    },
+                    datas: {
+                        dataInicio: event.data_inicio,
+                        dataFim: event.data_fim
+                    },
+                    area: event.area_total,
+                    tipologia: event.tipologia,
+                    latitude: event.latitude,
+                    longitude: event.longitude
+                };
+
+                // Store and open modal
+                inspectionCurrentEvent = formattedEvent;
+                inspectionCurrentIndex = 0;
+
+                const modal = document.getElementById('inspection-modal');
+                const imagesContainer = document.getElementById('inspection-images');
+                const indicatorsContainer = document.getElementById('inspection-indicators');
+                const counter = document.getElementById('inspection-counter');
+                const details = document.getElementById('inspection-details');
+
+                // Build images
+                const images = formattedEvent.imagens && formattedEvent.imagens.length > 0 ? formattedEvent.imagens : [formattedEvent.capa || ''];
+                imagesContainer.innerHTML = images.map(img =>
+                    `<div class="inspection-carousel-image" style="background-image: url('${img || ''}')"></div>`
+                ).join('');
+
+                indicatorsContainer.innerHTML = images.map((_, idx) =>
+                    `<div class="inspection-carousel-indicator ${idx === 0 ? 'active' : ''}" onclick="inspectionGoTo(${idx})"></div>`
+                ).join('');
+
+                counter.textContent = `1 / ${images.length}`;
+
+                const prevBtn = document.querySelector('.inspection-carousel-nav.prev');
+                const nextBtn = document.querySelector('.inspection-carousel-nav.next');
+                if (images.length <= 1) {
+                    prevBtn.style.display = 'none';
+                    nextBtn.style.display = 'none';
+                    indicatorsContainer.style.display = 'none';
+                } else {
+                    prevBtn.style.display = 'flex';
+                    nextBtn.style.display = 'flex';
+                    indicatorsContainer.style.display = 'flex';
+                }
+
+                const typePrefix = formattedEvent.reference.substring(0, 2);
+                const typePrefixClass = typePrefix === 'LO' ? 'lo' : 'np';
+
+                const formatPrice = (price) => {
+                    if (!price) return 'N/A';
+                    return new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(price);
+                };
+
+                const formatDate = (dateStr) => {
+                    if (!dateStr) return 'N/A';
+                    const date = new Date(dateStr);
+                    return date.toLocaleString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                };
+
+                const getValue = (val) => val || 'N/A';
+
+                details.innerHTML = `
+                    <div class="inspection-header">
+                        <div class="inspection-ref">
+                            <span class="inspection-ref-prefix ${typePrefixClass}">${typePrefix}</span>
+                            <span class="inspection-ref-text">${formattedEvent.reference.substring(2)}</span>
+                        </div>
+                        <div class="inspection-type">${getValue(formattedEvent.detalhes?.tipo)} - ${getValue(formattedEvent.detalhes?.subtipo)}</div>
+                    </div>
+
+                    <div class="inspection-section">
+                        <div class="inspection-section-title">Valores</div>
+                        <div class="inspection-row">
+                            <span class="inspection-label">Valor Base</span>
+                            <span class="inspection-value price">${formatPrice(formattedEvent.valores?.valorBase)}</span>
+                        </div>
+                        <div class="inspection-row">
+                            <span class="inspection-label">Valor Mínimo</span>
+                            <span class="inspection-value price">${formatPrice(formattedEvent.valores?.valorMinimo)}</span>
+                        </div>
+                        <div class="inspection-row">
+                            <span class="inspection-label">Lance Atual</span>
+                            <span class="inspection-value price">${formatPrice(formattedEvent.valores?.lanceAtual)}</span>
+                        </div>
+                    </div>
+
+                    <div class="inspection-section">
+                        <div class="inspection-section-title">Localização</div>
+                        <div class="inspection-row">
+                            <span class="inspection-label">Distrito</span>
+                            <span class="inspection-value">${getValue(formattedEvent.localizacao?.distrito)}</span>
+                        </div>
+                        <div class="inspection-row">
+                            <span class="inspection-label">Concelho</span>
+                            <span class="inspection-value">${getValue(formattedEvent.localizacao?.concelho)}</span>
+                        </div>
+                        <div class="inspection-row">
+                            <span class="inspection-label">Freguesia</span>
+                            <span class="inspection-value">${getValue(formattedEvent.localizacao?.freguesia)}</span>
+                        </div>
+                    </div>
+
+                    <div class="inspection-section">
+                        <div class="inspection-section-title">Datas</div>
+                        <div class="inspection-row">
+                            <span class="inspection-label">Início</span>
+                            <span class="inspection-value">${formatDate(formattedEvent.datas?.dataInicio)}</span>
+                        </div>
+                        <div class="inspection-row">
+                            <span class="inspection-label">Fim</span>
+                            <span class="inspection-value">${formatDate(formattedEvent.datas?.dataFim)}</span>
+                        </div>
+                    </div>
+
+                    <div class="inspection-actions">
+                        <a href="https://e-leiloes.pt/evento/${formattedEvent.reference}" target="_blank" class="inspection-btn primary">Ver no E-Leilões</a>
+                        ${formattedEvent.latitude && formattedEvent.longitude ?
+                            `<a href="https://www.google.com/maps?q=${formattedEvent.latitude},${formattedEvent.longitude}" target="_blank" class="inspection-btn">Google Maps</a>` : ''}
+                    </div>
+                `;
+
+                modal.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            } catch (error) {
+                console.error('Error opening event modal:', error);
+                showToast('Erro', 'Não foi possível carregar os detalhes do evento', 'error');
+            }
+        }
+
         function createNewEventCard(e, animate = true) {
-            const price = e.lance_atual || e.valor_base || 0;
-            const priceStr = Number(price).toLocaleString('pt-PT', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + '€';
+            const valorMinimo = e.valor_minimo || e.valor_base || 0;
+            const priceStr = Number(valorMinimo).toLocaleString('pt-PT', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + '€';
             const refPrefix = e.reference?.substring(0, 2) || '';
             const prefixColor = refPrefix === 'LO' ? '#3b82f6' : '#f59e0b';
-            const timeLeft = e.data_fim ? getTimeLeftShort(new Date(e.data_fim)) : '-';
+            const location = [e.concelho, e.distrito].filter(Boolean).join(', ') || '-';
+            const hasImage = e.capa && e.capa.length > 0;
 
             const card = document.createElement('div');
             card.className = 'new-event-card';
             card.dataset.reference = e.reference;
-            card.onclick = () => window.open(`https://e-leiloes.pt/evento/${e.reference}`, '_blank');
+            card.onclick = () => openNewEventModal(e.reference);
             card.style.cssText = `
                 flex-shrink: 0;
-                width: 130px;
-                background: #f8fafc;
+                width: 150px;
+                background: white;
                 border-radius: 10px;
                 overflow: hidden;
                 cursor: pointer;
@@ -5522,18 +5680,20 @@
                 ${animate ? 'opacity: 0; transform: translateX(-20px);' : 'opacity: 1; transform: translateX(0);'}
             `;
             card.innerHTML = `
-                <div style="height: 65px; background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%); position: relative; display: flex; align-items: center; justify-content: center;">
-                    <span style="font-size: 24px; opacity: 0.5;">🏠</span>
-                    <span style="position: absolute; top: 4px; left: 4px; background: ${prefixColor}; color: white; font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 4px;">${refPrefix}</span>
-                    <span style="position: absolute; bottom: 4px; right: 4px; background: rgba(0,0,0,0.6); color: white; font-size: 9px; padding: 2px 6px; border-radius: 4px;">${timeLeft}</span>
+                <div style="height: 80px; background: ${hasImage ? `url('${e.capa}') center/cover` : 'linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%)'}; position: relative;">
+                    ${!hasImage ? '<span style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 28px; opacity: 0.4;">🏠</span>' : ''}
                 </div>
                 <div style="padding: 8px;">
-                    <div style="font-size: 12px; font-weight: 600; color: #1e293b;">${priceStr}</div>
-                    <div style="font-size: 10px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${e.distrito || '-'}</div>
+                    <div style="display: flex; align-items: center; gap: 4px; margin-bottom: 4px;">
+                        <span style="background: ${prefixColor}; color: white; font-size: 9px; font-weight: 700; padding: 2px 5px; border-radius: 3px;">${refPrefix}</span>
+                        <span style="font-size: 10px; color: #64748b; font-weight: 500;">${e.reference.substring(2)}</span>
+                    </div>
+                    <div style="font-size: 13px; font-weight: 600; color: #1e293b; margin-bottom: 2px;">${priceStr}</div>
+                    <div style="font-size: 10px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${location}">${location}</div>
                 </div>
             `;
 
-            card.onmouseover = () => { card.style.transform = 'translateY(-3px)'; card.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)'; };
+            card.onmouseover = () => { card.style.transform = 'translateY(-3px)'; card.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)'; };
             card.onmouseout = () => { card.style.transform = ''; card.style.boxShadow = ''; };
 
             return card;
