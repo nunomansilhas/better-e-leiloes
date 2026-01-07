@@ -3832,61 +3832,88 @@
             <div style="display: flex; flex-direction: column; gap: 24px; max-width: 800px;">
                 <!-- General Settings Section -->
                 <div class="scraper-control-card">
-                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
                         <span style="font-size: 16px;">🔧</span>
                         <span style="font-weight: 600; color: #1e293b;">Configurações Gerais</span>
                     </div>
 
-                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                         <!-- API Endpoint -->
-                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: #f8fafc; border-radius: 8px;">
-                            <div>
-                                <div style="font-weight: 500; color: #1e293b; font-size: 13px;">API Endpoint</div>
-                                <div style="font-size: 11px; color: #64748b;">URL do servidor backend</div>
-                            </div>
-                            <code style="padding: 6px 12px; background: #e2e8f0; border-radius: 6px; font-size: 12px; color: #334155;">http://localhost:8000</code>
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: #f8fafc; border-radius: 8px;">
+                            <div style="font-weight: 500; color: #1e293b; font-size: 12px;">API Endpoint</div>
+                            <code style="padding: 4px 8px; background: #e2e8f0; border-radius: 4px; font-size: 11px; color: #334155;">localhost:8000</code>
                         </div>
-
-                        <!-- Theme (placeholder) -->
-                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: #f8fafc; border-radius: 8px;">
-                            <div>
-                                <div style="font-weight: 500; color: #1e293b; font-size: 13px;">Tema</div>
-                                <div style="font-size: 11px; color: #64748b;">Aparência do dashboard</div>
-                            </div>
-                            <select style="padding: 6px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 12px; background: white;">
+                        <!-- Theme -->
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: #f8fafc; border-radius: 8px;">
+                            <div style="font-weight: 500; color: #1e293b; font-size: 12px;">Tema</div>
+                            <select style="padding: 4px 8px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 11px; background: white;">
                                 <option value="light">Claro</option>
-                                <option value="dark" disabled>Escuro (em breve)</option>
+                                <option value="dark" disabled>Escuro</option>
                             </select>
                         </div>
                     </div>
                 </div>
 
+                <!-- Browser Extensions Section -->
+                <div class="scraper-control-card" style="background: linear-gradient(135deg, #f0f9ff 0%, #fff 100%); border: 1px solid #bae6fd;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+                        <span style="font-size: 16px;">🧩</span>
+                        <span style="font-weight: 600; color: #0369a1;">Extensões Browser</span>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <!-- Chrome Extension -->
+                        <div style="padding: 16px; background: white; border-radius: 12px; border: 1px solid #e0f2fe; text-align: center;">
+                            <div style="width: 48px; height: 48px; margin: 0 auto 12px; background: linear-gradient(135deg, #4285f4, #1a73e8); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                                    <circle cx="12" cy="12" r="10" fill="none" stroke="white" stroke-width="2"/>
+                                    <circle cx="12" cy="12" r="4" fill="white"/>
+                                </svg>
+                            </div>
+                            <div style="font-weight: 600; color: #1e293b; font-size: 14px; margin-bottom: 4px;">Chrome Extension</div>
+                            <div style="font-size: 11px; color: #64748b; margin-bottom: 12px;">Extensão nativa Manifest V3</div>
+                            <a href="https://github.com/nunomansilhas/better-e-leiloes/tree/main/chrome-extension" target="_blank" style="display: inline-block; padding: 8px 16px; background: linear-gradient(135deg, #4285f4, #1a73e8); color: white; border-radius: 8px; font-size: 12px; font-weight: 500; text-decoration: none; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                                📥 Download
+                            </a>
+                        </div>
+
+                        <!-- Tampermonkey Script -->
+                        <div style="padding: 16px; background: white; border-radius: 12px; border: 1px solid #e0f2fe; text-align: center;">
+                            <div style="width: 48px; height: 48px; margin: 0 auto 12px; background: linear-gradient(135deg, #00485B, #006d75); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                                <span style="font-size: 24px;">🐒</span>
+                            </div>
+                            <div style="font-weight: 600; color: #1e293b; font-size: 14px; margin-bottom: 4px;">Tampermonkey Script</div>
+                            <div style="font-size: 11px; color: #64748b; margin-bottom: 12px;">Userscript para Tampermonkey</div>
+                            <a href="https://raw.githubusercontent.com/nunomansilhas/better-e-leiloes/main/betterE-Leiloes-CardEnhancer.user.js" target="_blank" style="display: inline-block; padding: 8px 16px; background: linear-gradient(135deg, #00485B, #006d75); color: white; border-radius: 8px; font-size: 12px; font-weight: 500; text-decoration: none; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                                📥 Instalar
+                            </a>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 12px; padding: 10px; background: #f0f9ff; border-radius: 8px; font-size: 11px; color: #0369a1; text-align: center;">
+                        💡 As extensões melhoram os cards no site e-leiloes.pt com carrossel, preços e countdown
+                    </div>
+                </div>
+
                 <!-- Data Management Section -->
                 <div class="scraper-control-card">
-                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
                         <span style="font-size: 16px;">💾</span>
                         <span style="font-weight: 600; color: #1e293b;">Gestão de Dados</span>
                     </div>
 
-                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                         <!-- Export Data -->
-                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: #f8fafc; border-radius: 8px;">
-                            <div>
-                                <div style="font-weight: 500; color: #1e293b; font-size: 13px;">Exportar Dados</div>
-                                <div style="font-size: 11px; color: #64748b;">Descarregar todos os eventos em JSON</div>
-                            </div>
-                            <button onclick="exportAllData()" style="padding: 8px 16px; background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; border: none; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer;">
-                                📥 Exportar
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: #f8fafc; border-radius: 8px;">
+                            <div style="font-weight: 500; color: #1e293b; font-size: 12px;">Exportar JSON</div>
+                            <button onclick="exportAllData()" style="padding: 6px 12px; background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; border: none; border-radius: 6px; font-size: 11px; font-weight: 500; cursor: pointer;">
+                                📥 Export
                             </button>
                         </div>
-
                         <!-- Clear Cache -->
-                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: #f8fafc; border-radius: 8px;">
-                            <div>
-                                <div style="font-weight: 500; color: #1e293b; font-size: 13px;">Limpar Cache</div>
-                                <div style="font-size: 11px; color: #64748b;">Remove dados em cache do Redis</div>
-                            </div>
-                            <button onclick="clearCache()" style="padding: 8px 16px; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; border: none; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: #f8fafc; border-radius: 8px;">
+                            <div style="font-weight: 500; color: #1e293b; font-size: 12px;">Limpar Cache</div>
+                            <button onclick="clearCache()" style="padding: 6px 12px; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; border: none; border-radius: 6px; font-size: 11px; font-weight: 500; cursor: pointer;">
                                 🗑️ Limpar
                             </button>
                         </div>
@@ -3895,34 +3922,24 @@
 
                 <!-- Danger Zone -->
                 <div class="scraper-control-card" style="border: 2px solid #fecaca; background: linear-gradient(135deg, #fef2f2 0%, #fff 100%);">
-                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
                         <span style="font-size: 16px;">⚠️</span>
                         <span style="font-weight: 600; color: #dc2626;">Zona de Perigo</span>
                     </div>
 
-                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                         <!-- Delete All Events -->
-                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px; background: white; border: 1px solid #fecaca; border-radius: 8px;">
-                            <div>
-                                <div style="font-weight: 500; color: #991b1b; font-size: 13px;">Apagar Todos os Eventos</div>
-                                <div style="font-size: 11px; color: #7f1d1d; line-height: 1.5;">
-                                    Esta ação irá <strong>apagar permanentemente TODOS os eventos</strong> da base de dados.<br>
-                                    Esta ação não pode ser revertida!
-                                </div>
-                            </div>
-                            <button onclick="confirmClearDatabase()" style="padding: 10px 20px; background: linear-gradient(135deg, #dc2626, #b91c1c); color: white; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap;">
-                                🗑️ Limpar Base de Dados
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: white; border: 1px solid #fecaca; border-radius: 8px;">
+                            <div style="font-weight: 500; color: #991b1b; font-size: 12px;">Apagar Eventos</div>
+                            <button onclick="confirmClearDatabase()" style="padding: 6px 12px; background: linear-gradient(135deg, #dc2626, #b91c1c); color: white; border: none; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap;">
+                                🗑️ Limpar BD
                             </button>
                         </div>
-
                         <!-- Delete All Notifications -->
-                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px; background: white; border: 1px solid #fecaca; border-radius: 8px;">
-                            <div>
-                                <div style="font-weight: 500; color: #991b1b; font-size: 13px;">Apagar Todas as Notificações</div>
-                                <div style="font-size: 11px; color: #7f1d1d;">Remove todas as notificações do histórico</div>
-                            </div>
-                            <button onclick="confirmDeleteAllNotifications()" style="padding: 10px 20px; background: linear-gradient(135deg, #f87171, #ef4444); color: white; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap;">
-                                🔔 Limpar Notificações
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: white; border: 1px solid #fecaca; border-radius: 8px;">
+                            <div style="font-weight: 500; color: #991b1b; font-size: 12px;">Apagar Alertas</div>
+                            <button onclick="confirmDeleteAllNotifications()" style="padding: 6px 12px; background: linear-gradient(135deg, #f87171, #ef4444); color: white; border: none; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap;">
+                                🔔 Limpar
                             </button>
                         </div>
                     </div>
