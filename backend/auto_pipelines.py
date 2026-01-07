@@ -1189,22 +1189,26 @@ class AutoPipelinesManager:
             from cache import CacheManager
             from pipeline_state import get_pipeline_state
 
-            # Skip if main pipeline is running
-            main_pipeline = get_pipeline_state()
-            if main_pipeline.is_active:
-                print(f"⏸️ Y-Sync skipped - main pipeline is running")
-                return
-
-            # Mark as running
-            self.pipelines['ysync'].is_running = True
-            self._save_config()
-
-            print(f"🔄 Y-Sync: A iniciar sincronização completa...")
-
-            scraper = EventScraper()
-            cache_manager = CacheManager()
+            scraper = None
+            cache_manager = None
+            skipped = False
 
             try:
+                # Skip if main pipeline is running
+                main_pipeline = get_pipeline_state()
+                if main_pipeline.is_active:
+                    print(f"⏸️ Y-Sync skipped - main pipeline is running")
+                    skipped = True
+                    return
+
+                # Mark as running
+                self.pipelines['ysync'].is_running = True
+                self._save_config()
+
+                print(f"🔄 Y-Sync: A iniciar sincronização completa...")
+
+                scraper = EventScraper()
+                cache_manager = CacheManager()
                 new_ids_count = 0
                 terminated_count = 0
 
@@ -1402,18 +1406,23 @@ class AutoPipelinesManager:
                     await cleanup_old_notifications(db, days=30)
 
             finally:
-                await scraper.close()
-                await cache_manager.close()
-                self.pipelines['ysync'].is_running = False
+                # Close resources if they were created
+                if scraper:
+                    await scraper.close()
+                if cache_manager:
+                    await cache_manager.close()
 
-                # Update pipeline stats AFTER completion (timer starts now)
-                pipeline = self.pipelines['ysync']
-                now = datetime.now()
-                pipeline.last_run = now.strftime("%Y-%m-%d %H:%M:%S")
-                pipeline.runs_count += 1
-                pipeline.next_run = (now + timedelta(hours=pipeline.interval_hours)).strftime("%Y-%m-%d %H:%M:%S")
-                self._save_config()
+                # Only update stats if we actually ran (not skipped)
+                if not skipped:
+                    self.pipelines['ysync'].is_running = False
+                    pipeline = self.pipelines['ysync']
+                    now = datetime.now()
+                    pipeline.last_run = now.strftime("%Y-%m-%d %H:%M:%S")
+                    pipeline.runs_count += 1
+                    pipeline.next_run = (now + timedelta(hours=pipeline.interval_hours)).strftime("%Y-%m-%d %H:%M:%S")
+                    self._save_config()
 
+                # ALWAYS reschedule - even if skipped
                 self._reschedule_pipeline('ysync')
 
         async def run_zwatch_pipeline():
@@ -1424,30 +1433,38 @@ class AutoPipelinesManager:
             from cache import CacheManager
             from pipeline_state import get_pipeline_state
 
-            # Skip if main pipeline is running
-            main_pipeline = get_pipeline_state()
-            if main_pipeline.is_active:
-                print(f"⏸️ Z-Watch skipped - main pipeline is running")
-                return
-
-            # Skip if Y-Sync is running (avoid duplicate work)
-            if self.pipelines.get('ysync') and self.pipelines['ysync'].is_running:
-                print(f"⏸️ Z-Watch skipped - Y-Sync is running")
-                return
-
-            # Mark as running
+            # Check if pipeline exists
             if 'zwatch' not in self.pipelines:
                 return
-            self.pipelines['zwatch'].is_running = True
-            self._save_config()
 
-            print(f"👁️ Z-Watch: A verificar EventosMaisRecentes...")
-
-            scraper = EventScraper()
-            cache_manager = CacheManager()
-            new_count = 0
+            scraper = None
+            cache_manager = None
+            skipped = False
 
             try:
+                # Skip if main pipeline is running
+                main_pipeline = get_pipeline_state()
+                if main_pipeline.is_active:
+                    print(f"⏸️ Z-Watch skipped - main pipeline is running")
+                    skipped = True
+                    return
+
+                # Skip if Y-Sync is running (avoid duplicate work)
+                if self.pipelines.get('ysync') and self.pipelines['ysync'].is_running:
+                    print(f"⏸️ Z-Watch skipped - Y-Sync is running")
+                    skipped = True
+                    return
+
+                # Mark as running
+                self.pipelines['zwatch'].is_running = True
+                self._save_config()
+
+                print(f"👁️ Z-Watch: A verificar EventosMaisRecentes...")
+
+                scraper = EventScraper()
+                cache_manager = CacheManager()
+                new_count = 0
+
                 # Call the EventosMaisRecentes API
                 async with httpx.AsyncClient(timeout=15.0, follow_redirects=True, verify=False) as client:
                     api_url = "https://www.e-leiloes.pt/api/EventosMaisRecentes/"
@@ -1539,18 +1556,23 @@ class AutoPipelinesManager:
             except Exception as e:
                 print(f"  ❌ Z-Watch erro: {str(e)[:100]}")
             finally:
-                await scraper.close()
-                await cache_manager.close()
-                self.pipelines['zwatch'].is_running = False
+                # Close resources if they were created
+                if scraper:
+                    await scraper.close()
+                if cache_manager:
+                    await cache_manager.close()
 
-                # Update pipeline stats
-                pipeline = self.pipelines['zwatch']
-                now = datetime.now()
-                pipeline.last_run = now.strftime("%Y-%m-%d %H:%M:%S")
-                pipeline.runs_count += 1
-                pipeline.next_run = (now + timedelta(hours=pipeline.interval_hours)).strftime("%Y-%m-%d %H:%M:%S")
-                self._save_config()
+                # Only update stats if we actually ran (not skipped)
+                if not skipped:
+                    self.pipelines['zwatch'].is_running = False
+                    pipeline = self.pipelines['zwatch']
+                    now = datetime.now()
+                    pipeline.last_run = now.strftime("%Y-%m-%d %H:%M:%S")
+                    pipeline.runs_count += 1
+                    pipeline.next_run = (now + timedelta(hours=pipeline.interval_hours)).strftime("%Y-%m-%d %H:%M:%S")
+                    self._save_config()
 
+                # ALWAYS reschedule - even if skipped
                 self._reschedule_pipeline('zwatch')
 
         # Return the appropriate function
