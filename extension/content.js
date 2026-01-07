@@ -533,12 +533,32 @@
     // OBSERVER & INIT
     // ====================================
 
-    function enhanceAllCards() {
-        document.querySelectorAll('.p-evento').forEach(card => enhanceCard(card));
+    // Process cards in parallel batches for better performance
+    async function enhanceAllCards() {
+        const cards = Array.from(document.querySelectorAll('.p-evento:not([data-better-enhanced])'));
+        if (cards.length === 0) return;
+
+        console.log(`🔄 Enhancing ${cards.length} cards in parallel...`);
+
+        // Process all cards in parallel (API should handle concurrent requests)
+        await Promise.all(cards.map(card => enhanceCard(card)));
+
+        console.log(`✅ Finished enhancing ${cards.length} cards`);
     }
 
+    // Debounced observer to avoid excessive API calls
+    let enhanceTimeout = null;
+    let isEnhancing = false;
+
     const observer = new MutationObserver(() => {
-        enhanceAllCards();
+        if (isEnhancing) return;
+
+        clearTimeout(enhanceTimeout);
+        enhanceTimeout = setTimeout(async () => {
+            isEnhancing = true;
+            await enhanceAllCards();
+            isEnhancing = false;
+        }, 100); // Debounce 100ms
     });
 
     function updateAllCountdowns() {
@@ -557,7 +577,7 @@
         await loadConfig();
 
         integrateWithNativeFloatingButtons();
-        enhanceAllCards();
+        await enhanceAllCards();
 
         setInterval(updateAllCountdowns, 1000);
 
