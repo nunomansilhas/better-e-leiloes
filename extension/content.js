@@ -295,6 +295,206 @@
         return null;
     }
 
+    // SYNC version - uses cached data directly, no await
+    function enhanceCardSync(card, apiData) {
+        if (card.dataset.betterEnhanced) return;
+        card.dataset.betterEnhanced = 'true';
+
+        const reference = extractReferenceFromCard(card);
+        if (!reference) return;
+
+        // If no data, just add sync button
+        if (!apiData || apiData._notFound) {
+            addActionButtons(card, reference, false, null);
+            return;
+        }
+
+        const eventUrl = `https://www.e-leiloes.pt/evento/${reference}`;
+        card.style.position = 'relative';
+
+        // Add action buttons
+        const hasGPS = apiData.latitude && apiData.longitude;
+        const gpsData = hasGPS ? { lat: apiData.latitude, lng: apiData.longitude } : null;
+        addActionButtons(card, reference, true, gpsData);
+
+        // Remove native links
+        card.querySelectorAll('a[href*="/evento/"]').forEach(link => {
+            link.removeAttribute('href');
+            link.style.pointerEvents = 'none';
+        });
+
+        // Color reference prefix
+        const nativeRefSpan = card.querySelector('.pi-tag + span');
+        if (nativeRefSpan) {
+            const refText = nativeRefSpan.textContent.trim();
+            const prefix = refText.substring(0, 2);
+            const rest = refText.substring(2);
+            nativeRefSpan.innerHTML = `<span class="native-ref-prefix ${prefix.toLowerCase()}">${prefix}</span>${rest}`;
+        }
+
+        // Remove borders from native divs
+        card.querySelectorAll('.w-full').forEach(div => {
+            div.classList.remove('border-1', 'surface-border', 'border-round');
+            div.style.border = 'none';
+        });
+
+        // Style map marker
+        const nativeMapMarker = card.querySelector('.pi-map-marker');
+        if (nativeMapMarker && hasGPS) {
+            const mapsUrl = `https://www.google.com/maps?q=${apiData.latitude},${apiData.longitude}`;
+            nativeMapMarker.classList.add('better-map-link');
+            nativeMapMarker.title = 'Ver no Google Maps';
+            nativeMapMarker.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                window.open(mapsUrl, '_blank', 'noopener,noreferrer');
+            });
+        }
+
+        // Carousel
+        const nativeImageDiv = card.querySelector('.p-evento-image');
+        const images = (apiData.fotos || [])
+            .slice(0, CONFIG.MAX_CAROUSEL_IMAGES)
+            .map(f => f.image || f.thumbnail || f)
+            .filter(Boolean);
+
+        if (nativeImageDiv && images.length > 0) {
+            nativeImageDiv.style.display = 'none';
+
+            const carousel = document.createElement('div');
+            carousel.className = 'better-carousel';
+            carousel.innerHTML = `
+                <div class="better-carousel-track">
+                    ${images.map((img, idx) => `<div class="better-carousel-slide" style="background-image: url('${img}');" data-index="${idx}"></div>`).join('')}
+                </div>
+                <div class="better-carousel-counter">${images.length} 📷</div>
+                ${images.length > 1 ? `
+                    <button class="better-carousel-nav prev">‹</button>
+                    <button class="better-carousel-nav next">›</button>
+                    <div class="better-carousel-dots">
+                        ${images.map((_, idx) => `<div class="better-carousel-dot ${idx === 0 ? 'active' : ''}" data-index="${idx}"></div>`).join('')}
+                    </div>
+                ` : ''}
+            `;
+
+            nativeImageDiv.parentNode.insertBefore(carousel, nativeImageDiv.nextSibling);
+
+            // Carousel navigation
+            const track = carousel.querySelector('.better-carousel-track');
+            const dots = carousel.querySelectorAll('.better-carousel-dot');
+            let currentSlide = 0;
+
+            function updateCarousel() {
+                track.style.transform = `translateX(-${currentSlide * 100}%)`;
+                dots.forEach((d, i) => d.classList.toggle('active', i === currentSlide));
+            }
+
+            if (images.length > 1) {
+                carousel.querySelector('.prev').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    currentSlide = (currentSlide - 1 + images.length) % images.length;
+                    updateCarousel();
+                });
+
+                carousel.querySelector('.next').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    currentSlide = (currentSlide + 1) % images.length;
+                    updateCarousel();
+                });
+
+                dots.forEach((dot, idx) => {
+                    dot.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        currentSlide = idx;
+                        updateCarousel();
+                    });
+                });
+            }
+
+            // Lightbox
+            carousel.querySelectorAll('.better-carousel-slide').forEach((slide, idx) => {
+                slide.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    openLightbox(images, idx);
+                });
+            });
+        }
+
+        // Values
+        let valuesHTML = '';
+        if (apiData.valor_base) valuesHTML += `<div class="better-value-row"><span class="better-value-label">VB</span><span class="better-value-amount">${formatCurrency(apiData.valor_base)}</span></div>`;
+        if (apiData.valor_abertura) valuesHTML += `<div class="better-value-row"><span class="better-value-label">VA</span><span class="better-value-amount">${formatCurrency(apiData.valor_abertura)}</span></div>`;
+        if (apiData.valor_minimo) valuesHTML += `<div class="better-value-row"><span class="better-value-label">VM</span><span class="better-value-amount">${formatCurrency(apiData.valor_minimo)}</span></div>`;
+        valuesHTML += `<div class="better-value-row highlight"><span class="better-value-label">Lance</span><span class="better-value-amount">${apiData.lance_atual ? formatCurrency(apiData.lance_atual) : '0 €'}</span></div>`;
+
+        // Details
+        let detailsHTML = '';
+        const tipoId = apiData.tipo_id || 0;
+        const isImovel = tipoId === 1 || (apiData.tipo && apiData.tipo.toLowerCase().includes('imov'));
+        const isVeiculo = tipoId === 2 || (apiData.tipo && (apiData.tipo.toLowerCase().includes('veic') || apiData.tipo.toLowerCase().includes('auto')));
+
+        if (isImovel) {
+            if (apiData.tipologia) detailsHTML += `<div class="better-detail-row"><span class="better-detail-label">Tipo</span><span class="better-detail-value">${apiData.tipologia}</span></div>`;
+            if (apiData.area_util) detailsHTML += `<div class="better-detail-row"><span class="better-detail-label">Área</span><span class="better-detail-value">${apiData.area_util} m²</span></div>`;
+            else if (apiData.area_bruta) detailsHTML += `<div class="better-detail-row"><span class="better-detail-label">Área</span><span class="better-detail-value">${apiData.area_bruta} m²</span></div>`;
+            if (apiData.subtipo) detailsHTML += `<div class="better-detail-row"><span class="better-detail-label">Subtipo</span><span class="better-detail-value">${apiData.subtipo}</span></div>`;
+        } else if (isVeiculo) {
+            if (apiData.matricula) detailsHTML += `<div class="better-detail-row"><span class="better-detail-label">Matrícula</span><span class="better-detail-value">${apiData.matricula}</span></div>`;
+            if (apiData.marca) detailsHTML += `<div class="better-detail-row"><span class="better-detail-label">Marca</span><span class="better-detail-value">${apiData.marca}</span></div>`;
+            if (apiData.modelo) detailsHTML += `<div class="better-detail-row"><span class="better-detail-label">Modelo</span><span class="better-detail-value">${apiData.modelo}</span></div>`;
+            if (apiData.subtipo && !apiData.marca) detailsHTML += `<div class="better-detail-row"><span class="better-detail-label">Tipo</span><span class="better-detail-value">${apiData.subtipo}</span></div>`;
+        } else {
+            if (apiData.subtipo) detailsHTML += `<div class="better-detail-row"><span class="better-detail-label">Subtipo</span><span class="better-detail-value">${apiData.subtipo}</span></div>`;
+            if (apiData.tipo) detailsHTML += `<div class="better-detail-row"><span class="better-detail-label">Tipo</span><span class="better-detail-value">${apiData.tipo}</span></div>`;
+        }
+
+        if (apiData.concelho) detailsHTML += `<div class="better-detail-row"><span class="better-detail-label">Local</span><span class="better-detail-value" title="${apiData.concelho}${apiData.distrito ? ', ' + apiData.distrito : ''}">${apiData.concelho}</span></div>`;
+        else if (apiData.distrito) detailsHTML += `<div class="better-detail-row"><span class="better-detail-label">Distrito</span><span class="better-detail-value">${apiData.distrito}</span></div>`;
+
+        if (!detailsHTML && apiData.tipo) {
+            detailsHTML += `<div class="better-detail-row"><span class="better-detail-label">Tipo</span><span class="better-detail-value">${apiData.tipo}</span></div>`;
+        }
+
+        const valoresHTML = `<div class="better-content-grid"><div class="better-values-col">${valuesHTML}</div><div class="better-details-col">${detailsHTML}</div></div>`;
+
+        // Countdown
+        let countdownHTML = '';
+        if (apiData.data_fim) {
+            const remaining = calculateTimeRemaining(apiData.data_fim);
+            if (remaining) {
+                countdownHTML = `
+                    <div class="better-countdown-row">
+                        <div class="better-countdown">
+                            <span class="better-countdown-icon">⏱️</span>
+                            <span class="better-countdown-text">Termina:</span>
+                            <span class="better-countdown-time ${remaining.isEnding ? 'ending-soon' : ''}" data-end="${apiData.data_fim}">${remaining.text}</span>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // Insert content
+        const wrapper = document.createElement('div');
+        wrapper.className = 'better-card-content';
+        wrapper.innerHTML = valoresHTML + countdownHTML;
+        card.appendChild(wrapper);
+
+        // Click handler
+        card.style.cursor = 'pointer';
+        card.addEventListener('click', (e) => {
+            if (e.target.closest('.pi-map-marker, .better-carousel-nav, .better-carousel-dot, .better-carousel-slide, .pi-star, .better-action-btn')) return;
+            e.preventDefault();
+            e.stopPropagation();
+            window.open(eventUrl, '_blank', 'noopener,noreferrer');
+        }, true);
+
+        card.addEventListener('contextmenu', (e) => {
+            e.stopPropagation();
+        }, true);
+    }
+
+    // Legacy async version for individual card refresh
     async function enhanceCard(card) {
         if (card.dataset.betterEnhanced) return;
         card.dataset.betterEnhanced = 'true';
@@ -576,39 +776,35 @@
     // OBSERVER & INIT
     // ====================================
 
-    // Process cards with SINGLE batch API request
+    // Process cards - INSTANT with batch fetch + sync enhancement
     async function enhanceAllCards() {
         const cards = Array.from(document.querySelectorAll('.p-evento:not([data-better-enhanced])'));
         if (cards.length === 0) return;
 
         const startTime = performance.now();
-        console.log(`🔄 Enhancing ${cards.length} cards...`);
 
-        // Step 1: Extract all references from cards
+        // Step 1: Extract all references
         const references = [];
-        const cardRefMap = new Map();
-
         cards.forEach(card => {
             const ref = extractReferenceFromCard(card);
             if (ref && !eventsCache[ref]) {
                 references.push(ref);
             }
-            if (ref) {
-                cardRefMap.set(card, ref);
-            }
         });
 
-        // Step 2: Fetch ALL events in ONE batch request
+        // Step 2: ONE batch request (only if cache miss)
         if (references.length > 0) {
-            console.log(`📡 Batch fetching ${references.length} events...`);
             await getEventsBatch(references);
         }
 
-        // Step 3: Enhance all cards (data is now cached)
-        await Promise.all(cards.map(card => enhanceCard(card)));
+        // Step 3: SYNC enhance all cards (no await, instant!)
+        cards.forEach(card => {
+            const ref = extractReferenceFromCard(card);
+            const apiData = ref ? eventsCache[ref] : null;
+            enhanceCardSync(card, apiData);
+        });
 
-        const elapsed = (performance.now() - startTime).toFixed(0);
-        console.log(`✅ Enhanced ${cards.length} cards in ${elapsed}ms`);
+        console.log(`✅ ${cards.length} cards in ${(performance.now() - startTime).toFixed(0)}ms`);
     }
 
     // Debounced observer to avoid excessive API calls
