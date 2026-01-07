@@ -77,6 +77,23 @@ async def broadcast_price_update(event_data: dict):
         sse_clients.discard(client)
 
 
+async def broadcast_new_event(event_data: dict):
+    """Broadcast a new event to all connected SSE clients"""
+    dead_clients = set()
+    for queue in sse_clients:
+        try:
+            await queue.put({
+                "type": "new_event",
+                **event_data
+            })
+        except:
+            dead_clients.add(queue)
+
+    # Remove disconnected clients
+    for client in dead_clients:
+        sse_clients.discard(client)
+
+
 def get_sse_clients():
     """Get the SSE clients set (for use in auto_pipelines)"""
     return sse_clients
@@ -142,14 +159,20 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS
+# CORS - Restrict to allowed origins
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.getenv("ALLOWED_ORIGINS", "*").split(","),
+    allow_origins=[o.strip() for o in allowed_origins],
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*", "X-Signature", "X-Timestamp"],  # Allow security headers
+    expose_headers=["X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Window"],
 )
+
+# Security middleware (Rate Limiting + HMAC Auth)
+from security import security_middleware
+app.middleware("http")(security_middleware)
 
 # Servir arquivos estáticos
 static_dir = os.path.join(os.path.dirname(__file__), "static")
@@ -173,6 +196,31 @@ async def health():
         "service": "E-Leiloes Data API",
         "version": "1.0.0"
     }
+
+
+@app.get("/api/security/stats")
+async def get_security_stats():
+    """Get security stats (rate limiting, etc.) - Admin only"""
+    from security import rate_limiter, RATE_LIMIT_REQUESTS, RATE_LIMIT_WINDOW, WHITELIST_IPS
+    return {
+        "rate_limiter": rate_limiter.get_stats(),
+        "config": {
+            "rate_limit_requests": RATE_LIMIT_REQUESTS,
+            "rate_limit_window": RATE_LIMIT_WINDOW,
+            "whitelist_ips": list(WHITELIST_IPS)
+        }
+    }
+
+
+@app.get("/api/security/auth.js")
+async def get_auth_script():
+    """Serve the frontend authentication helper script"""
+    from security import get_frontend_auth_script
+    from fastapi.responses import Response
+    return Response(
+        content=get_frontend_auth_script(),
+        media_type="application/javascript"
+    )
 
 
 @app.get("/api/pipeline/status")
@@ -1390,7 +1438,7 @@ async def get_stats_by_distrito(limit: int = 5):
 
 @app.get("/api/dashboard/recent-bids")
 async def get_recent_bids(limit: int = 30, hours: int = 24):
-    """Get recent price changes from JSON history file (last 24h by default)"""
+    """Get recent price changes from database (last 24h by default)"""
     from price_history import get_recent_changes
     bids = await get_recent_changes(limit=limit, hours=hours)
 
@@ -1398,18 +1446,22 @@ async def get_recent_bids(limit: int = 30, hours: int = 24):
     if bids:
         async with get_db() as db:
             references = [b["reference"] for b in bids]
-            # Get ativo status for all references
+            # Get ativo and data_fim status for all references
             from sqlalchemy import select
             from database import EventDB
             result = await db.session.execute(
-                select(EventDB.reference, EventDB.ativo)
+                select(EventDB.reference, EventDB.ativo, EventDB.data_fim)
                 .where(EventDB.reference.in_(references))
             )
-            ativo_map = {row.reference: row.ativo for row in result}
+            event_info = {row.reference: {"ativo": row.ativo, "data_fim": row.data_fim} for row in result}
 
-            # Add ativo to each bid
+            # Add ativo and data_fim to each bid
             for bid in bids:
-                bid["ativo"] = ativo_map.get(bid["reference"], True)
+                info = event_info.get(bid["reference"], {})
+                bid["ativo"] = info.get("ativo", True)
+                # Include data_fim as ISO string for frontend to check expiration locally
+                data_fim = info.get("data_fim")
+                bid["data_fim"] = data_fim.isoformat() if data_fim else None
 
     return JSONResponse(bids)
 
@@ -1428,6 +1480,116 @@ async def get_price_history_stats():
     from price_history import get_stats
     stats = await get_stats()
     return JSONResponse(stats)
+
+
+@app.get("/api/dashboard/recent-price-changes")
+async def get_recent_price_changes(limit: int = 30, hours: int = 24):
+    """Get recent price changes from the database"""
+    from price_history import get_recent_changes
+    changes = await get_recent_changes(limit=limit, hours=hours)
+    return JSONResponse(changes)
+
+
+@app.get("/api/dashboard/recent-events")
+async def get_recent_events(limit: int = 20, days: int = 7):
+    """Get recently scraped events (sorted by scraped_at DESC)"""
+    from sqlalchemy import select
+    from database import EventDB
+    from datetime import timedelta
+
+    cutoff = datetime.now() - timedelta(days=days)
+
+    async with get_db() as db:
+        result = await db.session.execute(
+            select(EventDB)
+            .where(EventDB.scraped_at >= cutoff)
+            .where(EventDB.cancelado == False)
+            .where(EventDB.terminado == False)
+            .order_by(EventDB.scraped_at.desc())
+            .limit(limit)
+        )
+        events = result.scalars().all()
+
+        return JSONResponse([{
+            "reference": e.reference,
+            "titulo": e.titulo,
+            "tipo": e.tipo,
+            "capa": e.capa,
+            "distrito": e.distrito,
+            "concelho": e.concelho,
+            "valor_minimo": e.valor_minimo,
+            "lance_atual": e.lance_atual,
+            "valor_base": e.valor_base,
+            "data_fim": e.data_fim.isoformat() if e.data_fim else None,
+            "data_inicio": e.data_inicio.isoformat() if e.data_inicio else None,
+            "scraped_at": e.scraped_at.isoformat() if e.scraped_at else None
+        } for e in events])
+
+
+@app.get("/api/volatile/{reference}")
+async def get_volatile_data(reference: str):
+    """
+    Get live volatile data (lanceAtual, dataFim) directly from e-leiloes.pt API.
+    Fast - no browser required!
+    """
+    import httpx
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True, verify=False) as client:
+            api_url = f"https://www.e-leiloes.pt/api/eventos/{reference}"
+            response = await client.get(api_url)
+
+            if response.status_code == 200:
+                data = response.json()
+                item = data.get('item', {})
+
+                if item:
+                    data_fim = None
+                    try:
+                        if item.get('dataFim'):
+                            data_fim = item['dataFim']
+                    except:
+                        pass
+
+                    return {
+                        "reference": reference,
+                        "lanceAtual": item.get('lanceAtual', 0),
+                        "dataFim": data_fim
+                    }
+
+            raise HTTPException(status_code=404, detail=f"Event not found: {reference}")
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=503, detail=f"Failed to fetch from e-leiloes.pt: {str(e)}")
+
+
+@app.get("/api/test/eventos-mais-recentes")
+async def test_eventos_mais_recentes():
+    """
+    Test endpoint to check EventosMaisRecentes API response.
+    """
+    import httpx
+
+    try:
+        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True, verify=False) as client:
+            api_url = "https://www.e-leiloes.pt/api/EventosMaisRecentes/"
+
+            headers = {
+                'Accept': 'application/json, text/plain, */*',
+                'Accept-Language': 'pt-PT,pt;q=0.9,en;q=0.8',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Referer': 'https://www.e-leiloes.pt/',
+                'Origin': 'https://www.e-leiloes.pt'
+            }
+
+            response = await client.get(api_url, headers=headers)
+
+            return {
+                "status_code": response.status_code,
+                "headers": dict(response.headers),
+                "data": response.json() if response.status_code == 200 else response.text[:500]
+            }
+    except Exception as e:
+        return {"error": str(e)}
 
 
 @app.post("/api/db/fix-nulls")
@@ -2059,7 +2221,7 @@ async def stream_events(
     )
 
 
-@app.get("/api/events/live")
+@app.get("/api/live/events")
 async def live_price_updates():
     """
     Server-Sent Events (SSE) endpoint for real-time price updates.

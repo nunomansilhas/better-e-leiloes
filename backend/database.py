@@ -294,6 +294,29 @@ class EventDB(Base):
 
 # ========== NOTIFICATION TABLES ==========
 
+class PriceHistoryDB(Base):
+    """
+    Histórico de preços de todos os eventos.
+    Guarda cada mudança de preço para análise e treino de AI.
+    """
+    __tablename__ = "price_history"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    reference: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+
+    # Preços
+    old_price: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # Null no primeiro registo
+    new_price: Mapped[float] = mapped_column(Float, nullable=False)
+
+    # Variação calculada
+    change_amount: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # new_price - old_price
+    change_percent: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # Percentagem de variação
+
+    # Metadados
+    recorded_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    source: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)  # 'xmonitor', 'ysync', 'zwatch', 'manual'
+
+
 class NotificationRuleDB(Base):
     """
     Regras de notificação configuráveis pelo utilizador
@@ -1247,6 +1270,226 @@ class DatabaseManager:
         )
         await self.session.commit()
         return result.rowcount
+
+    # ========== PRICE HISTORY ==========
+
+    async def record_price_change(
+        self,
+        reference: str,
+        new_price: float,
+        old_price: Optional[float] = None,
+        source: Optional[str] = None
+    ) -> Optional[int]:
+        """
+        Regista uma mudança de preço.
+        Se old_price não for fornecido, tenta buscar o último preço registado.
+        Só regista se o preço for diferente do último.
+
+        Returns:
+            ID do registo criado, ou None se não houve mudança
+        """
+        # Se old_price não foi fornecido, buscar o último preço registado
+        if old_price is None:
+            result = await self.session.execute(
+                select(PriceHistoryDB)
+                .where(PriceHistoryDB.reference == reference)
+                .order_by(PriceHistoryDB.recorded_at.desc())
+                .limit(1)
+            )
+            last_record = result.scalar_one_or_none()
+            if last_record:
+                old_price = last_record.new_price
+
+        # Se o preço não mudou, não registar
+        if old_price is not None and old_price == new_price:
+            return None
+
+        # Calcular variação
+        change_amount = None
+        change_percent = None
+        if old_price is not None and old_price > 0:
+            change_amount = new_price - old_price
+            change_percent = (change_amount / old_price) * 100
+
+        record = PriceHistoryDB(
+            reference=reference,
+            old_price=old_price,
+            new_price=new_price,
+            change_amount=change_amount,
+            change_percent=change_percent,
+            source=source
+        )
+        self.session.add(record)
+        await self.session.commit()
+        await self.session.refresh(record)
+        return record.id
+
+    async def get_event_price_history(self, reference: str) -> List[dict]:
+        """
+        Retorna o histórico completo de preços de um evento.
+        Ordenado do mais antigo para o mais recente.
+        """
+        result = await self.session.execute(
+            select(PriceHistoryDB)
+            .where(PriceHistoryDB.reference == reference)
+            .order_by(PriceHistoryDB.recorded_at.asc())
+        )
+        records = result.scalars().all()
+
+        return [{
+            "id": r.id,
+            "old_price": r.old_price,
+            "new_price": r.new_price,
+            "change_amount": r.change_amount,
+            "change_percent": r.change_percent,
+            "recorded_at": r.recorded_at.isoformat() if r.recorded_at else None,
+            "source": r.source
+        } for r in records]
+
+    async def get_recent_price_changes(self, limit: int = 30, hours: int = 24) -> List[dict]:
+        """
+        Retorna as mudanças de preço mais recentes (apenas onde houve mudança real).
+        Retorna apenas a última mudança por evento (sem duplicados).
+        """
+        from datetime import timedelta
+        from sqlalchemy import and_
+
+        cutoff = datetime.utcnow() - timedelta(hours=hours)
+
+        # Subquery para encontrar o registo mais recente por referência
+        subquery = (
+            select(
+                PriceHistoryDB.reference,
+                func.max(PriceHistoryDB.id).label('max_id')
+            )
+            .where(PriceHistoryDB.recorded_at >= cutoff)
+            .where(PriceHistoryDB.old_price.isnot(None))  # Só mudanças reais
+            .group_by(PriceHistoryDB.reference)
+            .subquery()
+        )
+
+        # Query principal
+        result = await self.session.execute(
+            select(PriceHistoryDB)
+            .join(subquery, and_(
+                PriceHistoryDB.reference == subquery.c.reference,
+                PriceHistoryDB.id == subquery.c.max_id
+            ))
+            .order_by(PriceHistoryDB.recorded_at.desc())
+            .limit(limit)
+        )
+        records = result.scalars().all()
+
+        return [{
+            "reference": r.reference,
+            "preco_anterior": r.old_price,
+            "preco_atual": r.new_price,
+            "variacao": r.change_amount,
+            "variacao_percent": r.change_percent,
+            "timestamp": r.recorded_at.isoformat() if r.recorded_at else None,
+            "source": r.source
+        } for r in records]
+
+    async def get_price_history_stats(self) -> dict:
+        """
+        Estatísticas do histórico de preços.
+        """
+        # Total de registos
+        total_result = await self.session.execute(
+            select(func.count(PriceHistoryDB.id))
+        )
+        total_records = total_result.scalar() or 0
+
+        # Eventos únicos
+        unique_result = await self.session.execute(
+            select(func.count(func.distinct(PriceHistoryDB.reference)))
+        )
+        unique_events = unique_result.scalar() or 0
+
+        # Mudanças reais (onde old_price não é null)
+        changes_result = await self.session.execute(
+            select(func.count(PriceHistoryDB.id))
+            .where(PriceHistoryDB.old_price.isnot(None))
+        )
+        real_changes = changes_result.scalar() or 0
+
+        # Eventos com pelo menos uma mudança
+        events_with_changes_result = await self.session.execute(
+            select(func.count(func.distinct(PriceHistoryDB.reference)))
+            .where(PriceHistoryDB.old_price.isnot(None))
+        )
+        events_with_changes = events_with_changes_result.scalar() or 0
+
+        # Registos por source
+        by_source_result = await self.session.execute(
+            select(PriceHistoryDB.source, func.count(PriceHistoryDB.id))
+            .group_by(PriceHistoryDB.source)
+        )
+        by_source = {source or 'unknown': count for source, count in by_source_result.all()}
+
+        return {
+            "total_records": total_records,
+            "unique_events": unique_events,
+            "real_changes": real_changes,
+            "events_with_changes": events_with_changes,
+            "by_source": by_source
+        }
+
+    async def get_all_price_history_references(self) -> List[str]:
+        """
+        Retorna todas as referências com histórico de preços.
+        """
+        result = await self.session.execute(
+            select(func.distinct(PriceHistoryDB.reference))
+        )
+        return list(result.scalars().all())
+
+    async def bulk_import_price_history(self, data: dict) -> int:
+        """
+        Importa histórico de preços em bulk (para migração do JSON).
+        data é um dict com reference como key e lista de {preco, timestamp} como value.
+
+        Returns:
+            Número de registos importados
+        """
+        count = 0
+        for reference, prices in data.items():
+            prev_price = None
+            for entry in prices:
+                price = entry.get("preco")
+                timestamp_str = entry.get("timestamp")
+
+                # Parse timestamp
+                try:
+                    if timestamp_str:
+                        recorded_at = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                    else:
+                        recorded_at = datetime.utcnow()
+                except:
+                    recorded_at = datetime.utcnow()
+
+                # Calcular variação
+                change_amount = None
+                change_percent = None
+                if prev_price is not None and prev_price > 0:
+                    change_amount = price - prev_price
+                    change_percent = (change_amount / prev_price) * 100
+
+                record = PriceHistoryDB(
+                    reference=reference,
+                    old_price=prev_price,
+                    new_price=price,
+                    change_amount=change_amount,
+                    change_percent=change_percent,
+                    recorded_at=recorded_at,
+                    source='migration'
+                )
+                self.session.add(record)
+                count += 1
+                prev_price = price
+
+        await self.session.commit()
+        return count
 
 
 @asynccontextmanager
