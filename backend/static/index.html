@@ -2989,6 +2989,10 @@
                             <div style="font-size: 9px; color: #64748b;">Y-Sync</div>
                             <div id="dash-ysync-timer" style="font-size: 10px; font-weight: 600; color: #1e40af;">--:--</div>
                         </div>
+                        <div onclick="showPage('scraping')" style="padding: 4px 8px; background: #f8fafc; border-radius: 4px; text-align: center; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#dcfce7'" onmouseout="this.style.background='#f8fafc'">
+                            <div style="font-size: 9px; color: #64748b;">Z-Watch</div>
+                            <div id="dash-zwatch-timer" style="font-size: 10px; font-weight: 600; color: #15803d;">--:--</div>
+                        </div>
                     </div>
                 </div>
 
@@ -3075,6 +3079,23 @@
                     </div>
                     <div id="dash-districts-breakdown" style="display: flex; flex-direction: column; gap: 8px;">
                         <div style="text-align: center; padding: 20px; color: #94a3b8; font-size: 12px;">A carregar...</div>
+                    </div>
+                </div>
+
+                <!-- New Events Banner -->
+                <div style="background: white; border-radius: 12px; padding: 12px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid #e5e7eb; grid-column: span 2; overflow: hidden;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-weight: 600; color: #1e293b; font-size: 13px;">Novos Eventos</span>
+                            <span id="new-events-count" style="background: #3b82f6; color: white; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px;">0</span>
+                        </div>
+                        <div style="display: flex; gap: 6px;">
+                            <button onclick="scrollNewEvents('left')" style="background: #f1f5f9; border: 1px solid #e2e8f0; width: 24px; height: 24px; border-radius: 6px; color: #64748b; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">‹</button>
+                            <button onclick="scrollNewEvents('right')" style="background: #f1f5f9; border: 1px solid #e2e8f0; width: 24px; height: 24px; border-radius: 6px; color: #64748b; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">›</button>
+                        </div>
+                    </div>
+                    <div id="new-events-track" style="display: flex; gap: 10px; overflow-x: auto; scroll-behavior: smooth; padding: 4px 0; scrollbar-width: none; -ms-overflow-style: none;">
+                        <div style="color: #94a3b8; font-size: 11px; padding: 20px; white-space: nowrap;">A carregar novos eventos...</div>
                     </div>
                 </div>
 
@@ -3727,8 +3748,8 @@
                         </div>
                     </div>
 
-                    <!-- Pipeline Grid (2 columns: X-Monitor + Y-Sync) -->
-                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+                    <!-- Pipeline Grid (3 columns: X-Monitor + Y-Sync + Z-Watch) -->
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
 
                         <!-- X-Monitor (Combined Critical/Urgent/Soon) -->
                         <div style="padding: 12px; background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border: 1px solid #fca5a5; border-radius: 10px;">
@@ -3768,6 +3789,24 @@
                             <div style="font-size: 10px; color: #1e3a8a; line-height: 1.4;">
                                 <div>🔍 Sync completo + Terminados</div>
                                 <div id="pipeline-timer-ysync-scraping" style="margin-top: 4px; font-weight: 600; color: #1e40af;">⏱️ --:--:--</div>
+                            </div>
+                        </div>
+
+                        <!-- Z-Watch -->
+                        <div style="padding: 12px; background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 1px solid #86efac; border-radius: 10px;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <span style="font-size: 14px;">👁️</span>
+                                    <span style="font-weight: 600; font-size: 12px; color: #15803d;">Z-Watch</span>
+                                </div>
+                                <label class="toggle-switch" style="transform: scale(0.85);">
+                                    <input type="checkbox" id="auto-pipeline-zwatch-scraping" onchange="toggleAutoPipeline('zwatch', this.checked)">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div style="font-size: 10px; color: #14532d; line-height: 1.4;">
+                                <div>🆕 Novos eventos (10min)</div>
+                                <div id="pipeline-timer-zwatch-scraping" style="margin-top: 4px; font-weight: 600; color: #15803d;">⏱️ --:--</div>
                             </div>
                         </div>
                     </div>
@@ -3832,61 +3871,125 @@
             <div style="display: flex; flex-direction: column; gap: 24px; max-width: 800px;">
                 <!-- General Settings Section -->
                 <div class="scraper-control-card">
-                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
                         <span style="font-size: 16px;">🔧</span>
                         <span style="font-weight: 600; color: #1e293b;">Configurações Gerais</span>
                     </div>
 
-                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                         <!-- API Endpoint -->
-                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: #f8fafc; border-radius: 8px;">
-                            <div>
-                                <div style="font-weight: 500; color: #1e293b; font-size: 13px;">API Endpoint</div>
-                                <div style="font-size: 11px; color: #64748b;">URL do servidor backend</div>
-                            </div>
-                            <code style="padding: 6px 12px; background: #e2e8f0; border-radius: 6px; font-size: 12px; color: #334155;">http://localhost:8000</code>
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: #f8fafc; border-radius: 8px;">
+                            <div style="font-weight: 500; color: #1e293b; font-size: 12px;">API Endpoint</div>
+                            <code style="padding: 4px 8px; background: #e2e8f0; border-radius: 4px; font-size: 11px; color: #334155;">localhost:8000</code>
                         </div>
-
-                        <!-- Theme (placeholder) -->
-                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: #f8fafc; border-radius: 8px;">
-                            <div>
-                                <div style="font-weight: 500; color: #1e293b; font-size: 13px;">Tema</div>
-                                <div style="font-size: 11px; color: #64748b;">Aparência do dashboard</div>
-                            </div>
-                            <select style="padding: 6px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 12px; background: white;">
+                        <!-- Theme -->
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: #f8fafc; border-radius: 8px;">
+                            <div style="font-weight: 500; color: #1e293b; font-size: 12px;">Tema</div>
+                            <select style="padding: 4px 8px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 11px; background: white;">
                                 <option value="light">Claro</option>
-                                <option value="dark" disabled>Escuro (em breve)</option>
+                                <option value="dark" disabled>Escuro</option>
                             </select>
                         </div>
                     </div>
                 </div>
 
+                <!-- Security Section -->
+                <div class="scraper-control-card" style="background: linear-gradient(135deg, #fef3c7 0%, #fff 100%); border: 1px solid #fbbf24;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                        <span style="font-size: 16px;">🔐</span>
+                        <span style="font-weight: 600; color: #92400e;">Segurança API</span>
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                        <!-- API Key Input -->
+                        <div style="display: flex; flex-direction: column; gap: 6px;">
+                            <label style="font-weight: 500; color: #1e293b; font-size: 12px;">Chave de Autenticação</label>
+                            <div style="display: flex; gap: 8px;">
+                                <input type="password" id="api-auth-key-input"
+                                    placeholder="Insira a chave API..."
+                                    style="flex: 1; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 12px; font-family: monospace;">
+                                <button onclick="toggleKeyVisibility()" style="padding: 10px 12px; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; cursor: pointer;" title="Mostrar/Esconder">
+                                    👁️
+                                </button>
+                                <button onclick="saveApiKey()" style="padding: 10px 16px; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; border: none; border-radius: 8px; font-weight: 500; font-size: 12px; cursor: pointer;">
+                                    💾 Guardar
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Status -->
+                        <div id="api-auth-status" style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: #f8fafc; border-radius: 8px;">
+                            <span id="api-auth-indicator" style="width: 8px; height: 8px; border-radius: 50%; background: #94a3b8;"></span>
+                            <span id="api-auth-text" style="font-size: 11px; color: #64748b;">Chave não configurada</span>
+                        </div>
+
+                        <!-- Info -->
+                        <div style="padding: 10px; background: #fffbeb; border-radius: 8px; font-size: 11px; color: #92400e;">
+                            💡 A chave é necessária para operações de escrita (scrapers, pipelines, etc.). A chave é guardada no localStorage do browser.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Browser Extensions Section -->
+                <div class="scraper-control-card" style="background: linear-gradient(135deg, #f0f9ff 0%, #fff 100%); border: 1px solid #bae6fd;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+                        <span style="font-size: 16px;">🧩</span>
+                        <span style="font-weight: 600; color: #0369a1;">Extensões Browser</span>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <!-- Chrome Extension -->
+                        <div style="padding: 16px; background: white; border-radius: 12px; border: 1px solid #e0f2fe; text-align: center;">
+                            <div style="width: 48px; height: 48px; margin: 0 auto 12px; background: linear-gradient(135deg, #4285f4, #1a73e8); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                                    <circle cx="12" cy="12" r="10" fill="none" stroke="white" stroke-width="2"/>
+                                    <circle cx="12" cy="12" r="4" fill="white"/>
+                                </svg>
+                            </div>
+                            <div style="font-weight: 600; color: #1e293b; font-size: 14px; margin-bottom: 4px;">Chrome Extension</div>
+                            <div style="font-size: 11px; color: #64748b; margin-bottom: 12px;">Extensão nativa Manifest V3</div>
+                            <a href="https://github.com/nunomansilhas/better-e-leiloes/tree/main/chrome-extension" target="_blank" style="display: inline-block; padding: 8px 16px; background: linear-gradient(135deg, #4285f4, #1a73e8); color: white; border-radius: 8px; font-size: 12px; font-weight: 500; text-decoration: none; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                                📥 Download
+                            </a>
+                        </div>
+
+                        <!-- Tampermonkey Script -->
+                        <div style="padding: 16px; background: white; border-radius: 12px; border: 1px solid #e0f2fe; text-align: center;">
+                            <div style="width: 48px; height: 48px; margin: 0 auto 12px; background: linear-gradient(135deg, #00485B, #006d75); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                                <span style="font-size: 24px;">🐒</span>
+                            </div>
+                            <div style="font-weight: 600; color: #1e293b; font-size: 14px; margin-bottom: 4px;">Tampermonkey Script</div>
+                            <div style="font-size: 11px; color: #64748b; margin-bottom: 12px;">Userscript para Tampermonkey</div>
+                            <a href="https://raw.githubusercontent.com/nunomansilhas/better-e-leiloes/main/betterE-Leiloes-CardEnhancer.user.js" target="_blank" style="display: inline-block; padding: 8px 16px; background: linear-gradient(135deg, #00485B, #006d75); color: white; border-radius: 8px; font-size: 12px; font-weight: 500; text-decoration: none; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                                📥 Instalar
+                            </a>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 12px; padding: 10px; background: #f0f9ff; border-radius: 8px; font-size: 11px; color: #0369a1; text-align: center;">
+                        💡 As extensões melhoram os cards no site e-leiloes.pt com carrossel, preços e countdown
+                    </div>
+                </div>
+
                 <!-- Data Management Section -->
                 <div class="scraper-control-card">
-                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
                         <span style="font-size: 16px;">💾</span>
                         <span style="font-weight: 600; color: #1e293b;">Gestão de Dados</span>
                     </div>
 
-                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                         <!-- Export Data -->
-                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: #f8fafc; border-radius: 8px;">
-                            <div>
-                                <div style="font-weight: 500; color: #1e293b; font-size: 13px;">Exportar Dados</div>
-                                <div style="font-size: 11px; color: #64748b;">Descarregar todos os eventos em JSON</div>
-                            </div>
-                            <button onclick="exportAllData()" style="padding: 8px 16px; background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; border: none; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer;">
-                                📥 Exportar
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: #f8fafc; border-radius: 8px;">
+                            <div style="font-weight: 500; color: #1e293b; font-size: 12px;">Exportar JSON</div>
+                            <button onclick="exportAllData()" style="padding: 6px 12px; background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; border: none; border-radius: 6px; font-size: 11px; font-weight: 500; cursor: pointer;">
+                                📥 Export
                             </button>
                         </div>
-
                         <!-- Clear Cache -->
-                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: #f8fafc; border-radius: 8px;">
-                            <div>
-                                <div style="font-weight: 500; color: #1e293b; font-size: 13px;">Limpar Cache</div>
-                                <div style="font-size: 11px; color: #64748b;">Remove dados em cache do Redis</div>
-                            </div>
-                            <button onclick="clearCache()" style="padding: 8px 16px; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; border: none; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: #f8fafc; border-radius: 8px;">
+                            <div style="font-weight: 500; color: #1e293b; font-size: 12px;">Limpar Cache</div>
+                            <button onclick="clearCache()" style="padding: 6px 12px; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; border: none; border-radius: 6px; font-size: 11px; font-weight: 500; cursor: pointer;">
                                 🗑️ Limpar
                             </button>
                         </div>
@@ -3895,34 +3998,24 @@
 
                 <!-- Danger Zone -->
                 <div class="scraper-control-card" style="border: 2px solid #fecaca; background: linear-gradient(135deg, #fef2f2 0%, #fff 100%);">
-                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
                         <span style="font-size: 16px;">⚠️</span>
                         <span style="font-weight: 600; color: #dc2626;">Zona de Perigo</span>
                     </div>
 
-                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                         <!-- Delete All Events -->
-                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px; background: white; border: 1px solid #fecaca; border-radius: 8px;">
-                            <div>
-                                <div style="font-weight: 500; color: #991b1b; font-size: 13px;">Apagar Todos os Eventos</div>
-                                <div style="font-size: 11px; color: #7f1d1d; line-height: 1.5;">
-                                    Esta ação irá <strong>apagar permanentemente TODOS os eventos</strong> da base de dados.<br>
-                                    Esta ação não pode ser revertida!
-                                </div>
-                            </div>
-                            <button onclick="confirmClearDatabase()" style="padding: 10px 20px; background: linear-gradient(135deg, #dc2626, #b91c1c); color: white; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap;">
-                                🗑️ Limpar Base de Dados
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: white; border: 1px solid #fecaca; border-radius: 8px;">
+                            <div style="font-weight: 500; color: #991b1b; font-size: 12px;">Apagar Eventos</div>
+                            <button onclick="confirmClearDatabase()" style="padding: 6px 12px; background: linear-gradient(135deg, #dc2626, #b91c1c); color: white; border: none; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap;">
+                                🗑️ Limpar BD
                             </button>
                         </div>
-
                         <!-- Delete All Notifications -->
-                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px; background: white; border: 1px solid #fecaca; border-radius: 8px;">
-                            <div>
-                                <div style="font-weight: 500; color: #991b1b; font-size: 13px;">Apagar Todas as Notificações</div>
-                                <div style="font-size: 11px; color: #7f1d1d;">Remove todas as notificações do histórico</div>
-                            </div>
-                            <button onclick="confirmDeleteAllNotifications()" style="padding: 10px 20px; background: linear-gradient(135deg, #f87171, #ef4444); color: white; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap;">
-                                🔔 Limpar Notificações
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: white; border: 1px solid #fecaca; border-radius: 8px;">
+                            <div style="font-weight: 500; color: #991b1b; font-size: 12px;">Apagar Alertas</div>
+                            <button onclick="confirmDeleteAllNotifications()" style="padding: 6px 12px; background: linear-gradient(135deg, #f87171, #ef4444); color: white; border: none; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap;">
+                                🔔 Limpar
                             </button>
                         </div>
                     </div>
@@ -4049,6 +4142,77 @@
     <script>
         // Dynamic API base - works from any host/port
         const API_BASE = window.location.origin;
+
+        // ============== SECURITY: HMAC Authentication ==============
+
+        const API_AUTH = {
+            secretKey: null,
+
+            setKey(key) {
+                this.secretKey = key;
+                localStorage.setItem('api_auth_key', key);
+                console.log('🔐 API Auth: Key configured');
+            },
+
+            clearKey() {
+                this.secretKey = null;
+                localStorage.removeItem('api_auth_key');
+                console.log('🔐 API Auth: Key cleared');
+            },
+
+            async generateSignature(method, path, body = '') {
+                if (!this.secretKey) return null;
+
+                const timestamp = Math.floor(Date.now() / 1000).toString();
+                const message = timestamp + method.toUpperCase() + path + body;
+
+                const encoder = new TextEncoder();
+                const keyData = encoder.encode(this.secretKey);
+                const messageData = encoder.encode(message);
+
+                const cryptoKey = await crypto.subtle.importKey(
+                    'raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+                );
+
+                const signature = await crypto.subtle.sign('HMAC', cryptoKey, messageData);
+                const hashArray = Array.from(new Uint8Array(signature));
+                const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+                return { signature: hashHex, timestamp };
+            }
+        };
+
+        // Authenticated fetch wrapper - automatically adds HMAC headers for mutations
+        async function authFetch(url, options = {}) {
+            const method = options.method || 'GET';
+            const path = new URL(url, window.location.origin).pathname;
+            const body = options.body || '';
+
+            // Add auth headers for non-GET requests if key is set
+            if (method.toUpperCase() !== 'GET' && API_AUTH.secretKey) {
+                const auth = await API_AUTH.generateSignature(method, path, body);
+                if (auth) {
+                    options.headers = {
+                        ...options.headers,
+                        'X-Signature': auth.signature,
+                        'X-Timestamp': auth.timestamp
+                    };
+                }
+            }
+
+            return fetch(url, options);
+        }
+
+        // Initialize auth key from localStorage
+        (function initAuth() {
+            const savedKey = localStorage.getItem('api_auth_key');
+            if (savedKey) {
+                API_AUTH.secretKey = savedKey;
+                console.log('🔐 API Auth: Key loaded from storage');
+            }
+        })();
+
+        // ============== END SECURITY ==============
 
         // Normalize event data - handles both old nested and new flat model formats
         function normalizeEvent(event) {
@@ -4195,10 +4359,60 @@
         }
 
         // Inspection Modal Functions
-        function openInspectionModal(reference) {
-            const type = document.querySelector('.page.active').id;
-            const event = allLoadedEvents[type]?.find(e => e.reference === reference);
-            if (!event) return;
+        async function openInspectionModal(reference) {
+            const type = document.querySelector('.page.active')?.id;
+            let event = allLoadedEvents[type]?.find(e => e.reference === reference);
+
+            // If not found in loaded events, fetch from API
+            if (!event) {
+                try {
+                    const response = await fetch(`${API_BASE}/api/events/${reference}`);
+                    if (!response.ok) throw new Error('Event not found');
+                    const apiEvent = await response.json();
+
+                    // Extract images from fotos array (API returns {image, thumbnail} objects)
+                    let imagens = [];
+                    if (apiEvent.fotos && Array.isArray(apiEvent.fotos)) {
+                        imagens = apiEvent.fotos.map(f => f.image || f.thumbnail).filter(Boolean);
+                    }
+                    if (imagens.length === 0 && apiEvent.capa) {
+                        imagens = [apiEvent.capa];
+                    }
+
+                    // Convert API response to expected format
+                    event = {
+                        reference: apiEvent.reference,
+                        imagens: imagens,
+                        capa: apiEvent.capa,
+                        tipoEvento: apiEvent.tipo_id === 1 ? 'imoveis' : 'veiculos',
+                        detalhes: {
+                            tipo: apiEvent.tipo,
+                            subtipo: apiEvent.subtipo,
+                            distrito: apiEvent.distrito,
+                            concelho: apiEvent.concelho,
+                            freguesia: apiEvent.freguesia,
+                            tipologia: apiEvent.tipologia,
+                            areaPrivativa: apiEvent.area_privativa,
+                            areaTotal: apiEvent.area_total
+                        },
+                        valores: {
+                            valorBase: apiEvent.valor_base,
+                            valorAbertura: apiEvent.valor_abertura,
+                            valorMinimo: apiEvent.valor_minimo,
+                            lanceAtual: apiEvent.lance_atual
+                        },
+                        dataInicio: apiEvent.data_inicio,
+                        dataFim: apiEvent.data_fim,
+                        gps: apiEvent.latitude ? { latitude: apiEvent.latitude, longitude: apiEvent.longitude } : null,
+                        gestor_nome: apiEvent.gestor_nome,
+                        gestor_email: apiEvent.gestor_email
+                    };
+                } catch (error) {
+                    console.error('Error fetching event:', error);
+                    showToast('Erro', 'Não foi possível carregar o evento', 'error');
+                    return;
+                }
+            }
 
             inspectionCurrentEvent = event;
             inspectionCurrentIndex = 0;
@@ -4282,9 +4496,12 @@
                         <span class="inspection-label">Valor Mínimo</span>
                         <span class="inspection-value ${event.valores?.valorMinimo ? 'price' : 'empty'}">${formatPrice(event.valores?.valorMinimo)}</span>
                     </div>
-                    <div class="inspection-row">
-                        <span class="inspection-label">Lance Atual</span>
-                        <span class="inspection-value ${event.valores?.lanceAtual ? 'price' : 'empty'}">${formatPrice(event.valores?.lanceAtual)}</span>
+                    <div class="inspection-row" style="display: flex; align-items: center; gap: 8px;">
+                        <span class="inspection-label" style="flex-shrink: 0;">Lance Atual</span>
+                        <span class="inspection-lance-atual-value" style="flex: 1; text-align: right;"><span class="inspection-value ${event.valores?.lanceAtual ? 'price' : 'empty'}">${formatPrice(event.valores?.lanceAtual)}</span></span>
+                        <button onclick="refreshModalPrice('${event.reference}')" style="background: none; border: none; padding: 4px; cursor: pointer; color: #64748b; display: flex; align-items: center; transition: color 0.2s; flex-shrink: 0;" title="Atualizar lance" onmouseover="this.style.color='#3b82f6'" onmouseout="this.style.color='#64748b'">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                        </button>
                     </div>
                 </div>
 
@@ -4444,10 +4661,73 @@
             counter.textContent = `${inspectionCurrentIndex + 1} / ${images.length}`;
         }
 
-        // Reload event from modal (wrapper function)
+        // Reload event from modal (refresh in-place)
         async function reloadEventFromModal(reference) {
-            closeInspectionModal();
-            await reloadEvent(reference);
+            try {
+                showToast('A atualizar...', 'A recolher dados mais recentes', 'info');
+
+                // Force fetch from API (bypass cache)
+                const response = await fetch(`${API_BASE}/api/events/${reference}?t=${Date.now()}`);
+                if (!response.ok) throw new Error('Failed to fetch');
+                const apiEvent = await response.json();
+
+                // Also try to get volatile data (latest price)
+                try {
+                    const volatileRes = await fetch(`${API_BASE}/api/volatile/${reference}`);
+                    if (volatileRes.ok) {
+                        const volatileData = await volatileRes.json();
+                        if (volatileData.lanceAtual) apiEvent.lance_atual = volatileData.lanceAtual;
+                        if (volatileData.dataFim) apiEvent.data_fim = volatileData.dataFim;
+                    }
+                } catch (e) { /* ignore volatile errors */ }
+
+                // Re-open modal with fresh data (will use API data since we clear cache entry)
+                const type = document.querySelector('.page.active')?.id;
+                if (allLoadedEvents[type]) {
+                    const idx = allLoadedEvents[type].findIndex(e => e.reference === reference);
+                    if (idx >= 0) {
+                        // Update cached entry with new lance_atual
+                        allLoadedEvents[type][idx].valores.lanceAtual = apiEvent.lance_atual;
+                        allLoadedEvents[type][idx].dataFim = apiEvent.data_fim;
+                    }
+                }
+
+                // Re-open modal (will rebuild with fresh data)
+                await openInspectionModal(reference);
+                showToast('Atualizado', 'Dados atualizados com sucesso', 'success');
+            } catch (error) {
+                console.error('Error reloading event:', error);
+                showToast('Erro', 'Não foi possível atualizar', 'error');
+            }
+        }
+
+        // Refresh only the price (lance atual) for modal
+        async function refreshModalPrice(reference) {
+            try {
+                const priceElement = document.querySelector('.inspection-lance-atual-value');
+                if (priceElement) {
+                    priceElement.innerHTML = '<span style="color: #94a3b8;">...</span>';
+                }
+
+                const response = await fetch(`${API_BASE}/api/volatile/${reference}`);
+                if (!response.ok) throw new Error('Failed to fetch');
+                const data = await response.json();
+
+                if (data.lanceAtual !== undefined && priceElement) {
+                    const formatted = new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(data.lanceAtual);
+                    priceElement.innerHTML = `<span class="inspection-value price">${formatted}</span>`;
+
+                    // Update stored event
+                    if (inspectionCurrentEvent) {
+                        inspectionCurrentEvent.valores.lanceAtual = data.lanceAtual;
+                    }
+
+                    showToast('Lance atualizado', formatted, 'success');
+                }
+            } catch (error) {
+                console.error('Error refreshing price:', error);
+                showToast('Erro', 'Não foi possível atualizar o lance', 'error');
+            }
         }
 
         // Close modal on escape key
@@ -4708,7 +4988,8 @@
             await Promise.all([
                 loadEndingSoonWidget(),
                 loadRecentBidsWidget(),
-                loadDistrictBreakdownWidget()
+                loadDistrictBreakdownWidget(),
+                loadNewEventsBanner()
             ]);
         }
 
@@ -4810,6 +5091,13 @@
 
                 if (valA < valB) return -1 * dir;
                 if (valA > valB) return 1 * dir;
+
+                // Secondary sort: when timer is primary, use lance_atual desc as tiebreaker
+                if (column === 'timer') {
+                    const lanceA = a.lance_atual || 0;
+                    const lanceB = b.lance_atual || 0;
+                    return lanceB - lanceA; // Descending (higher value first)
+                }
                 return 0;
             });
         }
@@ -5252,15 +5540,23 @@
                     return;
                 }
 
-                // Separate active and inactive bids
-                const activeBids = bids.filter(b => b.ativo !== false);
-                const inactiveBids = bids.filter(b => b.ativo === false);
+                // Helper to check if event has expired (data_fim has passed)
+                const isExpired = (bid) => {
+                    if (bid.data_fim) {
+                        return new Date(bid.data_fim) < new Date();
+                    }
+                    return false;
+                };
+
+                // Separate active and inactive bids (check both ativo flag and data_fim)
+                const activeBids = bids.filter(b => b.ativo !== false && !isExpired(b));
+                const inactiveBids = bids.filter(b => b.ativo === false || isExpired(b));
 
                 const renderBid = (bid) => {
                     const anterior = bid.preco_anterior ? `€${bid.preco_anterior.toLocaleString()}` : '?';
                     const atual = bid.preco_atual ? `€${bid.preco_atual.toLocaleString()}` : '?';
                     const variacao = bid.variacao ? `+€${bid.variacao.toLocaleString()}` : '';
-                    const isActive = bid.ativo !== false;
+                    const isActive = bid.ativo !== false && !isExpired(bid);
 
                     // Time ago
                     const created = new Date(bid.timestamp);
@@ -5388,6 +5684,172 @@
             } catch (error) {
                 console.error('Erro ao carregar stats por distrito:', error);
                 container.innerHTML = '<div style="text-align: center; padding: 20px; color: #ef4444; font-size: 11px;">Erro</div>';
+            }
+        }
+
+        function scrollNewEvents(direction) {
+            const track = document.getElementById('new-events-track');
+            if (!track) return;
+            const scrollAmount = 300;
+            track.scrollBy({ left: direction === 'right' ? scrollAmount : -scrollAmount, behavior: 'smooth' });
+        }
+
+        function getTimeLeftShort(endDate) {
+            const now = new Date();
+            const diff = endDate - now;
+            if (diff <= 0) return 'Fim';
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            if (days > 0) return `${days}d`;
+            if (hours > 0) return `${hours}h`;
+            return `${mins}m`;
+        }
+
+        // New Events Banner Functions
+        function createNewEventCard(e, animate = true) {
+            const valorMinimo = e.valor_minimo || e.valor_base || 0;
+            const priceStr = Number(valorMinimo).toLocaleString('pt-PT', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + '€';
+            const refPrefix = e.reference?.substring(0, 2) || '';
+            const prefixColor = refPrefix === 'LO' ? '#3b82f6' : '#f59e0b';
+            const location = [e.concelho, e.distrito].filter(Boolean).join(', ') || '-';
+            const hasImage = e.capa && e.capa.length > 0;
+
+            const card = document.createElement('div');
+            card.className = 'new-event-card';
+            card.dataset.reference = e.reference;
+            card.onclick = () => openInspectionModal(e.reference);
+
+            // For animation: start with 0 width to create push effect
+            if (animate) {
+                card.style.cssText = `
+                    flex-shrink: 0;
+                    max-width: 0;
+                    width: 150px;
+                    opacity: 0;
+                    overflow: hidden;
+                    background: white;
+                    border-radius: 10px;
+                    cursor: pointer;
+                    border: 1px solid #e2e8f0;
+                    margin-right: -10px;
+                    transition: max-width 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
+                                opacity 0.4s ease-out 0.1s,
+                                margin-right 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+                `;
+            } else {
+                card.style.cssText = `
+                    flex-shrink: 0;
+                    width: 150px;
+                    background: white;
+                    border-radius: 10px;
+                    overflow: hidden;
+                    cursor: pointer;
+                    transition: transform 0.2s ease, box-shadow 0.2s ease;
+                    border: 1px solid #e2e8f0;
+                `;
+            }
+
+            card.innerHTML = `
+                <div style="height: 80px; background: ${hasImage ? `url('${e.capa}') center/cover` : 'linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%)'}; position: relative;">
+                    ${!hasImage ? '<span style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 28px; opacity: 0.4;">🏠</span>' : ''}
+                </div>
+                <div style="padding: 8px;">
+                    <div style="display: flex; align-items: center; gap: 4px; margin-bottom: 4px;">
+                        <span style="background: ${prefixColor}; color: white; font-size: 9px; font-weight: 700; padding: 2px 5px; border-radius: 3px;">${refPrefix}</span>
+                        <span style="font-size: 10px; color: #64748b; font-weight: 500;">${e.reference.substring(2)}</span>
+                    </div>
+                    <div style="font-size: 13px; font-weight: 600; color: #1e293b; margin-bottom: 2px;">${priceStr}</div>
+                    <div style="font-size: 10px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${location}">${location}</div>
+                </div>
+            `;
+
+            if (!animate) {
+                card.onmouseover = () => { card.style.transform = 'translateY(-3px)'; card.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)'; };
+                card.onmouseout = () => { card.style.transform = ''; card.style.boxShadow = ''; };
+            }
+
+            return card;
+        }
+
+        // Add new event to banner (called from SSE)
+        function addNewEventToTrack(eventData) {
+            const track = document.getElementById('new-events-track');
+            const countBadge = document.getElementById('new-events-count');
+            if (!track) return;
+
+            // Remove "loading" or "no events" message if present
+            const loadingMsg = track.querySelector('div[style*="padding: 20px"]');
+            if (loadingMsg) loadingMsg.remove();
+
+            // Check if event already exists
+            if (track.querySelector(`[data-reference="${eventData.reference}"]`)) return;
+
+            // Create card with animation enabled
+            const card = createNewEventCard(eventData, true);
+            track.insertBefore(card, track.firstChild);
+
+            // Trigger the push animation
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    // Expand from 0 to full width - this pushes other cards
+                    card.style.maxWidth = '150px';
+                    card.style.marginRight = '0';
+                    card.style.opacity = '1';
+                    card.style.overflow = 'hidden';
+
+                    // After animation completes, enable hover effects
+                    setTimeout(() => {
+                        card.style.transition = 'transform 0.2s ease, box-shadow 0.2s ease';
+                        card.style.overflow = 'hidden';
+                        card.onmouseover = () => { card.style.transform = 'translateY(-3px)'; card.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)'; };
+                        card.onmouseout = () => { card.style.transform = ''; card.style.boxShadow = ''; };
+                    }, 600);
+                });
+            });
+
+            // Scroll to start to see new event
+            track.scrollTo({ left: 0, behavior: 'smooth' });
+
+            // Update count
+            const currentCount = parseInt(countBadge?.textContent || '0');
+            if (countBadge) countBadge.textContent = currentCount + 1;
+        }
+
+        // Load initial events for banner
+        async function loadNewEventsBanner() {
+            const track = document.getElementById('new-events-track');
+            const countBadge = document.getElementById('new-events-count');
+            if (!track) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/api/dashboard/recent-events?limit=20&days=7`);
+                if (!response.ok) throw new Error('Failed to load events');
+
+                const events = await response.json();
+
+                // Clear track
+                track.innerHTML = '';
+
+                if (events.length === 0) {
+                    track.innerHTML = '<div style="color: #94a3b8; font-size: 11px; padding: 20px; white-space: nowrap;">Nenhum evento recente</div>';
+                    if (countBadge) countBadge.textContent = '0';
+                    return;
+                }
+
+                // Already sorted by scraped_at DESC from API
+
+                // Add cards (without animation for initial load)
+                events.forEach(e => {
+                    const card = createNewEventCard(e, false);
+                    track.appendChild(card);
+                });
+
+                // Update count
+                if (countBadge) countBadge.textContent = events.length;
+            } catch (error) {
+                console.error('Erro ao carregar novos eventos:', error);
+                track.innerHTML = '<div style="color: #94a3b8; font-size: 11px; padding: 20px; white-space: nowrap;">Erro ao carregar</div>';
             }
         }
 
@@ -6478,7 +6940,7 @@
             showMaintenanceProgress('A corrigir valores NULL...');
 
             try {
-                const response = await fetch(`${API_BASE}/api/db/fix-nulls`, { method: 'POST' });
+                const response = await authFetch(`${API_BASE}/api/db/fix-nulls`, { method: 'POST' });
                 const data = await response.json();
 
                 hideMaintenanceProgress();
@@ -6499,7 +6961,7 @@
             showMaintenanceProgress('A iniciar atualização de preços...');
 
             try {
-                const response = await fetch(`${API_BASE}/api/db/update-prices`, { method: 'POST' });
+                const response = await authFetch(`${API_BASE}/api/db/update-prices`, { method: 'POST' });
                 const data = await response.json();
 
                 addLog(`💰 ${data.message}`, 'info');
@@ -6599,7 +7061,7 @@
                 if (tipo) url += `tipo=${tipo}&`;
                 if (pages) url += `max_pages=${pages}`;
 
-                const response = await fetch(url, { method: 'POST' });
+                const response = await authFetch(url, { method: 'POST' });
                 const data = await response.json();
 
                 if (response.ok) {
@@ -6651,7 +7113,7 @@
 
                     // Chama endpoint de smart scraping
                     const smartUrl = `${API_BASE}/api/scrape/smart/new-events`;
-                    const smartResponse = await fetch(smartUrl, { method: 'POST' });
+                    const smartResponse = await authFetch(smartUrl, { method: 'POST' });
                     const smartData = await smartResponse.json();
 
                     if (!smartResponse.ok) {
@@ -6678,7 +7140,7 @@
                 btn.textContent = '⏳ A extrair detalhes...';
                 const url = `${API_BASE}/api/scrape/stage2/details?` + references.map(ref => `references=${encodeURIComponent(ref)}`).join('&');
 
-                const response = await fetch(url, { method: 'POST' });
+                const response = await authFetch(url, { method: 'POST' });
                 const data = await response.json();
 
                 if (response.ok) {
@@ -6739,7 +7201,7 @@
 
                 const url = `${API_BASE}/api/scrape/stage3/images?` + references.map(ref => `references=${encodeURIComponent(ref)}`).join('&');
 
-                const response = await fetch(url, { method: 'POST' });
+                const response = await authFetch(url, { method: 'POST' });
                 const data = await response.json();
 
                 if (response.ok) {
@@ -6831,7 +7293,7 @@
 
                 addLog(message, 'info');
 
-                const response = await fetch(url, { method: 'POST' });
+                const response = await authFetch(url, { method: 'POST' });
                 const data = await response.json();
 
                 if (response.ok) {
@@ -6954,7 +7416,7 @@
                 if (pages) url += `max_pages=${pages}`;
 
                 // Start the pipeline (runs in background)
-                const response = await fetch(url, { method: 'POST' });
+                const response = await authFetch(url, { method: 'POST' });
                 const data = await response.json();
 
                 if (response.ok) {
@@ -7398,7 +7860,8 @@
         async function toggleAutoPipeline(type, enabled) {
             const pipelineNames = {
                 'xmonitor': 'X-Monitor',
-                'ysync': 'Y-Sync'
+                'ysync': 'Y-Sync',
+                'zwatch': 'Z-Watch'
             };
             const name = pipelineNames[type] || type;
 
@@ -7943,12 +8406,67 @@
             }
         }
 
+        // ============== Security Key Management ==============
+
+        function toggleKeyVisibility() {
+            const input = document.getElementById('api-auth-key-input');
+            if (input) {
+                input.type = input.type === 'password' ? 'text' : 'password';
+            }
+        }
+
+        function saveApiKey() {
+            const input = document.getElementById('api-auth-key-input');
+            if (!input) return;
+
+            const key = input.value.trim();
+            if (!key) {
+                showToast('Erro', 'Insira uma chave válida', 'error');
+                return;
+            }
+
+            API_AUTH.setKey(key);
+            updateAuthStatus(true);
+            showToast('Chave guardada', 'A chave de autenticação foi configurada com sucesso', 'success');
+            input.value = '';
+        }
+
+        function clearApiKey() {
+            API_AUTH.clearKey();
+            updateAuthStatus(false);
+            showToast('Chave removida', 'A chave de autenticação foi removida', 'info');
+        }
+
+        function updateAuthStatus(configured) {
+            const indicator = document.getElementById('api-auth-indicator');
+            const text = document.getElementById('api-auth-text');
+
+            if (indicator && text) {
+                if (configured) {
+                    indicator.style.background = '#22c55e';
+                    text.textContent = 'Chave configurada ✓';
+                    text.style.color = '#166534';
+                } else {
+                    indicator.style.background = '#94a3b8';
+                    text.textContent = 'Chave não configurada';
+                    text.style.color = '#64748b';
+                }
+            }
+        }
+
+        // Update auth status on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            updateAuthStatus(!!API_AUTH.secretKey);
+        });
+
+        // ============== End Security Key Management ==============
+
         // Clear Redis cache (Settings page)
         async function clearCache() {
             if (!confirm('Tem certeza que deseja limpar o cache?\n\nIsto pode temporariamente afetar a performance.')) return;
 
             try {
-                const response = await fetch(`${API_BASE}/api/cache/clear`, { method: 'POST' });
+                const response = await authFetch(`${API_BASE}/api/cache/clear`, { method: 'POST' });
                 if (response.ok) {
                     showToast('Cache limpo', 'O cache foi limpo com sucesso', 'success');
                 } else {
@@ -8196,7 +8714,7 @@
         // Mark notification as read or unread
         async function markNotificationRead(notifId, read = true) {
             try {
-                await fetch(`${API_BASE}/api/notifications/${notifId}/read?read=${read}`, { method: 'POST' });
+                await authFetch(`${API_BASE}/api/notifications/${notifId}/read?read=${read}`, { method: 'POST' });
                 loadNotifications();
                 updateNotificationBadge();
             } catch (error) {
@@ -8207,7 +8725,7 @@
         // Mark all notifications as read
         async function markAllNotificationsRead() {
             try {
-                await fetch(`${API_BASE}/api/notifications/read-all`, { method: 'POST' });
+                await authFetch(`${API_BASE}/api/notifications/read-all`, { method: 'POST' });
                 loadNotifications();
                 updateNotificationBadge();
                 addLog('Todas as notificações marcadas como lidas', 'info');
@@ -8240,7 +8758,7 @@
                 sseConnection.close();
             }
 
-            sseConnection = new EventSource(`${API_BASE}/api/events/live`);
+            sseConnection = new EventSource(`${API_BASE}/api/live/events`);
 
             sseConnection.onopen = () => {
                 console.log('🔴 SSE: Connected to live price updates');
@@ -8287,6 +8805,20 @@
                         if (currentPage === 'alertas') {
                             loadNotifications();
                         }
+                    } else if (data.type === 'new_event') {
+                        // Add new event to banner
+                        addNewEventToTrack(data);
+
+                        // Show toast notification
+                        const price = data.lance_atual || data.valor_base || 0;
+                        showToast(
+                            `🆕 Novo Evento`,
+                            `${data.reference}: ${data.titulo?.substring(0, 40) || data.distrito || '-'}... - €${price.toLocaleString()}`,
+                            'info'
+                        );
+
+                        // Update badge
+                        updateNotificationBadge();
                     } else if (data.type === 'connected') {
                         console.log('🔴 SSE:', data.message);
                     }

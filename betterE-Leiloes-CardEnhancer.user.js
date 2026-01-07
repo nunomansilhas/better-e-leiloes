@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Better E-Leilões - Card Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      11.1
-// @description  v11.1 - Cleaner side-by-side design, no gap
+// @version      11.2
+// @description  v11.2 - Added API timeouts (3s get, 10s scrape) for faster fallback
 // @author       Nuno Mansilhas
 // @match        https://e-leiloes.pt/*
 // @match        https://www.e-leiloes.pt/*
@@ -615,6 +615,7 @@
             GM_xmlhttpRequest({
                 method: 'GET',
                 url: `${CONFIG.API_BASE}/events/${reference}`,
+                timeout: 3000,  // 3 second timeout - fail fast if API unavailable
                 headers: {
                     'Accept': 'application/json'
                 },
@@ -651,6 +652,7 @@
             GM_xmlhttpRequest({
                 method: 'POST',
                 url: `${CONFIG.API_BASE}/scrape/stage2/api?references=${reference}&save_to_db=true`,
+                timeout: 10000,  // 10 second timeout for scraping
                 headers: {
                     'Accept': 'application/json'
                 },
@@ -671,6 +673,10 @@
                 },
                 onerror: function(error) {
                     console.error(`❌ Scrape error for ${reference}:`, error);
+                    resolve(null);
+                },
+                ontimeout: function() {
+                    console.error(`❌ Scrape timeout for ${reference}`);
                     resolve(null);
                 }
             });
@@ -1113,7 +1119,7 @@
     }
 
     function init() {
-        console.log('🚀 Better E-Leilões Card Enhancer v11.1 - Clean Side-by-side Design');
+        console.log('🚀 Better E-Leilões Card Enhancer v11.2 - Fast API Timeouts');
 
         integrateWithNativeFloatingButtons();
         enhanceAllCards();
@@ -1122,7 +1128,7 @@
 
         observer.observe(document.body, { childList: true, subtree: true });
 
-        console.log('✅ Card enhancer v11.1 ativo!');
+        console.log('✅ Card enhancer v11.2 ativo!');
     }
 
     if (document.readyState === 'loading') {
