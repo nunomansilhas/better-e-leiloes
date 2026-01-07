@@ -97,17 +97,3 @@ async def get_stats() -> dict:
             "total_records": stats["total_records"],
             "by_source": stats["by_source"]
         }
-
-
-async def migrate_from_json(json_data: dict) -> int:
-    """
-    Migrate price history from JSON file to database.
-
-    Args:
-        json_data: Dict with reference as key and list of {preco, timestamp} as value
-
-    Returns:
-        Number of records imported
-    """
-    async with get_db() as db:
-        return await db.bulk_import_price_history(json_data)
