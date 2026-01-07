@@ -358,42 +358,6 @@
             text-align: center;
         }
 
-        /* Sidebar Icon Row - Settings & Lock side by side */
-        .sidebar-icon-row {
-            display: flex;
-            justify-content: center;
-            gap: 8px;
-            padding: 8px 12px;
-        }
-
-        .sidebar-icon-btn {
-            width: 40px;
-            height: 40px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            color: #94a3b8;
-            background: rgba(255, 255, 255, 0.05);
-            transition: all 0.2s ease;
-        }
-
-        .sidebar-icon-btn:hover {
-            background: rgba(255, 255, 255, 0.1);
-            color: white;
-        }
-
-        .sidebar-icon-btn.active {
-            background: rgba(99, 102, 241, 0.2);
-            color: #a5b4fc;
-        }
-
-        .sidebar-icon-btn svg {
-            width: 20px;
-            height: 20px;
-        }
-
         /* Notification Toggle Button */
         .notification-toggle-btn {
             display: flex;
@@ -2857,18 +2821,18 @@
             </div>
 
             <div class="nav-divider"></div>
-            <div class="sidebar-icon-row">
-                <div class="sidebar-icon-btn" onclick="showPage('settings')" data-page="settings" title="Definições">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                    </svg>
-                </div>
-                <div class="sidebar-icon-btn" onclick="toggleSidebarLock()" title="Lock Sidebar">
-                    <svg id="lockIcon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"/>
-                    </svg>
-                </div>
+            <div class="nav-item" onclick="showPage('settings')" data-page="settings">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+                <span>Definições</span>
+            </div>
+            <div class="nav-item" onclick="toggleSidebarLock()">
+                <svg id="lockIcon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"/>
+                </svg>
+                <span>Lock Sidebar</span>
             </div>
         </div>
     </div>
@@ -4631,12 +4595,10 @@
 
             // Update nav items
             document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
-            document.querySelectorAll('.sidebar-icon-btn').forEach(item => item.classList.remove('active'));
 
             // Use data-page attribute for more reliable selection
             const navItem = document.querySelector(`.nav-item[data-page="${pageId}"]`) ||
-                           document.querySelector(`.nav-item[onclick*="${pageId}"]`) ||
-                           document.querySelector(`.sidebar-icon-btn[data-page="${pageId}"]`);
+                           document.querySelector(`.nav-item[onclick*="${pageId}"]`);
             if (navItem) navItem.classList.add('active');
 
             if (pageId === 'dashboard') {
