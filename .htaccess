@@ -1,0 +1,29 @@
+# E-Leilões Dashboard - Apache/cPanel Configuration
+# This file ensures Passenger handles all requests
+
+# Enable Passenger
+PassengerEnabled on
+PassengerAppType wsgi
+PassengerStartupFile passenger_wsgi.py
+
+# Force HTTPS (uncomment in production if you have SSL)
+# RewriteEngine On
+# RewriteCond %{HTTPS} off
+# RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# Security Headers
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set X-XSS-Protection "1; mode=block"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# Disable directory listing
+Options -Indexes
+
+# Deny access to sensitive files
+<FilesMatch "(^\.env|\.git|\.pyc$|__pycache__)">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
