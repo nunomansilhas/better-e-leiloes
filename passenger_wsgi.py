@@ -1,69 +1,145 @@
 """
-Passenger WSGI/ASGI Entry Point for cPanel Python App
-======================================================
-This file is the entry point for Phusion Passenger on cPanel hosting.
-Supports both ASGI (FastAPI native) and WSGI (legacy) modes.
+Passenger WSGI Entry Point for cPanel Python App
+=================================================
+FastAPI is ASGI, but cPanel's Passenger expects WSGI.
+This file uses a2wsgi to bridge the two protocols.
+
+IMPORTANT: Passenger calls this file and expects a `application` callable.
 """
 
 import sys
 import os
+import logging
+from datetime import datetime
+
+# =============================================================================
+# PATH SETUP
+# =============================================================================
 
 # Get the directory where this file is located (application root)
 APP_ROOT = os.path.dirname(os.path.abspath(__file__))
 BACKEND_DIR = os.path.join(APP_ROOT, 'backend')
 
-# Add paths
+# Add paths to sys.path for imports
 sys.path.insert(0, BACKEND_DIR)
 sys.path.insert(0, APP_ROOT)
 
-# Change working directory to backend
+# Change working directory to backend (where .env and modules are)
 os.chdir(BACKEND_DIR)
 
-# Load environment variables
-from dotenv import load_dotenv
-env_path = os.path.join(BACKEND_DIR, '.env')
-if os.path.exists(env_path):
-    load_dotenv(env_path)
-else:
-    root_env = os.path.join(APP_ROOT, '.env')
-    if os.path.exists(root_env):
-        load_dotenv(root_env)
+# =============================================================================
+# LOGGING SETUP (for debugging deployment issues)
+# =============================================================================
 
-# Import the FastAPI application
-from main import app
+log_file = os.path.join(APP_ROOT, 'passenger_debug.log')
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(log_file),
+        logging.StreamHandler(sys.stderr)
+    ]
+)
+logger = logging.getLogger(__name__)
 
-# Passenger can work in two modes:
-# 1. ASGI mode (newer Passenger versions) - use app directly
-# 2. WSGI mode (legacy) - needs adapter
+logger.info("=" * 60)
+logger.info(f"Passenger WSGI starting at {datetime.now()}")
+logger.info(f"APP_ROOT: {APP_ROOT}")
+logger.info(f"BACKEND_DIR: {BACKEND_DIR}")
+logger.info(f"Python: {sys.executable}")
+logger.info(f"Python version: {sys.version}")
+logger.info(f"sys.path: {sys.path[:5]}...")
 
-# Try to detect if we need WSGI adapter
+# =============================================================================
+# ENVIRONMENT VARIABLES
+# =============================================================================
+
 try:
-    # Check if Passenger is running in ASGI mode
-    # Modern Passenger (5.3+) supports ASGI natively for Python
-    application = app
+    from dotenv import load_dotenv
+
+    env_path = os.path.join(BACKEND_DIR, '.env')
+    if os.path.exists(env_path):
+        load_dotenv(env_path)
+        logger.info(f"Loaded .env from: {env_path}")
+    else:
+        root_env = os.path.join(APP_ROOT, '.env')
+        if os.path.exists(root_env):
+            load_dotenv(root_env)
+            logger.info(f"Loaded .env from: {root_env}")
+        else:
+            logger.warning("No .env file found!")
+
+    # Log important env vars (without secrets)
+    logger.info(f"DATABASE_URL set: {'DATABASE_URL' in os.environ}")
+    logger.info(f"API_SECRET_KEY set: {'API_SECRET_KEY' in os.environ}")
+
 except Exception as e:
-    # Fallback: Create WSGI adapter for older Passenger
-    import asyncio
-    from io import BytesIO
+    logger.error(f"Error loading .env: {e}")
 
-    def wsgi_adapter(environ, start_response):
-        """Simple WSGI to ASGI adapter for basic requests"""
-        # This is a minimal adapter - for full compatibility use uvicorn
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+# =============================================================================
+# ASGI -> WSGI ADAPTER
+# =============================================================================
 
-        # For complex apps, consider running uvicorn as subprocess
-        # This adapter handles basic GET requests only
-        path = environ.get('PATH_INFO', '/')
+application = None
 
-        start_response('500 Internal Server Error', [('Content-Type', 'text/plain')])
-        return [b'ASGI app requires Passenger 5.3+ with Python ASGI support']
+try:
+    logger.info("Importing FastAPI application...")
+    from main import app as fastapi_app
+    logger.info("FastAPI app imported successfully")
 
-    application = wsgi_adapter
+    logger.info("Importing a2wsgi adapter...")
+    from a2wsgi import ASGIMiddleware
+    logger.info("a2wsgi imported successfully")
 
+    # Create the WSGI-compatible application
+    # ASGIMiddleware wraps the FastAPI app and handles the protocol conversion
+    application = ASGIMiddleware(fastapi_app)
+    logger.info("WSGI application created successfully!")
 
-# For local development/debugging
+except ImportError as e:
+    logger.error(f"Import error: {e}")
+    logger.error(f"Module not found. Check if all dependencies are installed in virtualenv.")
+
+    # Create a simple error response app
+    def error_app(environ, start_response):
+        status = '500 Internal Server Error'
+        output = f'Import Error: {str(e)}\n\nCheck passenger_debug.log for details.'.encode('utf-8')
+        response_headers = [
+            ('Content-type', 'text/plain'),
+            ('Content-Length', str(len(output)))
+        ]
+        start_response(status, response_headers)
+        return [output]
+
+    application = error_app
+
+except Exception as e:
+    logger.error(f"Unexpected error during setup: {e}")
+    import traceback
+    logger.error(traceback.format_exc())
+
+    # Create a simple error response app
+    def error_app(environ, start_response):
+        status = '500 Internal Server Error'
+        output = f'Setup Error: {str(e)}\n\nCheck passenger_debug.log for details.'.encode('utf-8')
+        response_headers = [
+            ('Content-type', 'text/plain'),
+            ('Content-Length', str(len(output)))
+        ]
+        start_response(status, response_headers)
+        return [output]
+
+    application = error_app
+
+logger.info("passenger_wsgi.py initialization complete")
+logger.info("=" * 60)
+
+# =============================================================================
+# LOCAL DEVELOPMENT
+# =============================================================================
+
 if __name__ == "__main__":
+    # For local testing, use uvicorn directly (native ASGI)
     import uvicorn
     uvicorn.run(
         "main:app",

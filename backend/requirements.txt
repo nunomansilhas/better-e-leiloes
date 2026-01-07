@@ -25,3 +25,6 @@ redis==5.0.1
 
 # Scheduling
 apscheduler==3.10.4
+
+# cPanel/Passenger deployment (ASGI → WSGI adapter)
+a2wsgi==1.10.4

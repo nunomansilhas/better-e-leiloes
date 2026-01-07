@@ -1,10 +1,22 @@
-# E-Leilões Dashboard - Apache/cPanel Configuration
+# E-Leiloes Dashboard - Apache/cPanel Configuration
 # This file ensures Passenger handles all requests
 
-# Enable Passenger
+# Enable Passenger with WSGI
 PassengerEnabled on
 PassengerAppType wsgi
 PassengerStartupFile passenger_wsgi.py
+
+# Python path (cPanel virtualenv - adjust if needed)
+# PassengerPython /home/mansilh1/virtualenv/eleiloes.mansilhas.pt/3.11/bin/python
+
+# Increase startup timeout (default is 90 seconds)
+PassengerStartTimeout 120
+
+# Keep application running longer
+PassengerMinInstances 1
+
+# Enable friendly error pages for debugging (disable in production)
+PassengerFriendlyErrorPages on
 
 # Force HTTPS (uncomment in production if you have SSL)
 # RewriteEngine On
