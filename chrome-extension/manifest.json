@@ -1,0 +1,52 @@
+{
+  "manifest_version": 3,
+  "name": "Better E-Leilões",
+  "version": "1.0.0",
+  "description": "Melhora a experiência do E-Leilões com carrossel de imagens, preços detalhados, contagem regressiva e integração com o dashboard",
+  "author": "Nuno Mansilhas",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://e-leiloes.pt/*",
+    "https://www.e-leiloes.pt/*",
+    "http://localhost:8000/*",
+    "http://127.0.0.1:8000/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    },
+    "default_title": "Better E-Leilões"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://e-leiloes.pt/*",
+        "https://www.e-leiloes.pt/*",
+        "http://e-leiloes.pt/*",
+        "http://www.e-leiloes.pt/*"
+      ],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["icons/*"],
+      "matches": ["https://e-leiloes.pt/*", "https://www.e-leiloes.pt/*"]
+    }
+  ]
+}
