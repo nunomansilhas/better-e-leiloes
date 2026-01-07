@@ -47,6 +47,13 @@ class AutoPipelinesManager:
             description="Sincronização completa: todos os IDs + marca terminados",
             enabled=False,
             interval_hours=2.0  # A cada 2 horas
+        ),
+        "zwatch": PipelineConfig(
+            type="zwatch",
+            name="Z-Watch",
+            description="Monitoriza EventosMaisRecentes API a cada 10 minutos",
+            enabled=False,
+            interval_hours=10/60  # A cada 10 minutos
         )
     }
 
@@ -1409,10 +1416,148 @@ class AutoPipelinesManager:
 
                 self._reschedule_pipeline('ysync')
 
+        async def run_zwatch_pipeline():
+            """Z-Watch: Monitoriza EventosMaisRecentes API para novos eventos"""
+            import httpx
+            from scraper import EventScraper
+            from database import get_db
+            from cache import CacheManager
+            from pipeline_state import get_pipeline_state
+
+            # Skip if main pipeline is running
+            main_pipeline = get_pipeline_state()
+            if main_pipeline.is_active:
+                print(f"⏸️ Z-Watch skipped - main pipeline is running")
+                return
+
+            # Skip if Y-Sync is running (avoid duplicate work)
+            if self.pipelines.get('ysync') and self.pipelines['ysync'].is_running:
+                print(f"⏸️ Z-Watch skipped - Y-Sync is running")
+                return
+
+            # Mark as running
+            if 'zwatch' not in self.pipelines:
+                return
+            self.pipelines['zwatch'].is_running = True
+            self._save_config()
+
+            print(f"👁️ Z-Watch: A verificar EventosMaisRecentes...")
+
+            scraper = EventScraper()
+            cache_manager = CacheManager()
+            new_count = 0
+
+            try:
+                # Call the EventosMaisRecentes API
+                async with httpx.AsyncClient(timeout=15.0, follow_redirects=True, verify=False) as client:
+                    api_url = "https://www.e-leiloes.pt/api/EventosMaisRecentes/"
+
+                    # Try with browser-like headers
+                    headers = {
+                        'Accept': 'application/json, text/plain, */*',
+                        'Accept-Language': 'pt-PT,pt;q=0.9,en;q=0.8',
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                        'Referer': 'https://www.e-leiloes.pt/',
+                        'Origin': 'https://www.e-leiloes.pt'
+                    }
+
+                    response = await client.get(api_url, headers=headers)
+
+                    if response.status_code != 200:
+                        print(f"  ⚠️ EventosMaisRecentes API returned {response.status_code}")
+                        return
+
+                    data = response.json()
+
+                    # The API returns a list of recent events
+                    events_list = data if isinstance(data, list) else data.get('items', data.get('eventos', []))
+
+                    if not events_list:
+                        print(f"  ✓ Nenhum evento na resposta")
+                        return
+
+                    print(f"  📊 {len(events_list)} eventos na API")
+
+                    # Extract references and check which are new
+                    new_refs = []
+                    async with get_db() as db:
+                        for item in events_list:
+                            # Try different field names for reference
+                            ref = item.get('reference') or item.get('referencia') or item.get('id') or item.get('codigo')
+                            if ref:
+                                existing = await db.get_event(ref)
+                                if not existing:
+                                    new_refs.append(ref)
+
+                    if not new_refs:
+                        print(f"  ✓ Nenhum evento novo")
+                        return
+
+                    print(f"  🆕 {len(new_refs)} eventos novos encontrados!")
+
+                    # Scrape details for new events
+                    events = await scraper.scrape_details_via_api(new_refs)
+
+                    # Process notifications for new events
+                    from notification_engine import process_new_events_batch
+                    from main import broadcast_new_event
+
+                    async with get_db() as db:
+                        for event in events:
+                            await db.save_event(event)
+                            await cache_manager.set(event.reference, event)
+                            new_count += 1
+
+                            # Broadcast new event to SSE clients
+                            await broadcast_new_event({
+                                "reference": event.reference,
+                                "titulo": event.titulo,
+                                "tipo": event.tipo,
+                                "capa": event.capa,
+                                "distrito": event.distrito,
+                                "concelho": event.concelho,
+                                "valor_minimo": event.valor_minimo,
+                                "lance_atual": event.lance_atual,
+                                "valor_base": event.valor_base,
+                                "data_fim": event.data_fim.isoformat() if event.data_fim else None,
+                                "data_inicio": event.data_inicio.isoformat() if event.data_inicio else None,
+                                "timestamp": datetime.now().isoformat()
+                            })
+
+                            print(f"    ✨ Novo: {event.reference} - {event.titulo[:50]}...")
+
+                        # Check notification rules for new events
+                        notifications_count = await process_new_events_batch(events, db)
+
+                        if notifications_count > 0:
+                            print(f"  🔔 {notifications_count} notificações criadas")
+
+                    print(f"  ✅ Z-Watch: {new_count} novos eventos adicionados")
+
+            except httpx.RequestError as e:
+                print(f"  ❌ Z-Watch erro de rede: {str(e)[:50]}")
+            except Exception as e:
+                print(f"  ❌ Z-Watch erro: {str(e)[:100]}")
+            finally:
+                await scraper.close()
+                await cache_manager.close()
+                self.pipelines['zwatch'].is_running = False
+
+                # Update pipeline stats
+                pipeline = self.pipelines['zwatch']
+                now = datetime.now()
+                pipeline.last_run = now.strftime("%Y-%m-%d %H:%M:%S")
+                pipeline.runs_count += 1
+                pipeline.next_run = (now + timedelta(hours=pipeline.interval_hours)).strftime("%Y-%m-%d %H:%M:%S")
+                self._save_config()
+
+                self._reschedule_pipeline('zwatch')
+
         # Return the appropriate function
         tasks = {
             "xmonitor": run_xmonitor_pipeline,
             "ysync": run_ysync_pipeline,
+            "zwatch": run_zwatch_pipeline,
             # Legacy support
             "prices": run_prices_pipeline,
             "prices_urgent": run_prices_urgent_pipeline,

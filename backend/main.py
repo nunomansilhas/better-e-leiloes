@@ -1519,6 +1519,36 @@ async def get_volatile_data(reference: str):
         raise HTTPException(status_code=503, detail=f"Failed to fetch from e-leiloes.pt: {str(e)}")
 
 
+@app.get("/api/test/eventos-mais-recentes")
+async def test_eventos_mais_recentes():
+    """
+    Test endpoint to check EventosMaisRecentes API response.
+    """
+    import httpx
+
+    try:
+        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True, verify=False) as client:
+            api_url = "https://www.e-leiloes.pt/api/EventosMaisRecentes/"
+
+            headers = {
+                'Accept': 'application/json, text/plain, */*',
+                'Accept-Language': 'pt-PT,pt;q=0.9,en;q=0.8',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Referer': 'https://www.e-leiloes.pt/',
+                'Origin': 'https://www.e-leiloes.pt'
+            }
+
+            response = await client.get(api_url, headers=headers)
+
+            return {
+                "status_code": response.status_code,
+                "headers": dict(response.headers),
+                "data": response.json() if response.status_code == 200 else response.text[:500]
+            }
+    except Exception as e:
+        return {"error": str(e)}
+
+
 @app.post("/api/db/fix-nulls")
 async def fix_null_lance_atual():
     """

@@ -13,7 +13,7 @@
   "xmonitor": {
     "type": "xmonitor",
     "name": "X-Monitor",
-    "description": "Monitoriza eventos nas pr\u00f3ximas 24h - atualiza lance_atual e dataFim",
+    "description": "Monitoriza eventos nas próximas 24h - atualiza lance_atual e dataFim",
     "enabled": false,
     "interval_hours": 0.001388888888888889,
     "last_run": "2025-12-23 16:34:40",
@@ -30,6 +30,17 @@
     "last_run": "2026-01-05 09:49:57",
     "next_run": "2026-01-05 11:49:57",
     "runs_count": 16,
+    "is_running": false
+  },
+  "zwatch": {
+    "type": "zwatch",
+    "name": "Z-Watch",
+    "description": "Monitoriza EventosMaisRecentes API a cada 10 minutos",
+    "enabled": false,
+    "interval_hours": 0.16666666666666666,
+    "last_run": null,
+    "next_run": null,
+    "runs_count": 0,
     "is_running": false
   }
 }
