@@ -1407,7 +1407,7 @@ async def get_stats_by_distrito(limit: int = 5):
 
 @app.get("/api/dashboard/recent-bids")
 async def get_recent_bids(limit: int = 30, hours: int = 24):
-    """Get recent price changes from JSON history file (last 24h by default)"""
+    """Get recent price changes from database (last 24h by default)"""
     from price_history import get_recent_changes
     bids = await get_recent_changes(limit=limit, hours=hours)
 
