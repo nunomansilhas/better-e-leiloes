@@ -4366,10 +4366,10 @@
                         <span class="inspection-label">Valor Mínimo</span>
                         <span class="inspection-value ${event.valores?.valorMinimo ? 'price' : 'empty'}">${formatPrice(event.valores?.valorMinimo)}</span>
                     </div>
-                    <div class="inspection-row" style="display: flex; align-items: center;">
-                        <span class="inspection-label">Lance Atual</span>
-                        <span class="inspection-lance-atual-value" style="flex: 1;"><span class="inspection-value ${event.valores?.lanceAtual ? 'price' : 'empty'}">${formatPrice(event.valores?.lanceAtual)}</span></span>
-                        <button onclick="refreshModalPrice('${event.reference}')" style="background: none; border: none; padding: 4px; cursor: pointer; color: #64748b; display: flex; align-items: center; transition: color 0.2s;" title="Atualizar lance" onmouseover="this.style.color='#3b82f6'" onmouseout="this.style.color='#64748b'">
+                    <div class="inspection-row" style="display: flex; align-items: center; gap: 8px;">
+                        <span class="inspection-label" style="flex-shrink: 0;">Lance Atual</span>
+                        <span class="inspection-lance-atual-value" style="flex: 1; text-align: right;"><span class="inspection-value ${event.valores?.lanceAtual ? 'price' : 'empty'}">${formatPrice(event.valores?.lanceAtual)}</span></span>
+                        <button onclick="refreshModalPrice('${event.reference}')" style="background: none; border: none; padding: 4px; cursor: pointer; color: #64748b; display: flex; align-items: center; transition: color 0.2s; flex-shrink: 0;" title="Atualizar lance" onmouseover="this.style.color='#3b82f6'" onmouseout="this.style.color='#64748b'">
                             <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                         </button>
                     </div>

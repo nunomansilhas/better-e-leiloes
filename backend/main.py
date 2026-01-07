@@ -1483,6 +1483,42 @@ async def get_recent_events(limit: int = 20, days: int = 7):
         } for e in events])
 
 
+@app.get("/api/volatile/{reference}")
+async def get_volatile_data(reference: str):
+    """
+    Get live volatile data (lanceAtual, dataFim) directly from e-leiloes.pt API.
+    Fast - no browser required!
+    """
+    import httpx
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True, verify=False) as client:
+            api_url = f"https://www.e-leiloes.pt/api/eventos/{reference}"
+            response = await client.get(api_url)
+
+            if response.status_code == 200:
+                data = response.json()
+                item = data.get('item', {})
+
+                if item:
+                    data_fim = None
+                    try:
+                        if item.get('dataFim'):
+                            data_fim = item['dataFim']
+                    except:
+                        pass
+
+                    return {
+                        "reference": reference,
+                        "lanceAtual": item.get('lanceAtual', 0),
+                        "dataFim": data_fim
+                    }
+
+            raise HTTPException(status_code=404, detail=f"Event not found: {reference}")
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=503, detail=f"Failed to fetch from e-leiloes.pt: {str(e)}")
+
+
 @app.post("/api/db/fix-nulls")
 async def fix_null_lance_atual():
     """
