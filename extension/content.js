@@ -1,6 +1,6 @@
 /**
  * Better E-Leilões - Card Enhancer
- * Chrome Extension Version 12.0 - ZERO WAIT
+ * Chrome Extension Version 12.1 - ZERO WAIT + FULL BATCH
  * Instant DOM enhancement - API only for extra data
  */
 
@@ -183,7 +183,7 @@
         }
         pendingRefs.add(ref);
         clearTimeout(fetchTimer);
-        fetchTimer = setTimeout(fetchBatch, 50);
+        fetchTimer = setTimeout(fetchBatch, 200); // Wait 200ms to collect ALL refs
     }
 
     async function fetchBatch() {
@@ -191,6 +191,7 @@
         pendingRefs.clear();
         if (refs.length === 0) return;
 
+        console.log(`📦 Batch API: fetching ${refs.length} refs`);
         try {
             const res = await fetch(`${CONFIG.API_BASE}/events/batch`, {
                 method: 'POST',
@@ -438,7 +439,7 @@
     const observer = new MutationObserver(processCards);
 
     async function init() {
-        console.log('🚀 Better E-Leilões v12.0 - ZERO WAIT');
+        console.log('🚀 Better E-Leilões v12.1 - ZERO WAIT + FULL BATCH');
         await loadConfig();
 
         // Add spin animation
