@@ -19,7 +19,7 @@ if sys.platform == 'win32':
 from dotenv import load_dotenv
 load_dotenv()
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Query
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Query, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -69,6 +69,23 @@ async def broadcast_price_update(event_data: dict):
     for queue in sse_clients:
         try:
             await queue.put(event_data)
+        except:
+            dead_clients.add(queue)
+
+    # Remove disconnected clients
+    for client in dead_clients:
+        sse_clients.discard(client)
+
+
+async def broadcast_new_event(event_data: dict):
+    """Broadcast a new event to all connected SSE clients"""
+    dead_clients = set()
+    for queue in sse_clients:
+        try:
+            await queue.put({
+                "type": "new_event",
+                **event_data
+            })
         except:
             dead_clients.add(queue)
 
@@ -142,14 +159,20 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS
+# CORS - Restrict to allowed origins
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.getenv("ALLOWED_ORIGINS", "*").split(","),
+    allow_origins=[o.strip() for o in allowed_origins],
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*", "X-Signature", "X-Timestamp"],  # Allow security headers
+    expose_headers=["X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Window"],
 )
+
+# Security middleware (Rate Limiting + HMAC Auth)
+from security import security_middleware
+app.middleware("http")(security_middleware)
 
 # Servir arquivos estáticos
 static_dir = os.path.join(os.path.dirname(__file__), "static")
@@ -173,6 +196,31 @@ async def health():
         "service": "E-Leiloes Data API",
         "version": "1.0.0"
     }
+
+
+@app.get("/api/security/stats")
+async def get_security_stats():
+    """Get security stats (rate limiting, etc.) - Admin only"""
+    from security import rate_limiter, RATE_LIMIT_REQUESTS, RATE_LIMIT_WINDOW, WHITELIST_IPS
+    return {
+        "rate_limiter": rate_limiter.get_stats(),
+        "config": {
+            "rate_limit_requests": RATE_LIMIT_REQUESTS,
+            "rate_limit_window": RATE_LIMIT_WINDOW,
+            "whitelist_ips": list(WHITELIST_IPS)
+        }
+    }
+
+
+@app.get("/api/security/auth.js")
+async def get_auth_script():
+    """Serve the frontend authentication helper script"""
+    from security import get_frontend_auth_script
+    from fastapi.responses import Response
+    return Response(
+        content=get_frontend_auth_script(),
+        media_type="application/javascript"
+    )
 
 
 @app.get("/api/pipeline/status")
@@ -396,13 +444,13 @@ async def get_notifications_count():
 
 
 @app.post("/api/notifications/{notification_id}/read")
-async def mark_notification_read(notification_id: int):
-    """Mark a notification as read"""
+async def mark_notification_read(notification_id: int, read: bool = True):
+    """Mark a notification as read or unread"""
     async with get_db() as db:
-        success = await db.mark_notification_read(notification_id)
+        success = await db.mark_notification_read(notification_id, read=read)
         if not success:
             raise HTTPException(status_code=404, detail="Notification not found")
-        return JSONResponse({"success": True})
+        return JSONResponse({"success": True, "read": read})
 
 
 @app.post("/api/notifications/read-all")
@@ -432,8 +480,9 @@ async def get_notification_rules(active_only: bool = Query(False)):
 
 
 @app.post("/api/notification-rules")
-async def create_notification_rule(rule: dict):
+async def create_notification_rule(rule: dict = Body(...)):
     """Create a new notification rule"""
+    print(f"📝 Creating notification rule: {rule}")
     required_fields = ["name", "rule_type"]
     for field in required_fields:
         if field not in rule:
@@ -445,16 +494,24 @@ async def create_notification_rule(rule: dict):
 
     async with get_db() as db:
         rule_id = await db.create_notification_rule(rule)
+        print(f"✅ Rule created with ID: {rule_id}")
+        # Invalidate rules cache
+        from notification_engine import get_notification_engine
+        get_notification_engine().invalidate_cache(rule["rule_type"])
         return JSONResponse({"id": rule_id, "success": True})
 
 
 @app.put("/api/notification-rules/{rule_id}")
-async def update_notification_rule(rule_id: int, updates: dict):
+async def update_notification_rule(rule_id: int, updates: dict = Body(...)):
     """Update a notification rule"""
+    print(f"📝 Updating rule {rule_id}: {updates}")
     async with get_db() as db:
         success = await db.update_notification_rule(rule_id, updates)
         if not success:
             raise HTTPException(status_code=404, detail="Rule not found")
+        # Invalidate all rules cache (rule_type might have changed)
+        from notification_engine import get_notification_engine
+        get_notification_engine().invalidate_cache()
         return JSONResponse({"success": True})
 
 
@@ -465,6 +522,9 @@ async def delete_notification_rule(rule_id: int):
         success = await db.delete_notification_rule(rule_id)
         if not success:
             raise HTTPException(status_code=404, detail="Rule not found")
+        # Invalidate all rules cache
+        from notification_engine import get_notification_engine
+        get_notification_engine().invalidate_cache()
         return JSONResponse({"success": True})
 
 
@@ -475,6 +535,9 @@ async def toggle_notification_rule(rule_id: int, active: bool = Query(...)):
         success = await db.update_notification_rule(rule_id, {"active": active})
         if not success:
             raise HTTPException(status_code=404, detail="Rule not found")
+        # Invalidate all rules cache
+        from notification_engine import get_notification_engine
+        get_notification_engine().invalidate_cache()
         return JSONResponse({"success": True, "active": active})
 
 
@@ -1349,6 +1412,186 @@ async def get_db_extended_stats():
         return stats
 
 
+@app.get("/api/dashboard/ending-soon")
+async def get_events_ending_soon(hours: int = 24, limit: int = 5):
+    """Get events ending within the next X hours"""
+    async with get_db() as db:
+        events = await db.get_events_ending_soon(hours=hours, limit=limit)
+        return JSONResponse(events)
+
+
+@app.get("/api/dashboard/activity")
+async def get_recent_activity():
+    """Get recent activity stats for dashboard"""
+    async with get_db() as db:
+        activity = await db.get_recent_activity()
+        return JSONResponse(activity)
+
+
+@app.get("/api/dashboard/stats-by-distrito")
+async def get_stats_by_distrito(limit: int = 5):
+    """Get event counts by distrito with breakdown by type"""
+    async with get_db() as db:
+        stats = await db.get_stats_by_distrito(limit=limit)
+        return JSONResponse(stats)
+
+
+@app.get("/api/dashboard/recent-bids")
+async def get_recent_bids(limit: int = 30, hours: int = 24):
+    """Get recent price changes from database (last 24h by default)"""
+    from price_history import get_recent_changes
+    bids = await get_recent_changes(limit=limit, hours=hours)
+
+    # Add ativo status from database for each event
+    if bids:
+        async with get_db() as db:
+            references = [b["reference"] for b in bids]
+            # Get ativo and data_fim status for all references
+            from sqlalchemy import select
+            from database import EventDB
+            result = await db.session.execute(
+                select(EventDB.reference, EventDB.ativo, EventDB.data_fim)
+                .where(EventDB.reference.in_(references))
+            )
+            event_info = {row.reference: {"ativo": row.ativo, "data_fim": row.data_fim} for row in result}
+
+            # Add ativo and data_fim to each bid
+            for bid in bids:
+                info = event_info.get(bid["reference"], {})
+                bid["ativo"] = info.get("ativo", True)
+                # Include data_fim as ISO string for frontend to check expiration locally
+                data_fim = info.get("data_fim")
+                bid["data_fim"] = data_fim.isoformat() if data_fim else None
+
+    return JSONResponse(bids)
+
+
+@app.get("/api/dashboard/price-history/{reference}")
+async def get_price_history(reference: str):
+    """Get complete price history for a specific event"""
+    from price_history import get_event_history
+    history = await get_event_history(reference)
+    return JSONResponse(history)
+
+
+@app.get("/api/dashboard/price-history-stats")
+async def get_price_history_stats():
+    """Get statistics about price history tracking"""
+    from price_history import get_stats
+    stats = await get_stats()
+    return JSONResponse(stats)
+
+
+@app.get("/api/dashboard/recent-price-changes")
+async def get_recent_price_changes(limit: int = 30, hours: int = 24):
+    """Get recent price changes from the database"""
+    from price_history import get_recent_changes
+    changes = await get_recent_changes(limit=limit, hours=hours)
+    return JSONResponse(changes)
+
+
+@app.get("/api/dashboard/recent-events")
+async def get_recent_events(limit: int = 20, days: int = 7):
+    """Get recently scraped events (sorted by scraped_at DESC)"""
+    from sqlalchemy import select
+    from database import EventDB
+    from datetime import timedelta
+
+    cutoff = datetime.now() - timedelta(days=days)
+
+    async with get_db() as db:
+        result = await db.session.execute(
+            select(EventDB)
+            .where(EventDB.scraped_at >= cutoff)
+            .where(EventDB.cancelado == False)
+            .where(EventDB.terminado == False)
+            .order_by(EventDB.scraped_at.desc())
+            .limit(limit)
+        )
+        events = result.scalars().all()
+
+        return JSONResponse([{
+            "reference": e.reference,
+            "titulo": e.titulo,
+            "tipo": e.tipo,
+            "capa": e.capa,
+            "distrito": e.distrito,
+            "concelho": e.concelho,
+            "valor_minimo": e.valor_minimo,
+            "lance_atual": e.lance_atual,
+            "valor_base": e.valor_base,
+            "data_fim": e.data_fim.isoformat() if e.data_fim else None,
+            "data_inicio": e.data_inicio.isoformat() if e.data_inicio else None,
+            "scraped_at": e.scraped_at.isoformat() if e.scraped_at else None
+        } for e in events])
+
+
+@app.get("/api/volatile/{reference}")
+async def get_volatile_data(reference: str):
+    """
+    Get live volatile data (lanceAtual, dataFim) directly from e-leiloes.pt API.
+    Fast - no browser required!
+    """
+    import httpx
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True, verify=False) as client:
+            api_url = f"https://www.e-leiloes.pt/api/eventos/{reference}"
+            response = await client.get(api_url)
+
+            if response.status_code == 200:
+                data = response.json()
+                item = data.get('item', {})
+
+                if item:
+                    data_fim = None
+                    try:
+                        if item.get('dataFim'):
+                            data_fim = item['dataFim']
+                    except:
+                        pass
+
+                    return {
+                        "reference": reference,
+                        "lanceAtual": item.get('lanceAtual', 0),
+                        "dataFim": data_fim
+                    }
+
+            raise HTTPException(status_code=404, detail=f"Event not found: {reference}")
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=503, detail=f"Failed to fetch from e-leiloes.pt: {str(e)}")
+
+
+@app.get("/api/test/eventos-mais-recentes")
+async def test_eventos_mais_recentes():
+    """
+    Test endpoint to check EventosMaisRecentes API response.
+    """
+    import httpx
+
+    try:
+        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True, verify=False) as client:
+            api_url = "https://www.e-leiloes.pt/api/EventosMaisRecentes/"
+
+            headers = {
+                'Accept': 'application/json, text/plain, */*',
+                'Accept-Language': 'pt-PT,pt;q=0.9,en;q=0.8',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Referer': 'https://www.e-leiloes.pt/',
+                'Origin': 'https://www.e-leiloes.pt'
+            }
+
+            response = await client.get(api_url, headers=headers)
+
+            return {
+                "status_code": response.status_code,
+                "headers": dict(response.headers),
+                "data": response.json() if response.status_code == 200 else response.text[:500]
+            }
+    except Exception as e:
+        return {"error": str(e)}
+
+
 @app.post("/api/db/fix-nulls")
 async def fix_null_lance_atual():
     """
@@ -1978,7 +2221,7 @@ async def stream_events(
     )
 
 
-@app.get("/api/events/live")
+@app.get("/api/live/events")
 async def live_price_updates():
     """
     Server-Sent Events (SSE) endpoint for real-time price updates.

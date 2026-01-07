@@ -1,292 +1,175 @@
-# E-Leiloes Dashboard & Scraper System
+# E-Leiloes Dashboard v2.1
 
-Sistema completo de monitorização e scraping para **e-leiloes.pt** com dashboard web, pipelines automáticas, sistema de notificações e alertas em tempo real.
+Sistema de monitorização para **e-leiloes.pt** com dashboard web, notificações em tempo real e extensões browser.
 
-## Versão Atual: v2.0 (Janeiro 2025)
+## 🚀 Quick Install
 
-### Novidades Recentes
+### Extensão Browser (Recomendado)
 
-- **Sistema de Notificações** - Regras personalizáveis para alertas de novos eventos e alterações de preço
-- **Quick Notifications** - Ativar notificações por tipo de evento com um clique
-- **Notificações por Evento** - Seguir alterações de eventos específicos
-- **X-Monitor Melhorado** - Monitorização de preços em tempo real com histórico JSON
-- **Página de Alertas** - Interface com tabs para gerir notificações e regras
-- **Filtros Avançados** - Distrito, concelho, freguesia, subtipo, tipologia, valor min/max
-- **Modal de Inspeção** - Ver detalhes completos de qualquer evento
-- **Subtipos Dinâmicos** - Carregados da BD para cada tipo de evento
+<table>
+<tr>
+<td align="center" width="50%">
 
-## Componentes
+**🔧 Chrome/Edge Extension**
 
-### Dashboard Web
-- **URL**: `http://localhost:8000`
-- Interface moderna com sidebar navegável
-- 6 páginas de eventos: Imóveis, Veículos, Direitos, Equipamentos, Mobiliário, Máquinas
-- Filtros avançados por localização, tipo e preço
-- Notificações em tempo real
-- Estatísticas e métricas do sistema
+[![Install Extension](https://img.shields.io/badge/Chrome-Install_Extension-4285F4?style=for-the-badge&logo=googlechrome&logoColor=white)](chrome-extension/)
 
-### Backend API
-- **Framework**: FastAPI + Playwright
-- **Base de dados**: MySQL (async com aiomysql)
-- **Cache**: Redis (opcional)
-- **Scheduler**: APScheduler para pipelines automáticas
+1. Abre `chrome://extensions/`
+2. Ativa **Modo de programador**
+3. Clica **Carregar sem compactação**
+4. Seleciona pasta `chrome-extension/`
 
-### Sistema de Notificações
-- **Regras personalizáveis** - Por tipo, subtipo, distrito, preço
-- **Quick Notifications** - Toggle rápido por tipo de evento
-- **Notificações por evento** - Seguir eventos específicos
-- **Página de Alertas** - Gerir notificações e regras
+</td>
+<td align="center" width="50%">
 
-## Estrutura do Projeto
+**🐒 Tampermonkey Userscript**
 
-```
-better-e-leiloes/
-├── backend/
-│   ├── main.py              # FastAPI app + endpoints
-│   ├── database.py          # SQLAlchemy models + DB manager
-│   ├── scraper.py           # Playwright scraper
-│   ├── notification_engine.py # Motor de notificações
-│   ├── auto_pipelines.py    # Pipelines automáticas (X-Monitor, Y-Sync)
-│   ├── pipeline_state.py    # Estado das pipelines
-│   ├── cache.py             # Redis cache manager
-│   ├── models.py            # Pydantic models
-│   ├── static/
-│   │   └── index.html       # Dashboard SPA
-│   └── requirements.txt
-├── database/
-│   ├── MYSQL_SETUP.md
-│   └── FIX_MYSQL_CORRUPTION.md
-└── README.md
-```
+[![Install Userscript](https://img.shields.io/badge/Tampermonkey-Install_Script-00485B?style=for-the-badge&logo=tampermonkey&logoColor=white)](https://raw.githubusercontent.com/nunomansilhas/better-e-leiloes/main/betterE-Leiloes-CardEnhancer.user.js)
 
-## Pipelines Automáticas
+1. Instala [Tampermonkey](https://www.tampermonkey.net/)
+2. Clica no botão acima
+3. Confirma instalação
 
-| Pipeline | Intervalo | Target | Descrição |
-|----------|-----------|--------|-----------|
-| **Auto Pipeline** | 8 horas | Todos | Pipeline completa: IDs + Content + Images |
-| **X-Monitor** | 5 seg - 10 min | Ativos | Monitoriza preços de eventos por urgência |
-| **Y-Sync** | 2 horas | Novos | Sincroniza novos eventos e dispara notificações |
+</td>
+</tr>
+</table>
 
-### X-Monitor (Price Tracking)
-Monitorização inteligente baseada em urgência:
-- **Critical** (< 5 min): Verifica a cada 5 segundos
-- **Urgent** (< 1 hora): Verifica a cada 1 minuto
-- **Soon** (< 24 horas): Verifica a cada 10 minutos
-
-## Quick Start
-
-### 1. Instalar Dependências
+### Backend Server
 
 ```bash
-cd backend
-pip install -r requirements.txt
-playwright install chromium
-```
+# Clone & Install
+git clone https://github.com/nunomansilhas/better-e-leiloes.git
+cd better-e-leiloes/backend
+pip install -r requirements.txt && playwright install chromium
 
-### 2. Configurar Base de Dados
+# Configure .env
+echo "DATABASE_URL=mysql+aiomysql://user:pass@localhost:3306/eleiloes" > .env
 
-Criar ficheiro `.env`:
-
-```env
-# API Configuration
-API_HOST=0.0.0.0
-API_PORT=8000
-
-# Database - MySQL
-DATABASE_URL=mysql+aiomysql://user:password@localhost:3306/eleiloes
-
-# Redis Cache (opcional)
-REDIS_URL=redis://localhost:6379
-
-# Scraping
-SCRAPE_DELAY=0.8
-CONCURRENT_REQUESTS=4
-```
-
-### 3. Iniciar Servidor
-
-```bash
+# Run
 python run.py
 ```
 
-Dashboard disponível em: **http://localhost:8000**
-
-## API Endpoints
-
-### Eventos
-| Método | Endpoint | Descrição |
-|--------|----------|-----------|
-| GET | `/api/events` | Lista eventos com paginação e filtros |
-| GET | `/api/events/{reference}` | Detalhes de um evento |
-| GET | `/api/stats` | Estatísticas gerais |
-
-### Notificações
-| Método | Endpoint | Descrição |
-|--------|----------|-----------|
-| GET | `/api/notifications` | Lista notificações |
-| GET | `/api/notifications/count` | Contagem de não lidas |
-| POST | `/api/notifications/read-all` | Marcar todas como lidas |
-| DELETE | `/api/notifications/delete-all` | Eliminar todas |
-
-### Regras de Notificação
-| Método | Endpoint | Descrição |
-|--------|----------|-----------|
-| GET | `/api/notification-rules` | Lista regras |
-| POST | `/api/notification-rules` | Criar regra |
-| PUT | `/api/notification-rules/{id}` | Atualizar regra |
-| DELETE | `/api/notification-rules/{id}` | Eliminar regra |
-| POST | `/api/notification-rules/{id}/toggle` | Ativar/desativar |
-
-### Filtros Dinâmicos
-| Método | Endpoint | Descrição |
-|--------|----------|-----------|
-| GET | `/api/filters/subtypes/{tipo_id}` | Subtipos por tipo |
-| GET | `/api/filters/distritos/{tipo_id}` | Distritos por tipo |
-
-### Scraping
-| Método | Endpoint | Descrição |
-|--------|----------|-----------|
-| POST | `/api/scrape/stage1/ids` | Descobrir IDs |
-| POST | `/api/scrape/stage2/details` | Extrair conteúdo |
-| POST | `/api/scrape/stage3/images` | Download imagens |
-| GET | `/api/scrape/status` | Estado do scraper |
-| POST | `/api/scrape/stop` | Parar scraping |
-
-### Pipelines Automáticas
-| Método | Endpoint | Descrição |
-|--------|----------|-----------|
-| GET | `/api/auto-pipelines/status` | Estado das pipelines |
-| POST | `/api/auto-pipelines/{type}/toggle` | Ativar/desativar |
-| GET | `/api/x-monitor/history` | Histórico X-Monitor |
-
-## Funcionalidades do Dashboard
-
-### Páginas de Eventos
-- **6 categorias**: Imóveis, Veículos, Direitos, Equipamentos, Mobiliário, Máquinas
-- **Cards informativos** com imagem, valores, tempo restante
-- **Botões de ação**: Ver no site, recarregar, mapa, notificar
-- **Paginação** client-side com todos os dados carregados
-
-### Filtros Avançados
-- Pesquisa por texto
-- Distrito / Concelho / Freguesia (cascata)
-- Subtipo e Tipologia (dinâmicos)
-- Valor mínimo / máximo
-- Ordenação por data ou valor
-
-### Sistema de Notificações
-- **Quick Toggle** - Botão no header de cada página para ativar notificações do tipo
-- **Por Evento** - Botão de sino em cada card para seguir evento específico
-- **Regras Personalizadas** - Criar regras com filtros avançados
-
-### Página de Alertas
-- **Tab Notificações** - Lista de alertas com ações (ver, marcar lida)
-- **Tab Regras** - Tabela de regras com toggle e delete
-- **Contadores** - Notificações não lidas e regras ativas
-
-### Modal de Inspeção
-- Ver todos os detalhes de um evento
-- Galeria de imagens
-- Mapa com localização GPS
-- Informações de ónus e executados
-
-## Arquitetura
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Dashboard Web (Port 8000)                 │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
-│  │  Eventos    │  │  Alertas    │  │  Scrapers           │  │
-│  │  6 Páginas  │  │  & Regras   │  │  & Pipelines        │  │
-│  └─────────────┘  └─────────────┘  └─────────────────────┘  │
-└───────────────────────────┬─────────────────────────────────┘
-                            │ REST API + SSE
-┌───────────────────────────┴─────────────────────────────────┐
-│                      FastAPI Backend                         │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
-│  │ Notification│  │  Playwright │  │  Auto Pipelines     │  │
-│  │   Engine    │  │  (Scraper)  │  │  X-Monitor/Y-Sync   │  │
-│  └─────────────┘  └─────────────┘  └─────────────────────┘  │
-└───────────────────────────┬─────────────────────────────────┘
-                            │
-              ┌─────────────┴─────────────┐
-              │                           │
-      ┌───────┴───────┐           ┌───────┴───────┐
-      │    MySQL      │           │    Redis      │
-      │  (Eventos +   │           │   (Cache)     │
-      │  Notificações)│           └───────────────┘
-      └───────────────┘
-```
-
-## Base de Dados
-
-### Tabelas Principais
-- `events` - Todos os eventos com detalhes completos
-- `notification_rules` - Regras de notificação configuradas
-- `notifications` - Notificações geradas
-
-### Schema de Notificações
-```sql
--- Regras
-CREATE TABLE notification_rules (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    name VARCHAR(100),
-    rule_type VARCHAR(50),  -- 'new_event', 'price_change'
-    active BOOLEAN,
-    tipos JSON,             -- ["imoveis", "veiculos"]
-    distritos JSON,         -- ["Lisboa", "Porto"]
-    preco_min FLOAT,
-    preco_max FLOAT,
-    event_reference VARCHAR(50),  -- Para regras de evento específico
-    triggers_count INT DEFAULT 0,
-    created_at DATETIME
-);
-
--- Notificações
-CREATE TABLE notifications (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    rule_id INT,
-    notification_type VARCHAR(50),
-    event_reference VARCHAR(50),
-    event_titulo VARCHAR(500),
-    preco_anterior FLOAT,
-    preco_atual FLOAT,
-    read BOOLEAN DEFAULT FALSE,
-    created_at DATETIME
-);
-```
-
-## Tecnologias
-
-- **Backend**: Python 3.11, FastAPI, Playwright, SQLAlchemy
-- **Database**: MySQL + aiomysql (async)
-- **Cache**: Redis
-- **Scheduler**: APScheduler
-- **Frontend**: HTML5, CSS3, JavaScript (Vanilla SPA)
-
-## Troubleshooting
-
-**Dashboard não carrega:**
-```bash
-curl http://localhost:8000/health
-```
-
-**Erros de base de dados:**
-```bash
-mysql -u user -p -h localhost eleiloes
-```
-
-**Migração de colunas:**
-O sistema executa migrações automáticas no startup (init_db).
-
-## Licença
-
-MIT License
-
-## Autor
-
-**Nuno Mansilhas**
+Dashboard: **http://localhost:8000** | API Docs: **http://localhost:8000/docs**
 
 ---
 
-Dashboard: **http://localhost:8000** | API Docs: **http://localhost:8000/docs**
+## ✨ Features
+
+| Feature | Dashboard | Extension |
+|---------|:---------:|:---------:|
+| Carrossel de imagens | ✅ | ✅ |
+| Preços detalhados (VB/VA/VM/Lance) | ✅ | ✅ |
+| Contagem regressiva | ✅ | ✅ |
+| Google Maps integration | ✅ | ✅ |
+| Notificações toast SSE | ✅ | - |
+| Sistema de regras/alertas | ✅ | - |
+| X-Monitor (price tracking) | ✅ | - |
+| Filtros avançados | ✅ | - |
+| Settings popup | - | ✅ |
+
+## 📦 Componentes
+
+```
+better-e-leiloes/
+├── backend/                 # FastAPI server
+│   ├── main.py             # API endpoints + SSE
+│   ├── auto_pipelines.py   # X-Monitor, Y-Sync
+│   ├── notification_engine.py
+│   └── static/index.html   # Dashboard SPA
+├── chrome-extension/        # Browser extension (Manifest V3)
+│   ├── manifest.json
+│   ├── content.js          # Card enhancer
+│   └── popup.html          # Settings UI
+└── betterE-Leiloes-CardEnhancer.user.js  # Tampermonkey script
+```
+
+## ⚙️ Tech Stack
+
+| Layer | Technologies |
+|-------|-------------|
+| **Backend** | Python 3.11, FastAPI, Playwright, SQLAlchemy |
+| **Database** | MySQL + aiomysql |
+| **Cache** | Redis (opcional) |
+| **Frontend** | Vanilla JS SPA |
+| **Extension** | Chrome Manifest V3 |
+
+## 🔄 Pipelines
+
+| Pipeline | Intervalo | Função |
+|----------|-----------|--------|
+| **X-Monitor** | 5s - 10min | Tracking de preços por urgência |
+| **Y-Sync** | 2h | Sync novos eventos + notificações |
+| **Auto Pipeline** | 8h | Full scrape: IDs + Content + Images |
+
+## 📡 API Endpoints
+
+<details>
+<summary>Eventos & Filtros</summary>
+
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| GET | `/api/events` | Lista com paginação |
+| GET | `/api/events/{ref}` | Detalhes evento |
+| GET | `/api/stats` | Estatísticas |
+| GET | `/api/filters/subtypes/{tipo}` | Subtipos |
+| GET | `/api/filters/distritos/{tipo}` | Distritos |
+
+</details>
+
+<details>
+<summary>Notificações</summary>
+
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| GET | `/api/notifications` | Lista |
+| GET | `/api/notifications/count` | Não lidas |
+| POST | `/api/notifications/read-all` | Marcar lidas |
+| DELETE | `/api/notifications/delete-all` | Eliminar |
+
+</details>
+
+<details>
+<summary>Regras</summary>
+
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| GET | `/api/notification-rules` | Lista |
+| POST | `/api/notification-rules` | Criar |
+| PUT | `/api/notification-rules/{id}` | Atualizar |
+| DELETE | `/api/notification-rules/{id}` | Eliminar |
+| POST | `/api/notification-rules/{id}/toggle` | Toggle |
+
+</details>
+
+<details>
+<summary>SSE (Real-time)</summary>
+
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| GET | `/api/live/events` | Stream SSE |
+
+**Eventos:** `price_update`, `event_ended`, `connected`, `ping`
+
+</details>
+
+## 🔧 Configuração
+
+### Backend (.env)
+
+```env
+DATABASE_URL=mysql+aiomysql://user:pass@localhost:3306/eleiloes
+REDIS_URL=redis://localhost:6379  # opcional
+API_PORT=8000
+```
+
+### Extension (via popup)
+
+- URL da API: `http://localhost:8000/api`
+- URL Dashboard: `http://localhost:8000`
+- Timeouts: GET 3s, Scrape 10s
+
+---
+
+## 📄 License
+
+MIT License - **Nuno Mansilhas**

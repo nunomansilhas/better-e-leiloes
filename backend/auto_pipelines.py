@@ -10,6 +10,9 @@ from pathlib import Path
 from typing import Dict, Any, Optional, Callable
 from dataclasses import dataclass, asdict
 
+# Price history tracking
+from price_history import record_price_change
+
 
 @dataclass
 class PipelineConfig:
@@ -44,6 +47,13 @@ class AutoPipelinesManager:
             description="Sincronização completa: todos os IDs + marca terminados",
             enabled=False,
             interval_hours=2.0  # A cada 2 horas
+        ),
+        "zwatch": PipelineConfig(
+            type="zwatch",
+            name="Z-Watch",
+            description="Monitoriza EventosMaisRecentes API a cada 10 minutos",
+            enabled=False,
+            interval_hours=10/60  # A cada 10 minutos
         )
     }
 
@@ -195,10 +205,22 @@ class AutoPipelinesManager:
 
     def get_status(self) -> Dict[str, Any]:
         """Get status of all pipelines"""
-        # Calculate X-Monitor stats from cached events
-        critical_count = len(self._critical_events_cache) if self._critical_events_cache else 0
-        urgent_count = len(self._urgent_events_cache) if self._urgent_events_cache else 0
-        soon_count = len(self._soon_events_cache) if self._soon_events_cache else 0
+        # Calculate X-Monitor stats with EXCLUSIVE tier counts (no overlap)
+        now = datetime.now()
+        critical_count = 0
+        urgent_count = 0
+        soon_count = 0
+
+        # Count from soon cache (largest) and categorize by actual time remaining
+        for event in self._soon_events_cache or []:
+            if event.data_fim:
+                seconds = (event.data_fim - now).total_seconds()
+                if 0 < seconds <= 300:  # < 5 min = Critical
+                    critical_count += 1
+                elif 300 < seconds <= 3600:  # 5-60 min = Urgent
+                    urgent_count += 1
+                elif 3600 < seconds <= 86400:  # 1-24h = Soon
+                    soon_count += 1
 
         return {
             "pipelines": {k: asdict(v) for k, v in self.pipelines.items()},
@@ -501,12 +523,22 @@ class AutoPipelinesManager:
                                 # Update event in database - only update price if we got a valid one
                                 if price_changed and new_price is not None:
                                     event.lance_atual = new_price
+                                    # Record to price history DB
+                                    await record_price_change(event.reference, new_price, old_price, source='xmonitor')
                                 if time_extended and new_end is not None:
                                     event.data_fim = new_end
 
                                 async with get_db() as db:
                                     await db.save_event(event)
                                     await cache_manager.set(event.reference, event)
+
+                                    # Process price change notifications (Tier 1)
+                                    if price_changed and old_price is not None:
+                                        from notification_engine import get_notification_engine
+                                        notification_engine = get_notification_engine()
+                                        await notification_engine.process_price_change(
+                                            event, old_price, new_price, db
+                                        )
 
                                 # Broadcast price update to SSE clients
                                 from main import broadcast_price_update
@@ -774,12 +806,22 @@ class AutoPipelinesManager:
                                 # Update event - only update price if we got a valid one
                                 if price_changed and new_price is not None:
                                     event.lance_atual = new_price
+                                    # Record to price history DB
+                                    await record_price_change(event.reference, new_price, old_price, source='xmonitor')
                                 if time_extended and new_end is not None:
                                     event.data_fim = new_end
 
                                 async with get_db() as db:
                                     await db.save_event(event)
                                     await cache_manager.set(event.reference, event)
+
+                                    # Process price change notifications (Tier 2)
+                                    if price_changed and old_price is not None:
+                                        from notification_engine import get_notification_engine
+                                        notification_engine = get_notification_engine()
+                                        await notification_engine.process_price_change(
+                                            event, old_price, new_price, db
+                                        )
 
                                 # Broadcast price update to SSE clients
                                 from main import broadcast_price_update
@@ -937,12 +979,22 @@ class AutoPipelinesManager:
                                 # Update event - only update price if we got a valid one
                                 if price_changed and new_price is not None:
                                     event.lance_atual = new_price
+                                    # Record to price history DB
+                                    await record_price_change(event.reference, new_price, old_price, source='xmonitor')
                                 if time_extended and new_end is not None:
                                     event.data_fim = new_end
 
                                 async with get_db() as db:
                                     await db.save_event(event)
                                     await cache_manager.set(event.reference, event)
+
+                                    # Process price change notifications (Tier 3)
+                                    if price_changed and old_price is not None:
+                                        from notification_engine import get_notification_engine
+                                        notification_engine = get_notification_engine()
+                                        await notification_engine.process_price_change(
+                                            event, old_price, new_price, db
+                                        )
 
                                 # Broadcast price update to SSE clients
                                 from main import broadcast_price_update
@@ -1078,11 +1130,34 @@ class AutoPipelinesManager:
                             if price_changed or time_extended:
                                 if price_changed:
                                     event.lance_atual = new_price
+                                    # Record to price history DB
+                                    await record_price_change(event.reference, new_price, old_price, source='xmonitor')
                                 if time_extended:
                                     event.data_fim = new_end
 
                                 async with get_db() as db:
                                     await db.save_event(event)
+
+                                    # Process price change notifications
+                                    if price_changed and old_price is not None:
+                                        from notification_engine import get_notification_engine
+                                        notification_engine = get_notification_engine()
+                                        await notification_engine.process_price_change(
+                                            event, old_price, new_price, db
+                                        )
+
+                                    # Process ending_soon notifications
+                                    if event.data_fim:
+                                        from notification_engine import get_notification_engine
+                                        notification_engine = get_notification_engine()
+                                        remaining = (event.data_fim - datetime.now()).total_seconds() / 60
+                                        if 0 < remaining <= 1440:  # Within 24 hours
+                                            try:
+                                                await notification_engine.process_ending_soon(
+                                                    event, int(remaining), db
+                                                )
+                                            except Exception as e:
+                                                pass  # Silent fail for ending_soon
 
                                 # Record to history
                                 from xmonitor_history import record_event_update
@@ -1126,22 +1201,26 @@ class AutoPipelinesManager:
             from cache import CacheManager
             from pipeline_state import get_pipeline_state
 
-            # Skip if main pipeline is running
-            main_pipeline = get_pipeline_state()
-            if main_pipeline.is_active:
-                print(f"⏸️ Y-Sync skipped - main pipeline is running")
-                return
-
-            # Mark as running
-            self.pipelines['ysync'].is_running = True
-            self._save_config()
-
-            print(f"🔄 Y-Sync: A iniciar sincronização completa...")
-
-            scraper = EventScraper()
-            cache_manager = CacheManager()
+            scraper = None
+            cache_manager = None
+            skipped = False
 
             try:
+                # Skip if main pipeline is running
+                main_pipeline = get_pipeline_state()
+                if main_pipeline.is_active:
+                    print(f"⏸️ Y-Sync skipped - main pipeline is running")
+                    skipped = True
+                    return
+
+                # Mark as running
+                self.pipelines['ysync'].is_running = True
+                self._save_config()
+
+                print(f"🔄 Y-Sync: A iniciar sincronização completa...")
+
+                scraper = EventScraper()
+                cache_manager = CacheManager()
                 new_ids_count = 0
                 terminated_count = 0
 
@@ -1165,6 +1244,7 @@ class AutoPipelinesManager:
 
                     # Process notifications for new events
                     from notification_engine import process_new_events_batch
+                    from main import broadcast_new_event
                     notifications_count = 0
 
                     async with get_db() as db:
@@ -1172,6 +1252,22 @@ class AutoPipelinesManager:
                             await db.save_event(event)
                             await cache_manager.set(event.reference, event)
                             new_ids_count += 1
+
+                            # Broadcast new event to SSE clients
+                            await broadcast_new_event({
+                                "reference": event.reference,
+                                "titulo": event.titulo,
+                                "tipo": event.tipo,
+                                "capa": event.capa,
+                                "distrito": event.distrito,
+                                "concelho": event.concelho,
+                                "valor_minimo": event.valor_minimo,
+                                "lance_atual": event.lance_atual,
+                                "valor_base": event.valor_base,
+                                "data_fim": event.data_fim.isoformat() if event.data_fim else None,
+                                "data_inicio": event.data_inicio.isoformat() if event.data_inicio else None,
+                                "timestamp": datetime.now().isoformat()
+                            })
 
                         # Check notification rules for new events
                         notifications_count = await process_new_events_batch(events, db)
@@ -1199,52 +1295,317 @@ class AutoPipelinesManager:
                     if candidates:
                         print(f"    📋 {len(candidates)} candidatos a terminado")
 
+                        # OPTIMIZED: Batch API call instead of one-by-one
+                        refs = [e.reference for e in candidates]
+                        api_results = await scraper.scrape_volatile_via_api(refs)
+
+                        # Create lookup map for quick access
+                        api_map = {r['reference']: r for r in api_results}
+
+                        # Import notification function
+                        from notification_engine import create_event_ended_notification
+
                         for event in candidates:
                             try:
-                                # Quick check via API
-                                api_data = await scraper.scrape_volatile_via_api([event.reference])
+                                data = api_map.get(event.reference)
 
-                                if api_data and len(api_data) > 0:
-                                    data = api_data[0]
+                                if data:
                                     new_end = data.get('dataFim')
+                                    new_price = data.get('lanceAtual')
+                                    old_price = event.lance_atual
+
+                                    # Check for price change and record it
+                                    if new_price is not None and old_price != new_price:
+                                        await record_price_change(event.reference, new_price, old_price, source='ysync')
+                                        print(f"    💰 Y-Sync: Preço alterado {event.reference}: {old_price} → {new_price}")
+
+                                        # Process notification for price change
+                                        from notification_engine import get_notification_engine
+                                        notification_engine = get_notification_engine()
+                                        await notification_engine.process_price_change(event, old_price, new_price, db)
+
+                                        # Update price in DB
+                                        await db.update_event_fields(event.reference, {'lance_atual': new_price})
+
+                                        # Broadcast price update via SSE
+                                        from main import broadcast_price_update
+                                        await broadcast_price_update({
+                                            "type": "price_update",
+                                            "reference": event.reference,
+                                            "titulo": event.titulo,
+                                            "old_price": old_price,
+                                            "new_price": new_price,
+                                            "timestamp": datetime.now().isoformat()
+                                        })
+
                                     if new_end and new_end < now:
-                                        event.terminado = True
-                                        event.cancelado = True
-                                        await db.save_event(event)
-                                        await cache_manager.set(event.reference, event)
+                                        # Only update specific fields, not full save
+                                        await db.update_event_fields(
+                                            event.reference,
+                                            {'terminado': True, 'cancelado': True, 'ativo': False, 'lance_atual': new_price or old_price}
+                                        )
+                                        await cache_manager.invalidate(event.reference)
                                         terminated_count += 1
                                         print(f"    🔴 Terminado: {event.reference}")
 
-                            except Exception as e:
-                                if "404" in str(e) or "not found" in str(e).lower():
-                                    event.terminado = True
-                                    await db.save_event(event)
+                                        # Create notification for ended event
+                                        await create_event_ended_notification({
+                                            'reference': event.reference,
+                                            'titulo': event.titulo,
+                                            'tipo': event.tipo,
+                                            'subtipo': event.subtipo,
+                                            'distrito': event.distrito,
+                                            'lance_atual': new_price or old_price,
+                                            'valor_base': event.valor_base,
+                                            'data_fim': new_end
+                                        }, db)
+
+                                        # Broadcast event_ended via SSE
+                                        from main import broadcast_price_update
+                                        await broadcast_price_update({
+                                            "type": "event_ended",
+                                            "reference": event.reference,
+                                            "titulo": event.titulo,
+                                            "tipo": event.tipo,
+                                            "final_price": new_price or old_price,
+                                            "valor_base": event.valor_base,
+                                            "timestamp": datetime.now().isoformat()
+                                        })
+                                else:
+                                    # Not in API results = likely 404/not found
+                                    await db.update_event_fields(
+                                        event.reference,
+                                        {'terminado': True, 'ativo': False}
+                                    )
                                     terminated_count += 1
                                     print(f"    🔴 Não encontrado: {event.reference}")
+
+                                    # Create notification for ended event (not found)
+                                    await create_event_ended_notification({
+                                        'reference': event.reference,
+                                        'titulo': event.titulo,
+                                        'tipo': event.tipo,
+                                        'subtipo': event.subtipo,
+                                        'distrito': event.distrito,
+                                        'lance_atual': event.lance_atual,
+                                        'valor_base': event.valor_base,
+                                        'data_fim': event.data_fim
+                                    }, db)
+
+                                    # Broadcast event_ended via SSE
+                                    from main import broadcast_price_update
+                                    await broadcast_price_update({
+                                        "type": "event_ended",
+                                        "reference": event.reference,
+                                        "titulo": event.titulo,
+                                        "tipo": event.tipo,
+                                        "final_price": event.lance_atual,
+                                        "valor_base": event.valor_base,
+                                        "timestamp": datetime.now().isoformat()
+                                    })
+
+                            except Exception as e:
+                                print(f"    ❌ Erro {event.reference}: {str(e)[:50]}")
                     else:
                         print(f"    ✓ Nenhum evento terminado")
 
                 print(f"  ✅ Y-Sync completo: {new_ids_count} novos, {terminated_count} terminados")
 
-            finally:
-                await scraper.close()
-                await cache_manager.close()
-                self.pipelines['ysync'].is_running = False
+                # Stage 3: Cleanup old notifications (runs every Y-Sync = every 2h)
+                print(f"  🗑️ Stage 3: Limpeza de notificações antigas...")
+                from notification_engine import cleanup_old_notifications
+                async with get_db() as db:
+                    await cleanup_old_notifications(db, days=30)
 
-                # Update pipeline stats AFTER completion (timer starts now)
-                pipeline = self.pipelines['ysync']
-                now = datetime.now()
-                pipeline.last_run = now.strftime("%Y-%m-%d %H:%M:%S")
-                pipeline.runs_count += 1
-                pipeline.next_run = (now + timedelta(hours=pipeline.interval_hours)).strftime("%Y-%m-%d %H:%M:%S")
+            finally:
+                # Close resources safely (don't let errors here block the rest)
+                try:
+                    if scraper:
+                        await scraper.close()
+                except:
+                    pass
+                try:
+                    if cache_manager:
+                        await cache_manager.close()
+                except:
+                    pass
+
+                # ALWAYS reset is_running if we started (not skipped)
+                if not skipped:
+                    self.pipelines['ysync'].is_running = False
+                    pipeline = self.pipelines['ysync']
+                    now = datetime.now()
+                    pipeline.last_run = now.strftime("%Y-%m-%d %H:%M:%S")
+                    pipeline.runs_count += 1
+                    pipeline.next_run = (now + timedelta(hours=pipeline.interval_hours)).strftime("%Y-%m-%d %H:%M:%S")
+                    self._save_config()
+                    print(f"  ⏰ Y-Sync: próxima execução em {pipeline.interval_hours}h")
+
+                # ALWAYS reschedule - even if skipped
+                self._reschedule_pipeline('ysync')
+
+        async def run_zwatch_pipeline():
+            """Z-Watch: Monitoriza EventosMaisRecentes API para novos eventos"""
+            import httpx
+            from scraper import EventScraper
+            from database import get_db
+            from cache import CacheManager
+            from pipeline_state import get_pipeline_state
+
+            # Check if pipeline exists
+            if 'zwatch' not in self.pipelines:
+                return
+
+            scraper = None
+            cache_manager = None
+            skipped = False
+
+            try:
+                # Skip if main pipeline is running
+                main_pipeline = get_pipeline_state()
+                if main_pipeline.is_active:
+                    print(f"⏸️ Z-Watch skipped - main pipeline is running")
+                    skipped = True
+                    return
+
+                # Skip if Y-Sync is running (avoid duplicate work)
+                if self.pipelines.get('ysync') and self.pipelines['ysync'].is_running:
+                    print(f"⏸️ Z-Watch skipped - Y-Sync is running")
+                    skipped = True
+                    return
+
+                # Mark as running
+                self.pipelines['zwatch'].is_running = True
                 self._save_config()
 
-                self._reschedule_pipeline('ysync')
+                print(f"👁️ Z-Watch: A verificar EventosMaisRecentes...")
+
+                scraper = EventScraper()
+                cache_manager = CacheManager()
+                new_count = 0
+
+                # Call the EventosMaisRecentes API
+                async with httpx.AsyncClient(timeout=15.0, follow_redirects=True, verify=False) as client:
+                    api_url = "https://www.e-leiloes.pt/api/EventosMaisRecentes/"
+
+                    # Try with browser-like headers
+                    headers = {
+                        'Accept': 'application/json, text/plain, */*',
+                        'Accept-Language': 'pt-PT,pt;q=0.9,en;q=0.8',
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                        'Referer': 'https://www.e-leiloes.pt/',
+                        'Origin': 'https://www.e-leiloes.pt'
+                    }
+
+                    response = await client.get(api_url, headers=headers)
+
+                    if response.status_code != 200:
+                        print(f"  ⚠️ EventosMaisRecentes API returned {response.status_code}")
+                        return
+
+                    data = response.json()
+
+                    # The API returns a list of recent events
+                    events_list = data if isinstance(data, list) else data.get('items', data.get('eventos', []))
+
+                    if not events_list:
+                        print(f"  ✓ Nenhum evento na resposta")
+                        return
+
+                    print(f"  📊 {len(events_list)} eventos na API")
+
+                    # Extract references and check which are new
+                    new_refs = []
+                    async with get_db() as db:
+                        for item in events_list:
+                            # Try different field names for reference
+                            ref = item.get('reference') or item.get('referencia') or item.get('id') or item.get('codigo')
+                            if ref:
+                                existing = await db.get_event(ref)
+                                if not existing:
+                                    new_refs.append(ref)
+
+                    if not new_refs:
+                        print(f"  ✓ Nenhum evento novo")
+                        return
+
+                    print(f"  🆕 {len(new_refs)} eventos novos encontrados!")
+
+                    # Scrape details for new events
+                    events = await scraper.scrape_details_via_api(new_refs)
+
+                    # Process notifications for new events
+                    from notification_engine import process_new_events_batch
+                    from main import broadcast_new_event
+
+                    async with get_db() as db:
+                        for event in events:
+                            await db.save_event(event)
+                            await cache_manager.set(event.reference, event)
+                            new_count += 1
+
+                            # Broadcast new event to SSE clients
+                            await broadcast_new_event({
+                                "reference": event.reference,
+                                "titulo": event.titulo,
+                                "tipo": event.tipo,
+                                "capa": event.capa,
+                                "distrito": event.distrito,
+                                "concelho": event.concelho,
+                                "valor_minimo": event.valor_minimo,
+                                "lance_atual": event.lance_atual,
+                                "valor_base": event.valor_base,
+                                "data_fim": event.data_fim.isoformat() if event.data_fim else None,
+                                "data_inicio": event.data_inicio.isoformat() if event.data_inicio else None,
+                                "timestamp": datetime.now().isoformat()
+                            })
+
+                            print(f"    ✨ Novo: {event.reference} - {event.titulo[:50]}...")
+
+                        # Check notification rules for new events
+                        notifications_count = await process_new_events_batch(events, db)
+
+                        if notifications_count > 0:
+                            print(f"  🔔 {notifications_count} notificações criadas")
+
+                    print(f"  ✅ Z-Watch: {new_count} novos eventos adicionados")
+
+            except httpx.RequestError as e:
+                print(f"  ❌ Z-Watch erro de rede: {str(e)[:50]}")
+            except Exception as e:
+                print(f"  ❌ Z-Watch erro: {str(e)[:100]}")
+            finally:
+                # Close resources safely (don't let errors here block the rest)
+                try:
+                    if scraper:
+                        await scraper.close()
+                except:
+                    pass
+                try:
+                    if cache_manager:
+                        await cache_manager.close()
+                except:
+                    pass
+
+                # ALWAYS reset is_running if we started (not skipped)
+                if not skipped:
+                    self.pipelines['zwatch'].is_running = False
+                    pipeline = self.pipelines['zwatch']
+                    now = datetime.now()
+                    pipeline.last_run = now.strftime("%Y-%m-%d %H:%M:%S")
+                    pipeline.runs_count += 1
+                    pipeline.next_run = (now + timedelta(hours=pipeline.interval_hours)).strftime("%Y-%m-%d %H:%M:%S")
+                    self._save_config()
+                    print(f"  ⏰ Z-Watch: próxima execução em {pipeline.interval_hours * 60:.0f} min")
+
+                # ALWAYS reschedule - even if skipped
+                self._reschedule_pipeline('zwatch')
 
         # Return the appropriate function
         tasks = {
             "xmonitor": run_xmonitor_pipeline,
             "ysync": run_ysync_pipeline,
+            "zwatch": run_zwatch_pipeline,
             # Legacy support
             "prices": run_prices_pipeline,
             "prices_urgent": run_prices_urgent_pipeline,
