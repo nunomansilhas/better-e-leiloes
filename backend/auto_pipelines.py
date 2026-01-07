@@ -1221,6 +1221,7 @@ class AutoPipelinesManager:
 
                     # Process notifications for new events
                     from notification_engine import process_new_events_batch
+                    from main import broadcast_new_event
                     notifications_count = 0
 
                     async with get_db() as db:
@@ -1228,6 +1229,19 @@ class AutoPipelinesManager:
                             await db.save_event(event)
                             await cache_manager.set(event.reference, event)
                             new_ids_count += 1
+
+                            # Broadcast new event to SSE clients
+                            await broadcast_new_event({
+                                "reference": event.reference,
+                                "titulo": event.titulo,
+                                "tipo": event.tipo,
+                                "distrito": event.distrito,
+                                "lance_atual": event.lance_atual,
+                                "valor_base": event.valor_base,
+                                "data_fim": event.data_fim.isoformat() if event.data_fim else None,
+                                "data_inicio": event.data_inicio.isoformat() if event.data_inicio else None,
+                                "timestamp": datetime.now().isoformat()
+                            })
 
                         # Check notification rules for new events
                         notifications_count = await process_new_events_batch(events, db)

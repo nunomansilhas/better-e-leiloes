@@ -77,6 +77,23 @@ async def broadcast_price_update(event_data: dict):
         sse_clients.discard(client)
 
 
+async def broadcast_new_event(event_data: dict):
+    """Broadcast a new event to all connected SSE clients"""
+    dead_clients = set()
+    for queue in sse_clients:
+        try:
+            await queue.put({
+                "type": "new_event",
+                **event_data
+            })
+        except:
+            dead_clients.add(queue)
+
+    # Remove disconnected clients
+    for client in dead_clients:
+        sse_clients.discard(client)
+
+
 def get_sse_clients():
     """Get the SSE clients set (for use in auto_pipelines)"""
     return sse_clients
@@ -1428,6 +1445,38 @@ async def get_price_history_stats():
     from price_history import get_stats
     stats = await get_stats()
     return JSONResponse(stats)
+
+
+@app.get("/api/dashboard/recent-events")
+async def get_recent_events(limit: int = 20, days: int = 7):
+    """Get recently started events (sorted by data_inicio DESC)"""
+    from sqlalchemy import select
+    from database import EventDB
+    from datetime import timedelta
+
+    cutoff = datetime.now() - timedelta(days=days)
+
+    async with get_db() as db:
+        result = await db.session.execute(
+            select(EventDB)
+            .where(EventDB.data_inicio >= cutoff)
+            .where(EventDB.cancelado == False)
+            .where(EventDB.terminado == False)
+            .order_by(EventDB.data_inicio.desc())
+            .limit(limit)
+        )
+        events = result.scalars().all()
+
+        return JSONResponse([{
+            "reference": e.reference,
+            "titulo": e.titulo,
+            "tipo": e.tipo,
+            "distrito": e.distrito,
+            "lance_atual": e.lance_atual,
+            "valor_base": e.valor_base,
+            "data_fim": e.data_fim.isoformat() if e.data_fim else None,
+            "data_inicio": e.data_inicio.isoformat() if e.data_inicio else None
+        } for e in events])
 
 
 @app.post("/api/db/fix-nulls")

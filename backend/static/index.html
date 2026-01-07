@@ -3086,7 +3086,6 @@
                             <span id="new-events-count" style="background: #3b82f6; color: white; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px;">0</span>
                         </div>
                         <div style="display: flex; gap: 6px;">
-                            <button onclick="addFakeNewEvent()" style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 4px 8px; border-radius: 6px; color: #16a34a; cursor: pointer; font-size: 10px; font-weight: 500;" title="Adicionar evento teste">+ Teste</button>
                             <button onclick="scrollNewEvents('left')" style="background: #f1f5f9; border: 1px solid #e2e8f0; width: 24px; height: 24px; border-radius: 6px; color: #64748b; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">‹</button>
                             <button onclick="scrollNewEvents('right')" style="background: #f1f5f9; border: 1px solid #e2e8f0; width: 24px; height: 24px; border-radius: 6px; color: #64748b; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">›</button>
                         </div>
@@ -5499,18 +5498,8 @@
             return `${mins}m`;
         }
 
-        // Fake events for testing animations
-        const fakeEvents = [
-            { reference: 'LO9990001', titulo: 'Apartamento T3 em Lisboa', distrito: 'Lisboa', lance_atual: 125000, valor_base: 100000, data_fim: new Date(Date.now() + 2*24*60*60*1000).toISOString() },
-            { reference: 'NP9990002', titulo: 'Moradia V4 no Porto', distrito: 'Porto', lance_atual: 250000, valor_base: 200000, data_fim: new Date(Date.now() + 5*60*60*1000).toISOString() },
-            { reference: 'LO9990003', titulo: 'BMW Serie 3 2019', distrito: 'Faro', lance_atual: 18500, valor_base: 15000, data_fim: new Date(Date.now() + 12*60*60*1000).toISOString() },
-            { reference: 'LO9990004', titulo: 'Loja Comercial Braga', distrito: 'Braga', lance_atual: 45000, valor_base: 35000, data_fim: new Date(Date.now() + 3*24*60*60*1000).toISOString() },
-            { reference: 'NP9990005', titulo: 'Terreno Rústico Setúbal', distrito: 'Setúbal', lance_atual: 8500, valor_base: 5000, data_fim: new Date(Date.now() + 45*60*1000).toISOString() },
-            { reference: 'LO9990006', titulo: 'Armazém Industrial Coimbra', distrito: 'Coimbra', lance_atual: 89000, valor_base: 75000, data_fim: new Date(Date.now() + 1*24*60*60*1000).toISOString() },
-        ];
-        let fakeEventIndex = 0;
-
-        function createNewEventCard(e) {
+        // New Events Banner Functions
+        function createNewEventCard(e, animate = true) {
             const price = e.lance_atual || e.valor_base || 0;
             const priceStr = Number(price).toLocaleString('pt-PT', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + '€';
             const refPrefix = e.reference?.substring(0, 2) || '';
@@ -5519,6 +5508,7 @@
 
             const card = document.createElement('div');
             card.className = 'new-event-card';
+            card.dataset.reference = e.reference;
             card.onclick = () => window.open(`https://e-leiloes.pt/evento/${e.reference}`, '_blank');
             card.style.cssText = `
                 flex-shrink: 0;
@@ -5529,8 +5519,7 @@
                 cursor: pointer;
                 transition: all 0.3s ease;
                 border: 1px solid #e2e8f0;
-                opacity: 0;
-                transform: translateX(-20px);
+                ${animate ? 'opacity: 0; transform: translateX(-20px);' : 'opacity: 1; transform: translateX(0);'}
             `;
             card.innerHTML = `
                 <div style="height: 65px; background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%); position: relative; display: flex; align-items: center; justify-content: center;">
@@ -5550,21 +5539,21 @@
             return card;
         }
 
-        function addFakeNewEvent() {
+        // Add new event to banner (called from SSE)
+        function addNewEventToTrack(eventData) {
             const track = document.getElementById('new-events-track');
             const countBadge = document.getElementById('new-events-count');
             if (!track) return;
 
-            // Remove "loading" message if present
+            // Remove "loading" or "no events" message if present
             const loadingMsg = track.querySelector('div[style*="padding: 20px"]');
             if (loadingMsg) loadingMsg.remove();
 
-            // Get next fake event
-            const fakeEvent = fakeEvents[fakeEventIndex % fakeEvents.length];
-            fakeEventIndex++;
+            // Check if event already exists
+            if (track.querySelector(`[data-reference="${eventData.reference}"]`)) return;
 
-            // Create and insert card at the beginning
-            const card = createNewEventCard(fakeEvent);
+            // Create and insert card at the beginning (with animation)
+            const card = createNewEventCard(eventData, true);
             track.insertBefore(card, track.firstChild);
 
             // Animate in
@@ -5580,6 +5569,47 @@
             // Scroll to start to see new event
             track.scrollTo({ left: 0, behavior: 'smooth' });
         }
+
+        // Load initial events for banner
+        async function loadNewEventsBanner() {
+            const track = document.getElementById('new-events-track');
+            const countBadge = document.getElementById('new-events-count');
+            if (!track) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/api/dashboard/recent-events?limit=20&days=7`);
+                if (!response.ok) throw new Error('Failed to load events');
+
+                const events = await response.json();
+
+                // Clear track
+                track.innerHTML = '';
+
+                if (events.length === 0) {
+                    track.innerHTML = '<div style="color: #94a3b8; font-size: 11px; padding: 20px; white-space: nowrap;">Nenhum evento recente</div>';
+                    if (countBadge) countBadge.textContent = '0';
+                    return;
+                }
+
+                // Sort by data_inicio DESC (most recent first)
+                events.sort((a, b) => new Date(b.data_inicio) - new Date(a.data_inicio));
+
+                // Add cards (without animation for initial load)
+                events.forEach(e => {
+                    const card = createNewEventCard(e, false);
+                    track.appendChild(card);
+                });
+
+                // Update count
+                if (countBadge) countBadge.textContent = events.length;
+            } catch (error) {
+                console.error('Erro ao carregar novos eventos:', error);
+                track.innerHTML = '<div style="color: #94a3b8; font-size: 11px; padding: 20px; white-space: nowrap;">Erro ao carregar</div>';
+            }
+        }
+
+        // Load new events banner on page load
+        loadNewEventsBanner();
 
         // Load dashboard widgets on page load and refresh periodically
         loadDashboardWidgets();
@@ -8477,6 +8507,20 @@
                         if (currentPage === 'alertas') {
                             loadNotifications();
                         }
+                    } else if (data.type === 'new_event') {
+                        // Add new event to banner
+                        addNewEventToTrack(data);
+
+                        // Show toast notification
+                        const price = data.lance_atual || data.valor_base || 0;
+                        showToast(
+                            `🆕 Novo Evento`,
+                            `${data.reference}: ${data.titulo?.substring(0, 40) || data.distrito || '-'}... - €${price.toLocaleString()}`,
+                            'info'
+                        );
+
+                        // Update badge
+                        updateNotificationBadge();
                     } else if (data.type === 'connected') {
                         console.log('🔴 SSE:', data.message);
                     }
