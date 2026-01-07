@@ -2989,6 +2989,10 @@
                             <div style="font-size: 9px; color: #64748b;">Y-Sync</div>
                             <div id="dash-ysync-timer" style="font-size: 10px; font-weight: 600; color: #1e40af;">--:--</div>
                         </div>
+                        <div onclick="showPage('scraping')" style="padding: 4px 8px; background: #f8fafc; border-radius: 4px; text-align: center; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#dcfce7'" onmouseout="this.style.background='#f8fafc'">
+                            <div style="font-size: 9px; color: #64748b;">Z-Watch</div>
+                            <div id="dash-zwatch-timer" style="font-size: 10px; font-weight: 600; color: #15803d;">--:--</div>
+                        </div>
                     </div>
                 </div>
 
@@ -3744,8 +3748,8 @@
                         </div>
                     </div>
 
-                    <!-- Pipeline Grid (2 columns: X-Monitor + Y-Sync) -->
-                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+                    <!-- Pipeline Grid (3 columns: X-Monitor + Y-Sync + Z-Watch) -->
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
 
                         <!-- X-Monitor (Combined Critical/Urgent/Soon) -->
                         <div style="padding: 12px; background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border: 1px solid #fca5a5; border-radius: 10px;">
@@ -3785,6 +3789,24 @@
                             <div style="font-size: 10px; color: #1e3a8a; line-height: 1.4;">
                                 <div>🔍 Sync completo + Terminados</div>
                                 <div id="pipeline-timer-ysync-scraping" style="margin-top: 4px; font-weight: 600; color: #1e40af;">⏱️ --:--:--</div>
+                            </div>
+                        </div>
+
+                        <!-- Z-Watch -->
+                        <div style="padding: 12px; background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 1px solid #86efac; border-radius: 10px;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <span style="font-size: 14px;">👁️</span>
+                                    <span style="font-weight: 600; font-size: 12px; color: #15803d;">Z-Watch</span>
+                                </div>
+                                <label class="toggle-switch" style="transform: scale(0.85);">
+                                    <input type="checkbox" id="auto-pipeline-zwatch-scraping" onchange="toggleAutoPipeline('zwatch', this.checked)">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div style="font-size: 10px; color: #14532d; line-height: 1.4;">
+                                <div>🆕 Novos eventos (10min)</div>
+                                <div id="pipeline-timer-zwatch-scraping" style="margin-top: 4px; font-weight: 600; color: #15803d;">⏱️ --:--</div>
                             </div>
                         </div>
                     </div>
@@ -7715,7 +7737,8 @@
         async function toggleAutoPipeline(type, enabled) {
             const pipelineNames = {
                 'xmonitor': 'X-Monitor',
-                'ysync': 'Y-Sync'
+                'ysync': 'Y-Sync',
+                'zwatch': 'Z-Watch'
             };
             const name = pipelineNames[type] || type;
 
