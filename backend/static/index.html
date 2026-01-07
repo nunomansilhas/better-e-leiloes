@@ -3893,6 +3893,43 @@
                     </div>
                 </div>
 
+                <!-- Security Section -->
+                <div class="scraper-control-card" style="background: linear-gradient(135deg, #fef3c7 0%, #fff 100%); border: 1px solid #fbbf24;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                        <span style="font-size: 16px;">🔐</span>
+                        <span style="font-weight: 600; color: #92400e;">Segurança API</span>
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                        <!-- API Key Input -->
+                        <div style="display: flex; flex-direction: column; gap: 6px;">
+                            <label style="font-weight: 500; color: #1e293b; font-size: 12px;">Chave de Autenticação</label>
+                            <div style="display: flex; gap: 8px;">
+                                <input type="password" id="api-auth-key-input"
+                                    placeholder="Insira a chave API..."
+                                    style="flex: 1; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 12px; font-family: monospace;">
+                                <button onclick="toggleKeyVisibility()" style="padding: 10px 12px; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; cursor: pointer;" title="Mostrar/Esconder">
+                                    👁️
+                                </button>
+                                <button onclick="saveApiKey()" style="padding: 10px 16px; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; border: none; border-radius: 8px; font-weight: 500; font-size: 12px; cursor: pointer;">
+                                    💾 Guardar
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Status -->
+                        <div id="api-auth-status" style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: #f8fafc; border-radius: 8px;">
+                            <span id="api-auth-indicator" style="width: 8px; height: 8px; border-radius: 50%; background: #94a3b8;"></span>
+                            <span id="api-auth-text" style="font-size: 11px; color: #64748b;">Chave não configurada</span>
+                        </div>
+
+                        <!-- Info -->
+                        <div style="padding: 10px; background: #fffbeb; border-radius: 8px; font-size: 11px; color: #92400e;">
+                            💡 A chave é necessária para operações de escrita (scrapers, pipelines, etc.). A chave é guardada no localStorage do browser.
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Browser Extensions Section -->
                 <div class="scraper-control-card" style="background: linear-gradient(135deg, #f0f9ff 0%, #fff 100%); border: 1px solid #bae6fd;">
                     <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
@@ -4105,6 +4142,77 @@
     <script>
         // Dynamic API base - works from any host/port
         const API_BASE = window.location.origin;
+
+        // ============== SECURITY: HMAC Authentication ==============
+
+        const API_AUTH = {
+            secretKey: null,
+
+            setKey(key) {
+                this.secretKey = key;
+                localStorage.setItem('api_auth_key', key);
+                console.log('🔐 API Auth: Key configured');
+            },
+
+            clearKey() {
+                this.secretKey = null;
+                localStorage.removeItem('api_auth_key');
+                console.log('🔐 API Auth: Key cleared');
+            },
+
+            async generateSignature(method, path, body = '') {
+                if (!this.secretKey) return null;
+
+                const timestamp = Math.floor(Date.now() / 1000).toString();
+                const message = timestamp + method.toUpperCase() + path + body;
+
+                const encoder = new TextEncoder();
+                const keyData = encoder.encode(this.secretKey);
+                const messageData = encoder.encode(message);
+
+                const cryptoKey = await crypto.subtle.importKey(
+                    'raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+                );
+
+                const signature = await crypto.subtle.sign('HMAC', cryptoKey, messageData);
+                const hashArray = Array.from(new Uint8Array(signature));
+                const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+                return { signature: hashHex, timestamp };
+            }
+        };
+
+        // Authenticated fetch wrapper - automatically adds HMAC headers for mutations
+        async function authFetch(url, options = {}) {
+            const method = options.method || 'GET';
+            const path = new URL(url, window.location.origin).pathname;
+            const body = options.body || '';
+
+            // Add auth headers for non-GET requests if key is set
+            if (method.toUpperCase() !== 'GET' && API_AUTH.secretKey) {
+                const auth = await API_AUTH.generateSignature(method, path, body);
+                if (auth) {
+                    options.headers = {
+                        ...options.headers,
+                        'X-Signature': auth.signature,
+                        'X-Timestamp': auth.timestamp
+                    };
+                }
+            }
+
+            return fetch(url, options);
+        }
+
+        // Initialize auth key from localStorage
+        (function initAuth() {
+            const savedKey = localStorage.getItem('api_auth_key');
+            if (savedKey) {
+                API_AUTH.secretKey = savedKey;
+                console.log('🔐 API Auth: Key loaded from storage');
+            }
+        })();
+
+        // ============== END SECURITY ==============
 
         // Normalize event data - handles both old nested and new flat model formats
         function normalizeEvent(event) {
@@ -6832,7 +6940,7 @@
             showMaintenanceProgress('A corrigir valores NULL...');
 
             try {
-                const response = await fetch(`${API_BASE}/api/db/fix-nulls`, { method: 'POST' });
+                const response = await authFetch(`${API_BASE}/api/db/fix-nulls`, { method: 'POST' });
                 const data = await response.json();
 
                 hideMaintenanceProgress();
@@ -6853,7 +6961,7 @@
             showMaintenanceProgress('A iniciar atualização de preços...');
 
             try {
-                const response = await fetch(`${API_BASE}/api/db/update-prices`, { method: 'POST' });
+                const response = await authFetch(`${API_BASE}/api/db/update-prices`, { method: 'POST' });
                 const data = await response.json();
 
                 addLog(`💰 ${data.message}`, 'info');
@@ -6953,7 +7061,7 @@
                 if (tipo) url += `tipo=${tipo}&`;
                 if (pages) url += `max_pages=${pages}`;
 
-                const response = await fetch(url, { method: 'POST' });
+                const response = await authFetch(url, { method: 'POST' });
                 const data = await response.json();
 
                 if (response.ok) {
@@ -7005,7 +7113,7 @@
 
                     // Chama endpoint de smart scraping
                     const smartUrl = `${API_BASE}/api/scrape/smart/new-events`;
-                    const smartResponse = await fetch(smartUrl, { method: 'POST' });
+                    const smartResponse = await authFetch(smartUrl, { method: 'POST' });
                     const smartData = await smartResponse.json();
 
                     if (!smartResponse.ok) {
@@ -7032,7 +7140,7 @@
                 btn.textContent = '⏳ A extrair detalhes...';
                 const url = `${API_BASE}/api/scrape/stage2/details?` + references.map(ref => `references=${encodeURIComponent(ref)}`).join('&');
 
-                const response = await fetch(url, { method: 'POST' });
+                const response = await authFetch(url, { method: 'POST' });
                 const data = await response.json();
 
                 if (response.ok) {
@@ -7093,7 +7201,7 @@
 
                 const url = `${API_BASE}/api/scrape/stage3/images?` + references.map(ref => `references=${encodeURIComponent(ref)}`).join('&');
 
-                const response = await fetch(url, { method: 'POST' });
+                const response = await authFetch(url, { method: 'POST' });
                 const data = await response.json();
 
                 if (response.ok) {
@@ -7185,7 +7293,7 @@
 
                 addLog(message, 'info');
 
-                const response = await fetch(url, { method: 'POST' });
+                const response = await authFetch(url, { method: 'POST' });
                 const data = await response.json();
 
                 if (response.ok) {
@@ -7308,7 +7416,7 @@
                 if (pages) url += `max_pages=${pages}`;
 
                 // Start the pipeline (runs in background)
-                const response = await fetch(url, { method: 'POST' });
+                const response = await authFetch(url, { method: 'POST' });
                 const data = await response.json();
 
                 if (response.ok) {
@@ -8298,12 +8406,67 @@
             }
         }
 
+        // ============== Security Key Management ==============
+
+        function toggleKeyVisibility() {
+            const input = document.getElementById('api-auth-key-input');
+            if (input) {
+                input.type = input.type === 'password' ? 'text' : 'password';
+            }
+        }
+
+        function saveApiKey() {
+            const input = document.getElementById('api-auth-key-input');
+            if (!input) return;
+
+            const key = input.value.trim();
+            if (!key) {
+                showToast('Erro', 'Insira uma chave válida', 'error');
+                return;
+            }
+
+            API_AUTH.setKey(key);
+            updateAuthStatus(true);
+            showToast('Chave guardada', 'A chave de autenticação foi configurada com sucesso', 'success');
+            input.value = '';
+        }
+
+        function clearApiKey() {
+            API_AUTH.clearKey();
+            updateAuthStatus(false);
+            showToast('Chave removida', 'A chave de autenticação foi removida', 'info');
+        }
+
+        function updateAuthStatus(configured) {
+            const indicator = document.getElementById('api-auth-indicator');
+            const text = document.getElementById('api-auth-text');
+
+            if (indicator && text) {
+                if (configured) {
+                    indicator.style.background = '#22c55e';
+                    text.textContent = 'Chave configurada ✓';
+                    text.style.color = '#166534';
+                } else {
+                    indicator.style.background = '#94a3b8';
+                    text.textContent = 'Chave não configurada';
+                    text.style.color = '#64748b';
+                }
+            }
+        }
+
+        // Update auth status on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            updateAuthStatus(!!API_AUTH.secretKey);
+        });
+
+        // ============== End Security Key Management ==============
+
         // Clear Redis cache (Settings page)
         async function clearCache() {
             if (!confirm('Tem certeza que deseja limpar o cache?\n\nIsto pode temporariamente afetar a performance.')) return;
 
             try {
-                const response = await fetch(`${API_BASE}/api/cache/clear`, { method: 'POST' });
+                const response = await authFetch(`${API_BASE}/api/cache/clear`, { method: 'POST' });
                 if (response.ok) {
                     showToast('Cache limpo', 'O cache foi limpo com sucesso', 'success');
                 } else {
@@ -8551,7 +8714,7 @@
         // Mark notification as read or unread
         async function markNotificationRead(notifId, read = true) {
             try {
-                await fetch(`${API_BASE}/api/notifications/${notifId}/read?read=${read}`, { method: 'POST' });
+                await authFetch(`${API_BASE}/api/notifications/${notifId}/read?read=${read}`, { method: 'POST' });
                 loadNotifications();
                 updateNotificationBadge();
             } catch (error) {
@@ -8562,7 +8725,7 @@
         // Mark all notifications as read
         async function markAllNotificationsRead() {
             try {
-                await fetch(`${API_BASE}/api/notifications/read-all`, { method: 'POST' });
+                await authFetch(`${API_BASE}/api/notifications/read-all`, { method: 'POST' });
                 loadNotifications();
                 updateNotificationBadge();
                 addLog('Todas as notificações marcadas como lidas', 'info');

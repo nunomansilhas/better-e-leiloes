@@ -159,14 +159,20 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS
+# CORS - Restrict to allowed origins
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.getenv("ALLOWED_ORIGINS", "*").split(","),
+    allow_origins=[o.strip() for o in allowed_origins],
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*", "X-Signature", "X-Timestamp"],  # Allow security headers
+    expose_headers=["X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Window"],
 )
+
+# Security middleware (Rate Limiting + HMAC Auth)
+from security import security_middleware
+app.middleware("http")(security_middleware)
 
 # Servir arquivos estáticos
 static_dir = os.path.join(os.path.dirname(__file__), "static")
@@ -190,6 +196,31 @@ async def health():
         "service": "E-Leiloes Data API",
         "version": "1.0.0"
     }
+
+
+@app.get("/api/security/stats")
+async def get_security_stats():
+    """Get security stats (rate limiting, etc.) - Admin only"""
+    from security import rate_limiter, RATE_LIMIT_REQUESTS, RATE_LIMIT_WINDOW, WHITELIST_IPS
+    return {
+        "rate_limiter": rate_limiter.get_stats(),
+        "config": {
+            "rate_limit_requests": RATE_LIMIT_REQUESTS,
+            "rate_limit_window": RATE_LIMIT_WINDOW,
+            "whitelist_ips": list(WHITELIST_IPS)
+        }
+    }
+
+
+@app.get("/api/security/auth.js")
+async def get_auth_script():
+    """Serve the frontend authentication helper script"""
+    from security import get_frontend_auth_script
+    from fastapi.responses import Response
+    return Response(
+        content=get_frontend_auth_script(),
+        media_type="application/javascript"
+    )
 
 
 @app.get("/api/pipeline/status")
