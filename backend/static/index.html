@@ -4229,10 +4229,51 @@
         }
 
         // Inspection Modal Functions
-        function openInspectionModal(reference) {
-            const type = document.querySelector('.page.active').id;
-            const event = allLoadedEvents[type]?.find(e => e.reference === reference);
-            if (!event) return;
+        async function openInspectionModal(reference) {
+            const type = document.querySelector('.page.active')?.id;
+            let event = allLoadedEvents[type]?.find(e => e.reference === reference);
+
+            // If not found in loaded events, fetch from API
+            if (!event) {
+                try {
+                    const response = await fetch(`${API_BASE}/api/events/${reference}`);
+                    if (!response.ok) throw new Error('Event not found');
+                    const apiEvent = await response.json();
+
+                    // Convert API response to expected format
+                    event = {
+                        reference: apiEvent.reference,
+                        imagens: apiEvent.imagens || [apiEvent.capa],
+                        capa: apiEvent.capa,
+                        tipoEvento: apiEvent.tipo_id === 1 ? 'imoveis' : 'veiculos',
+                        detalhes: {
+                            tipo: apiEvent.tipo,
+                            subtipo: apiEvent.subtipo,
+                            distrito: apiEvent.distrito,
+                            concelho: apiEvent.concelho,
+                            freguesia: apiEvent.freguesia,
+                            tipologia: apiEvent.tipologia,
+                            areaPrivativa: apiEvent.area_privativa,
+                            areaTotal: apiEvent.area_total
+                        },
+                        valores: {
+                            valorBase: apiEvent.valor_base,
+                            valorAbertura: apiEvent.valor_abertura,
+                            valorMinimo: apiEvent.valor_minimo,
+                            lanceAtual: apiEvent.lance_atual
+                        },
+                        dataInicio: apiEvent.data_inicio,
+                        dataFim: apiEvent.data_fim,
+                        gps: apiEvent.latitude ? { latitude: apiEvent.latitude, longitude: apiEvent.longitude } : null,
+                        gestor_nome: apiEvent.gestor_nome,
+                        gestor_email: apiEvent.gestor_email
+                    };
+                } catch (error) {
+                    console.error('Error fetching event:', error);
+                    showToast('Erro', 'Não foi possível carregar o evento', 'error');
+                    return;
+                }
+            }
 
             inspectionCurrentEvent = event;
             inspectionCurrentIndex = 0;
@@ -5446,201 +5487,6 @@
         }
 
         // New Events Banner Functions
-        async function openNewEventModal(reference) {
-            try {
-                // Fetch full event data from API
-                const response = await fetch(`${API_BASE}/api/events/${reference}`);
-                if (!response.ok) throw new Error('Failed to fetch event');
-                const event = await response.json();
-
-                // Convert to expected format for inspection modal
-                const formattedEvent = {
-                    reference: event.reference,
-                    imagens: event.imagens || [event.capa],
-                    capa: event.capa,
-                    tipoEvento: event.tipo_id === 1 ? 'imoveis' : 'veiculos',
-                    detalhes: {
-                        tipo: event.tipo,
-                        subtipo: event.subtipo
-                    },
-                    valores: {
-                        valorBase: event.valor_base,
-                        valorAbertura: event.valor_abertura,
-                        valorMinimo: event.valor_minimo,
-                        lanceAtual: event.lance_atual
-                    },
-                    localizacao: {
-                        distrito: event.distrito,
-                        concelho: event.concelho,
-                        freguesia: event.freguesia,
-                        morada: event.morada
-                    },
-                    datas: {
-                        dataInicio: event.data_inicio,
-                        dataFim: event.data_fim
-                    },
-                    areas: {
-                        total: event.area_total,
-                        privativa: event.area_privativa,
-                        dependente: event.area_dependente
-                    },
-                    tipologia: event.tipologia,
-                    latitude: event.latitude,
-                    longitude: event.longitude
-                };
-
-                // Store and open modal
-                inspectionCurrentEvent = formattedEvent;
-                inspectionCurrentIndex = 0;
-
-                const modal = document.getElementById('inspection-modal');
-                const imagesContainer = document.getElementById('inspection-images');
-                const indicatorsContainer = document.getElementById('inspection-indicators');
-                const counter = document.getElementById('inspection-counter');
-                const details = document.getElementById('inspection-details');
-
-                // Build images - filter out empty/null images
-                const images = (formattedEvent.imagens || []).filter(img => img && img.length > 0);
-                if (images.length === 0 && formattedEvent.capa) images.push(formattedEvent.capa);
-
-                imagesContainer.innerHTML = images.length > 0
-                    ? images.map(img => `<div class="inspection-carousel-image" style="background-image: url('${img}')"></div>`).join('')
-                    : '<div class="inspection-carousel-image" style="background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%); display: flex; align-items: center; justify-content: center;"><span style="font-size: 48px; opacity: 0.3;">🏠</span></div>';
-
-                indicatorsContainer.innerHTML = images.map((_, idx) =>
-                    `<div class="inspection-carousel-indicator ${idx === 0 ? 'active' : ''}" onclick="inspectionGoTo(${idx})"></div>`
-                ).join('');
-
-                counter.textContent = images.length > 0 ? `1 / ${images.length}` : '';
-
-                const prevBtn = document.querySelector('.inspection-carousel-nav.prev');
-                const nextBtn = document.querySelector('.inspection-carousel-nav.next');
-                if (images.length <= 1) {
-                    prevBtn.style.display = 'none';
-                    nextBtn.style.display = 'none';
-                    indicatorsContainer.style.display = 'none';
-                } else {
-                    prevBtn.style.display = 'flex';
-                    nextBtn.style.display = 'flex';
-                    indicatorsContainer.style.display = 'flex';
-                }
-
-                const typePrefix = formattedEvent.reference.substring(0, 2);
-                const typePrefixClass = typePrefix === 'LO' ? 'lo' : 'np';
-
-                const formatPrice = (price) => {
-                    if (!price) return 'N/A';
-                    return new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(price);
-                };
-
-                const formatDate = (dateStr) => {
-                    if (!dateStr) return 'N/A';
-                    const date = new Date(dateStr);
-                    return date.toLocaleString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-                };
-
-                const formatArea = (area) => {
-                    if (!area) return null;
-                    return `${Number(area).toLocaleString('pt-PT')} m²`;
-                };
-
-                const getValue = (val) => val || 'N/A';
-
-                // Build areas section if any area exists
-                const hasAreas = formattedEvent.areas?.total || formattedEvent.areas?.privativa || formattedEvent.areas?.dependente;
-                const areasSection = hasAreas ? `
-                    <div class="inspection-section">
-                        <div class="inspection-section-title">Áreas</div>
-                        ${formattedEvent.areas?.total ? `<div class="inspection-row"><span class="inspection-label">Área Total</span><span class="inspection-value">${formatArea(formattedEvent.areas.total)}</span></div>` : ''}
-                        ${formattedEvent.areas?.privativa ? `<div class="inspection-row"><span class="inspection-label">Área Privativa</span><span class="inspection-value">${formatArea(formattedEvent.areas.privativa)}</span></div>` : ''}
-                        ${formattedEvent.areas?.dependente ? `<div class="inspection-row"><span class="inspection-label">Área Dependente</span><span class="inspection-value">${formatArea(formattedEvent.areas.dependente)}</span></div>` : ''}
-                    </div>
-                ` : '';
-
-                // Build details section with tipologia if exists
-                const detailsSection = formattedEvent.tipologia ? `
-                    <div class="inspection-section">
-                        <div class="inspection-section-title">Detalhes</div>
-                        <div class="inspection-row"><span class="inspection-label">Tipologia</span><span class="inspection-value">${formattedEvent.tipologia}</span></div>
-                    </div>
-                ` : '';
-
-                details.innerHTML = `
-                    <div class="inspection-header">
-                        <div class="inspection-ref">
-                            <span class="inspection-ref-prefix ${typePrefixClass}">${typePrefix}</span>
-                            <span class="inspection-ref-text">${formattedEvent.reference.substring(2)}</span>
-                        </div>
-                        <div class="inspection-type">${getValue(formattedEvent.detalhes?.tipo)} - ${getValue(formattedEvent.detalhes?.subtipo)}</div>
-                    </div>
-
-                    <div class="inspection-section">
-                        <div class="inspection-section-title">Valores</div>
-                        <div class="inspection-row">
-                            <span class="inspection-label">Valor Base</span>
-                            <span class="inspection-value price">${formatPrice(formattedEvent.valores?.valorBase)}</span>
-                        </div>
-                        <div class="inspection-row">
-                            <span class="inspection-label">Valor Mínimo</span>
-                            <span class="inspection-value price">${formatPrice(formattedEvent.valores?.valorMinimo)}</span>
-                        </div>
-                        <div class="inspection-row">
-                            <span class="inspection-label">Lance Atual</span>
-                            <span class="inspection-value price">${formatPrice(formattedEvent.valores?.lanceAtual)}</span>
-                        </div>
-                    </div>
-
-                    ${areasSection}
-                    ${detailsSection}
-
-                    <div class="inspection-section">
-                        <div class="inspection-section-title">Localização</div>
-                        <div class="inspection-row">
-                            <span class="inspection-label">Distrito</span>
-                            <span class="inspection-value">${getValue(formattedEvent.localizacao?.distrito)}</span>
-                        </div>
-                        <div class="inspection-row">
-                            <span class="inspection-label">Concelho</span>
-                            <span class="inspection-value">${getValue(formattedEvent.localizacao?.concelho)}</span>
-                        </div>
-                        <div class="inspection-row">
-                            <span class="inspection-label">Freguesia</span>
-                            <span class="inspection-value">${getValue(formattedEvent.localizacao?.freguesia)}</span>
-                        </div>
-                    </div>
-
-                    <div class="inspection-section">
-                        <div class="inspection-section-title">Datas</div>
-                        <div class="inspection-row">
-                            <span class="inspection-label">Início</span>
-                            <span class="inspection-value">${formatDate(formattedEvent.datas?.dataInicio)}</span>
-                        </div>
-                        <div class="inspection-row">
-                            <span class="inspection-label">Fim</span>
-                            <span class="inspection-value">${formatDate(formattedEvent.datas?.dataFim)}</span>
-                        </div>
-                    </div>
-
-                    <div class="inspection-actions" style="display: flex; gap: 8px; justify-content: center;">
-                        <a href="https://e-leiloes.pt/evento/${formattedEvent.reference}" target="_blank" title="Ver no E-Leilões" style="display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; background: #3b82f6; color: white; border-radius: 8px; text-decoration: none; transition: all 0.2s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
-                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="20" height="20"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-                        </a>
-                        ${formattedEvent.latitude && formattedEvent.longitude ? `
-                            <a href="https://www.google.com/maps?q=${formattedEvent.latitude},${formattedEvent.longitude}" target="_blank" title="Google Maps" style="display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; background: #10b981; color: white; border-radius: 8px; text-decoration: none; transition: all 0.2s;" onmouseover="this.style.background='#059669'" onmouseout="this.style.background='#10b981'">
-                                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="20" height="20"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                            </a>
-                        ` : ''}
-                    </div>
-                `;
-
-                modal.classList.add('active');
-                document.body.style.overflow = 'hidden';
-            } catch (error) {
-                console.error('Error opening event modal:', error);
-                showToast('Erro', 'Não foi possível carregar os detalhes do evento', 'error');
-            }
-        }
-
         function createNewEventCard(e, animate = true) {
             const valorMinimo = e.valor_minimo || e.valor_base || 0;
             const priceStr = Number(valorMinimo).toLocaleString('pt-PT', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + '€';
@@ -5652,7 +5498,7 @@
             const card = document.createElement('div');
             card.className = 'new-event-card';
             card.dataset.reference = e.reference;
-            card.onclick = () => openNewEventModal(e.reference);
+            card.onclick = () => openInspectionModal(e.reference);
 
             // For animation: start with 0 width to create push effect
             if (animate) {
