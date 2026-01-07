@@ -1,7 +1,7 @@
 /**
  * Better E-Leilões - Card Enhancer
- * Chrome Extension Version 12.1 - ZERO WAIT + FULL BATCH
- * Instant DOM enhancement - API only for extra data
+ * Chrome Extension Version 13.0 - PROGRESSIVE ENHANCEMENT
+ * Instant styling + localStorage cache + lazy API loading
  */
 
 (function() {
@@ -14,7 +14,9 @@
         API_BASE: 'http://localhost:8000/api',
         DASHBOARD_URL: 'http://localhost:8000',
         ENABLE_API: true,
-        MAX_IMAGES: 10
+        MAX_IMAGES: 10,
+        CACHE_KEY: 'better-eleiloes-cache',
+        CACHE_TTL: 24 * 60 * 60 * 1000 // 24 hours
     };
 
     async function loadConfig() {
@@ -31,6 +33,51 @@
                 });
             });
         }
+    }
+
+    // ====================================
+    // PERSISTENT CACHE (localStorage)
+    // ====================================
+    let memoryCache = {};
+
+    function loadCache() {
+        try {
+            const stored = localStorage.getItem(CONFIG.CACHE_KEY);
+            if (stored) {
+                const data = JSON.parse(stored);
+                // Clean expired entries
+                const now = Date.now();
+                Object.keys(data).forEach(key => {
+                    if (data[key]._ts && now - data[key]._ts > CONFIG.CACHE_TTL) {
+                        delete data[key];
+                    }
+                });
+                memoryCache = data;
+                console.log(`📦 Cache loaded: ${Object.keys(memoryCache).length} events`);
+            }
+        } catch (e) {
+            memoryCache = {};
+        }
+    }
+
+    function saveCache() {
+        try {
+            localStorage.setItem(CONFIG.CACHE_KEY, JSON.stringify(memoryCache));
+        } catch (e) {
+            // Storage full - clear old entries
+            memoryCache = {};
+        }
+    }
+
+    function cacheGet(ref) {
+        return memoryCache[ref];
+    }
+
+    function cacheSet(ref, data) {
+        memoryCache[ref] = { ...data, _ts: Date.now() };
+        // Debounce save
+        clearTimeout(cacheSet.timer);
+        cacheSet.timer = setTimeout(saveCache, 1000);
     }
 
     // ====================================
@@ -63,7 +110,7 @@
     }
 
     // ====================================
-    // INSTANT CARD ENHANCEMENT (NO API!)
+    // PHASE 1: INSTANT CARD ENHANCEMENT
     // ====================================
     function enhanceCard(card) {
         if (card.dataset.enhanced) return;
@@ -96,15 +143,11 @@
             div.style.border = 'none';
         });
 
-        // 4. Extract native price from card (e-leiloes shows price on cards)
+        // 4. Extract native price from card
         const priceEl = card.querySelector('.text-primary, [class*="price"], .font-bold');
         const nativePrice = priceEl ? parsePrice(priceEl.textContent) : null;
 
-        // 5. Extract native image
-        const nativeImg = card.querySelector('img[src*="foto"], img[src*="image"], .p-evento-image img');
-        const nativeImgSrc = nativeImg?.src;
-
-        // 6. Add action buttons next to star
+        // 5. Add action buttons next to star
         const star = card.querySelector('.pi-star');
         if (star?.parentElement && !card.querySelector('.better-btns')) {
             const btns = document.createElement('div');
@@ -122,7 +165,7 @@
             star.parentElement.appendChild(btns);
         }
 
-        // 7. Add info bar with native data
+        // 6. Add info bar with native data
         if (nativePrice && !card.querySelector('.better-info')) {
             const info = document.createElement('div');
             info.className = 'better-info';
@@ -142,7 +185,7 @@
             card.appendChild(info);
         }
 
-        // 8. Click handler to open event
+        // 7. Click handler to open event
         card.addEventListener('click', e => {
             if (e.target.closest('.pi-star, .better-btn')) return;
             e.preventDefault();
@@ -150,10 +193,10 @@
             window.open(`https://www.e-leiloes.pt/evento/${ref}`, '_blank');
         }, true);
 
-        // 9. Disable native context menu
+        // 8. Disable native context menu
         card.addEventListener('contextmenu', e => e.stopPropagation(), true);
 
-        // 10. Hover effect
+        // 9. Hover effect
         card.addEventListener('mouseenter', () => {
             card.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
             card.style.borderColor = '#3b82f6';
@@ -163,27 +206,39 @@
             card.style.borderColor = '#e2e8f0';
         });
 
-        // Queue API fetch for extra data (non-blocking)
-        if (CONFIG.ENABLE_API) {
-            queueFetch(ref);
+        // ===== PHASE 2: CHECK CACHE OR OBSERVE =====
+        const cached = cacheGet(ref);
+        if (cached) {
+            // INSTANT from cache!
+            enrichWithAPI(ref, cached);
+        } else if (CONFIG.ENABLE_API) {
+            // Observe for visibility - lazy load
+            visibilityObserver.observe(card);
         }
     }
 
     // ====================================
-    // API DATA ENRICHMENT (background)
+    // LAZY API LOADING (IntersectionObserver)
     // ====================================
-    const cache = {};
     const pendingRefs = new Set();
     let fetchTimer = null;
 
-    function queueFetch(ref) {
-        if (cache[ref]) {
-            enrichWithAPI(ref, cache[ref]);
-            return;
-        }
-        pendingRefs.add(ref);
+    const visibilityObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const ref = entry.target.dataset.ref;
+                if (ref && !cacheGet(ref)) {
+                    pendingRefs.add(ref);
+                    scheduleFetch();
+                }
+                visibilityObserver.unobserve(entry.target);
+            }
+        });
+    }, { rootMargin: '100px' }); // Start loading 100px before visible
+
+    function scheduleFetch() {
         clearTimeout(fetchTimer);
-        fetchTimer = setTimeout(fetchBatch, 200); // Wait 200ms to collect ALL refs
+        fetchTimer = setTimeout(fetchBatch, 100);
     }
 
     async function fetchBatch() {
@@ -191,7 +246,7 @@
         pendingRefs.clear();
         if (refs.length === 0) return;
 
-        console.log(`📦 Batch API: fetching ${refs.length} refs`);
+        console.log(`📦 API: fetching ${refs.length} refs (lazy)`);
         try {
             const res = await fetch(`${CONFIG.API_BASE}/events/batch`, {
                 method: 'POST',
@@ -202,16 +257,18 @@
             if (res.ok) {
                 const data = await res.json();
                 Object.entries(data.events || {}).forEach(([ref, evt]) => {
-                    cache[ref] = evt;
+                    cacheSet(ref, evt);
                     enrichWithAPI(ref, evt);
                 });
             }
         } catch (e) {
-            // API not available - that's fine, cards already enhanced
-            console.log('Better E-Leilões: API offline, using native data only');
+            console.log('Better E-Leilões: API offline');
         }
     }
 
+    // ====================================
+    // API DATA ENRICHMENT
+    // ====================================
     function enrichWithAPI(ref, data) {
         if (!data || data._notFound) return;
         const card = document.querySelector(`.p-evento[data-ref="${ref}"]`);
@@ -333,18 +390,16 @@
     // ====================================
     async function syncCard(card, ref) {
         const btn = card.querySelector('.better-btn.sync i');
-        if (btn) {
-            btn.style.animation = 'spin 0.8s linear infinite';
-        }
+        if (btn) btn.style.animation = 'spin 0.8s linear infinite';
 
         try {
             const res = await fetch(`${CONFIG.API_BASE}/scrape/stage2/api?references=${ref}&save_to_db=true`, { method: 'POST' });
             if (res.ok) {
                 const data = await res.json();
                 if (data.events?.[0]) {
-                    cache[ref] = data.events[0];
+                    cacheSet(ref, data.events[0]);
                     delete card.dataset.apiEnriched;
-                    enrichWithAPI(ref, cache[ref]);
+                    enrichWithAPI(ref, data.events[0]);
                 }
             }
         } catch (e) {
@@ -436,11 +491,12 @@
         document.querySelectorAll('.p-evento:not([data-enhanced])').forEach(enhanceCard);
     }
 
-    const observer = new MutationObserver(processCards);
+    const domObserver = new MutationObserver(processCards);
 
     async function init() {
-        console.log('🚀 Better E-Leilões v12.1 - ZERO WAIT + FULL BATCH');
+        console.log('🚀 Better E-Leilões v13.0 - PROGRESSIVE');
         await loadConfig();
+        loadCache();
 
         // Add spin animation
         const style = document.createElement('style');
@@ -450,7 +506,7 @@
         addDashboardBtn();
         processCards();
         setInterval(updateCountdowns, 1000);
-        observer.observe(document.body, { childList: true, subtree: true });
+        domObserver.observe(document.body, { childList: true, subtree: true });
     }
 
     if (document.readyState === 'loading') {
