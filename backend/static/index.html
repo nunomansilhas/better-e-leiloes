@@ -4743,7 +4743,7 @@
                 loadEndingSoonWidget(),
                 loadRecentBidsWidget(),
                 loadDistrictBreakdownWidget(),
-                loadNewEventsWidget()
+                loadNewEventsBanner()
             ]);
         }
 
@@ -5426,59 +5426,6 @@
             }
         }
 
-        // New Events Widget
-        async function loadNewEventsWidget() {
-            const track = document.getElementById('new-events-track');
-            const countBadge = document.getElementById('new-events-count');
-            if (!track) return;
-
-            try {
-                // Get newest events (sorted by data_inicio desc, limit 20)
-                const response = await fetch(`${API_BASE}/api/events?limit=20&sort=dataInicio_desc`);
-                const data = await response.json();
-                const events = data.events || [];
-
-                if (countBadge) countBadge.textContent = events.length;
-
-                if (events.length === 0) {
-                    track.innerHTML = '<div style="color: #94a3b8; font-size: 11px; padding: 20px; white-space: nowrap;">Nenhum evento novo</div>';
-                    return;
-                }
-
-                track.innerHTML = events.map(e => {
-                    const img = e.fotos?.[0]?.thumbnail || e.fotos?.[0]?.image || '';
-                    const price = e.lance_atual || e.valor_base || 0;
-                    const priceStr = Number(price).toLocaleString('pt-PT', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + '€';
-                    const refPrefix = e.reference?.substring(0, 2) || '';
-                    const prefixColor = refPrefix === 'LO' ? '#3b82f6' : '#f59e0b';
-                    const timeLeft = e.data_fim ? getTimeLeftShort(new Date(e.data_fim)) : '-';
-
-                    const imgStyle = img
-                        ? `background: url('${img}') center/cover;`
-                        : `background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%); display: flex; align-items: center; justify-content: center;`;
-                    const imgContent = img ? '' : '<span style="font-size: 20px; opacity: 0.4;">🏠</span>';
-
-                    return `
-                        <div onclick="window.open('https://e-leiloes.pt/evento/${e.reference}', '_blank')" style="flex-shrink: 0; width: 130px; background: #f8fafc; border-radius: 10px; overflow: hidden; cursor: pointer; transition: all 0.2s; border: 1px solid #e2e8f0;" onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
-                            <div style="height: 65px; ${imgStyle} position: relative;">
-                                ${imgContent}
-                                <span style="position: absolute; top: 4px; left: 4px; background: ${prefixColor}; color: white; font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 4px;">${refPrefix}</span>
-                                <span style="position: absolute; bottom: 4px; right: 4px; background: rgba(0,0,0,0.6); color: white; font-size: 9px; padding: 2px 6px; border-radius: 4px;">${timeLeft}</span>
-                            </div>
-                            <div style="padding: 8px;">
-                                <div style="font-size: 12px; font-weight: 600; color: #1e293b;">${priceStr}</div>
-                                <div style="font-size: 10px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${e.titulo || ''}">${e.distrito || '-'}</div>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-
-            } catch (error) {
-                console.error('Erro ao carregar novos eventos:', error);
-                track.innerHTML = '<div style="color: #ef4444; font-size: 11px; padding: 20px;">Erro ao carregar</div>';
-            }
-        }
-
         function scrollNewEvents(direction) {
             const track = document.getElementById('new-events-track');
             if (!track) return;
@@ -5767,9 +5714,6 @@
                 track.innerHTML = '<div style="color: #94a3b8; font-size: 11px; padding: 20px; white-space: nowrap;">Erro ao carregar</div>';
             }
         }
-
-        // Load new events banner on page load
-        loadNewEventsBanner();
 
         // Load dashboard widgets on page load and refresh periodically
         loadDashboardWidgets();
