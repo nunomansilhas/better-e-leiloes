@@ -86,8 +86,48 @@
     // API (using fetch instead of GM_xmlhttpRequest)
     // ====================================
 
+    // Cache for batch-fetched events
+    let eventsCache = {};
+
+    // Batch fetch multiple events in ONE request
+    async function getEventsBatch(references) {
+        if (!CONFIG.ENABLE_API_ENRICHMENT || references.length === 0) return {};
+
+        try {
+            const response = await fetch(`${CONFIG.API_BASE}/events/batch`, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ references })
+            });
+
+            if (response.status === 200) {
+                const data = await response.json();
+                // Cache all events
+                Object.assign(eventsCache, data.events);
+                // Mark not found
+                data.not_found.forEach(ref => {
+                    eventsCache[ref] = { _notFound: true };
+                });
+                return data.events;
+            }
+            return {};
+        } catch (error) {
+            console.error('❌ Batch API error:', error);
+            return {};
+        }
+    }
+
+    // Get single event (from cache or individual request)
     async function getEventFromAPI(reference) {
         if (!CONFIG.ENABLE_API_ENRICHMENT) return null;
+
+        // Check cache first
+        if (eventsCache[reference]) {
+            return eventsCache[reference];
+        }
 
         try {
             const response = await fetch(`${CONFIG.API_BASE}/events/${reference}`, {
@@ -98,8 +138,11 @@
             });
 
             if (response.status === 200) {
-                return await response.json();
+                const event = await response.json();
+                eventsCache[reference] = event;
+                return event;
             } else if (response.status === 404) {
+                eventsCache[reference] = { _notFound: true };
                 return { _notFound: true };
             } else {
                 return null;
@@ -533,17 +576,39 @@
     // OBSERVER & INIT
     // ====================================
 
-    // Process cards in parallel batches for better performance
+    // Process cards with SINGLE batch API request
     async function enhanceAllCards() {
         const cards = Array.from(document.querySelectorAll('.p-evento:not([data-better-enhanced])'));
         if (cards.length === 0) return;
 
-        console.log(`🔄 Enhancing ${cards.length} cards in parallel...`);
+        const startTime = performance.now();
+        console.log(`🔄 Enhancing ${cards.length} cards...`);
 
-        // Process all cards in parallel (API should handle concurrent requests)
+        // Step 1: Extract all references from cards
+        const references = [];
+        const cardRefMap = new Map();
+
+        cards.forEach(card => {
+            const ref = extractReferenceFromCard(card);
+            if (ref && !eventsCache[ref]) {
+                references.push(ref);
+            }
+            if (ref) {
+                cardRefMap.set(card, ref);
+            }
+        });
+
+        // Step 2: Fetch ALL events in ONE batch request
+        if (references.length > 0) {
+            console.log(`📡 Batch fetching ${references.length} events...`);
+            await getEventsBatch(references);
+        }
+
+        // Step 3: Enhance all cards (data is now cached)
         await Promise.all(cards.map(card => enhanceCard(card)));
 
-        console.log(`✅ Finished enhancing ${cards.length} cards`);
+        const elapsed = (performance.now() - startTime).toFixed(0);
+        console.log(`✅ Enhanced ${cards.length} cards in ${elapsed}ms`);
     }
 
     // Debounced observer to avoid excessive API calls

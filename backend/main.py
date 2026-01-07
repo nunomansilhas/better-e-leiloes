@@ -555,16 +555,16 @@ async def get_distritos_for_tipo(tipo_id: int):
 async def get_event(reference: str):
     """
     Obtém dados de um evento específico por referência.
-    
+
     - **reference**: Referência do evento (ex: NP-2024-12345 ou LO-2024-67890)
-    
+
     Retorna dados completos incluindo GPS, áreas, tipo, etc.
     """
     # Verifica cache primeiro
     cached = await cache_manager.get(reference)
     if cached:
         return cached
-    
+
     # Verifica base de dados
     async with get_db() as db:
         event = await db.get_event(reference)
@@ -574,6 +574,44 @@ async def get_event(reference: str):
 
     # Evento não existe - retorna 404 (não faz auto-scraping)
     raise HTTPException(status_code=404, detail=f"Evento não encontrado: {reference}")
+
+
+@app.post("/api/events/batch")
+async def get_events_batch(references: List[str] = Body(..., embed=True)):
+    """
+    Obtém múltiplos eventos de uma só vez (batch request).
+    Optimizado para a extensão Chrome - 1 request em vez de N.
+
+    - **references**: Lista de referências (ex: ["LO1234562024", "NP9876542024"])
+
+    Retorna dict com eventos encontrados e lista de não encontrados.
+    """
+    if not references:
+        return {"events": {}, "not_found": []}
+
+    if len(references) > 100:
+        raise HTTPException(status_code=400, detail="Maximum 100 references per batch")
+
+    events = {}
+    not_found = []
+
+    async with get_db() as db:
+        for ref in references:
+            # Check cache first
+            cached = await cache_manager.get(ref)
+            if cached:
+                events[ref] = cached
+                continue
+
+            # Check database
+            event = await db.get_event(ref)
+            if event:
+                await cache_manager.set(ref, event)
+                events[ref] = event
+            else:
+                not_found.append(ref)
+
+    return {"events": events, "not_found": not_found}
 
 
 @app.get("/api/events", response_model=EventListResponse)
