@@ -1406,13 +1406,19 @@ class AutoPipelinesManager:
                     await cleanup_old_notifications(db, days=30)
 
             finally:
-                # Close resources if they were created
-                if scraper:
-                    await scraper.close()
-                if cache_manager:
-                    await cache_manager.close()
+                # Close resources safely (don't let errors here block the rest)
+                try:
+                    if scraper:
+                        await scraper.close()
+                except:
+                    pass
+                try:
+                    if cache_manager:
+                        await cache_manager.close()
+                except:
+                    pass
 
-                # Only update stats if we actually ran (not skipped)
+                # ALWAYS reset is_running if we started (not skipped)
                 if not skipped:
                     self.pipelines['ysync'].is_running = False
                     pipeline = self.pipelines['ysync']
@@ -1421,6 +1427,7 @@ class AutoPipelinesManager:
                     pipeline.runs_count += 1
                     pipeline.next_run = (now + timedelta(hours=pipeline.interval_hours)).strftime("%Y-%m-%d %H:%M:%S")
                     self._save_config()
+                    print(f"  ⏰ Y-Sync: próxima execução em {pipeline.interval_hours}h")
 
                 # ALWAYS reschedule - even if skipped
                 self._reschedule_pipeline('ysync')
@@ -1556,13 +1563,19 @@ class AutoPipelinesManager:
             except Exception as e:
                 print(f"  ❌ Z-Watch erro: {str(e)[:100]}")
             finally:
-                # Close resources if they were created
-                if scraper:
-                    await scraper.close()
-                if cache_manager:
-                    await cache_manager.close()
+                # Close resources safely (don't let errors here block the rest)
+                try:
+                    if scraper:
+                        await scraper.close()
+                except:
+                    pass
+                try:
+                    if cache_manager:
+                        await cache_manager.close()
+                except:
+                    pass
 
-                # Only update stats if we actually ran (not skipped)
+                # ALWAYS reset is_running if we started (not skipped)
                 if not skipped:
                     self.pipelines['zwatch'].is_running = False
                     pipeline = self.pipelines['zwatch']
@@ -1571,6 +1584,7 @@ class AutoPipelinesManager:
                     pipeline.runs_count += 1
                     pipeline.next_run = (now + timedelta(hours=pipeline.interval_hours)).strftime("%Y-%m-%d %H:%M:%S")
                     self._save_config()
+                    print(f"  ⏰ Z-Watch: próxima execução em {pipeline.interval_hours * 60:.0f} min")
 
                 # ALWAYS reschedule - even if skipped
                 self._reschedule_pipeline('zwatch')
