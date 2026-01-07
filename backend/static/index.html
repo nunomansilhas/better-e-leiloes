@@ -3079,20 +3079,20 @@
                 </div>
 
                 <!-- New Events Banner -->
-                <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-radius: 12px; padding: 12px 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); grid-column: span 2; overflow: hidden;">
+                <div style="background: white; border-radius: 12px; padding: 12px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid #e5e7eb; grid-column: span 2; overflow: hidden;">
                     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
                         <div style="display: flex; align-items: center; gap: 8px;">
-                            <span style="font-size: 14px;">🆕</span>
-                            <span style="font-weight: 600; color: #f8fafc; font-size: 13px;">Novos Eventos</span>
+                            <span style="font-weight: 600; color: #1e293b; font-size: 13px;">Novos Eventos</span>
                             <span id="new-events-count" style="background: #3b82f6; color: white; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px;">0</span>
                         </div>
                         <div style="display: flex; gap: 6px;">
-                            <button onclick="scrollNewEvents('left')" style="background: rgba(255,255,255,0.1); border: none; width: 24px; height: 24px; border-radius: 6px; color: #94a3b8; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">‹</button>
-                            <button onclick="scrollNewEvents('right')" style="background: rgba(255,255,255,0.1); border: none; width: 24px; height: 24px; border-radius: 6px; color: #94a3b8; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">›</button>
+                            <button onclick="addFakeNewEvent()" style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 4px 8px; border-radius: 6px; color: #16a34a; cursor: pointer; font-size: 10px; font-weight: 500;" title="Adicionar evento teste">+ Teste</button>
+                            <button onclick="scrollNewEvents('left')" style="background: #f1f5f9; border: 1px solid #e2e8f0; width: 24px; height: 24px; border-radius: 6px; color: #64748b; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">‹</button>
+                            <button onclick="scrollNewEvents('right')" style="background: #f1f5f9; border: 1px solid #e2e8f0; width: 24px; height: 24px; border-radius: 6px; color: #64748b; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">›</button>
                         </div>
                     </div>
-                    <div id="new-events-track" style="display: flex; gap: 12px; overflow-x: auto; scroll-behavior: smooth; padding-bottom: 4px; scrollbar-width: none; -ms-overflow-style: none;">
-                        <div style="color: #64748b; font-size: 11px; padding: 20px; white-space: nowrap;">A carregar novos eventos...</div>
+                    <div id="new-events-track" style="display: flex; gap: 10px; overflow-x: auto; scroll-behavior: smooth; padding: 4px 0; scrollbar-width: none; -ms-overflow-style: none;">
+                        <div style="color: #94a3b8; font-size: 11px; padding: 20px; white-space: nowrap;">A carregar novos eventos...</div>
                     </div>
                 </div>
 
@@ -5442,28 +5442,33 @@
                 if (countBadge) countBadge.textContent = events.length;
 
                 if (events.length === 0) {
-                    track.innerHTML = '<div style="color: #64748b; font-size: 11px; padding: 20px; white-space: nowrap;">Nenhum evento novo</div>';
+                    track.innerHTML = '<div style="color: #94a3b8; font-size: 11px; padding: 20px; white-space: nowrap;">Nenhum evento novo</div>';
                     return;
                 }
 
                 track.innerHTML = events.map(e => {
-                    const img = e.fotos?.[0]?.thumbnail || e.fotos?.[0]?.image || 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%23334155" width="100" height="100"/><text x="50" y="55" text-anchor="middle" fill="%2394a3b8" font-size="12">Sem foto</text></svg>';
+                    const img = e.fotos?.[0]?.thumbnail || e.fotos?.[0]?.image || '';
                     const price = e.lance_atual || e.valor_base || 0;
                     const priceStr = Number(price).toLocaleString('pt-PT', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + '€';
                     const refPrefix = e.reference?.substring(0, 2) || '';
                     const prefixColor = refPrefix === 'LO' ? '#3b82f6' : '#f59e0b';
                     const timeLeft = e.data_fim ? getTimeLeftShort(new Date(e.data_fim)) : '-';
-                    const tipo = e.tipo?.substring(0, 3) || '';
+
+                    const imgStyle = img
+                        ? `background: url('${img}') center/cover;`
+                        : `background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%); display: flex; align-items: center; justify-content: center;`;
+                    const imgContent = img ? '' : '<span style="font-size: 20px; opacity: 0.4;">🏠</span>';
 
                     return `
-                        <div onclick="window.open('https://e-leiloes.pt/evento/${e.reference}', '_blank')" style="flex-shrink: 0; width: 140px; background: rgba(255,255,255,0.05); border-radius: 8px; overflow: hidden; cursor: pointer; transition: all 0.2s; border: 1px solid rgba(255,255,255,0.1);" onmouseover="this.style.transform='translateY(-2px)'; this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.transform=''; this.style.background='rgba(255,255,255,0.05)'">
-                            <div style="height: 70px; background: url('${img}') center/cover; position: relative;">
-                                <span style="position: absolute; top: 4px; left: 4px; background: ${prefixColor}; color: white; font-size: 8px; font-weight: 700; padding: 2px 5px; border-radius: 4px;">${refPrefix}</span>
-                                <span style="position: absolute; bottom: 4px; right: 4px; background: rgba(0,0,0,0.7); color: white; font-size: 8px; padding: 2px 5px; border-radius: 4px;">${timeLeft}</span>
+                        <div onclick="window.open('https://e-leiloes.pt/evento/${e.reference}', '_blank')" style="flex-shrink: 0; width: 130px; background: #f8fafc; border-radius: 10px; overflow: hidden; cursor: pointer; transition: all 0.2s; border: 1px solid #e2e8f0;" onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
+                            <div style="height: 65px; ${imgStyle} position: relative;">
+                                ${imgContent}
+                                <span style="position: absolute; top: 4px; left: 4px; background: ${prefixColor}; color: white; font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 4px;">${refPrefix}</span>
+                                <span style="position: absolute; bottom: 4px; right: 4px; background: rgba(0,0,0,0.6); color: white; font-size: 9px; padding: 2px 6px; border-radius: 4px;">${timeLeft}</span>
                             </div>
-                            <div style="padding: 6px;">
-                                <div style="font-size: 10px; font-weight: 600; color: #f8fafc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${priceStr}</div>
-                                <div style="font-size: 8px; color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${e.titulo || ''}">${e.distrito || tipo || '-'}</div>
+                            <div style="padding: 8px;">
+                                <div style="font-size: 12px; font-weight: 600; color: #1e293b;">${priceStr}</div>
+                                <div style="font-size: 10px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${e.titulo || ''}">${e.distrito || '-'}</div>
                             </div>
                         </div>
                     `;
@@ -5492,6 +5497,88 @@
             if (days > 0) return `${days}d`;
             if (hours > 0) return `${hours}h`;
             return `${mins}m`;
+        }
+
+        // Fake events for testing animations
+        const fakeEvents = [
+            { reference: 'LO9990001', titulo: 'Apartamento T3 em Lisboa', distrito: 'Lisboa', lance_atual: 125000, valor_base: 100000, data_fim: new Date(Date.now() + 2*24*60*60*1000).toISOString() },
+            { reference: 'NP9990002', titulo: 'Moradia V4 no Porto', distrito: 'Porto', lance_atual: 250000, valor_base: 200000, data_fim: new Date(Date.now() + 5*60*60*1000).toISOString() },
+            { reference: 'LO9990003', titulo: 'BMW Serie 3 2019', distrito: 'Faro', lance_atual: 18500, valor_base: 15000, data_fim: new Date(Date.now() + 12*60*60*1000).toISOString() },
+            { reference: 'LO9990004', titulo: 'Loja Comercial Braga', distrito: 'Braga', lance_atual: 45000, valor_base: 35000, data_fim: new Date(Date.now() + 3*24*60*60*1000).toISOString() },
+            { reference: 'NP9990005', titulo: 'Terreno Rústico Setúbal', distrito: 'Setúbal', lance_atual: 8500, valor_base: 5000, data_fim: new Date(Date.now() + 45*60*1000).toISOString() },
+            { reference: 'LO9990006', titulo: 'Armazém Industrial Coimbra', distrito: 'Coimbra', lance_atual: 89000, valor_base: 75000, data_fim: new Date(Date.now() + 1*24*60*60*1000).toISOString() },
+        ];
+        let fakeEventIndex = 0;
+
+        function createEventCard(e) {
+            const price = e.lance_atual || e.valor_base || 0;
+            const priceStr = Number(price).toLocaleString('pt-PT', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + '€';
+            const refPrefix = e.reference?.substring(0, 2) || '';
+            const prefixColor = refPrefix === 'LO' ? '#3b82f6' : '#f59e0b';
+            const timeLeft = e.data_fim ? getTimeLeftShort(new Date(e.data_fim)) : '-';
+
+            const card = document.createElement('div');
+            card.className = 'new-event-card';
+            card.onclick = () => window.open(`https://e-leiloes.pt/evento/${e.reference}`, '_blank');
+            card.style.cssText = `
+                flex-shrink: 0;
+                width: 130px;
+                background: #f8fafc;
+                border-radius: 10px;
+                overflow: hidden;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                border: 1px solid #e2e8f0;
+                opacity: 0;
+                transform: translateX(-20px);
+            `;
+            card.innerHTML = `
+                <div style="height: 65px; background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%); position: relative; display: flex; align-items: center; justify-content: center;">
+                    <span style="font-size: 24px; opacity: 0.5;">🏠</span>
+                    <span style="position: absolute; top: 4px; left: 4px; background: ${prefixColor}; color: white; font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 4px;">${refPrefix}</span>
+                    <span style="position: absolute; bottom: 4px; right: 4px; background: rgba(0,0,0,0.6); color: white; font-size: 9px; padding: 2px 6px; border-radius: 4px;">${timeLeft}</span>
+                </div>
+                <div style="padding: 8px;">
+                    <div style="font-size: 12px; font-weight: 600; color: #1e293b;">${priceStr}</div>
+                    <div style="font-size: 10px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${e.distrito || '-'}</div>
+                </div>
+            `;
+
+            card.onmouseover = () => { card.style.transform = 'translateY(-3px)'; card.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)'; };
+            card.onmouseout = () => { card.style.transform = ''; card.style.boxShadow = ''; };
+
+            return card;
+        }
+
+        function addFakeNewEvent() {
+            const track = document.getElementById('new-events-track');
+            const countBadge = document.getElementById('new-events-count');
+            if (!track) return;
+
+            // Remove "loading" message if present
+            const loadingMsg = track.querySelector('div[style*="padding: 20px"]');
+            if (loadingMsg) loadingMsg.remove();
+
+            // Get next fake event
+            const fakeEvent = fakeEvents[fakeEventIndex % fakeEvents.length];
+            fakeEventIndex++;
+
+            // Create and insert card at the beginning
+            const card = createEventCard(fakeEvent);
+            track.insertBefore(card, track.firstChild);
+
+            // Animate in
+            requestAnimationFrame(() => {
+                card.style.opacity = '1';
+                card.style.transform = 'translateX(0)';
+            });
+
+            // Update count
+            const currentCount = parseInt(countBadge?.textContent || '0');
+            if (countBadge) countBadge.textContent = currentCount + 1;
+
+            // Scroll to start to see new event
+            track.scrollTo({ left: 0, behavior: 'smooth' });
         }
 
         // Load dashboard widgets on page load and refresh periodically
