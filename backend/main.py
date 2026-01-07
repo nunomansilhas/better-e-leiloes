@@ -2059,7 +2059,7 @@ async def stream_events(
     )
 
 
-@app.get("/api/events/live")
+@app.get("/api/live/events")
 async def live_price_updates():
     """
     Server-Sent Events (SSE) endpoint for real-time price updates.

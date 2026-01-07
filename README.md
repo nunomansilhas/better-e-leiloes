@@ -176,7 +176,7 @@ Dashboard disponível em: **http://localhost:8000**
 ### Server-Sent Events (SSE)
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
-| GET | `/api/events/live` | Stream de atualizações em tempo real |
+| GET | `/api/live/events` | Stream de atualizações em tempo real |
 
 **Eventos SSE:**
 - `price_update` - Alteração de preço (old_price, new_price, reference)

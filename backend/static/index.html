@@ -8240,7 +8240,7 @@
                 sseConnection.close();
             }
 
-            sseConnection = new EventSource(`${API_BASE}/api/events/live`);
+            sseConnection = new EventSource(`${API_BASE}/api/live/events`);
 
             sseConnection.onopen = () => {
                 console.log('🔴 SSE: Connected to live price updates');
