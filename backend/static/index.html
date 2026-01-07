@@ -5701,18 +5701,21 @@
             const card = createNewEventCard(eventData, true);
             track.insertBefore(card, track.firstChild);
 
-            // Animate in
+            // Scroll to start first
+            track.scrollTo({ left: 0, behavior: 'smooth' });
+
+            // Animate in with proper delay for smooth transition
             requestAnimationFrame(() => {
-                card.style.opacity = '1';
-                card.style.transform = 'translateX(0)';
+                requestAnimationFrame(() => {
+                    card.style.transition = 'opacity 0.4s ease-out, transform 0.4s ease-out';
+                    card.style.opacity = '1';
+                    card.style.transform = 'translateX(0)';
+                });
             });
 
             // Update count
             const currentCount = parseInt(countBadge?.textContent || '0');
             if (countBadge) countBadge.textContent = currentCount + 1;
-
-            // Scroll to start to see new event
-            track.scrollTo({ left: 0, behavior: 'smooth' });
         }
 
         // Load initial events for banner
