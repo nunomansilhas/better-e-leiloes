@@ -5510,7 +5510,7 @@
         ];
         let fakeEventIndex = 0;
 
-        function createEventCard(e) {
+        function createNewEventCard(e) {
             const price = e.lance_atual || e.valor_base || 0;
             const priceStr = Number(price).toLocaleString('pt-PT', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + '€';
             const refPrefix = e.reference?.substring(0, 2) || '';
@@ -5564,7 +5564,7 @@
             fakeEventIndex++;
 
             // Create and insert card at the beginning
-            const card = createEventCard(fakeEvent);
+            const card = createNewEventCard(fakeEvent);
             track.insertBefore(card, track.firstChild);
 
             // Animate in
