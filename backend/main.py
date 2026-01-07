@@ -1415,18 +1415,22 @@ async def get_recent_bids(limit: int = 30, hours: int = 24):
     if bids:
         async with get_db() as db:
             references = [b["reference"] for b in bids]
-            # Get ativo status for all references
+            # Get ativo and data_fim status for all references
             from sqlalchemy import select
             from database import EventDB
             result = await db.session.execute(
-                select(EventDB.reference, EventDB.ativo)
+                select(EventDB.reference, EventDB.ativo, EventDB.data_fim)
                 .where(EventDB.reference.in_(references))
             )
-            ativo_map = {row.reference: row.ativo for row in result}
+            event_info = {row.reference: {"ativo": row.ativo, "data_fim": row.data_fim} for row in result}
 
-            # Add ativo to each bid
+            # Add ativo and data_fim to each bid
             for bid in bids:
-                bid["ativo"] = ativo_map.get(bid["reference"], True)
+                info = event_info.get(bid["reference"], {})
+                bid["ativo"] = info.get("ativo", True)
+                # Include data_fim as ISO string for frontend to check expiration locally
+                data_fim = info.get("data_fim")
+                bid["data_fim"] = data_fim.isoformat() if data_fim else None
 
     return JSONResponse(bids)
 

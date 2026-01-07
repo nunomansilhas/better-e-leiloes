@@ -5432,15 +5432,23 @@
                     return;
                 }
 
-                // Separate active and inactive bids
-                const activeBids = bids.filter(b => b.ativo !== false);
-                const inactiveBids = bids.filter(b => b.ativo === false);
+                // Helper to check if event has expired (data_fim has passed)
+                const isExpired = (bid) => {
+                    if (bid.data_fim) {
+                        return new Date(bid.data_fim) < new Date();
+                    }
+                    return false;
+                };
+
+                // Separate active and inactive bids (check both ativo flag and data_fim)
+                const activeBids = bids.filter(b => b.ativo !== false && !isExpired(b));
+                const inactiveBids = bids.filter(b => b.ativo === false || isExpired(b));
 
                 const renderBid = (bid) => {
                     const anterior = bid.preco_anterior ? `€${bid.preco_anterior.toLocaleString()}` : '?';
                     const atual = bid.preco_atual ? `€${bid.preco_atual.toLocaleString()}` : '?';
                     const variacao = bid.variacao ? `+€${bid.variacao.toLocaleString()}` : '';
-                    const isActive = bid.ativo !== false;
+                    const isActive = bid.ativo !== false && !isExpired(bid);
 
                     // Time ago
                     const created = new Date(bid.timestamp);
