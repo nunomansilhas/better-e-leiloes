@@ -4,14 +4,11 @@ E-Leiloes API - cPanel/Passenger WSGI Entry Point
 FastAPI is ASGI, but cPanel's Passenger expects WSGI.
 This file creates a Passenger-compatible version of the API.
 
-IMPORTANT: The main.py has a lifespan/scheduler that doesn't work with Passenger.
-This file creates a simplified API that works with cPanel hosting.
-
-Usage:
-1. Clone repo to cPanel: git clone ... /home/user/eleiloes.mansilhas.pt
-2. Create .env in backend/ with DATABASE_URL
-3. Install deps: pip install -r backend/requirements.txt
-4. Configure Python App in cPanel with this file as startup
+Serves:
+- / : Landing page with instructions
+- /dashboard : Main dashboard application
+- /api/* : REST API endpoints
+- /docs : Swagger API documentation
 """
 
 import sys
@@ -23,6 +20,7 @@ import os
 
 APP_ROOT = os.path.dirname(os.path.abspath(__file__))
 BACKEND_DIR = os.path.join(APP_ROOT, 'backend')
+STATIC_DIR = os.path.join(BACKEND_DIR, 'static')
 ENV_FILE = os.path.join(BACKEND_DIR, '.env')
 
 # =============================================================================
@@ -30,10 +28,8 @@ ENV_FILE = os.path.join(BACKEND_DIR, '.env')
 # =============================================================================
 
 from dotenv import load_dotenv
-# CRITICAL: Use explicit path - Passenger doesn't find .env automatically
 load_dotenv(ENV_FILE)
 
-# Now add paths and change directory
 sys.path.insert(0, BACKEND_DIR)
 sys.path.insert(0, APP_ROOT)
 os.chdir(BACKEND_DIR)
@@ -44,7 +40,8 @@ os.chdir(BACKEND_DIR)
 
 from fastapi import FastAPI, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from a2wsgi import ASGIMiddleware
 from sqlalchemy import text
 from database import async_session_maker
@@ -52,15 +49,16 @@ from typing import Optional
 from datetime import datetime
 
 # =============================================================================
-# CREATE FASTAPI APP (without lifespan - Passenger compatible)
+# CREATE FASTAPI APP
 # =============================================================================
 
 app = FastAPI(
     title="E-Leiloes API",
-    description="API para dados de leilões do e-leiloes.pt",
+    description="API para dados de leiloes do e-leiloes.pt",
     version="2.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc"
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    openapi_url="/api/openapi.json"
 )
 
 # CORS
@@ -77,7 +75,6 @@ app.add_middleware(
 # =============================================================================
 
 def serialize_value(value):
-    """Convert value to JSON-serializable format"""
     if value is None:
         return None
     elif hasattr(value, '__float__'):
@@ -89,29 +86,33 @@ def serialize_value(value):
     return value
 
 def row_to_dict(row, columns):
-    """Convert database row to dictionary"""
     return {col: serialize_value(val) for col, val in zip(columns, row)}
 
 # =============================================================================
-# BASIC ENDPOINTS
+# FRONTEND ROUTES
 # =============================================================================
 
-@app.get("/")
-def root():
-    return {
-        "status": "ok",
-        "message": "E-Leiloes API",
-        "version": "2.0.0",
-        "docs": "/docs",
-        "endpoints": {
-            "health": "/api/health",
-            "stats": "/api/stats",
-            "events": "/api/events",
-            "distritos": "/api/distritos",
-            "tipos": "/api/tipos",
-            "search": "/api/search"
-        }
-    }
+@app.get("/", response_class=HTMLResponse)
+async def landing_page():
+    """Serve landing page"""
+    landing_file = os.path.join(STATIC_DIR, 'landing.html')
+    if os.path.exists(landing_file):
+        with open(landing_file, 'r', encoding='utf-8') as f:
+            return HTMLResponse(content=f.read())
+    return HTMLResponse(content="<h1>E-Leiloes API</h1><p><a href='/dashboard'>Dashboard</a> | <a href='/api/docs'>API Docs</a></p>")
+
+@app.get("/dashboard", response_class=HTMLResponse)
+async def dashboard():
+    """Serve dashboard application"""
+    index_file = os.path.join(STATIC_DIR, 'index.html')
+    if os.path.exists(index_file):
+        with open(index_file, 'r', encoding='utf-8') as f:
+            return HTMLResponse(content=f.read())
+    return HTMLResponse(content="<h1>Dashboard not found</h1>", status_code=404)
+
+# =============================================================================
+# API ENDPOINTS
+# =============================================================================
 
 @app.get("/api/health")
 def health():
@@ -142,10 +143,6 @@ async def get_stats():
     except Exception as e:
         return {"error": str(e)}
 
-# =============================================================================
-# EVENTS ENDPOINTS
-# =============================================================================
-
 @app.get("/api/events")
 async def get_events(
     limit: int = Query(50, ge=1, le=500),
@@ -173,27 +170,21 @@ async def get_events(
             if search:
                 query += " AND (titulo LIKE :search OR descricao LIKE :search OR distrito LIKE :search)"
                 params["search"] = f"%{search}%"
-
             if tipo:
                 query += " AND tipo = :tipo"
                 params["tipo"] = tipo
-
             if distrito:
                 query += " AND distrito = :distrito"
                 params["distrito"] = distrito
-
             if concelho:
                 query += " AND concelho = :concelho"
                 params["concelho"] = concelho
-
             if ativo is not None:
                 query += " AND ativo = :ativo"
                 params["ativo"] = 1 if ativo else 0
-
             if min_price is not None:
                 query += " AND valor_base >= :min_price"
                 params["min_price"] = min_price
-
             if max_price is not None:
                 query += " AND valor_base <= :max_price"
                 params["max_price"] = max_price
@@ -205,7 +196,7 @@ async def get_events(
             columns = result.keys()
             events = [row_to_dict(row, columns) for row in rows]
 
-            # Get total count for pagination
+            # Total count
             count_query = "SELECT COUNT(*) FROM events WHERE 1=1"
             count_params = {}
             if search:
@@ -254,10 +245,6 @@ async def get_event(reference: str):
     except Exception as e:
         return {"error": str(e)}
 
-# =============================================================================
-# FILTER OPTIONS
-# =============================================================================
-
 @app.get("/api/distritos")
 async def get_distritos():
     """Get list of districts with event counts"""
@@ -303,11 +290,9 @@ async def get_concelhos(distrito: Optional[str] = None):
                 WHERE concelho IS NOT NULL AND concelho != ''
             """
             params = {}
-
             if distrito:
                 query += " AND distrito = :distrito"
                 params["distrito"] = distrito
-
             query += " GROUP BY concelho ORDER BY concelho"
 
             result = await session.execute(text(query), params)
@@ -315,10 +300,6 @@ async def get_concelhos(distrito: Optional[str] = None):
             return {"concelhos": [{"name": r[0], "count": r[1]} for r in rows]}
     except Exception as e:
         return {"error": str(e)}
-
-# =============================================================================
-# SEARCH
-# =============================================================================
 
 @app.get("/api/search")
 async def search_events(
@@ -345,7 +326,7 @@ async def search_events(
         return {"error": str(e)}
 
 # =============================================================================
-# WSGI APPLICATION (for Passenger)
+# WSGI APPLICATION
 # =============================================================================
 
 application = ASGIMiddleware(app)
