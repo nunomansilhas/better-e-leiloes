@@ -623,6 +623,260 @@ class DatabaseManager:
             return True
         return False
 
+    async def insert_event_stubs_batch(self, items: list) -> int:
+        """
+        Insere múltiplos eventos básicos de uma vez (MUITO mais rápido).
+
+        Args:
+            items: Lista de dicts com {reference, tipo_id}
+
+        Returns:
+            Número de novos eventos inseridos
+        """
+        if not items:
+            return 0
+
+        # Obter todas as referências existentes de uma vez
+        refs = [item['reference'] for item in items]
+        result = await self.session.execute(
+            select(EventDB.reference).where(EventDB.reference.in_(refs))
+        )
+        existing_refs = set(row[0] for row in result.fetchall())
+
+        # Filtrar apenas os novos
+        new_items = [item for item in items if item['reference'] not in existing_refs]
+
+        if not new_items:
+            return 0
+
+        # Inserir todos de uma vez
+        new_events = [
+            EventDB(
+                reference=item['reference'],
+                tipo_id=item.get('tipo_id', 1),
+                lance_atual=0,
+                scraped_at=datetime.utcnow()
+            )
+            for item in new_items
+        ]
+
+        self.session.add_all(new_events)
+        await self.session.commit()
+
+        return len(new_events)
+
+    async def save_events_batch(self, events: list) -> tuple:
+        """
+        Guarda múltiplos eventos de uma vez (MUITO mais rápido).
+
+        Args:
+            events: Lista de EventData
+
+        Returns:
+            Tuple (inserted_count, updated_count)
+        """
+        if not events:
+            return 0, 0
+
+        # Obter todas as referências existentes de uma vez
+        refs = [e.reference for e in events]
+        result = await self.session.execute(
+            select(EventDB).where(EventDB.reference.in_(refs))
+        )
+        existing_map = {e.reference: e for e in result.scalars().all()}
+
+        inserted = 0
+        updated = 0
+
+        for event in events:
+            # Serializa arrays para JSON
+            fotos_json = None
+            if event.fotos:
+                fotos_json = json.dumps([f.model_dump() for f in event.fotos])
+
+            onus_json = None
+            if event.onus:
+                onus_json = json.dumps([o.model_dump() for o in event.onus])
+
+            desc_predial_json = None
+            if event.desc_predial:
+                desc_predial_json = json.dumps([dp.model_dump() for dp in event.desc_predial])
+
+            executados_json = None
+            if event.executados:
+                executados_json = json.dumps([e.model_dump() for e in event.executados])
+
+            visitas_json = None
+            if event.visitas:
+                visitas_json = json.dumps(event.visitas)
+
+            anexos_json = None
+            if event.anexos:
+                anexos_json = json.dumps(event.anexos)
+
+            existing = existing_map.get(event.reference)
+
+            if existing:
+                # Atualiza todos os campos
+                existing.id_api = event.id_api
+                existing.origem = event.origem
+                existing.verba_id = event.verba_id
+                existing.titulo = event.titulo
+                existing.capa = event.capa
+                existing.tipo_id = event.tipo_id
+                existing.subtipo_id = event.subtipo_id
+                existing.tipologia_id = event.tipologia_id
+                existing.tipo = event.tipo
+                existing.subtipo = event.subtipo
+                existing.tipologia = event.tipologia
+                existing.modalidade_id = event.modalidade_id
+                existing.valor_base = event.valor_base
+                existing.valor_abertura = event.valor_abertura
+                existing.valor_minimo = event.valor_minimo
+                existing.lance_atual = event.lance_atual or 0
+                existing.lance_atual_id = event.lance_atual_id
+                existing.iva_cobrar = event.iva_cobrar
+                existing.iva_percentagem = event.iva_percentagem
+                existing.data_inicio = event.data_inicio
+                existing.data_fim_inicial = event.data_fim_inicial
+                existing.data_fim = event.data_fim
+                existing.cancelado = event.cancelado
+                existing.iniciado = event.iniciado
+                existing.terminado = event.terminado
+                existing.ultimos_5m = event.ultimos_5m
+                existing.area_privativa = event.area_privativa
+                existing.area_dependente = event.area_dependente
+                existing.area_total = event.area_total
+                existing.morada = event.morada
+                existing.morada_numero = event.morada_numero
+                existing.morada_andar = event.morada_andar
+                existing.morada_cp = event.morada_cp
+                existing.distrito = event.distrito
+                existing.concelho = event.concelho
+                existing.freguesia = event.freguesia
+                existing.latitude = event.latitude
+                existing.longitude = event.longitude
+                existing.matricula = event.matricula
+                existing.osae360 = event.osae360
+                existing.descricao = event.descricao
+                existing.observacoes = event.observacoes
+                existing.processo_id = event.processo_id
+                existing.processo_numero = event.processo_numero
+                existing.processo_comarca = event.processo_comarca
+                existing.processo_comarca_codigo = event.processo_comarca_codigo
+                existing.processo_tribunal = event.processo_tribunal
+                existing.cerimonia_id = event.cerimonia_id
+                existing.cerimonia_data = event.cerimonia_data
+                existing.cerimonia_local = event.cerimonia_local
+                existing.cerimonia_morada = event.cerimonia_morada
+                existing.gestor_id = event.gestor_id
+                existing.gestor_tipo = event.gestor_tipo
+                existing.gestor_tipo_id = event.gestor_tipo_id
+                existing.gestor_cedula = event.gestor_cedula
+                existing.gestor_nome = event.gestor_nome
+                existing.gestor_email = event.gestor_email
+                existing.gestor_comarca = event.gestor_comarca
+                existing.gestor_tribunal = event.gestor_tribunal
+                existing.gestor_telefone = event.gestor_telefone
+                existing.gestor_fax = event.gestor_fax
+                existing.gestor_morada = event.gestor_morada
+                existing.gestor_horario = event.gestor_horario
+                existing.fotos = fotos_json
+                existing.onus = onus_json
+                existing.desc_predial = desc_predial_json
+                existing.executados = executados_json
+                existing.visitas = visitas_json
+                existing.anexos = anexos_json
+                existing.data_servidor = event.data_servidor
+                existing.data_atualizacao = event.data_atualizacao
+                existing.scraped_at = event.scraped_at or datetime.utcnow()
+                existing.ativo = event.ativo if event.ativo is not None else True
+                updated += 1
+            else:
+                # Cria novo evento
+                new_event = EventDB(
+                    reference=event.reference,
+                    id_api=event.id_api,
+                    origem=event.origem,
+                    verba_id=event.verba_id,
+                    titulo=event.titulo,
+                    capa=event.capa,
+                    tipo_id=event.tipo_id,
+                    subtipo_id=event.subtipo_id,
+                    tipologia_id=event.tipologia_id,
+                    tipo=event.tipo,
+                    subtipo=event.subtipo,
+                    tipologia=event.tipologia,
+                    modalidade_id=event.modalidade_id,
+                    valor_base=event.valor_base,
+                    valor_abertura=event.valor_abertura,
+                    valor_minimo=event.valor_minimo,
+                    lance_atual=event.lance_atual or 0,
+                    lance_atual_id=event.lance_atual_id,
+                    iva_cobrar=event.iva_cobrar,
+                    iva_percentagem=event.iva_percentagem,
+                    data_inicio=event.data_inicio,
+                    data_fim_inicial=event.data_fim_inicial,
+                    data_fim=event.data_fim,
+                    cancelado=event.cancelado,
+                    iniciado=event.iniciado,
+                    terminado=event.terminado,
+                    ultimos_5m=event.ultimos_5m,
+                    area_privativa=event.area_privativa,
+                    area_dependente=event.area_dependente,
+                    area_total=event.area_total,
+                    morada=event.morada,
+                    morada_numero=event.morada_numero,
+                    morada_andar=event.morada_andar,
+                    morada_cp=event.morada_cp,
+                    distrito=event.distrito,
+                    concelho=event.concelho,
+                    freguesia=event.freguesia,
+                    latitude=event.latitude,
+                    longitude=event.longitude,
+                    matricula=event.matricula,
+                    osae360=event.osae360,
+                    descricao=event.descricao,
+                    observacoes=event.observacoes,
+                    processo_id=event.processo_id,
+                    processo_numero=event.processo_numero,
+                    processo_comarca=event.processo_comarca,
+                    processo_comarca_codigo=event.processo_comarca_codigo,
+                    processo_tribunal=event.processo_tribunal,
+                    cerimonia_id=event.cerimonia_id,
+                    cerimonia_data=event.cerimonia_data,
+                    cerimonia_local=event.cerimonia_local,
+                    cerimonia_morada=event.cerimonia_morada,
+                    gestor_id=event.gestor_id,
+                    gestor_tipo=event.gestor_tipo,
+                    gestor_tipo_id=event.gestor_tipo_id,
+                    gestor_cedula=event.gestor_cedula,
+                    gestor_nome=event.gestor_nome,
+                    gestor_email=event.gestor_email,
+                    gestor_comarca=event.gestor_comarca,
+                    gestor_tribunal=event.gestor_tribunal,
+                    gestor_telefone=event.gestor_telefone,
+                    gestor_fax=event.gestor_fax,
+                    gestor_morada=event.gestor_morada,
+                    gestor_horario=event.gestor_horario,
+                    fotos=fotos_json,
+                    onus=onus_json,
+                    desc_predial=desc_predial_json,
+                    executados=executados_json,
+                    visitas=visitas_json,
+                    anexos=anexos_json,
+                    data_servidor=event.data_servidor,
+                    data_atualizacao=event.data_atualizacao,
+                    scraped_at=event.scraped_at or datetime.utcnow(),
+                    ativo=event.ativo if event.ativo is not None else True
+                )
+                self.session.add(new_event)
+                inserted += 1
+
+        # Um único commit no final
+        await self.session.commit()
+        return inserted, updated
+
     async def get_event(self, reference: str) -> Optional[EventData]:
         """Busca um evento por referência"""
         result = await self.session.execute(

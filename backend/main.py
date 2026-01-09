@@ -2270,39 +2270,32 @@ async def run_api_pipeline(tipo: Optional[int], max_pages: Optional[int]):
         references = [item['reference'] for item in ids_data]
         tipo_map = {item['reference']: item.get('tipo_evento', 'imoveis') for item in ids_data}
 
-        # Update state - Stage 1 IDs collected, now inserting
+        # BATCH INSERT - muito mais rápido!
         await pipeline_state.update(
-            message=f"💾 A guardar {len(references)} IDs na base de dados...",
+            message=f"💾 A guardar {len(references)} IDs na BD (batch)...",
             details={"phase": "saving_ids"}
         )
-        add_dashboard_log(f"💾 A guardar {len(references)} IDs na base de dados...", "info")
 
-        # Inserir IDs na BD imediatamente
         # Mapeamento tipo_evento (string) para tipo_id (int)
         tipo_str_to_id = {
             'imoveis': 1, 'veiculos': 2, 'equipamentos': 3,
             'mobiliario': 4, 'maquinas': 5, 'direitos': 6,
             'imovel': 1, 'movel': 2  # Legacy compatibility
         }
-        new_count = 0
-        total_ids = len(ids_data)
-        async with get_db() as db:
-            for i, item in enumerate(ids_data):
-                ref = item['reference']
-                tipo_ev = item.get('tipo_evento', 'imoveis')
-                tipo_id = tipo_str_to_id.get(tipo_ev, 1)
-                was_new = await db.insert_event_stub(ref, tipo_id)
-                if was_new:
-                    new_count += 1
-                # Update progress every 100 items
-                if (i + 1) % 100 == 0 or i == total_ids - 1:
-                    await pipeline_state.update(
-                        current=i + 1,
-                        total=total_ids,
-                        message=f"💾 A guardar IDs: {i + 1}/{total_ids} ({new_count} novos)"
-                    )
 
-        add_dashboard_log(f"💾 {new_count} novos IDs inseridos na BD ({len(references) - new_count} já existiam)", "info")
+        # Preparar lista para batch insert
+        batch_items = [
+            {
+                'reference': item['reference'],
+                'tipo_id': tipo_str_to_id.get(item.get('tipo_evento', 'imoveis'), 1)
+            }
+            for item in ids_data
+        ]
+
+        async with get_db() as db:
+            new_count = await db.insert_event_stubs_batch(batch_items)
+
+        add_dashboard_log(f"💾 {new_count} novos IDs inseridos ({len(references) - new_count} já existiam)", "info")
 
         if scraper.stop_requested:
             if len(references) > 0:
@@ -2370,26 +2363,20 @@ async def run_api_pipeline(tipo: Optional[int], max_pages: Optional[int]):
             scraper.stop_requested = False
             return
 
-        # Save all events to database with progress
+        # BATCH SAVE - muito mais rápido!
         total_events = len(events)
-        await pipeline_state.update(message=f"💾 A guardar {total_events} eventos na BD...")
-        add_dashboard_log(f"💾 A guardar {total_events} eventos na BD...", "info")
+        await pipeline_state.update(message=f"💾 A guardar {total_events} eventos na BD (batch)...")
+        add_dashboard_log(f"💾 A guardar {total_events} eventos na BD (batch)...", "info")
 
         async with get_db() as db:
-            for i, event in enumerate(events):
-                try:
-                    await db.save_event(event)
-                    await cache_manager.set(event.reference, event)
-                    success_count += 1
-                except Exception as e:
-                    add_dashboard_log(f"⚠️ Erro ao guardar {event.reference}: {e}", "warning")
+            inserted, updated = await db.save_events_batch(events)
+            success_count = inserted + updated
 
-                # Update progress every 50 events
-                if (i + 1) % 50 == 0 or i == total_events - 1:
-                    pct = int(((i + 1) / total_events) * 100)
-                    await pipeline_state.update(
-                        message=f"💾 A guardar na BD: {i + 1}/{total_events} ({pct}%)"
-                    )
+        # Update cache for all events
+        for event in events:
+            await cache_manager.set(event.reference, event)
+
+        add_dashboard_log(f"💾 BD: {inserted} novos + {updated} atualizados", "info")
 
         # Count images (fotos is a list of FotoItem or None)
         total_images = sum(len(event.fotos) if event.fotos else 0 for event in events)
