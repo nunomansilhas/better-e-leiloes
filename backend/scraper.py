@@ -809,12 +809,23 @@ class EventScraper:
 
         return all_events
     
-    async def _extract_from_listing(self, tipo: int, max_pages: Optional[int]) -> List[dict]:
+    async def _extract_from_listing(
+        self,
+        tipo: int,
+        max_pages: Optional[int],
+        on_page_progress: Optional[Callable[[str, int, int, int, int], Awaitable[None]]] = None
+    ) -> List[dict]:
         """
         FASE 1: Extrai referências + valores da página de listagem
-        
+
         Usa paginação com first=0, first=12, first=24, etc. (12 eventos por página)
-        
+
+        Args:
+            tipo: Tipo de evento (1-6)
+            max_pages: Máximo de páginas
+            on_page_progress: Callback async chamado a cada página
+                              (tipo_nome, page_num, page_count, total_count, offset)
+
         Returns:
             Lista de dicts com {reference, valores}
         """
@@ -895,7 +906,12 @@ class EventScraper:
                 
                 count_new = len(events_preview) - count_before
                 print(f"📄 Página {page_num + 1}: +{count_new} eventos (total: {len(events_preview)})")
-                
+
+                # Call page progress callback if provided
+                if on_page_progress:
+                    tipo_nome = TIPO_EVENTO_NAMES.get(tipo, "Desconhecido")
+                    await on_page_progress(tipo_nome, page_num + 1, count_new, len(events_preview), first_offset)
+
                 if count_new == 0:
                     break
                 
@@ -1102,7 +1118,8 @@ class EventScraper:
         self,
         tipo: Optional[int] = None,
         max_pages: Optional[int] = None,
-        on_type_complete: Optional[Callable[[str, int, dict], Awaitable[None]]] = None
+        on_type_complete: Optional[Callable[[str, int, dict], Awaitable[None]]] = None,
+        on_page_progress: Optional[Callable[[str, int, int, int, int], Awaitable[None]]] = None
     ) -> List[dict]:
         """
         STAGE 1: Scrape apenas referências e valores básicos da listagem (rápido).
@@ -1113,6 +1130,8 @@ class EventScraper:
             max_pages: Máximo de páginas por tipo
             on_type_complete: Callback async chamado quando um tipo é completado
                               (tipo_nome, count, totals_dict)
+            on_page_progress: Callback async chamado a cada página
+                              (tipo_nome, page_num, page_count, total_count, offset)
 
         Returns:
             Lista de dicts: [{reference, tipo_evento, valores}, ...]
@@ -1133,7 +1152,11 @@ class EventScraper:
 
                     tipo_nome = TIPO_EVENTO_NAMES[tipo_code]
                     print(f"🆔 Stage 1: Scraping IDs de {tipo_nome} (tipo={tipo_code})...")
-                    ids = await self._extract_from_listing(tipo=tipo_code, max_pages=max_pages)
+                    ids = await self._extract_from_listing(
+                        tipo=tipo_code,
+                        max_pages=max_pages,
+                        on_page_progress=on_page_progress
+                    )
 
                     # ALWAYS add collected IDs, even if interrupted
                     for item in ids:
@@ -1159,7 +1182,11 @@ class EventScraper:
                 tipo_str = TIPO_EVENTO_MAP[tipo]
                 tipo_nome = TIPO_EVENTO_NAMES[tipo]
                 print(f"🆔 Stage 1: Scraping IDs de {tipo_nome} (tipo={tipo})...")
-                ids = await self._extract_from_listing(tipo=tipo, max_pages=max_pages)
+                ids = await self._extract_from_listing(
+                    tipo=tipo,
+                    max_pages=max_pages,
+                    on_page_progress=on_page_progress
+                )
 
                 # ALWAYS add collected IDs, even if interrupted
                 for item in ids:

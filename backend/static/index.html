@@ -743,12 +743,12 @@
                     const state = await response.json();
 
                     if (state.active) {
-                        const stage = state.current_stage || 1;
-                        const current = state.stage_current || 0;
-                        const total = state.stage_total || 0;
-                        const action = state.current_action || 'A processar...';
+                        const stage = state.stage || 1;
+                        const current = state.current || 0;
+                        const total = state.total || 0;
+                        const message = state.message || 'A processar...';
 
-                        updateFeedback(action, current, total);
+                        updateFeedback(message, current, total);
 
                         document.getElementById('stage1-dot').style.background = stage >= 1 ? 'rgba(59,130,246,0.3)' : 'rgba(255,255,255,0.1)';
                         document.getElementById('stage2-dot').style.background = stage >= 2 ? 'rgba(59,130,246,0.3)' : 'rgba(255,255,255,0.1)';
@@ -855,13 +855,13 @@
 
                     // Show feedback
                     document.getElementById('pipeline-feedback').style.display = 'block';
-                    const current = state.stage_current || 0;
-                    const total = state.stage_total || 0;
-                    const action = state.current_action || 'A processar...';
-                    updateFeedback(action, current, total);
+                    const current = state.current || 0;
+                    const total = state.total || 0;
+                    const message = state.message || 'A processar...';
+                    updateFeedback(message, current, total);
 
                     // Update stage indicators
-                    const stage = state.current_stage || 1;
+                    const stage = state.stage || 1;
                     document.getElementById('stage1-dot').style.background = stage >= 1 ? 'rgba(59,130,246,0.3)' : 'rgba(255,255,255,0.1)';
                     document.getElementById('stage2-dot').style.background = stage >= 2 ? 'rgba(59,130,246,0.3)' : 'rgba(255,255,255,0.1)';
 

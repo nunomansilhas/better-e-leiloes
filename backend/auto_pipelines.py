@@ -1085,6 +1085,8 @@ class AutoPipelinesManager:
             main_pipeline = get_pipeline_state()
             if main_pipeline.is_active:
                 print(f"⏸️ X-Monitor skipped - main pipeline is running")
+                # Reschedule for 30 seconds later
+                self._reschedule_xmonitor(30)
                 return
 
             # Mark as running
@@ -1251,12 +1253,20 @@ class AutoPipelinesManager:
                 main_pipeline = get_pipeline_state()
                 if main_pipeline.is_active:
                     print(f"⏸️ Y-Sync skipped - main pipeline is running")
+                    # Update next_run to avoid constant retries (retry in 5 min)
+                    pipeline = self.pipelines['ysync']
+                    pipeline.next_run = (datetime.now() + timedelta(minutes=5)).strftime("%Y-%m-%d %H:%M:%S")
+                    self._save_config()
                     skipped = True
                     return
 
                 # Try to acquire heavy pipeline lock (mutex with Z-Watch, Pipeline API)
                 lock_acquired = await self.acquire_heavy_lock("Y-Sync")
                 if not lock_acquired:
+                    # Update next_run to avoid constant retries (retry in 2 min)
+                    pipeline = self.pipelines['ysync']
+                    pipeline.next_run = (datetime.now() + timedelta(minutes=2)).strftime("%Y-%m-%d %H:%M:%S")
+                    self._save_config()
                     skipped = True
                     return
 
@@ -1517,12 +1527,20 @@ class AutoPipelinesManager:
                 main_pipeline = get_pipeline_state()
                 if main_pipeline.is_active:
                     print(f"⏸️ Z-Watch skipped - main pipeline is running")
+                    # Update next_run to avoid constant retries (retry in 5 min)
+                    pipeline = self.pipelines['zwatch']
+                    pipeline.next_run = (datetime.now() + timedelta(minutes=5)).strftime("%Y-%m-%d %H:%M:%S")
+                    self._save_config()
                     skipped = True
                     return
 
                 # Try to acquire heavy pipeline lock (mutex with Y-Sync, Pipeline API)
                 lock_acquired = await self.acquire_heavy_lock("Z-Watch")
                 if not lock_acquired:
+                    # Update next_run to avoid constant retries (retry in 2 min)
+                    pipeline = self.pipelines['zwatch']
+                    pipeline.next_run = (datetime.now() + timedelta(minutes=2)).strftime("%Y-%m-%d %H:%M:%S")
+                    self._save_config()
                     skipped = True
                     return
 
