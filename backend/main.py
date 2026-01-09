@@ -2164,11 +2164,24 @@ async def run_api_pipeline(tipo: Optional[int], max_pages: Optional[int]):
     """
     pipeline_state = get_pipeline_state()
     start_time = datetime.now()
+    lock_acquired = False
+
+    # Get auto pipelines manager for mutex lock
+    from auto_pipelines import get_auto_pipelines_manager
+    pipelines_manager = get_auto_pipelines_manager()
 
     # Register pipeline start in history
     add_pipeline_history("api_pipeline", "started", {"tipo": tipo, "max_pages": max_pages})
 
     try:
+        # Try to acquire heavy pipeline lock (mutex with Y-Sync, Z-Watch)
+        lock_acquired = await pipelines_manager.acquire_heavy_lock("Pipeline API")
+        if not lock_acquired:
+            msg = "⏸️ Pipeline API não pode correr - outra pipeline pesada em execução"
+            print(msg)
+            add_dashboard_log(msg, "warning")
+            return
+
         # CRITICAL: Clean pipeline state at start
         await pipeline_state.stop()
 
@@ -2374,6 +2387,11 @@ async def run_api_pipeline(tipo: Optional[int], max_pages: Optional[int]):
 
         await asyncio.sleep(2)
         await pipeline_state.stop()
+
+    finally:
+        # Release heavy pipeline lock
+        if lock_acquired:
+            pipelines_manager.release_heavy_lock("Pipeline API")
 
 
 # ============== SSE & STREAMING ENDPOINTS ==============

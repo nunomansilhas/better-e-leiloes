@@ -117,6 +117,30 @@
         .pipeline-name { font-weight: 600; font-size: 11px; display: flex; align-items: center; gap: 4px; }
         .pipeline-timer { font-size: 11px; font-weight: 600; margin-top: 2px; }
         .pipeline-info { font-size: 10px; opacity: 0.8; }
+        .pipeline-status {
+            font-size: 9px;
+            padding: 2px 6px;
+            border-radius: 6px;
+            font-weight: 600;
+            animation: pulse 1.5s infinite;
+        }
+        .pipeline-status.running {
+            background: #10b981;
+            color: white;
+        }
+        .pipeline-status.waiting {
+            background: #f59e0b;
+            color: white;
+            animation: none;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .pipeline-card.running {
+            border-color: #10b981 !important;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+        }
 
         /* Toggle Switch - Compacto */
         .toggle { position: relative; width: 32px; height: 18px; }
@@ -274,11 +298,12 @@
             </div>
             <div class="grid grid-3">
                 <!-- X-Monitor -->
-                <div class="pipeline-card red">
+                <div class="pipeline-card red" id="card-xmonitor">
                     <div class="pipeline-header">
                         <div class="pipeline-name">
                             <span>🔴</span>
                             <span>X-Monitor</span>
+                            <span id="status-xmonitor" class="pipeline-status" style="display: none;"></span>
                             <span id="x-monitor-count" style="font-size: 10px; padding: 2px 6px; background: #dc2626; color: white; border-radius: 8px;">0</span>
                         </div>
                         <label class="toggle">
@@ -293,11 +318,12 @@
                 </div>
 
                 <!-- Y-Sync -->
-                <div class="pipeline-card blue">
+                <div class="pipeline-card blue" id="card-ysync">
                     <div class="pipeline-header">
                         <div class="pipeline-name">
                             <span>🔄</span>
                             <span>Y-Sync</span>
+                            <span id="status-ysync" class="pipeline-status" style="display: none;"></span>
                         </div>
                         <label class="toggle">
                             <input type="checkbox" id="toggle-ysync" onchange="togglePipeline('ysync', this.checked)">
@@ -311,11 +337,12 @@
                 </div>
 
                 <!-- Z-Watch -->
-                <div class="pipeline-card green">
+                <div class="pipeline-card green" id="card-zwatch">
                     <div class="pipeline-header">
                         <div class="pipeline-name">
                             <span>👁️</span>
                             <span>Z-Watch</span>
+                            <span id="status-zwatch" class="pipeline-status" style="display: none;"></span>
                         </div>
                         <label class="toggle">
                             <input type="checkbox" id="toggle-zwatch" onchange="togglePipeline('zwatch', this.checked)">
@@ -572,6 +599,84 @@
                     document.getElementById('x-urgent').textContent = counts.urgent || 0;
                     document.getElementById('x-soon').textContent = counts.soon || 0;
                     document.getElementById('x-monitor-count').textContent = counts.total || 0;
+                }
+
+                // Update running/waiting status for heavy pipelines (Y-Sync, Z-Watch)
+                const heavyRunning = data.heavy_pipeline_running;
+                const heavyWaiting = data.heavy_pipeline_waiting || [];
+
+                // Map pipeline names to their types
+                const pipelineNameMap = {
+                    'Y-Sync': 'ysync',
+                    'Z-Watch': 'zwatch',
+                    'Pipeline API': 'api'
+                };
+
+                // Reset all status indicators
+                ['xmonitor', 'ysync', 'zwatch'].forEach(type => {
+                    const statusEl = document.getElementById(`status-${type}`);
+                    const cardEl = document.getElementById(`card-${type}`);
+                    if (statusEl) {
+                        statusEl.style.display = 'none';
+                        statusEl.className = 'pipeline-status';
+                    }
+                    if (cardEl) {
+                        cardEl.classList.remove('running');
+                    }
+                });
+
+                // Show X-Monitor running status (runs independently, no mutex)
+                if (pipelines.xmonitor && pipelines.xmonitor.is_running) {
+                    const statusEl = document.getElementById('status-xmonitor');
+                    const cardEl = document.getElementById('card-xmonitor');
+                    if (statusEl) {
+                        statusEl.textContent = 'A correr...';
+                        statusEl.className = 'pipeline-status running';
+                        statusEl.style.display = 'inline-block';
+                    }
+                    if (cardEl) {
+                        cardEl.classList.add('running');
+                    }
+                }
+
+                // Show running status for heavy pipelines
+                if (heavyRunning) {
+                    const runningType = pipelineNameMap[heavyRunning];
+                    if (runningType && runningType !== 'api') {
+                        const statusEl = document.getElementById(`status-${runningType}`);
+                        const cardEl = document.getElementById(`card-${runningType}`);
+                        if (statusEl) {
+                            statusEl.textContent = 'A correr...';
+                            statusEl.className = 'pipeline-status running';
+                            statusEl.style.display = 'inline-block';
+                        }
+                        if (cardEl) {
+                            cardEl.classList.add('running');
+                        }
+                    }
+                }
+
+                // Show waiting status
+                heavyWaiting.forEach(name => {
+                    const waitingType = pipelineNameMap[name];
+                    if (waitingType && waitingType !== 'api') {
+                        const statusEl = document.getElementById(`status-${waitingType}`);
+                        if (statusEl) {
+                            statusEl.textContent = 'Em fila';
+                            statusEl.className = 'pipeline-status waiting';
+                            statusEl.style.display = 'inline-block';
+                        }
+                    }
+                });
+
+                // Update button text if Pipeline API is blocked
+                const pipelineBtn = document.getElementById('btn-pipeline');
+                if (heavyRunning && heavyRunning !== 'Pipeline API' && !pipelineRunning) {
+                    pipelineBtn.textContent = `⏸️ ${heavyRunning}`;
+                    pipelineBtn.disabled = true;
+                } else if (!pipelineRunning) {
+                    pipelineBtn.textContent = '▶ Run';
+                    pipelineBtn.disabled = false;
                 }
             } catch (e) {
                 console.error('Error loading pipelines:', e);

@@ -62,6 +62,12 @@ class AutoPipelinesManager:
         self.job_ids: Dict[str, str] = {}  # pipeline_type -> scheduler_job_id
         self._scheduler = None  # Store scheduler reference for rescheduling
 
+        # Mutex for heavy pipelines (Y-Sync, Z-Watch, Pipeline API)
+        # X-Monitor is exempt - it runs freely for real-time price tracking
+        self._heavy_pipeline_lock = asyncio.Lock()
+        self._heavy_pipeline_running: Optional[str] = None  # Which heavy pipeline is running
+        self._heavy_pipeline_waiting: list = []  # Queue of waiting pipelines
+
         # Cache for critical events (< 6 min) - refreshed every 5 minutes
         self._critical_events_cache = []
         self._cache_last_refresh = None
@@ -235,8 +241,38 @@ class AutoPipelinesManager:
                 "critical": critical_count,
                 "urgent": urgent_count,
                 "soon": soon_count
-            }
+            },
+            # Mutex status for heavy pipelines
+            "heavy_pipeline_running": self._heavy_pipeline_running,
+            "heavy_pipeline_waiting": self._heavy_pipeline_waiting.copy()
         }
+
+    async def acquire_heavy_lock(self, pipeline_name: str) -> bool:
+        """
+        Try to acquire lock for heavy pipeline (Y-Sync, Z-Watch, Pipeline API).
+        Returns True if lock acquired, False if should skip (another heavy pipeline running).
+        """
+        if self._heavy_pipeline_lock.locked():
+            # Another heavy pipeline is running
+            if pipeline_name not in self._heavy_pipeline_waiting:
+                self._heavy_pipeline_waiting.append(pipeline_name)
+            print(f"⏸️ {pipeline_name} aguarda (a correr: {self._heavy_pipeline_running})")
+            return False
+
+        await self._heavy_pipeline_lock.acquire()
+        self._heavy_pipeline_running = pipeline_name
+        if pipeline_name in self._heavy_pipeline_waiting:
+            self._heavy_pipeline_waiting.remove(pipeline_name)
+        print(f"🔒 {pipeline_name} adquiriu lock")
+        return True
+
+    def release_heavy_lock(self, pipeline_name: str):
+        """Release lock for heavy pipeline."""
+        if self._heavy_pipeline_running == pipeline_name:
+            self._heavy_pipeline_running = None
+            if self._heavy_pipeline_lock.locked():
+                self._heavy_pipeline_lock.release()
+            print(f"🔓 {pipeline_name} libertou lock")
 
     async def toggle_pipeline(self, pipeline_type: str, enabled: bool, scheduler=None) -> Dict[str, Any]:
         """Enable or disable a pipeline"""
@@ -1208,12 +1244,19 @@ class AutoPipelinesManager:
             scraper = None
             cache_manager = None
             skipped = False
+            lock_acquired = False
 
             try:
                 # Skip if main pipeline is running
                 main_pipeline = get_pipeline_state()
                 if main_pipeline.is_active:
                     print(f"⏸️ Y-Sync skipped - main pipeline is running")
+                    skipped = True
+                    return
+
+                # Try to acquire heavy pipeline lock (mutex with Z-Watch, Pipeline API)
+                lock_acquired = await self.acquire_heavy_lock("Y-Sync")
+                if not lock_acquired:
                     skipped = True
                     return
 
@@ -1445,6 +1488,10 @@ class AutoPipelinesManager:
                     self._save_config()
                     print(f"  ⏰ Y-Sync: próxima execução em {pipeline.interval_hours}h")
 
+                # Release heavy pipeline lock
+                if lock_acquired:
+                    self.release_heavy_lock("Y-Sync")
+
                 # ALWAYS reschedule - even if skipped
                 self._reschedule_pipeline('ysync')
 
@@ -1463,6 +1510,7 @@ class AutoPipelinesManager:
             scraper = None
             cache_manager = None
             skipped = False
+            lock_acquired = False
 
             try:
                 # Skip if main pipeline is running
@@ -1472,9 +1520,9 @@ class AutoPipelinesManager:
                     skipped = True
                     return
 
-                # Skip if Y-Sync is running (avoid duplicate work)
-                if self.pipelines.get('ysync') and self.pipelines['ysync'].is_running:
-                    print(f"⏸️ Z-Watch skipped - Y-Sync is running")
+                # Try to acquire heavy pipeline lock (mutex with Y-Sync, Pipeline API)
+                lock_acquired = await self.acquire_heavy_lock("Z-Watch")
+                if not lock_acquired:
                     skipped = True
                     return
 
@@ -1601,6 +1649,10 @@ class AutoPipelinesManager:
                     pipeline.next_run = (now + timedelta(hours=pipeline.interval_hours)).strftime("%Y-%m-%d %H:%M:%S")
                     self._save_config()
                     print(f"  ⏰ Z-Watch: próxima execução em {pipeline.interval_hours * 60:.0f} min")
+
+                # Release heavy pipeline lock
+                if lock_acquired:
+                    self.release_heavy_lock("Z-Watch")
 
                 # ALWAYS reschedule - even if skipped
                 self._reschedule_pipeline('zwatch')
