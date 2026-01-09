@@ -374,6 +374,7 @@
                 <button class="btn btn-blue" id="btn-pipeline" onclick="runApiPipeline()">▶ Run</button>
             </div>
             <div class="feedback-box" id="pipeline-feedback" style="margin-top: 8px; padding: 8px;">
+                <div style="font-size: 10px; color: #94a3b8; margin-bottom: 4px;" id="feedback-stage">Stage 1</div>
                 <div class="feedback-header" style="font-size: 11px;">
                     <span id="feedback-status">A processar...</span>
                     <span id="feedback-count" style="color: #60a5fa; font-weight: 600;">0/0</span>
@@ -709,7 +710,7 @@
 
                 addLog('🚀 Pipeline API iniciada...', 'info');
                 document.getElementById('pipeline-feedback').style.display = 'block';
-                updateFeedback('A iniciar...', 0, 0);
+                updateFeedback('A iniciar...', 'A preparar pipeline...', 0, 0);
 
                 startPolling();
 
@@ -728,8 +729,9 @@
             }
         }
 
-        function updateFeedback(status, current, total) {
-            document.getElementById('feedback-status').textContent = status;
+        function updateFeedback(stageName, message, current, total) {
+            document.getElementById('feedback-stage').textContent = stageName || 'A processar...';
+            document.getElementById('feedback-status').textContent = message || 'A processar...';
             document.getElementById('feedback-count').textContent = `${current} / ${total}`;
             document.getElementById('feedback-progress').style.width = total > 0 ? `${(current/total)*100}%` : '0%';
         }
@@ -746,9 +748,10 @@
                         const stage = state.stage || 1;
                         const current = state.current || 0;
                         const total = state.total || 0;
+                        const stageName = state.stage_name || `Stage ${stage}`;
                         const message = state.message || 'A processar...';
 
-                        updateFeedback(message, current, total);
+                        updateFeedback(stageName, message, current, total);
 
                         document.getElementById('stage1-dot').style.background = stage >= 1 ? 'rgba(59,130,246,0.3)' : 'rgba(255,255,255,0.1)';
                         document.getElementById('stage2-dot').style.background = stage >= 2 ? 'rgba(59,130,246,0.3)' : 'rgba(255,255,255,0.1)';
@@ -855,13 +858,14 @@
 
                     // Show feedback
                     document.getElementById('pipeline-feedback').style.display = 'block';
+                    const stage = state.stage || 1;
                     const current = state.current || 0;
                     const total = state.total || 0;
+                    const stageName = state.stage_name || `Stage ${stage}`;
                     const message = state.message || 'A processar...';
-                    updateFeedback(message, current, total);
+                    updateFeedback(stageName, message, current, total);
 
                     // Update stage indicators
-                    const stage = state.stage || 1;
                     document.getElementById('stage1-dot').style.background = stage >= 1 ? 'rgba(59,130,246,0.3)' : 'rgba(255,255,255,0.1)';
                     document.getElementById('stage2-dot').style.background = stage >= 2 ? 'rgba(59,130,246,0.3)' : 'rgba(255,255,255,0.1)';
 

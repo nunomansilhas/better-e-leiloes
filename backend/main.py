@@ -2242,20 +2242,10 @@ async def run_api_pipeline(tipo: Optional[int], max_pages: Optional[int]):
             await pipeline_state.stop()
             return
 
-        # Page-by-page progress callback for Stage 1
-        async def on_page_progress(tipo_nome: str, page_num: int, page_count: int, total_count: int, offset: int):
-            msg = f"📄 {tipo_nome} - Página {page_num}: +{page_count} eventos (total: {total_count})"
-            await pipeline_state.update(
-                current=total_count,
-                message=msg,
-                details={"current_type": tipo_nome, "current_page": page_num, "page_events": page_count, "offset": offset}
-            )
-
         ids_data = await scraper.scrape_ids_only(
             tipo=tipo,
             max_pages=max_pages,
-            on_type_complete=on_type_complete,
-            on_page_progress=on_page_progress
+            on_type_complete=on_type_complete
         )
 
         references = [item['reference'] for item in ids_data]
