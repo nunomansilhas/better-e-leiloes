@@ -478,6 +478,13 @@
         let pipelineRunning = false;
         let pipelinePollingInterval = null;
 
+        // Pipeline timers - stored locally for smooth countdown
+        const pipelineTimers = {
+            xmonitor: null,  // Date object for next_run
+            ysync: null,
+            zwatch: null
+        };
+
         // ============== AUTH ==============
         const ApiAuth = {
             key: localStorage.getItem('api_auth_key') || '',
@@ -649,22 +656,11 @@
                         toggle.checked = info.enabled === true;
                     }
 
-                    const timer = document.getElementById(`timer-${type}`);
-                    if (timer && info.next_run) {
-                        const nextRun = new Date(info.next_run);
-                        const now = new Date();
-                        const secs = Math.max(0, Math.floor((nextRun - now) / 1000));
-
-                        if (type === 'ysync') {
-                            const h = Math.floor(secs / 3600);
-                            const m = Math.floor((secs % 3600) / 60);
-                            const s = secs % 60;
-                            timer.textContent = `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-                        } else {
-                            const m = Math.floor(secs / 60);
-                            const s = secs % 60;
-                            timer.textContent = `${m}:${String(s).padStart(2,'0')}`;
-                        }
+                    // Store next_run timestamp for smooth countdown
+                    if (info.next_run) {
+                        pipelineTimers[type] = new Date(info.next_run);
+                    } else {
+                        pipelineTimers[type] = null;
                     }
                 }
 
@@ -748,6 +744,34 @@
                 }
             } catch (e) {
                 console.error('Error loading pipelines:', e);
+            }
+        }
+
+        // Update timer display every second (smooth countdown)
+        function updateTimersDisplay() {
+            const now = new Date();
+
+            for (const [type, nextRun] of Object.entries(pipelineTimers)) {
+                const timer = document.getElementById(`timer-${type}`);
+                if (!timer) continue;
+
+                if (!nextRun) {
+                    timer.textContent = '--:--';
+                    continue;
+                }
+
+                const secs = Math.max(0, Math.floor((nextRun - now) / 1000));
+
+                if (type === 'ysync') {
+                    const h = Math.floor(secs / 3600);
+                    const m = Math.floor((secs % 3600) / 60);
+                    const s = secs % 60;
+                    timer.textContent = `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+                } else {
+                    const m = Math.floor(secs / 60);
+                    const s = secs % 60;
+                    timer.textContent = `${m}:${String(s).padStart(2,'0')}`;
+                }
             }
         }
 
@@ -960,8 +984,13 @@
             checkHealth();
             checkPipelineStateOnLoad();
 
+            // Smooth countdown - update display every 1 second
+            setInterval(updateTimersDisplay, 1000);
+
+            // Sync with backend every 30 seconds (not 5s - reduces API calls)
+            setInterval(loadPipelinesStatus, 30000);
+
             setInterval(() => refreshStats(true), 10000);
-            setInterval(loadPipelinesStatus, 5000);
             setInterval(checkHealth, 30000);
         });
     </script>
