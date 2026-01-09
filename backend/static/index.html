@@ -839,12 +839,48 @@
             alert(msg);
         }
 
+        // ============== CHECK PIPELINE STATE ON LOAD ==============
+        async function checkPipelineStateOnLoad() {
+            try {
+                const response = await fetch(`${API_BASE}/api/pipeline/status`);
+                const state = await response.json();
+
+                if (state.active) {
+                    // Pipeline is running - restore UI state
+                    pipelineRunning = true;
+                    const btn = document.getElementById('btn-pipeline');
+                    btn.textContent = '🛑 Stop';
+                    btn.className = 'btn btn-red';
+                    btn.disabled = false;
+
+                    // Show feedback
+                    document.getElementById('pipeline-feedback').style.display = 'block';
+                    const current = state.stage_current || 0;
+                    const total = state.stage_total || 0;
+                    const action = state.current_action || 'A processar...';
+                    updateFeedback(action, current, total);
+
+                    // Update stage indicators
+                    const stage = state.current_stage || 1;
+                    document.getElementById('stage1-dot').style.background = stage >= 1 ? 'rgba(59,130,246,0.3)' : 'rgba(255,255,255,0.1)';
+                    document.getElementById('stage2-dot').style.background = stage >= 2 ? 'rgba(59,130,246,0.3)' : 'rgba(255,255,255,0.1)';
+
+                    // Start polling
+                    startPolling();
+                    console.log('🔄 Pipeline API em execução - estado restaurado');
+                }
+            } catch (e) {
+                console.error('Error checking pipeline state:', e);
+            }
+        }
+
         // ============== INIT ==============
         document.addEventListener('DOMContentLoaded', () => {
             addLog('Sistema iniciado', 'success');
             refreshStats(true);
             loadPipelinesStatus();
             checkHealth();
+            checkPipelineStateOnLoad();  // Check if pipeline is running
 
             // Auto refresh
             setInterval(() => refreshStats(true), 10000);
