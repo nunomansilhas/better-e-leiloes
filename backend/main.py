@@ -2067,8 +2067,8 @@ async def run_full_pipeline(tipo: Optional[int], max_pages: Optional[int]):
                 message=f"🚀 API: {current}/{total} - {ref}"
             )
 
-        # Use API-based scraping (includes images!)
-        events = await scraper.scrape_details_via_api(references, on_progress)
+        # Use FAST API scraping - httpx concurrent, ~10x faster!
+        events = await scraper.scrape_details_fast(references, on_progress, batch_size=15)
 
         # Check if stopped during scraping
         if scraper.stop_requested:
@@ -2323,8 +2323,8 @@ async def run_api_pipeline(tipo: Optional[int], max_pages: Optional[int]):
                 message=f"🚀 API: {current}/{total} - {ref}"
             )
 
-        # Use API-based scraping - gets EVERYTHING in one call!
-        events = await scraper.scrape_details_via_api(references, on_progress)
+        # Use FAST API scraping - httpx concurrent, ~10x faster than Playwright!
+        events = await scraper.scrape_details_fast(references, on_progress, batch_size=15)
 
         if scraper.stop_requested:
             add_dashboard_log("🛑 Pipeline interrompida pelo utilizador", "warning")

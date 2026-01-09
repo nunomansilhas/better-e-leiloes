@@ -2061,3 +2061,108 @@ class EventScraper:
         if total > 10:
             print(f"✅ API Volatile: {len(results)}/{total} atualizados")
         return results
+
+    async def scrape_details_fast(
+        self,
+        references: List[str],
+        on_progress: Optional[Callable[[int, int, str], Awaitable[None]]] = None,
+        batch_size: int = 10
+    ) -> List[EventData]:
+        """
+        FAST scrape event details using httpx directly - NO browser needed!
+        Uses concurrent requests for maximum speed.
+
+        This is ~10x faster than scrape_details_via_api which uses Playwright.
+
+        Args:
+            references: List of event references to scrape
+            on_progress: Optional callback for progress updates
+            batch_size: Number of concurrent requests (default 10)
+
+        Returns:
+            List of EventData objects
+        """
+        results = []
+        total = len(references)
+        errors = 0
+
+        if total == 0:
+            return results
+
+        print(f"⚡ FAST API Scraping: {total} eventos (batch_size={batch_size})...")
+
+        headers = {
+            'Accept': 'application/json, text/plain, */*',
+            'Accept-Language': 'pt-PT,pt;q=0.9,en;q=0.8',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Referer': 'https://www.e-leiloes.pt/',
+        }
+
+        async with httpx.AsyncClient(
+            timeout=15.0,
+            follow_redirects=True,
+            verify=False,
+            headers=headers
+        ) as client:
+            # Process in batches for concurrency
+            for batch_start in range(0, total, batch_size):
+                if self.stop_requested:
+                    print("🛑 Scraping interrompido pelo utilizador")
+                    break
+
+                batch = references[batch_start:batch_start + batch_size]
+                batch_tasks = []
+
+                for ref in batch:
+                    batch_tasks.append(self._fetch_event_fast(client, ref))
+
+                # Run batch concurrently
+                batch_results = await asyncio.gather(*batch_tasks, return_exceptions=True)
+
+                for i, result in enumerate(batch_results):
+                    idx = batch_start + i
+                    ref = batch[i]
+
+                    if isinstance(result, Exception):
+                        errors += 1
+                        if total <= 50:
+                            print(f"  ❌ [{idx+1}/{total}] {ref}: {str(result)[:40]}")
+                    elif result is None:
+                        errors += 1
+                    else:
+                        results.append(result)
+                        if total <= 50:
+                            print(f"  ✅ [{idx+1}/{total}] {ref}")
+
+                    if on_progress:
+                        await on_progress(idx + 1, total, ref)
+
+                # Small delay between batches
+                if batch_start + batch_size < total:
+                    await asyncio.sleep(0.2)
+
+        print(f"⚡ FAST API concluído: {len(results)}/{total} eventos ({errors} erros)")
+        return results
+
+    async def _fetch_event_fast(self, client: httpx.AsyncClient, reference: str) -> Optional[EventData]:
+        """Fetch single event via httpx - helper for scrape_details_fast"""
+        try:
+            api_url = f"https://www.e-leiloes.pt/api/eventos/{reference}"
+            response = await client.get(api_url)
+
+            if response.status_code != 200:
+                return None
+
+            data = response.json()
+
+            if data.get('errors') or data.get('exception'):
+                return None
+
+            item = data.get('item', {})
+            if not item:
+                return None
+
+            return self._api_response_to_event_data(item, reference)
+
+        except Exception as e:
+            raise Exception(f"HTTP error: {str(e)[:30]}")
