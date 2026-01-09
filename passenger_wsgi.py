@@ -379,6 +379,251 @@ async def search_events(
         return {"error": str(e)}
 
 # =============================================================================
+# API ENDPOINTS - DASHBOARD (Public Dashboard)
+# =============================================================================
+
+@app.get("/api/dashboard/ending-soon")
+async def dashboard_ending_soon(
+    hours: int = Query(24, ge=1, le=168),
+    limit: int = Query(100, ge=1, le=1000)
+):
+    """Get events ending soon"""
+    try:
+        async with async_session_maker() as session:
+            result = await session.execute(text("""
+                SELECT reference, titulo, tipo, subtipo, distrito, concelho,
+                       valor_base, valor_abertura, lance_atual,
+                       data_inicio, data_fim, ativo, capa, tipologia
+                FROM events
+                WHERE ativo = 1
+                  AND data_fim IS NOT NULL
+                  AND data_fim > NOW()
+                  AND data_fim <= DATE_ADD(NOW(), INTERVAL :hours HOUR)
+                ORDER BY data_fim ASC
+                LIMIT :limit
+            """), {"hours": hours, "limit": limit})
+
+            rows = result.fetchall()
+            columns = result.keys()
+            events = [row_to_dict(row, columns) for row in rows]
+            return {"events": events, "count": len(events)}
+    except Exception as e:
+        return {"error": str(e), "events": []}
+
+@app.get("/api/dashboard/recent-events")
+async def dashboard_recent_events(
+    limit: int = Query(20, ge=1, le=100),
+    days: int = Query(7, ge=1, le=30)
+):
+    """Get recently added events"""
+    try:
+        async with async_session_maker() as session:
+            result = await session.execute(text("""
+                SELECT reference, titulo, tipo, subtipo, distrito, concelho,
+                       valor_base, valor_abertura, lance_atual,
+                       data_inicio, data_fim, ativo, capa, tipologia
+                FROM events
+                WHERE data_inicio >= DATE_SUB(NOW(), INTERVAL :days DAY)
+                ORDER BY data_inicio DESC
+                LIMIT :limit
+            """), {"days": days, "limit": limit})
+
+            rows = result.fetchall()
+            columns = result.keys()
+            events = [row_to_dict(row, columns) for row in rows]
+            return {"events": events, "count": len(events)}
+    except Exception as e:
+        return {"error": str(e), "events": []}
+
+@app.get("/api/dashboard/recent-bids")
+async def dashboard_recent_bids(limit: int = Query(30, ge=1, le=100)):
+    """Get recent price changes (bids) from price_history"""
+    try:
+        async with async_session_maker() as session:
+            result = await session.execute(text("""
+                SELECT ph.reference, ph.old_price, ph.new_price,
+                       ph.change_amount, ph.change_percent, ph.recorded_at,
+                       e.titulo, e.tipo, e.distrito, e.capa
+                FROM price_history ph
+                LEFT JOIN events e ON ph.reference = e.reference
+                WHERE ph.old_price IS NOT NULL
+                ORDER BY ph.recorded_at DESC
+                LIMIT :limit
+            """), {"limit": limit})
+
+            rows = result.fetchall()
+            columns = result.keys()
+            bids = [row_to_dict(row, columns) for row in rows]
+            return {"bids": bids, "count": len(bids)}
+    except Exception as e:
+        return {"error": str(e), "bids": []}
+
+@app.get("/api/dashboard/stats-by-distrito")
+async def dashboard_stats_by_distrito(limit: int = Query(5, ge=1, le=20)):
+    """Get stats grouped by distrito"""
+    try:
+        async with async_session_maker() as session:
+            result = await session.execute(text("""
+                SELECT distrito,
+                       COUNT(*) as total,
+                       SUM(CASE WHEN ativo = 1 THEN 1 ELSE 0 END) as active,
+                       AVG(valor_base) as avg_price
+                FROM events
+                WHERE distrito IS NOT NULL AND distrito != ''
+                GROUP BY distrito
+                ORDER BY total DESC
+                LIMIT :limit
+            """), {"limit": limit})
+
+            rows = result.fetchall()
+            columns = result.keys()
+            stats = [row_to_dict(row, columns) for row in rows]
+            return {"stats": stats, "count": len(stats)}
+    except Exception as e:
+        return {"error": str(e), "stats": []}
+
+@app.get("/api/dashboard/price-history/{reference}")
+async def dashboard_price_history(reference: str):
+    """Get price history for a specific event"""
+    try:
+        async with async_session_maker() as session:
+            result = await session.execute(text("""
+                SELECT old_price, new_price, change_amount, change_percent,
+                       recorded_at, source
+                FROM price_history
+                WHERE reference = :ref
+                ORDER BY recorded_at ASC
+            """), {"ref": reference})
+
+            rows = result.fetchall()
+            columns = result.keys()
+            history = [row_to_dict(row, columns) for row in rows]
+            return {"reference": reference, "history": history, "count": len(history)}
+    except Exception as e:
+        return {"error": str(e), "history": []}
+
+@app.get("/api/volatile/{reference}")
+async def get_volatile_data(reference: str):
+    """Get volatile/live data for an event (latest price info)"""
+    try:
+        async with async_session_maker() as session:
+            # Get latest price from price_history
+            result = await session.execute(text("""
+                SELECT new_price as lance_atual, recorded_at as last_update
+                FROM price_history
+                WHERE reference = :ref
+                ORDER BY recorded_at DESC
+                LIMIT 1
+            """), {"ref": reference})
+
+            row = result.fetchone()
+            if row:
+                columns = result.keys()
+                return row_to_dict(row, columns)
+
+            # Fallback: get from events table
+            result = await session.execute(text("""
+                SELECT lance_atual, data_fim
+                FROM events
+                WHERE reference = :ref
+            """), {"ref": reference})
+
+            row = result.fetchone()
+            if row:
+                columns = result.keys()
+                return row_to_dict(row, columns)
+
+            return {"lance_atual": None, "last_update": None}
+    except Exception as e:
+        return {"error": str(e)}
+
+# =============================================================================
+# API ENDPOINTS - NOTIFICATIONS
+# =============================================================================
+
+@app.get("/api/notifications/count")
+async def notifications_count():
+    """Get count of unread notifications"""
+    try:
+        async with async_session_maker() as session:
+            result = await session.execute(text("""
+                SELECT COUNT(*) FROM notifications WHERE `read` = 0
+            """))
+            count = result.scalar() or 0
+            return {"count": count}
+    except Exception as e:
+        return {"count": 0, "error": str(e)}
+
+@app.get("/api/notifications")
+async def get_notifications(limit: int = Query(50, ge=1, le=200)):
+    """Get notifications"""
+    try:
+        async with async_session_maker() as session:
+            result = await session.execute(text("""
+                SELECT id, rule_id, notification_type, event_reference,
+                       event_titulo, event_tipo, event_subtipo, event_distrito,
+                       preco_anterior, preco_atual, preco_variacao,
+                       `read`, created_at
+                FROM notifications
+                ORDER BY created_at DESC
+                LIMIT :limit
+            """), {"limit": limit})
+
+            rows = result.fetchall()
+            columns = result.keys()
+            notifications = [row_to_dict(row, columns) for row in rows]
+            return {"notifications": notifications, "count": len(notifications)}
+    except Exception as e:
+        return {"error": str(e), "notifications": []}
+
+@app.get("/api/notification-rules")
+async def get_notification_rules():
+    """Get notification rules"""
+    try:
+        async with async_session_maker() as session:
+            result = await session.execute(text("""
+                SELECT id, name, rule_type, active, tipos, subtipos,
+                       distritos, concelhos, preco_min, preco_max,
+                       variacao_min, minutos_restantes, event_reference,
+                       created_at, triggers_count
+                FROM notification_rules
+                ORDER BY created_at DESC
+            """))
+
+            rows = result.fetchall()
+            columns = result.keys()
+            rules = [row_to_dict(row, columns) for row in rows]
+            return rules
+    except Exception as e:
+        return {"error": str(e)}
+
+# =============================================================================
+# API ENDPOINTS - SCRAPER/PIPELINE STATUS (Read-only for remote dashboard)
+# =============================================================================
+
+@app.get("/api/scrape/status")
+async def scrape_status():
+    """Get scraper status - returns info from pipeline_status table"""
+    try:
+        status = await get_pipeline_status()
+        return {"status": "idle", "pipelines": status}
+    except Exception as e:
+        return {"status": "unknown", "error": str(e)}
+
+@app.get("/api/auto-pipelines/status")
+async def auto_pipelines_status():
+    """Get auto pipelines status from database"""
+    try:
+        return await get_pipeline_status()
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.get("/api/logs")
+async def get_logs():
+    """Return empty logs - actual logs are on local scraper"""
+    return {"logs": [], "message": "Logs are available on the local scraper machine"}
+
+# =============================================================================
 # WSGI APPLICATION
 # =============================================================================
 
