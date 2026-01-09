@@ -11,65 +11,62 @@
             font-family: 'Inter', sans-serif;
             background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
             min-height: 100vh;
-            padding: 24px;
+            padding: 12px;
             color: #e2e8f0;
         }
-        .container { max-width: 1200px; margin: 0 auto; }
+        .container { max-width: 1400px; margin: 0 auto; }
 
-        /* Header */
+        /* Header - Compacto */
         .header {
-            text-align: center;
-            margin-bottom: 32px;
-            padding: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            padding: 12px 16px;
             background: rgba(255,255,255,0.05);
-            border-radius: 16px;
+            border-radius: 10px;
             border: 1px solid rgba(255,255,255,0.1);
         }
         .header h1 {
-            font-size: 28px;
+            font-size: 18px;
             font-weight: 700;
             background: linear-gradient(135deg, #60a5fa, #a78bfa);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            margin-bottom: 8px;
         }
-        .header p { color: #94a3b8; font-size: 14px; }
         .header .stats {
             display: flex;
-            justify-content: center;
-            gap: 24px;
-            margin-top: 16px;
-            flex-wrap: wrap;
+            gap: 12px;
         }
         .header .stat {
-            padding: 8px 16px;
+            padding: 4px 10px;
             background: rgba(255,255,255,0.05);
-            border-radius: 8px;
-            font-size: 12px;
+            border-radius: 6px;
+            font-size: 11px;
         }
         .header .stat strong { color: #60a5fa; }
 
-        /* Cards */
+        /* Cards - Compacto */
         .card {
             background: rgba(255,255,255,0.05);
             border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 16px;
-            padding: 20px;
-            margin-bottom: 16px;
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 10px;
         }
         .card-header {
             display: flex;
             align-items: center;
-            gap: 10px;
-            margin-bottom: 16px;
-            padding-bottom: 12px;
+            gap: 8px;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
             border-bottom: 1px solid rgba(255,255,255,0.1);
         }
-        .card-header h3 { font-size: 16px; font-weight: 600; }
-        .card-header .icon { font-size: 20px; }
+        .card-header h3 { font-size: 13px; font-weight: 600; }
+        .card-header .icon { font-size: 14px; }
 
-        /* Grid */
-        .grid { display: grid; gap: 12px; }
+        /* Grid - Compacto */
+        .grid { display: grid; gap: 8px; }
         .grid-5 { grid-template-columns: repeat(5, 1fr); }
         .grid-3 { grid-template-columns: repeat(3, 1fr); }
         .grid-2 { grid-template-columns: repeat(2, 1fr); }
@@ -78,18 +75,18 @@
             .grid-5, .grid-3 { grid-template-columns: repeat(2, 1fr); }
         }
 
-        /* Buttons */
+        /* Buttons - Compacto */
         .btn {
-            padding: 12px 16px;
-            border-radius: 10px;
+            padding: 8px 10px;
+            border-radius: 6px;
             border: none;
             cursor: pointer;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 600;
             transition: all 0.2s;
             text-align: center;
         }
-        .btn:hover { transform: translateY(-2px); }
+        .btn:hover { transform: translateY(-1px); }
         .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
         .btn-blue { background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; }
@@ -99,12 +96,12 @@
         .btn-gray { background: linear-gradient(135deg, #64748b, #475569); color: white; }
         .btn-red { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; }
 
-        .btn-icon { font-size: 18px; display: block; margin-bottom: 4px; }
+        .btn-icon { font-size: 14px; display: block; margin-bottom: 2px; }
 
-        /* Pipeline Cards */
+        /* Pipeline Cards - Compacto */
         .pipeline-card {
-            padding: 14px;
-            border-radius: 12px;
+            padding: 10px;
+            border-radius: 8px;
             border: 1px solid;
         }
         .pipeline-card.red { background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.3); }
@@ -115,74 +112,73 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
         }
-        .pipeline-name { font-weight: 600; font-size: 13px; display: flex; align-items: center; gap: 6px; }
-        .pipeline-timer { font-size: 12px; font-weight: 600; margin-top: 4px; }
-        .pipeline-info { font-size: 11px; opacity: 0.8; }
+        .pipeline-name { font-weight: 600; font-size: 11px; display: flex; align-items: center; gap: 4px; }
+        .pipeline-timer { font-size: 11px; font-weight: 600; margin-top: 2px; }
+        .pipeline-info { font-size: 10px; opacity: 0.8; }
 
-        /* Toggle Switch */
-        .toggle { position: relative; width: 40px; height: 22px; }
+        /* Toggle Switch - Compacto */
+        .toggle { position: relative; width: 32px; height: 18px; }
         .toggle input { opacity: 0; width: 0; height: 0; }
         .toggle .slider {
             position: absolute;
             cursor: pointer;
             top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(255,255,255,0.2);
-            border-radius: 22px;
+            border-radius: 18px;
             transition: 0.3s;
         }
         .toggle .slider:before {
             position: absolute;
             content: "";
-            height: 16px; width: 16px;
-            left: 3px; bottom: 3px;
+            height: 14px; width: 14px;
+            left: 2px; bottom: 2px;
             background: white;
             border-radius: 50%;
             transition: 0.3s;
         }
         .toggle input:checked + .slider { background: #10b981; }
-        .toggle input:checked + .slider:before { transform: translateX(18px); }
+        .toggle input:checked + .slider:before { transform: translateX(14px); }
 
-        /* Console */
+        /* Console - Compacto */
         .console {
             background: #0f172a;
-            border-radius: 12px;
-            padding: 16px;
-            max-height: 300px;
+            border-radius: 6px;
+            padding: 8px;
+            max-height: 150px;
             overflow-y: auto;
             font-family: 'Monaco', 'Consolas', monospace;
-            font-size: 12px;
+            font-size: 10px;
             border: 1px solid rgba(255,255,255,0.1);
         }
-        .console-line { padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .console-line { padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
         .console-line.info { color: #60a5fa; }
         .console-line.success { color: #34d399; }
         .console-line.error { color: #f87171; }
         .console-line.warning { color: #fbbf24; }
-        .console-time { color: #64748b; margin-right: 8px; }
+        .console-time { color: #64748b; margin-right: 6px; }
 
         /* Danger Zone */
         .danger-zone {
-            border: 2px solid rgba(239,68,68,0.5);
+            border: 1px solid rgba(239,68,68,0.5);
             background: rgba(239,68,68,0.05);
         }
 
-        /* API Key Section */
+        /* API Key Section - Compacto */
         .api-key-section {
             display: flex;
-            gap: 8px;
+            gap: 6px;
             align-items: center;
-            margin-top: 12px;
         }
         .api-key-section input {
             flex: 1;
-            padding: 10px 14px;
-            border-radius: 8px;
+            padding: 6px 10px;
+            border-radius: 6px;
             border: 1px solid rgba(255,255,255,0.2);
             background: rgba(255,255,255,0.05);
             color: white;
-            font-size: 13px;
+            font-size: 11px;
             font-family: monospace;
         }
         .api-key-section input:focus {
@@ -190,12 +186,12 @@
             border-color: #3b82f6;
         }
 
-        /* Progress */
+        /* Progress - Compacto */
         .progress-bar {
-            height: 4px;
+            height: 3px;
             background: rgba(255,255,255,0.1);
             border-radius: 2px;
-            margin-top: 12px;
+            margin-top: 8px;
             overflow: hidden;
         }
         .progress-bar .fill {
@@ -228,7 +224,6 @@
         <!-- Header -->
         <div class="header">
             <h1>E-Leiloes Backend</h1>
-            <p>Ferramentas de Scraping, Sync e Administracao</p>
             <div class="stats">
                 <div class="stat"><strong id="stat-total">-</strong> total</div>
                 <div class="stat"><strong id="stat-complete">-</strong> completos</div>
@@ -344,36 +339,23 @@
             <div class="card-header">
                 <span class="icon">🚀</span>
                 <h3>Pipeline API</h3>
-                <span style="margin-left: auto; font-size: 11px; padding: 4px 10px; background: linear-gradient(135deg, #10b981, #059669); border-radius: 8px;">RAPIDO</span>
             </div>
-            <div style="display: flex; align-items: center; gap: 16px;">
-                <div style="flex: 1; display: flex; align-items: center; gap: 12px;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <div id="stage1-dot" style="width: 28px; height: 28px; border-radius: 50%; background: rgba(59,130,246,0.2); color: #60a5fa; display: flex; align-items: center; justify-content: center; font-weight: 700;">1</div>
-                        <span>IDs</span>
-                        <span id="stage1-count" style="font-size: 11px; color: #64748b;"></span>
-                    </div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="flex: 1; display: flex; align-items: center; gap: 8px; font-size: 11px;">
+                    <div id="stage1-dot" style="width: 22px; height: 22px; border-radius: 50%; background: rgba(59,130,246,0.2); color: #60a5fa; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 10px;">1</div>
+                    <span>IDs <span id="stage1-count" style="color: #64748b;"></span></span>
                     <div id="pipeline-line" style="flex: 1; height: 2px; background: rgba(255,255,255,0.1);"></div>
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <div id="stage2-dot" style="width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,0.1); color: #64748b; display: flex; align-items: center; justify-content: center; font-weight: 700;">2</div>
-                        <span>API</span>
-                        <span id="stage2-count" style="font-size: 11px; color: #64748b;"></span>
-                    </div>
+                    <div id="stage2-dot" style="width: 22px; height: 22px; border-radius: 50%; background: rgba(255,255,255,0.1); color: #64748b; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 10px;">2</div>
+                    <span>API <span id="stage2-count" style="color: #64748b;"></span></span>
                 </div>
-                <button class="btn btn-blue" id="btn-pipeline" onclick="runApiPipeline()">
-                    ▶ Executar
-                </button>
+                <button class="btn btn-blue" id="btn-pipeline" onclick="runApiPipeline()">▶ Run</button>
             </div>
-
-            <!-- Feedback Box -->
-            <div class="feedback-box" id="pipeline-feedback">
-                <div class="feedback-header">
-                    <span class="feedback-status" id="feedback-status">A processar...</span>
-                    <span class="feedback-count" id="feedback-count">0 / 0</span>
+            <div class="feedback-box" id="pipeline-feedback" style="margin-top: 8px; padding: 8px;">
+                <div class="feedback-header" style="font-size: 11px;">
+                    <span id="feedback-status">A processar...</span>
+                    <span id="feedback-count" style="color: #60a5fa; font-weight: 600;">0/0</span>
                 </div>
-                <div class="progress-bar">
-                    <div class="fill" id="feedback-progress"></div>
-                </div>
+                <div class="progress-bar"><div class="fill" id="feedback-progress"></div></div>
             </div>
         </div>
 
@@ -392,39 +374,29 @@
             </div>
         </div>
 
-        <!-- API Key -->
-        <div class="card">
-            <div class="card-header">
-                <span class="icon">🔐</span>
-                <h3>Chave API</h3>
+        <!-- API Key + Danger Zone (inline) -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div class="card">
+                <div class="card-header">
+                    <span class="icon">🔐</span>
+                    <h3>API Key</h3>
+                    <span id="api-key-indicator" style="margin-left: auto; width: 8px; height: 8px; border-radius: 50%; background: #64748b;"></span>
+                </div>
+                <div class="api-key-section">
+                    <input type="password" id="api-key-input" placeholder="Chave API...">
+                    <button class="btn btn-gray" onclick="toggleKeyVisibility()">👁️</button>
+                    <button class="btn btn-yellow" onclick="saveApiKey()">Save</button>
+                </div>
             </div>
-            <p style="font-size: 12px; color: #94a3b8; margin-bottom: 12px;">
-                Necessaria para operacoes de escrita (scrapers, pipelines, etc.)
-            </p>
-            <div class="api-key-section">
-                <input type="password" id="api-key-input" placeholder="Insira a chave API...">
-                <button class="btn btn-gray" onclick="toggleKeyVisibility()">👁️</button>
-                <button class="btn btn-yellow" onclick="saveApiKey()">Guardar</button>
-            </div>
-            <div id="api-key-status" style="margin-top: 8px; font-size: 11px; color: #64748b;">
-                <span id="api-key-indicator" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #64748b; margin-right: 6px;"></span>
-                <span id="api-key-text">Chave nao configurada</span>
-            </div>
-        </div>
-
-        <!-- Danger Zone -->
-        <div class="card danger-zone">
-            <div class="card-header">
-                <span class="icon">⚠️</span>
-                <h3 style="color: #f87171;">Zona de Perigo</h3>
-            </div>
-            <div class="grid grid-2">
-                <button class="btn btn-red" onclick="confirmClearDatabase()">
-                    🗑️ Apagar Todos os Eventos
-                </button>
-                <button class="btn btn-red" onclick="confirmClearNotifications()">
-                    🔔 Apagar Todas as Notificacoes
-                </button>
+            <div class="card danger-zone">
+                <div class="card-header">
+                    <span class="icon">⚠️</span>
+                    <h3 style="color: #f87171;">Danger Zone</h3>
+                </div>
+                <div class="grid grid-2">
+                    <button class="btn btn-red" onclick="confirmClearDatabase()">🗑️ Clear DB</button>
+                    <button class="btn btn-red" onclick="confirmClearNotifications()">🔔 Clear Notifs</button>
+                </div>
             </div>
         </div>
     </div>
@@ -733,8 +705,7 @@
                 localStorage.setItem('api_auth_key', key);
                 ApiAuth.key = key;
                 document.getElementById('api-key-indicator').style.background = '#10b981';
-                document.getElementById('api-key-text').textContent = 'Chave configurada';
-                addLog('🔐 Chave API guardada', 'success');
+                addLog('🔐 API Key saved', 'success');
             }
         }
 
@@ -748,7 +719,6 @@
             if (key) {
                 ApiAuth.key = key;
                 document.getElementById('api-key-indicator').style.background = '#10b981';
-                document.getElementById('api-key-text').textContent = 'Chave configurada';
             }
         }
 
