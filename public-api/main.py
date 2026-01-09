@@ -263,9 +263,9 @@ async def get_stats():
         )
 
 
-@app.get("/api/events", response_model=List[EventSummary])
+@app.get("/api/events")
 async def list_events(
-    limit: int = Query(100, le=1000),
+    limit: int = Query(100, le=100000),
     offset: int = Query(0, ge=0),
     tipo_id: Optional[int] = None,
     distrito: Optional[str] = None,
@@ -273,7 +273,7 @@ async def list_events(
     search: Optional[str] = None,
     order_by: str = "data_fim"
 ):
-    """List events with filters"""
+    """List events with filters - returns {events: [...]} format for dashboard compatibility"""
     if DEMO_MODE:
         events = DEMO_EVENTS.copy()
 
@@ -290,7 +290,17 @@ async def list_events(
         elif order_by == "valor_base":
             events = sorted(events, key=lambda x: x["valor_base"])
 
-        return [EventSummary(**e) for e in events[offset:offset+limit]]
+        # Convert to dict format with ativo field
+        result_events = []
+        for e in events[offset:offset+limit]:
+            event_dict = {
+                **e,
+                "ativo": not e.get("terminado", False) and not e.get("cancelado", False),
+                "data_fim": e["data_fim"].isoformat() if hasattr(e["data_fim"], "isoformat") else e["data_fim"]
+            }
+            result_events.append(event_dict)
+
+        return {"events": result_events, "total": len(events), "page": offset // limit + 1}
 
     async with get_session() as session:
         query = select(EventDB)
@@ -327,7 +337,28 @@ async def list_events(
         result = await session.execute(query)
         events = result.scalars().all()
 
-        return [EventSummary.model_validate(e) for e in events]
+        # Convert to dict format with ativo field
+        result_events = []
+        for e in events:
+            result_events.append({
+                "reference": e.reference,
+                "titulo": e.titulo,
+                "capa": e.capa,
+                "tipo_id": e.tipo_id,
+                "tipo": e.tipo,
+                "subtipo": e.subtipo,
+                "valor_base": e.valor_base,
+                "valor_minimo": e.valor_minimo,
+                "lance_atual": e.lance_atual,
+                "data_fim": e.data_fim.isoformat() if e.data_fim else None,
+                "distrito": e.distrito,
+                "concelho": e.concelho,
+                "terminado": e.terminado,
+                "cancelado": e.cancelado,
+                "ativo": not e.terminado and not e.cancelado
+            })
+
+        return {"events": result_events, "total": len(result_events), "page": offset // limit + 1}
 
 
 @app.get("/api/events/{reference}", response_model=EventDetail)
@@ -744,6 +775,50 @@ async def get_volatile_data(reference: str):
             "data_fim": event.data_fim.isoformat() if event.data_fim else None,
             "ultimos_5m": getattr(event, 'ultimos_5m', False)
         }
+
+
+# ============ Stub Endpoints (for dashboard compatibility) ============
+# These endpoints return empty/disabled responses for admin-only features
+
+@app.get("/api/auto-pipelines/status")
+async def auto_pipelines_status():
+    """Stub: Pipelines not available on public API"""
+    return {
+        "xmonitor": {"enabled": False, "next_run": None},
+        "ysync": {"enabled": False, "next_run": None},
+        "zwatch": {"enabled": False, "next_run": None}
+    }
+
+
+@app.get("/api/notifications/count")
+async def notifications_count():
+    """Stub: Notifications not available on public API"""
+    return {"count": 0}
+
+
+@app.get("/api/notification-rules")
+async def notification_rules():
+    """Stub: Notification rules not available on public API"""
+    return []
+
+
+@app.get("/api/scrape/status")
+async def scrape_status():
+    """Stub: Scraping not available on public API"""
+    return {"running": False, "status": "disabled"}
+
+
+@app.get("/api/logs")
+async def get_logs():
+    """Stub: Logs not available on public API"""
+    return []
+
+
+@app.get("/api/live/events")
+async def live_events_stub():
+    """Stub: SSE not available on public API - returns empty"""
+    from fastapi.responses import PlainTextResponse
+    return PlainTextResponse("data: {\"type\":\"ping\"}\n\n", media_type="text/event-stream")
 
 
 # ============ Static Files ============
