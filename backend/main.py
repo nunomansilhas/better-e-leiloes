@@ -2380,9 +2380,8 @@ async def run_api_pipeline(tipo: Optional[int], max_pages: Optional[int]):
             )
             success_count = inserted + updated
 
-        # Cache será populado on-demand quando os eventos forem acedidos
-        # (evita bloquear a pipeline com 3000+ operações sequenciais)
-
+        # Atualizar estado imediatamente após BD save
+        await pipeline_state.update(message=f"✅ BD: {inserted} novos + {updated} atualizados")
         add_dashboard_log(f"💾 BD: {inserted} novos + {updated} atualizados", "info")
 
         # Count images (fotos is a list of FotoItem or None)
