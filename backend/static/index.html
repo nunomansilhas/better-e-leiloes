@@ -23,6 +23,23 @@
             min-height: 100vh;
         }
 
+        /* Container with margins on larger screens */
+        .main-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+        @media (min-width: 992px) {
+            .main-container {
+                padding: 2rem 4rem;
+            }
+        }
+        @media (min-width: 1400px) {
+            .main-container {
+                padding: 2rem 6rem;
+            }
+        }
+
         /* Header gradient text */
         .brand-text {
             font-weight: 700;
@@ -64,18 +81,24 @@
             font-size: 0.7rem;
         }
 
-        /* Custom buttons with gradients */
-        .btn-gradient-blue { background: linear-gradient(135deg, #3b82f6, #2563eb); border: none; }
-        .btn-gradient-green { background: linear-gradient(135deg, #10b981, #059669); border: none; }
-        .btn-gradient-yellow { background: linear-gradient(135deg, #f59e0b, #d97706); border: none; }
-        .btn-gradient-purple { background: linear-gradient(135deg, #8b5cf6, #7c3aed); border: none; }
-        .btn-gradient-gray { background: linear-gradient(135deg, #64748b, #475569); border: none; }
-        .btn-gradient-red { background: linear-gradient(135deg, #ef4444, #dc2626); border: none; }
+        /* Outlined buttons */
+        .btn-outline-blue { background: transparent; border: 1px solid #3b82f6; color: #3b82f6; }
+        .btn-outline-green { background: transparent; border: 1px solid #10b981; color: #10b981; }
+        .btn-outline-yellow { background: transparent; border: 1px solid #f59e0b; color: #f59e0b; }
+        .btn-outline-purple { background: transparent; border: 1px solid #8b5cf6; color: #8b5cf6; }
+        .btn-outline-gray { background: transparent; border: 1px solid #64748b; color: #94a3b8; }
+        .btn-outline-red { background: transparent; border: 1px solid #ef4444; color: #ef4444; }
 
-        .btn-gradient-blue:hover, .btn-gradient-green:hover, .btn-gradient-yellow:hover,
-        .btn-gradient-purple:hover, .btn-gradient-gray:hover, .btn-gradient-red:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        .btn-outline-blue:hover { background: rgba(59,130,246,0.15); color: #60a5fa; border-color: #60a5fa; }
+        .btn-outline-green:hover { background: rgba(16,185,129,0.15); color: #34d399; border-color: #34d399; }
+        .btn-outline-yellow:hover { background: rgba(245,158,11,0.15); color: #fbbf24; border-color: #fbbf24; }
+        .btn-outline-purple:hover { background: rgba(139,92,246,0.15); color: #a78bfa; border-color: #a78bfa; }
+        .btn-outline-gray:hover { background: rgba(100,116,139,0.15); color: #cbd5e1; border-color: #94a3b8; }
+        .btn-outline-red:hover { background: rgba(239,68,68,0.15); color: #f87171; border-color: #f87171; }
+
+        .btn-outline-blue:hover, .btn-outline-green:hover, .btn-outline-yellow:hover,
+        .btn-outline-purple:hover, .btn-outline-gray:hover, .btn-outline-red:hover {
+            transform: translateY(-1px);
         }
 
         /* Pipeline cards */
@@ -231,7 +254,7 @@
     </style>
 </head>
 <body>
-    <div class="container-fluid py-3 px-2 px-md-4">
+    <div class="main-container">
         <!-- Header -->
         <div class="custom-card p-3 mb-3">
             <div class="row align-items-center g-2">
@@ -272,31 +295,31 @@
             </div>
             <div class="row g-2">
                 <div class="col-6 col-md-4 col-lg">
-                    <button class="btn btn-gradient-blue text-white w-100" onclick="runScraper('ids')">
+                    <button class="btn btn-outline-blue w-100" onclick="runScraper('ids')">
                         <i class="bi bi-search d-block mb-1"></i>
                         <span class="d-none d-sm-inline">Descobrir </span>IDs
                     </button>
                 </div>
                 <div class="col-6 col-md-4 col-lg">
-                    <button class="btn btn-gradient-green text-white w-100" onclick="runScraper('content')">
+                    <button class="btn btn-outline-green w-100" onclick="runScraper('content')">
                         <i class="bi bi-card-text d-block mb-1"></i>
                         <span class="d-none d-sm-inline">Completar </span>Info
                     </button>
                 </div>
                 <div class="col-6 col-md-4 col-lg">
-                    <button class="btn btn-gradient-yellow text-white w-100" onclick="runUpdatePrices()">
+                    <button class="btn btn-outline-yellow w-100" onclick="runUpdatePrices()">
                         <i class="bi bi-currency-euro d-block mb-1"></i>
                         <span class="d-none d-sm-inline">Atualizar </span>Preços
                     </button>
                 </div>
                 <div class="col-6 col-md-6 col-lg">
-                    <button class="btn btn-gradient-purple text-white w-100" onclick="runFixNulls()">
+                    <button class="btn btn-outline-purple w-100" onclick="runFixNulls()">
                         <i class="bi bi-wrench d-block mb-1"></i>
                         Fix NULLs
                     </button>
                 </div>
                 <div class="col-12 col-md-6 col-lg">
-                    <button class="btn btn-gradient-gray text-white w-100" onclick="toggleManualIds()">
+                    <button class="btn btn-outline-gray w-100" onclick="toggleManualIds()">
                         <i class="bi bi-input-cursor-text d-block mb-1"></i>
                         IDs Manual
                     </button>
@@ -307,7 +330,7 @@
             <div id="manual-ids-section" class="mt-3" style="display: none;">
                 <div class="manual-input d-flex gap-2">
                     <input type="text" class="form-control form-control-sm" id="manual-ids-input" placeholder="LO1234562024, NP9876542024...">
-                    <button class="btn btn-gradient-purple text-white btn-sm" onclick="runManualIds()">Executar</button>
+                    <button class="btn btn-outline-purple btn-sm" onclick="runManualIds()">Executar</button>
                 </div>
             </div>
         </div>
@@ -400,7 +423,7 @@
                     <div id="stage2-dot" class="stage-dot inactive">2</div>
                     <span>API <span id="stage2-count" class="text-muted"></span></span>
                 </div>
-                <button class="btn btn-gradient-blue text-white" id="btn-pipeline" onclick="runApiPipeline()">
+                <button class="btn btn-outline-blue" id="btn-pipeline" onclick="runApiPipeline()">
                     <i class="bi bi-play-fill"></i> Run
                 </button>
             </div>
@@ -426,12 +449,12 @@
             </div>
             <div class="row g-2">
                 <div class="col-6">
-                    <button class="btn btn-gradient-red text-white w-100" onclick="confirmClearDatabase()">
+                    <button class="btn btn-outline-red w-100" onclick="confirmClearDatabase()">
                         <i class="bi bi-trash3 me-1"></i> Clear DB
                     </button>
                 </div>
                 <div class="col-6">
-                    <button class="btn btn-gradient-red text-white w-100" onclick="confirmClearNotifications()">
+                    <button class="btn btn-outline-red w-100" onclick="confirmClearNotifications()">
                         <i class="bi bi-bell-slash me-1"></i> Clear Notifs
                     </button>
                 </div>
@@ -733,7 +756,7 @@
                 }
                 pipelineRunning = false;
                 btn.innerHTML = '<i class="bi bi-play-fill"></i> Run';
-                btn.className = 'btn btn-gradient-blue text-white';
+                btn.className = 'btn btn-outline-blue';
                 document.getElementById('pipeline-feedback').style.display = 'none';
                 stopPolling();
                 return;
@@ -742,7 +765,7 @@
             try {
                 pipelineRunning = true;
                 btn.innerHTML = '<i class="bi bi-stop-fill"></i> Stop';
-                btn.className = 'btn btn-gradient-red text-white';
+                btn.className = 'btn btn-outline-red';
 
                 addLog('🚀 Pipeline API iniciada...', 'info');
                 document.getElementById('pipeline-feedback').style.display = 'block';
@@ -763,7 +786,7 @@
                 addLog(`❌ Erro: ${e.message}`, 'error');
                 pipelineRunning = false;
                 btn.innerHTML = '<i class="bi bi-play-fill"></i> Run';
-                btn.className = 'btn btn-gradient-blue text-white';
+                btn.className = 'btn btn-outline-blue';
                 document.getElementById('pipeline-feedback').style.display = 'none';
                 stopPolling();
             }
@@ -798,7 +821,7 @@
                     } else if (pipelineRunning) {
                         pipelineRunning = false;
                         document.getElementById('btn-pipeline').innerHTML = '<i class="bi bi-play-fill"></i> Run';
-                        document.getElementById('btn-pipeline').className = 'btn btn-gradient-blue text-white';
+                        document.getElementById('btn-pipeline').className = 'btn btn-outline-blue';
                         document.getElementById('pipeline-feedback').style.display = 'none';
                         document.getElementById('stage1-dot').className = 'stage-dot inactive';
                         document.getElementById('stage2-dot').className = 'stage-dot inactive';
@@ -899,7 +922,7 @@
                     pipelineRunning = true;
                     const btn = document.getElementById('btn-pipeline');
                     btn.innerHTML = '<i class="bi bi-stop-fill"></i> Stop';
-                    btn.className = 'btn btn-gradient-red text-white';
+                    btn.className = 'btn btn-outline-red';
                     btn.disabled = false;
 
                     document.getElementById('pipeline-feedback').style.display = 'block';
