@@ -257,11 +257,11 @@ async def health_detailed():
 
     # Redis check
     try:
-        if cache_manager and cache_manager.redis:
-            await cache_manager.redis.ping()
+        if cache_manager and cache_manager.redis_client:
+            await cache_manager.redis_client.ping()
             services["redis"] = {"status": "ok"}
         else:
-            services["redis"] = {"status": "disabled"}
+            services["redis"] = {"status": "disabled", "note": "using memory cache"}
     except Exception as e:
         services["redis"] = {"status": "error", "error": str(e)}
         if overall_status == "healthy":
