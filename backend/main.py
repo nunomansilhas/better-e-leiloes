@@ -2251,6 +2251,13 @@ async def run_api_pipeline(tipo: Optional[int], max_pages: Optional[int]):
         references = [item['reference'] for item in ids_data]
         tipo_map = {item['reference']: item.get('tipo_evento', 'imoveis') for item in ids_data}
 
+        # Update state - Stage 1 IDs collected, now inserting
+        await pipeline_state.update(
+            message=f"💾 A guardar {len(references)} IDs na base de dados...",
+            details={"phase": "saving_ids"}
+        )
+        add_dashboard_log(f"💾 A guardar {len(references)} IDs na base de dados...", "info")
+
         # Inserir IDs na BD imediatamente
         # Mapeamento tipo_evento (string) para tipo_id (int)
         tipo_str_to_id = {
@@ -2259,14 +2266,22 @@ async def run_api_pipeline(tipo: Optional[int], max_pages: Optional[int]):
             'imovel': 1, 'movel': 2  # Legacy compatibility
         }
         new_count = 0
+        total_ids = len(ids_data)
         async with get_db() as db:
-            for item in ids_data:
+            for i, item in enumerate(ids_data):
                 ref = item['reference']
                 tipo_ev = item.get('tipo_evento', 'imoveis')
                 tipo_id = tipo_str_to_id.get(tipo_ev, 1)
                 was_new = await db.insert_event_stub(ref, tipo_id)
                 if was_new:
                     new_count += 1
+                # Update progress every 100 items
+                if (i + 1) % 100 == 0 or i == total_ids - 1:
+                    await pipeline_state.update(
+                        current=i + 1,
+                        total=total_ids,
+                        message=f"💾 A guardar IDs: {i + 1}/{total_ids} ({new_count} novos)"
+                    )
 
         add_dashboard_log(f"💾 {new_count} novos IDs inseridos na BD ({len(references) - new_count} já existiam)", "info")
 
@@ -2281,12 +2296,15 @@ async def run_api_pipeline(tipo: Optional[int], max_pages: Optional[int]):
             scraper.stop_requested = False
             return
 
-        await pipeline_state.update(total=len(references), message=f"{len(references)} IDs recolhidos")
-        await pipeline_state.complete(message=f"✅ Stage 1: {len(references)} IDs recolhidos")
-
-        msg = f"✅ Stage 1: {len(references)} IDs recolhidos"
+        # Stage 1 complete - log and prepare for Stage 2
+        msg = f"✅ Stage 1 completo: {len(references)} IDs ({new_count} novos)"
         print(msg)
         add_dashboard_log(msg, "success")
+        await pipeline_state.update(
+            message=msg,
+            current=len(references),
+            total=len(references)
+        )
 
         if not references:
             msg = "⚠️ Nenhum ID encontrado. Pipeline terminado."
@@ -2302,6 +2320,9 @@ async def run_api_pipeline(tipo: Optional[int], max_pages: Optional[int]):
             await pipeline_state.stop()
             scraper.stop_requested = False
             return
+
+        # Transition message
+        await pipeline_state.update(message="🔄 A preparar Stage 2...")
 
         await pipeline_state.start(
             stage=2,
