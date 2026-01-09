@@ -2195,25 +2195,43 @@ async def run_api_pipeline(tipo: Optional[int], max_pages: Optional[int]):
         await pipeline_state.start(
             stage=1,
             stage_name=f"Stage 1 - IDs ({tipo_str})",
-            total=6 if tipo is None else 1,
+            total=0,
             details={"tipo": tipo, "max_pages": max_pages, "mode": "api"}
         )
 
         await pipeline_state.update(
             current=0,
             total=0,
-            message="Total: 0",
+            message="A iniciar recolha de IDs...",
             details={"types_done": 0, "total_ids": 0, "breakdown": {}}
         )
 
         add_dashboard_log("🔍 STAGE 1: SCRAPING IDs", "info")
 
-        type_counter = {"count": 0}
+        # Track progress across types
+        progress_state = {"total": 0, "breakdown": {}, "current_type": ""}
+
+        async def on_page_progress(tipo_nome: str, page_num: int, page_count: int, total_count: int, offset: int):
+            """Called after each page - updates total in real-time"""
+            # Update running total for current type
+            progress_state["current_type"] = tipo_nome
+            # Calculate grand total (previous types + current type progress)
+            prev_types_total = sum(v for k, v in progress_state["breakdown"].items() if k != tipo_nome)
+            grand_total = prev_types_total + total_count
+
+            await pipeline_state.update(
+                current=grand_total,
+                total=grand_total,
+                message=f"🔍 {tipo_nome} - Pág {page_num}: +{page_count} (total: {grand_total})"
+            )
 
         async def on_type_complete(tipo_nome: str, count: int, totals: dict):
-            type_counter["count"] += 1
+            """Called when a type finishes - shows breakdown"""
+            progress_state["breakdown"] = totals.copy()
             total_ids = sum(totals.values())
+            progress_state["total"] = total_ids
 
+            # Build summary message
             totals_parts = [f"Total: {total_ids}"]
             tipo_names_map = {
                 "imoveis": "Imóveis",
@@ -2228,13 +2246,13 @@ async def run_api_pipeline(tipo: Optional[int], max_pages: Optional[int]):
                 totals_parts.append(f"{display_name}: {tipo_count}")
 
             msg = " | ".join(totals_parts)
-            add_dashboard_log(f"✓ {tipo_nome}: {count} IDs | {msg}", "info")
+            add_dashboard_log(f"✓ {tipo_nome}: {count} IDs", "info")
 
             await pipeline_state.update(
                 current=total_ids,
                 total=total_ids,
                 message=msg,
-                details={"types_done": type_counter["count"], "total_ids": total_ids, "breakdown": totals}
+                details={"total_ids": total_ids, "breakdown": totals}
             )
 
         if scraper.stop_requested:
@@ -2245,7 +2263,8 @@ async def run_api_pipeline(tipo: Optional[int], max_pages: Optional[int]):
         ids_data = await scraper.scrape_ids_only(
             tipo=tipo,
             max_pages=max_pages,
-            on_type_complete=on_type_complete
+            on_type_complete=on_type_complete,
+            on_page_progress=on_page_progress
         )
 
         references = [item['reference'] for item in ids_data]
@@ -2314,24 +2333,21 @@ async def run_api_pipeline(tipo: Optional[int], max_pages: Optional[int]):
             await pipeline_state.stop()
             return
 
-        # ===== STAGE 2: API Scraping (Detalhes + Imagens em um só!) =====
+        # ===== STAGE 2: Fetch full details via API =====
         if scraper.stop_requested:
             add_dashboard_log("🛑 Pipeline interrompida pelo utilizador", "warning")
             await pipeline_state.stop()
             scraper.stop_requested = False
             return
 
-        # Transition message
-        await pipeline_state.update(message="🔄 A preparar Stage 2...")
-
         await pipeline_state.start(
             stage=2,
-            stage_name="Stage 2 - API (Detalhes + Imagens)",
+            stage_name="Stage 2 - Detalhes via API",
             total=len(references),
             details={"save_to_db": True, "mode": "api"}
         )
 
-        add_dashboard_log("🚀 STAGE 2: API SCRAPING (detalhes + imagens)", "info")
+        add_dashboard_log(f"📡 STAGE 2: A obter detalhes de {len(references)} eventos via API...", "info")
 
         scraped_count = 0
         success_count = 0
@@ -2339,9 +2355,10 @@ async def run_api_pipeline(tipo: Optional[int], max_pages: Optional[int]):
         async def on_progress(current: int, total: int, ref: str):
             nonlocal scraped_count
             scraped_count = current
+            pct = int((current / total) * 100) if total > 0 else 0
             await pipeline_state.update(
                 current=current,
-                message=f"🚀 API: {current}/{total} - {ref}"
+                message=f"📡 A obter detalhes: {current}/{total} ({pct}%)"
             )
 
         # Use FAST API scraping - httpx concurrent, ~10x faster than Playwright!
@@ -2353,10 +2370,13 @@ async def run_api_pipeline(tipo: Optional[int], max_pages: Optional[int]):
             scraper.stop_requested = False
             return
 
-        # Save all events to database
-        add_dashboard_log(f"💾 Guardando {len(events)} eventos na BD...", "info")
+        # Save all events to database with progress
+        total_events = len(events)
+        await pipeline_state.update(message=f"💾 A guardar {total_events} eventos na BD...")
+        add_dashboard_log(f"💾 A guardar {total_events} eventos na BD...", "info")
+
         async with get_db() as db:
-            for event in events:
+            for i, event in enumerate(events):
                 try:
                     await db.save_event(event)
                     await cache_manager.set(event.reference, event)
@@ -2364,25 +2384,27 @@ async def run_api_pipeline(tipo: Optional[int], max_pages: Optional[int]):
                 except Exception as e:
                     add_dashboard_log(f"⚠️ Erro ao guardar {event.reference}: {e}", "warning")
 
+                # Update progress every 50 events
+                if (i + 1) % 50 == 0 or i == total_events - 1:
+                    pct = int(((i + 1) / total_events) * 100)
+                    await pipeline_state.update(
+                        message=f"💾 A guardar na BD: {i + 1}/{total_events} ({pct}%)"
+                    )
+
         # Count images (fotos is a list of FotoItem or None)
         total_images = sum(len(event.fotos) if event.fotos else 0 for event in events)
 
-        await pipeline_state.complete(
-            message=f"✅ Stage 2: {success_count} eventos + {total_images} imagens"
-        )
+        # Final message
+        duration = (datetime.now() - start_time).total_seconds()
+        duration_str = f"{int(duration // 60)}m {int(duration % 60)}s" if duration >= 60 else f"{int(duration)}s"
 
-        msg = f"✅ Stage 2: {success_count} eventos processados com {total_images} imagens"
+        msg = f"🎉 PIPELINE COMPLETO em {duration_str}! Eventos: {success_count} | Imagens: {total_images}"
         print(msg)
         add_dashboard_log(msg, "success")
 
-        # Final message - NO Stage 3 needed!
-        msg = f"🎉 API PIPELINE COMPLETO! IDs: {len(references)} | Eventos: {success_count} | Imagens: {total_images}"
-        print(msg)
-        add_dashboard_log(msg, "success")
-        add_dashboard_log("💡 Sem Stage 3 - API já incluiu as imagens!", "info")
+        await pipeline_state.update(message=msg)
 
         # Register completion in history
-        duration = (datetime.now() - start_time).total_seconds()
         add_pipeline_history("api_pipeline", "completed", {
             "ids": len(references),
             "events": success_count,
@@ -2390,7 +2412,8 @@ async def run_api_pipeline(tipo: Optional[int], max_pages: Optional[int]):
             "duration_seconds": round(duration, 1)
         })
 
-        await asyncio.sleep(3)
+        # Small delay to show completion message, then stop
+        await asyncio.sleep(2)
         await pipeline_state.stop()
 
     except Exception as e:
