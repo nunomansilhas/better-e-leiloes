@@ -527,6 +527,225 @@ async def list_tipos():
         ]
 
 
+# ============ Dashboard Endpoints (compatibility with original frontend) ============
+
+@app.get("/api/dashboard/ending-soon")
+async def dashboard_ending_soon(hours: int = 24, limit: int = 1000):
+    """Alias for ending-soon endpoint"""
+    if DEMO_MODE:
+        now = datetime.utcnow()
+        cutoff = now + timedelta(hours=hours)
+        events = [e for e in DEMO_EVENTS if e["data_fim"] <= cutoff]
+        return [
+            {
+                "reference": e["reference"],
+                "titulo": e["titulo"],
+                "tipo_id": e["tipo_id"],
+                "subtipo": e["subtipo"],
+                "distrito": e["distrito"],
+                "lance_atual": e["lance_atual"],
+                "valor_base": e["valor_base"],
+                "valor_abertura": e.get("valor_abertura", e["valor_base"] * 0.85),
+                "valor_minimo": e["valor_minimo"],
+                "data_fim": e["data_fim"].isoformat()
+            }
+            for e in events[:limit]
+        ]
+
+    async with get_session() as session:
+        now = datetime.utcnow()
+        cutoff = now + timedelta(hours=hours)
+        result = await session.execute(
+            select(EventDB).where(
+                and_(
+                    EventDB.terminado == False,
+                    EventDB.cancelado == False,
+                    EventDB.data_fim >= now,
+                    EventDB.data_fim <= cutoff
+                )
+            ).order_by(EventDB.data_fim).limit(limit)
+        )
+        events = result.scalars().all()
+        return [
+            {
+                "reference": e.reference,
+                "titulo": e.titulo,
+                "tipo_id": e.tipo_id,
+                "subtipo": e.subtipo,
+                "distrito": e.distrito,
+                "lance_atual": e.lance_atual,
+                "valor_base": e.valor_base,
+                "valor_abertura": e.valor_abertura,
+                "valor_minimo": e.valor_minimo,
+                "data_fim": e.data_fim.isoformat() if e.data_fim else None
+            }
+            for e in events
+        ]
+
+
+@app.get("/api/dashboard/price-history/{reference}")
+async def dashboard_price_history(reference: str):
+    """Alias for price-history endpoint"""
+    return await get_price_history(reference)
+
+
+@app.get("/api/dashboard/recent-bids")
+async def dashboard_recent_bids(limit: int = 30):
+    """Get recent bid activity"""
+    if DEMO_MODE:
+        now = datetime.utcnow()
+        return [
+            {
+                "reference": e["reference"],
+                "titulo": e["titulo"],
+                "lance_atual": e["lance_atual"],
+                "distrito": e["distrito"],
+                "timestamp": (now - timedelta(minutes=random.randint(1, 120))).isoformat()
+            }
+            for e in random.sample(DEMO_EVENTS, min(limit, len(DEMO_EVENTS)))
+        ]
+
+    async with get_session() as session:
+        result = await session.execute(
+            select(EventDB).where(
+                and_(EventDB.terminado == False, EventDB.cancelado == False, EventDB.lance_atual > 0)
+            ).order_by(desc(EventDB.data_atualizacao)).limit(limit)
+        )
+        events = result.scalars().all()
+        return [
+            {
+                "reference": e.reference,
+                "titulo": e.titulo,
+                "lance_atual": e.lance_atual,
+                "distrito": e.distrito,
+                "timestamp": e.data_atualizacao.isoformat() if e.data_atualizacao else None
+            }
+            for e in events
+        ]
+
+
+@app.get("/api/dashboard/stats-by-distrito")
+async def dashboard_stats_by_distrito(limit: int = 5):
+    """Get stats grouped by distrito"""
+    if DEMO_MODE:
+        counts = {}
+        for e in DEMO_EVENTS:
+            d = e["distrito"]
+            if d not in counts:
+                counts[d] = {"distrito": d, "count": 0, "total_value": 0}
+            counts[d]["count"] += 1
+            counts[d]["total_value"] += e["lance_atual"]
+        return sorted(counts.values(), key=lambda x: -x["count"])[:limit]
+
+    async with get_session() as session:
+        result = await session.execute(
+            select(
+                EventDB.distrito,
+                func.count().label("count"),
+                func.sum(EventDB.lance_atual).label("total_value")
+            ).where(
+                and_(EventDB.terminado == False, EventDB.cancelado == False, EventDB.distrito != None)
+            ).group_by(EventDB.distrito).order_by(desc(func.count())).limit(limit)
+        )
+        return [
+            {"distrito": d, "count": c, "total_value": float(v or 0)}
+            for d, c, v in result.all()
+        ]
+
+
+@app.get("/api/dashboard/recent-events")
+async def dashboard_recent_events(limit: int = 20, days: int = 7):
+    """Get recently added events"""
+    if DEMO_MODE:
+        return DEMO_EVENTS[:limit]
+
+    async with get_session() as session:
+        cutoff = datetime.utcnow() - timedelta(days=days)
+        result = await session.execute(
+            select(EventDB).where(
+                and_(EventDB.terminado == False, EventDB.cancelado == False)
+            ).order_by(desc(EventDB.data_atualizacao)).limit(limit)
+        )
+        events = result.scalars().all()
+        return [
+            {
+                "reference": e.reference,
+                "titulo": e.titulo,
+                "tipo_id": e.tipo_id,
+                "subtipo": e.subtipo,
+                "distrito": e.distrito,
+                "lance_atual": e.lance_atual,
+                "valor_base": e.valor_base,
+                "data_fim": e.data_fim.isoformat() if e.data_fim else None,
+                "capa": e.capa
+            }
+            for e in events
+        ]
+
+
+@app.get("/api/db/stats")
+async def db_stats():
+    """Get database statistics"""
+    if DEMO_MODE:
+        by_type = {}
+        for e in DEMO_EVENTS:
+            t = e["tipo_id"]
+            by_type[t] = by_type.get(t, 0) + 1
+        return {
+            "total_events": len(DEMO_EVENTS),
+            "active_events": len(DEMO_EVENTS),
+            "by_type": by_type,
+            "database_size": "demo"
+        }
+
+    async with get_session() as session:
+        total = await session.scalar(select(func.count()).select_from(EventDB))
+        active = await session.scalar(
+            select(func.count()).select_from(EventDB).where(
+                and_(EventDB.terminado == False, EventDB.cancelado == False)
+            )
+        )
+        type_query = await session.execute(
+            select(EventDB.tipo_id, func.count()).group_by(EventDB.tipo_id)
+        )
+        by_type = {str(t or 0): c for t, c in type_query.all()}
+
+        return {
+            "total_events": total or 0,
+            "active_events": active or 0,
+            "by_type": by_type
+        }
+
+
+@app.get("/api/volatile/{reference}")
+async def get_volatile_data(reference: str):
+    """Get volatile/real-time data for an event"""
+    if DEMO_MODE:
+        for e in DEMO_EVENTS:
+            if e["reference"] == reference:
+                return {
+                    "reference": reference,
+                    "lance_atual": e["lance_atual"],
+                    "data_fim": e["data_fim"].isoformat(),
+                    "ultimos_5m": random.choice([True, False])
+                }
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    async with get_session() as session:
+        result = await session.execute(
+            select(EventDB).where(EventDB.reference == reference)
+        )
+        event = result.scalar_one_or_none()
+        if not event:
+            raise HTTPException(status_code=404, detail="Event not found")
+        return {
+            "reference": event.reference,
+            "lance_atual": event.lance_atual,
+            "data_fim": event.data_fim.isoformat() if event.data_fim else None,
+            "ultimos_5m": getattr(event, 'ultimos_5m', False)
+        }
+
+
 # ============ Static Files ============
 
 static_path = os.path.join(os.path.dirname(__file__), "static")
