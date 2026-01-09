@@ -1,400 +1,446 @@
 <!DOCTYPE html>
-<html lang="pt">
+<html lang="pt" data-bs-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>E-Leiloes Backend - Admin Tools</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bs-body-bg: #0f172a;
+            --bs-body-color: #e2e8f0;
+            --card-bg: rgba(255,255,255,0.05);
+            --card-border: rgba(255,255,255,0.1);
+        }
         body {
             font-family: 'Inter', sans-serif;
             background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
             min-height: 100vh;
-            padding: 12px;
-            color: #e2e8f0;
         }
-        .container { max-width: 1400px; margin: 0 auto; }
 
-        /* Header - Compacto */
-        .header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 12px;
-            padding: 12px 16px;
-            background: rgba(255,255,255,0.05);
-            border-radius: 10px;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        .header h1 {
-            font-size: 18px;
+        /* Header gradient text */
+        .brand-text {
             font-weight: 700;
             background: linear-gradient(135deg, #60a5fa, #a78bfa);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
-        .header .stats {
+
+        /* Custom card styling */
+        .custom-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+        }
+
+        /* Stats badges */
+        .stat-badge {
+            padding: 6px 12px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            font-size: 0.75rem;
+        }
+        .stat-badge strong { color: #60a5fa; }
+        .stat-badge.success strong { color: #34d399; }
+        .stat-badge.danger strong { color: #f87171; }
+
+        /* Type stats icons */
+        .type-stats {
             display: flex;
-            gap: 12px;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            justify-content: center;
         }
-        .header .stat {
+        .type-stat {
             padding: 4px 10px;
             background: rgba(255,255,255,0.05);
             border-radius: 6px;
-            font-size: 11px;
-        }
-        .header .stat strong { color: #60a5fa; }
-
-        /* Cards - Compacto */
-        .card {
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 10px;
-            padding: 12px;
-            margin-bottom: 10px;
-        }
-        .card-header {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 10px;
-            padding-bottom: 8px;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
-        .card-header h3 { font-size: 13px; font-weight: 600; }
-        .card-header .icon { font-size: 14px; }
-
-        /* Grid - Compacto */
-        .grid { display: grid; gap: 8px; }
-        .grid-5 { grid-template-columns: repeat(5, 1fr); }
-        .grid-3 { grid-template-columns: repeat(3, 1fr); }
-        .grid-2 { grid-template-columns: repeat(2, 1fr); }
-
-        @media (max-width: 768px) {
-            .grid-5, .grid-3 { grid-template-columns: repeat(2, 1fr); }
+            font-size: 0.7rem;
         }
 
-        /* Buttons - Compacto */
-        .btn {
-            padding: 8px 10px;
-            border-radius: 6px;
-            border: none;
-            cursor: pointer;
-            font-size: 11px;
-            font-weight: 600;
-            transition: all 0.2s;
-            text-align: center;
+        /* Custom buttons with gradients */
+        .btn-gradient-blue { background: linear-gradient(135deg, #3b82f6, #2563eb); border: none; }
+        .btn-gradient-green { background: linear-gradient(135deg, #10b981, #059669); border: none; }
+        .btn-gradient-yellow { background: linear-gradient(135deg, #f59e0b, #d97706); border: none; }
+        .btn-gradient-purple { background: linear-gradient(135deg, #8b5cf6, #7c3aed); border: none; }
+        .btn-gradient-gray { background: linear-gradient(135deg, #64748b, #475569); border: none; }
+        .btn-gradient-red { background: linear-gradient(135deg, #ef4444, #dc2626); border: none; }
+
+        .btn-gradient-blue:hover, .btn-gradient-green:hover, .btn-gradient-yellow:hover,
+        .btn-gradient-purple:hover, .btn-gradient-gray:hover, .btn-gradient-red:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
         }
-        .btn:hover { transform: translateY(-1px); }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
-        .btn-blue { background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; }
-        .btn-green { background: linear-gradient(135deg, #10b981, #059669); color: white; }
-        .btn-yellow { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; }
-        .btn-purple { background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white; }
-        .btn-gray { background: linear-gradient(135deg, #64748b, #475569); color: white; }
-        .btn-red { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; }
-
-        .btn-icon { font-size: 14px; display: block; margin-bottom: 2px; }
-
-        /* Pipeline Cards - Compacto */
+        /* Pipeline cards */
         .pipeline-card {
-            padding: 10px;
-            border-radius: 8px;
+            border-radius: 10px;
+            padding: 1rem;
             border: 1px solid;
+            transition: all 0.3s;
         }
-        .pipeline-card.red { background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.3); }
-        .pipeline-card.blue { background: rgba(59,130,246,0.1); border-color: rgba(59,130,246,0.3); }
-        .pipeline-card.green { background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.3); }
+        .pipeline-card.pipeline-red {
+            background: rgba(239,68,68,0.1);
+            border-color: rgba(239,68,68,0.3);
+        }
+        .pipeline-card.pipeline-blue {
+            background: rgba(59,130,246,0.1);
+            border-color: rgba(59,130,246,0.3);
+        }
+        .pipeline-card.pipeline-green {
+            background: rgba(16,185,129,0.1);
+            border-color: rgba(16,185,129,0.3);
+        }
+        .pipeline-card.running {
+            border-color: #10b981 !important;
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
+        }
 
-        .pipeline-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 6px;
+        .pipeline-timer {
+            font-size: 0.85rem;
+            font-weight: 600;
+            font-family: monospace;
         }
-        .pipeline-name { font-weight: 600; font-size: 11px; display: flex; align-items: center; gap: 4px; }
-        .pipeline-timer { font-size: 11px; font-weight: 600; margin-top: 2px; }
-        .pipeline-info { font-size: 10px; opacity: 0.8; }
+        .pipeline-timer.red { color: #f87171; }
+        .pipeline-timer.blue { color: #60a5fa; }
+        .pipeline-timer.green { color: #34d399; }
+
+        /* Pipeline status badges */
         .pipeline-status {
-            font-size: 9px;
-            padding: 2px 6px;
+            font-size: 0.65rem;
+            padding: 2px 8px;
             border-radius: 6px;
             font-weight: 600;
-            animation: pulse 1.5s infinite;
         }
         .pipeline-status.running {
             background: #10b981;
             color: white;
+            animation: pulse 1.5s infinite;
         }
         .pipeline-status.waiting {
             background: #f59e0b;
             color: white;
-            animation: none;
         }
         @keyframes pulse {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
         }
-        .pipeline-card.running {
-            border-color: #10b981 !important;
-            box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+
+        /* Toggle switch */
+        .form-check-input:checked {
+            background-color: #10b981;
+            border-color: #10b981;
+        }
+        .form-switch .form-check-input {
+            width: 2.5rem;
+            height: 1.25rem;
         }
 
-        /* Toggle Switch - Compacto */
-        .toggle { position: relative; width: 32px; height: 18px; }
-        .toggle input { opacity: 0; width: 0; height: 0; }
-        .toggle .slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(255,255,255,0.2);
-            border-radius: 18px;
-            transition: 0.3s;
-        }
-        .toggle .slider:before {
-            position: absolute;
-            content: "";
-            height: 14px; width: 14px;
-            left: 2px; bottom: 2px;
-            background: white;
+        /* Stage dots */
+        .stage-dot {
+            width: 28px;
+            height: 28px;
             border-radius: 50%;
-            transition: 0.3s;
-        }
-        .toggle input:checked + .slider { background: #10b981; }
-        .toggle input:checked + .slider:before { transform: translateX(14px); }
-
-        /* Danger Zone */
-        .danger-zone {
-            border: 1px solid rgba(239,68,68,0.5);
-            background: rgba(239,68,68,0.05);
-        }
-
-        /* Manual IDs Input */
-        .manual-input {
             display: flex;
-            gap: 6px;
             align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.75rem;
+            transition: all 0.3s;
         }
-        .manual-input input {
-            flex: 1;
-            padding: 6px 10px;
-            border-radius: 6px;
-            border: 1px solid rgba(255,255,255,0.2);
+        .stage-dot.inactive {
+            background: rgba(255,255,255,0.1);
+            color: #64748b;
+        }
+        .stage-dot.active {
+            background: rgba(59,130,246,0.3);
+            color: #60a5fa;
+        }
+
+        /* Progress bar custom */
+        .progress-thin {
+            height: 4px;
+            background: rgba(255,255,255,0.1);
+        }
+        .progress-thin .progress-bar {
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+        }
+
+        /* Feedback box */
+        .feedback-box {
             background: rgba(255,255,255,0.05);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+        }
+
+        /* Danger zone */
+        .danger-zone {
+            border-color: rgba(239,68,68,0.5) !important;
+            background: rgba(239,68,68,0.05) !important;
+        }
+
+        /* Health dot */
+        .health-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .health-dot.healthy { background: #10b981; }
+        .health-dot.degraded { background: #f59e0b; }
+        .health-dot.unhealthy { background: #ef4444; }
+        .health-dot.offline { background: #64748b; }
+
+        /* X-Monitor count badge */
+        .xmonitor-badge {
+            font-size: 0.65rem;
+            padding: 2px 8px;
+            background: #dc2626;
             color: white;
-            font-size: 11px;
+            border-radius: 10px;
+        }
+
+        /* Manual input styling */
+        .manual-input input {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: white;
             font-family: monospace;
         }
         .manual-input input:focus {
-            outline: none;
+            background: rgba(255,255,255,0.08);
             border-color: #3b82f6;
+            color: white;
+            box-shadow: 0 0 0 0.2rem rgba(59,130,246,0.25);
         }
 
-        /* Progress - Compacto */
-        .progress-bar {
-            height: 3px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 2px;
-            margin-top: 8px;
-            overflow: hidden;
+        /* Responsive adjustments */
+        @media (max-width: 576px) {
+            .brand-text { font-size: 1rem; }
+            .stat-badge { font-size: 0.65rem; padding: 4px 8px; }
+            .type-stat { font-size: 0.6rem; }
+            .btn { font-size: 0.75rem; padding: 0.5rem 0.75rem; }
+            .pipeline-card { padding: 0.75rem; }
         }
-        .progress-bar .fill {
-            height: 100%;
-            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
-            width: 0%;
-            transition: width 0.3s;
-        }
-
-        /* Feedback Box */
-        .feedback-box {
-            display: none;
-            margin-top: 12px;
-            padding: 12px;
-            background: rgba(255,255,255,0.05);
-            border-radius: 8px;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        .feedback-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .feedback-status { font-weight: 600; font-size: 13px; }
-        .feedback-count { font-size: 14px; font-weight: 700; color: #60a5fa; }
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="container-fluid py-3 px-2 px-md-4">
         <!-- Header -->
-        <div class="header">
-            <h1>E-Leiloes Backend</h1>
-            <div class="stats">
-                <div class="stat" id="health-status" style="cursor: pointer;" onclick="showHealthDetails()" title="Click para detalhes">
-                    <span id="health-dot" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #64748b; margin-right: 4px;"></span>
-                    <span id="health-text">--</span>
+        <div class="custom-card p-3 mb-3">
+            <div class="row align-items-center g-2">
+                <div class="col-12 col-md-auto">
+                    <h1 class="brand-text h5 mb-0">E-Leiloes Backend</h1>
                 </div>
-                <div class="stat"><strong id="stat-total">-</strong> total</div>
-                <div class="stat" style="color: #34d399;"><strong id="stat-ativos">-</strong> ativos</div>
-                <div class="stat" style="color: #f87171;"><strong id="stat-inativos">-</strong> inativos</div>
+                <div class="col-12 col-md">
+                    <div class="d-flex flex-wrap gap-2 justify-content-md-end">
+                        <div class="stat-badge" id="health-status" style="cursor: pointer;" onclick="showHealthDetails()" title="Click para detalhes">
+                            <span id="health-dot" class="health-dot offline me-1"></span>
+                            <span id="health-text">--</span>
+                        </div>
+                        <div class="stat-badge"><strong id="stat-total">-</strong> total</div>
+                        <div class="stat-badge success"><strong id="stat-ativos">-</strong> ativos</div>
+                        <div class="stat-badge danger"><strong id="stat-inativos">-</strong> inativos</div>
+                    </div>
+                </div>
             </div>
         </div>
+
         <!-- Stats por Tipo -->
-        <div class="header" style="margin-top: -8px; padding: 8px 16px;">
-            <div class="stats" style="width: 100%; justify-content: space-around;">
-                <div class="stat">🏠 <strong id="stat-type-1">-</strong></div>
-                <div class="stat">🚗 <strong id="stat-type-2">-</strong></div>
-                <div class="stat">📦 <strong id="stat-type-3">-</strong></div>
-                <div class="stat">⚖️ <strong id="stat-type-4">-</strong></div>
-                <div class="stat">🏢 <strong id="stat-type-5">-</strong></div>
-                <div class="stat">📄 <strong id="stat-type-6">-</strong></div>
+        <div class="custom-card p-2 mb-3">
+            <div class="type-stats">
+                <div class="type-stat">🏠 <strong id="stat-type-1">-</strong></div>
+                <div class="type-stat">🚗 <strong id="stat-type-2">-</strong></div>
+                <div class="type-stat">📦 <strong id="stat-type-3">-</strong></div>
+                <div class="type-stat">⚖️ <strong id="stat-type-4">-</strong></div>
+                <div class="type-stat">🏢 <strong id="stat-type-5">-</strong></div>
+                <div class="type-stat">📄 <strong id="stat-type-6">-</strong></div>
             </div>
         </div>
 
         <!-- Scraper Tools -->
-        <div class="card">
-            <div class="card-header">
-                <span class="icon">🔧</span>
-                <h3>Scraper Tools</h3>
+        <div class="custom-card p-3 mb-3">
+            <div class="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom border-secondary">
+                <i class="bi bi-tools"></i>
+                <h6 class="mb-0 fw-semibold">Scraper Tools</h6>
             </div>
-            <div class="grid grid-5">
-                <button class="btn btn-blue" onclick="runScraper('ids')">
-                    <span class="btn-icon">🔍</span>
-                    Descobrir IDs
-                </button>
-                <button class="btn btn-green" onclick="runScraper('content')">
-                    <span class="btn-icon">📋</span>
-                    Completar Info
-                </button>
-                <button class="btn btn-yellow" onclick="runUpdatePrices()">
-                    <span class="btn-icon">💰</span>
-                    Atualizar Precos
-                </button>
-                <button class="btn btn-purple" onclick="runFixNulls()">
-                    <span class="btn-icon">🔧</span>
-                    Fix NULLs
-                </button>
-                <button class="btn btn-gray" onclick="toggleManualIds()">
-                    <span class="btn-icon">🎯</span>
-                    IDs Manual
-                </button>
+            <div class="row g-2">
+                <div class="col-6 col-md-4 col-lg">
+                    <button class="btn btn-gradient-blue text-white w-100" onclick="runScraper('ids')">
+                        <i class="bi bi-search d-block mb-1"></i>
+                        <span class="d-none d-sm-inline">Descobrir </span>IDs
+                    </button>
+                </div>
+                <div class="col-6 col-md-4 col-lg">
+                    <button class="btn btn-gradient-green text-white w-100" onclick="runScraper('content')">
+                        <i class="bi bi-card-text d-block mb-1"></i>
+                        <span class="d-none d-sm-inline">Completar </span>Info
+                    </button>
+                </div>
+                <div class="col-6 col-md-4 col-lg">
+                    <button class="btn btn-gradient-yellow text-white w-100" onclick="runUpdatePrices()">
+                        <i class="bi bi-currency-euro d-block mb-1"></i>
+                        <span class="d-none d-sm-inline">Atualizar </span>Preços
+                    </button>
+                </div>
+                <div class="col-6 col-md-6 col-lg">
+                    <button class="btn btn-gradient-purple text-white w-100" onclick="runFixNulls()">
+                        <i class="bi bi-wrench d-block mb-1"></i>
+                        Fix NULLs
+                    </button>
+                </div>
+                <div class="col-12 col-md-6 col-lg">
+                    <button class="btn btn-gradient-gray text-white w-100" onclick="toggleManualIds()">
+                        <i class="bi bi-input-cursor-text d-block mb-1"></i>
+                        IDs Manual
+                    </button>
+                </div>
             </div>
 
             <!-- Manual IDs Input -->
-            <div id="manual-ids-section" style="display: none; margin-top: 12px;">
-                <div class="manual-input">
-                    <input type="text" id="manual-ids-input" placeholder="LO1234562024, NP9876542024...">
-                    <button class="btn btn-purple" onclick="runManualIds()">Executar</button>
+            <div id="manual-ids-section" class="mt-3" style="display: none;">
+                <div class="manual-input d-flex gap-2">
+                    <input type="text" class="form-control form-control-sm" id="manual-ids-input" placeholder="LO1234562024, NP9876542024...">
+                    <button class="btn btn-gradient-purple text-white btn-sm" onclick="runManualIds()">Executar</button>
                 </div>
             </div>
         </div>
 
         <!-- Pipelines Automaticas -->
-        <div class="card">
-            <div class="card-header">
-                <span class="icon">⚡</span>
-                <h3>Pipelines Automaticas</h3>
+        <div class="custom-card p-3 mb-3">
+            <div class="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom border-secondary">
+                <i class="bi bi-lightning-charge-fill"></i>
+                <h6 class="mb-0 fw-semibold">Pipelines Automáticas</h6>
             </div>
-            <div class="grid grid-3">
+            <div class="row g-2">
                 <!-- X-Monitor -->
-                <div class="pipeline-card red" id="card-xmonitor">
-                    <div class="pipeline-header">
-                        <div class="pipeline-name">
-                            <span>🔴</span>
-                            <span>X-Monitor</span>
-                            <span id="status-xmonitor" class="pipeline-status" style="display: none;"></span>
-                            <span id="x-monitor-count" style="font-size: 10px; padding: 2px 6px; background: #dc2626; color: white; border-radius: 8px;">0</span>
+                <div class="col-12 col-md-4">
+                    <div class="pipeline-card pipeline-red" id="card-xmonitor">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    <span>🔴</span>
+                                    <strong class="small">X-Monitor</strong>
+                                    <span id="status-xmonitor" class="pipeline-status" style="display: none;"></span>
+                                    <span id="x-monitor-count" class="xmonitor-badge">0</span>
+                                </div>
+                                <div class="small text-muted">
+                                    🔴 <span id="x-critical">0</span> &nbsp;
+                                    🟠 <span id="x-urgent">0</span> &nbsp;
+                                    🟡 <span id="x-soon">0</span>
+                                </div>
+                            </div>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="toggle-xmonitor" onchange="togglePipeline('xmonitor', this.checked)">
+                            </div>
                         </div>
-                        <label class="toggle">
-                            <input type="checkbox" id="toggle-xmonitor" onchange="togglePipeline('xmonitor', this.checked)">
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                    <div class="pipeline-info">
-                        <div>🔴 <span id="x-critical">0</span> &nbsp; 🟠 <span id="x-urgent">0</span> &nbsp; 🟡 <span id="x-soon">0</span></div>
-                        <div class="pipeline-timer" id="timer-xmonitor" style="color: #f87171;">--:--</div>
+                        <div class="pipeline-timer red" id="timer-xmonitor">--:--</div>
                     </div>
                 </div>
 
                 <!-- Y-Sync -->
-                <div class="pipeline-card blue" id="card-ysync">
-                    <div class="pipeline-header">
-                        <div class="pipeline-name">
-                            <span>🔄</span>
-                            <span>Y-Sync</span>
-                            <span id="status-ysync" class="pipeline-status" style="display: none;"></span>
+                <div class="col-12 col-md-4">
+                    <div class="pipeline-card pipeline-blue" id="card-ysync">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    <span>🔄</span>
+                                    <strong class="small">Y-Sync</strong>
+                                    <span id="status-ysync" class="pipeline-status" style="display: none;"></span>
+                                </div>
+                                <div class="small text-muted">Sync completo + Terminados</div>
+                            </div>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="toggle-ysync" onchange="togglePipeline('ysync', this.checked)">
+                            </div>
                         </div>
-                        <label class="toggle">
-                            <input type="checkbox" id="toggle-ysync" onchange="togglePipeline('ysync', this.checked)">
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                    <div class="pipeline-info">
-                        <div>Sync completo + Terminados</div>
-                        <div class="pipeline-timer" id="timer-ysync" style="color: #60a5fa;">--:--:--</div>
+                        <div class="pipeline-timer blue" id="timer-ysync">--:--:--</div>
                     </div>
                 </div>
 
                 <!-- Z-Watch -->
-                <div class="pipeline-card green" id="card-zwatch">
-                    <div class="pipeline-header">
-                        <div class="pipeline-name">
-                            <span>👁️</span>
-                            <span>Z-Watch</span>
-                            <span id="status-zwatch" class="pipeline-status" style="display: none;"></span>
+                <div class="col-12 col-md-4">
+                    <div class="pipeline-card pipeline-green" id="card-zwatch">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    <span>👁️</span>
+                                    <strong class="small">Z-Watch</strong>
+                                    <span id="status-zwatch" class="pipeline-status" style="display: none;"></span>
+                                </div>
+                                <div class="small text-muted">Novos eventos (10min)</div>
+                            </div>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="toggle-zwatch" onchange="togglePipeline('zwatch', this.checked)">
+                            </div>
                         </div>
-                        <label class="toggle">
-                            <input type="checkbox" id="toggle-zwatch" onchange="togglePipeline('zwatch', this.checked)">
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                    <div class="pipeline-info">
-                        <div>Novos eventos (10min)</div>
-                        <div class="pipeline-timer" id="timer-zwatch" style="color: #34d399;">--:--</div>
+                        <div class="pipeline-timer green" id="timer-zwatch">--:--</div>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- Pipeline API -->
-        <div class="card">
-            <div class="card-header">
-                <span class="icon">🚀</span>
-                <h3>Pipeline API</h3>
+        <div class="custom-card p-3 mb-3">
+            <div class="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom border-secondary">
+                <i class="bi bi-rocket-takeoff-fill"></i>
+                <h6 class="mb-0 fw-semibold">Pipeline API</h6>
             </div>
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <div style="flex: 1; display: flex; align-items: center; gap: 8px; font-size: 11px;">
-                    <div id="stage1-dot" style="width: 22px; height: 22px; border-radius: 50%; background: rgba(59,130,246,0.2); color: #60a5fa; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 10px;">1</div>
-                    <span>IDs <span id="stage1-count" style="color: #64748b;"></span></span>
-                    <div id="pipeline-line" style="flex: 1; height: 2px; background: rgba(255,255,255,0.1);"></div>
-                    <div id="stage2-dot" style="width: 22px; height: 22px; border-radius: 50%; background: rgba(255,255,255,0.1); color: #64748b; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 10px;">2</div>
-                    <span>API <span id="stage2-count" style="color: #64748b;"></span></span>
+            <div class="d-flex flex-column flex-sm-row align-items-center gap-3">
+                <div class="d-flex align-items-center gap-2 flex-grow-1 small">
+                    <div id="stage1-dot" class="stage-dot inactive">1</div>
+                    <span>IDs <span id="stage1-count" class="text-muted"></span></span>
+                    <div class="flex-grow-1 mx-2" style="height: 2px; background: rgba(255,255,255,0.1);"></div>
+                    <div id="stage2-dot" class="stage-dot inactive">2</div>
+                    <span>API <span id="stage2-count" class="text-muted"></span></span>
                 </div>
-                <button class="btn btn-blue" id="btn-pipeline" onclick="runApiPipeline()">▶ Run</button>
+                <button class="btn btn-gradient-blue text-white" id="btn-pipeline" onclick="runApiPipeline()">
+                    <i class="bi bi-play-fill"></i> Run
+                </button>
             </div>
-            <div class="feedback-box" id="pipeline-feedback" style="margin-top: 8px; padding: 8px;">
-                <div style="font-size: 10px; color: #94a3b8; margin-bottom: 4px;" id="feedback-stage">Stage 1</div>
-                <div class="feedback-header" style="font-size: 11px;">
+
+            <!-- Feedback Box -->
+            <div class="feedback-box mt-3 p-3" id="pipeline-feedback" style="display: none;">
+                <div class="small text-muted mb-1" id="feedback-stage">Stage 1</div>
+                <div class="d-flex justify-content-between align-items-center small mb-2">
                     <span id="feedback-status">A processar...</span>
-                    <span id="feedback-count" style="color: #60a5fa; font-weight: 600;">0/0</span>
+                    <span id="feedback-count" class="text-primary fw-semibold">0/0</span>
                 </div>
-                <div class="progress-bar"><div class="fill" id="feedback-progress"></div></div>
+                <div class="progress progress-thin">
+                    <div class="progress-bar" id="feedback-progress" style="width: 0%;"></div>
+                </div>
             </div>
         </div>
 
         <!-- Danger Zone -->
-        <div class="card danger-zone">
-            <div class="card-header">
-                <span class="icon">⚠️</span>
-                <h3 style="color: #f87171;">Danger Zone</h3>
+        <div class="custom-card danger-zone p-3">
+            <div class="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom border-danger">
+                <i class="bi bi-exclamation-triangle-fill text-danger"></i>
+                <h6 class="mb-0 fw-semibold text-danger">Danger Zone</h6>
             </div>
-            <div class="grid grid-2">
-                <button class="btn btn-red" onclick="confirmClearDatabase()">🗑️ Clear DB</button>
-                <button class="btn btn-red" onclick="confirmClearNotifications()">🔔 Clear Notifs</button>
+            <div class="row g-2">
+                <div class="col-6">
+                    <button class="btn btn-gradient-red text-white w-100" onclick="confirmClearDatabase()">
+                        <i class="bi bi-trash3 me-1"></i> Clear DB
+                    </button>
+                </div>
+                <div class="col-6">
+                    <button class="btn btn-gradient-red text-white w-100" onclick="confirmClearNotifications()">
+                        <i class="bi bi-bell-slash me-1"></i> Clear Notifs
+                    </button>
+                </div>
             </div>
         </div>
     </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
         const API_BASE = window.location.origin;
@@ -497,9 +543,9 @@
         }
 
         async function runUpdatePrices() {
-            if (!confirm('Atualizar precos de todos os eventos?')) return;
+            if (!confirm('Atualizar preços de todos os eventos?')) return;
             try {
-                addLog('💰 A atualizar precos...', 'info');
+                addLog('💰 A atualizar preços...', 'info');
                 const response = await authFetch(`${API_BASE}/api/db/update-prices`, { method: 'POST' });
                 const data = await response.json();
                 addLog(`✅ ${data.message}`, 'success');
@@ -546,7 +592,6 @@
                 });
                 const data = await response.json();
                 addLog(`${enabled ? '▶' : '⏹'} ${type}: ${data.message}`, enabled ? 'success' : 'warning');
-                // Immediately refresh to sync UI with backend state
                 await loadPipelinesStatus();
             } catch (e) {
                 addLog(`❌ Erro: ${e.message}`, 'error');
@@ -560,7 +605,6 @@
                 const data = await response.json();
                 const pipelines = data.pipelines || {};
 
-                // Debug: log pipeline states on first load
                 if (!window._pipelinesLoaded) {
                     console.log('Pipeline states loaded:', Object.fromEntries(
                         Object.entries(pipelines).map(([k, v]) => [k, v.enabled])
@@ -571,7 +615,6 @@
                 for (const [type, info] of Object.entries(pipelines)) {
                     const toggle = document.getElementById(`toggle-${type}`);
                     if (toggle) {
-                        // Explicitly convert to boolean to handle any edge cases
                         toggle.checked = info.enabled === true;
                     }
 
@@ -602,18 +645,15 @@
                     document.getElementById('x-monitor-count').textContent = counts.total || 0;
                 }
 
-                // Update running/waiting status for heavy pipelines (Y-Sync, Z-Watch)
                 const heavyRunning = data.heavy_pipeline_running;
                 const heavyWaiting = data.heavy_pipeline_waiting || [];
 
-                // Map pipeline names to their types
                 const pipelineNameMap = {
                     'Y-Sync': 'ysync',
                     'Z-Watch': 'zwatch',
                     'Pipeline API': 'api'
                 };
 
-                // Reset all status indicators
                 ['xmonitor', 'ysync', 'zwatch'].forEach(type => {
                     const statusEl = document.getElementById(`status-${type}`);
                     const cardEl = document.getElementById(`card-${type}`);
@@ -626,7 +666,6 @@
                     }
                 });
 
-                // Show X-Monitor running status (runs independently, no mutex)
                 if (pipelines.xmonitor && pipelines.xmonitor.is_running) {
                     const statusEl = document.getElementById('status-xmonitor');
                     const cardEl = document.getElementById('card-xmonitor');
@@ -640,7 +679,6 @@
                     }
                 }
 
-                // Show running status for heavy pipelines
                 if (heavyRunning) {
                     const runningType = pipelineNameMap[heavyRunning];
                     if (runningType && runningType !== 'api') {
@@ -657,7 +695,6 @@
                     }
                 }
 
-                // Show waiting status
                 heavyWaiting.forEach(name => {
                     const waitingType = pipelineNameMap[name];
                     if (waitingType && waitingType !== 'api') {
@@ -670,13 +707,12 @@
                     }
                 });
 
-                // Update button text if Pipeline API is blocked
                 const pipelineBtn = document.getElementById('btn-pipeline');
                 if (heavyRunning && heavyRunning !== 'Pipeline API' && !pipelineRunning) {
-                    pipelineBtn.textContent = `⏸️ ${heavyRunning}`;
+                    pipelineBtn.innerHTML = `<i class="bi bi-pause-fill"></i> ${heavyRunning}`;
                     pipelineBtn.disabled = true;
                 } else if (!pipelineRunning) {
-                    pipelineBtn.textContent = '▶ Run';
+                    pipelineBtn.innerHTML = '<i class="bi bi-play-fill"></i> Run';
                     pipelineBtn.disabled = false;
                 }
             } catch (e) {
@@ -696,8 +732,8 @@
                     addLog(`Erro ao parar: ${e.message}`, 'error');
                 }
                 pipelineRunning = false;
-                btn.textContent = '▶ Run';
-                btn.className = 'btn btn-blue';
+                btn.innerHTML = '<i class="bi bi-play-fill"></i> Run';
+                btn.className = 'btn btn-gradient-blue text-white';
                 document.getElementById('pipeline-feedback').style.display = 'none';
                 stopPolling();
                 return;
@@ -705,17 +741,15 @@
 
             try {
                 pipelineRunning = true;
-                btn.textContent = '🛑 Stop';
-                btn.className = 'btn btn-red';
+                btn.innerHTML = '<i class="bi bi-stop-fill"></i> Stop';
+                btn.className = 'btn btn-gradient-red text-white';
 
                 addLog('🚀 Pipeline API iniciada...', 'info');
                 document.getElementById('pipeline-feedback').style.display = 'block';
                 updateFeedback('A iniciar...', 'A preparar pipeline...', 0, 0);
 
-                // Start polling FIRST - this will handle UI updates
                 startPolling();
 
-                // Fire and forget - don't wait for pipeline to complete
                 const response = await authFetch(`${API_BASE}/api/pipeline/api`, { method: 'POST' });
                 const data = await response.json();
 
@@ -723,19 +757,16 @@
                     throw new Error(data.error);
                 }
 
-                // Pipeline started successfully - polling will handle the rest
                 addLog(`✅ ${data.message}`, 'info');
 
             } catch (e) {
                 addLog(`❌ Erro: ${e.message}`, 'error');
-                // Only reset on error
                 pipelineRunning = false;
-                btn.textContent = '▶ Run';
-                btn.className = 'btn btn-blue';
+                btn.innerHTML = '<i class="bi bi-play-fill"></i> Run';
+                btn.className = 'btn btn-gradient-blue text-white';
                 document.getElementById('pipeline-feedback').style.display = 'none';
                 stopPolling();
             }
-            // NOTE: No finally block - polling handles completion detection
         }
 
         function updateFeedback(stageName, message, current, total) {
@@ -762,17 +793,15 @@
 
                         updateFeedback(stageName, message, current, total);
 
-                        document.getElementById('stage1-dot').style.background = stage >= 1 ? 'rgba(59,130,246,0.3)' : 'rgba(255,255,255,0.1)';
-                        document.getElementById('stage2-dot').style.background = stage >= 2 ? 'rgba(59,130,246,0.3)' : 'rgba(255,255,255,0.1)';
+                        document.getElementById('stage1-dot').className = `stage-dot ${stage >= 1 ? 'active' : 'inactive'}`;
+                        document.getElementById('stage2-dot').className = `stage-dot ${stage >= 2 ? 'active' : 'inactive'}`;
                     } else if (pipelineRunning) {
-                        // Pipeline finished - reset UI
                         pipelineRunning = false;
-                        document.getElementById('btn-pipeline').textContent = '▶ Run';
-                        document.getElementById('btn-pipeline').className = 'btn btn-blue';
+                        document.getElementById('btn-pipeline').innerHTML = '<i class="bi bi-play-fill"></i> Run';
+                        document.getElementById('btn-pipeline').className = 'btn btn-gradient-blue text-white';
                         document.getElementById('pipeline-feedback').style.display = 'none';
-                        // Reset stage dots
-                        document.getElementById('stage1-dot').style.background = 'rgba(255,255,255,0.1)';
-                        document.getElementById('stage2-dot').style.background = 'rgba(255,255,255,0.1)';
+                        document.getElementById('stage1-dot').className = 'stage-dot inactive';
+                        document.getElementById('stage2-dot').className = 'stage-dot inactive';
                         addLog('✅ Pipeline concluída!', 'success');
                         refreshStats();
                         stopPolling();
@@ -780,7 +809,7 @@
                 } catch (e) {
                     console.error('Polling error:', e);
                 }
-            }, 500);  // 500ms for more responsive updates
+            }, 500);
         }
 
         function stopPolling() {
@@ -807,12 +836,12 @@
         }
 
         async function confirmClearNotifications() {
-            if (!confirm('Apagar todas as notificacoes?')) return;
+            if (!confirm('Apagar todas as notificações?')) return;
 
             try {
-                addLog('🔔 A apagar notificacoes...', 'warning');
+                addLog('🔔 A apagar notificações...', 'warning');
                 const response = await authFetch(`${API_BASE}/api/notifications/delete-all`, { method: 'DELETE' });
-                addLog('✅ Notificacoes apagadas', 'success');
+                addLog('✅ Notificações apagadas', 'success');
             } catch (e) {
                 addLog(`❌ Erro: ${e.message}`, 'error');
             }
@@ -830,18 +859,19 @@
                 const dot = document.getElementById('health-dot');
                 const text = document.getElementById('health-text');
 
+                dot.className = 'health-dot';
                 if (data.status === 'healthy') {
-                    dot.style.background = '#10b981';
+                    dot.classList.add('healthy');
                     text.textContent = 'healthy';
                 } else if (data.status === 'degraded') {
-                    dot.style.background = '#f59e0b';
+                    dot.classList.add('degraded');
                     text.textContent = 'degraded';
                 } else {
-                    dot.style.background = '#ef4444';
+                    dot.classList.add('unhealthy');
                     text.textContent = 'unhealthy';
                 }
             } catch (e) {
-                document.getElementById('health-dot').style.background = '#ef4444';
+                document.getElementById('health-dot').className = 'health-dot offline';
                 document.getElementById('health-text').textContent = 'offline';
             }
         }
@@ -866,14 +896,12 @@
                 const state = await response.json();
 
                 if (state.active) {
-                    // Pipeline is running - restore UI state
                     pipelineRunning = true;
                     const btn = document.getElementById('btn-pipeline');
-                    btn.textContent = '🛑 Stop';
-                    btn.className = 'btn btn-red';
+                    btn.innerHTML = '<i class="bi bi-stop-fill"></i> Stop';
+                    btn.className = 'btn btn-gradient-red text-white';
                     btn.disabled = false;
 
-                    // Show feedback
                     document.getElementById('pipeline-feedback').style.display = 'block';
                     const stage = state.stage || 1;
                     const current = state.current || 0;
@@ -882,11 +910,9 @@
                     const message = state.message || 'A processar...';
                     updateFeedback(stageName, message, current, total);
 
-                    // Update stage indicators
-                    document.getElementById('stage1-dot').style.background = stage >= 1 ? 'rgba(59,130,246,0.3)' : 'rgba(255,255,255,0.1)';
-                    document.getElementById('stage2-dot').style.background = stage >= 2 ? 'rgba(59,130,246,0.3)' : 'rgba(255,255,255,0.1)';
+                    document.getElementById('stage1-dot').className = `stage-dot ${stage >= 1 ? 'active' : 'inactive'}`;
+                    document.getElementById('stage2-dot').className = `stage-dot ${stage >= 2 ? 'active' : 'inactive'}`;
 
-                    // Start polling
                     startPolling();
                     console.log('🔄 Pipeline API em execução - estado restaurado');
                 }
@@ -901,9 +927,8 @@
             refreshStats(true);
             loadPipelinesStatus();
             checkHealth();
-            checkPipelineStateOnLoad();  // Check if pipeline is running
+            checkPipelineStateOnLoad();
 
-            // Auto refresh
             setInterval(() => refreshStats(true), 10000);
             setInterval(loadPipelinesStatus, 5000);
             setInterval(checkHealth, 30000);
