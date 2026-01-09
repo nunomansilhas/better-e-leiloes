@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E-Leiloes Backend - Admin Tools</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            min-height: 100vh;
+            padding: 24px;
+            color: #e2e8f0;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 32px;
+            padding: 24px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+        .header p { color: #94a3b8; font-size: 14px; }
+        .header .stats {
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            margin-top: 16px;
+            flex-wrap: wrap;
+        }
+        .header .stat {
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            font-size: 12px;
+        }
+        .header .stat strong { color: #60a5fa; }
+
+        /* Cards */
+        .card {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .card-header h3 { font-size: 16px; font-weight: 600; }
+        .card-header .icon { font-size: 20px; }
+
+        /* Grid */
+        .grid { display: grid; gap: 12px; }
+        .grid-5 { grid-template-columns: repeat(5, 1fr); }
+        .grid-3 { grid-template-columns: repeat(3, 1fr); }
+        .grid-2 { grid-template-columns: repeat(2, 1fr); }
+
+        @media (max-width: 768px) {
+            .grid-5, .grid-3 { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 12px 16px;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.2s;
+            text-align: center;
+        }
+        .btn:hover { transform: translateY(-2px); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        .btn-blue { background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; }
+        .btn-green { background: linear-gradient(135deg, #10b981, #059669); color: white; }
+        .btn-yellow { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; }
+        .btn-purple { background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white; }
+        .btn-gray { background: linear-gradient(135deg, #64748b, #475569); color: white; }
+        .btn-red { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; }
+
+        .btn-icon { font-size: 18px; display: block; margin-bottom: 4px; }
+
+        /* Pipeline Cards */
+        .pipeline-card {
+            padding: 14px;
+            border-radius: 12px;
+            border: 1px solid;
+        }
+        .pipeline-card.red { background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.3); }
+        .pipeline-card.blue { background: rgba(59,130,246,0.1); border-color: rgba(59,130,246,0.3); }
+        .pipeline-card.green { background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.3); }
+
+        .pipeline-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .pipeline-name { font-weight: 600; font-size: 13px; display: flex; align-items: center; gap: 6px; }
+        .pipeline-timer { font-size: 12px; font-weight: 600; margin-top: 4px; }
+        .pipeline-info { font-size: 11px; opacity: 0.8; }
+
+        /* Toggle Switch */
+        .toggle { position: relative; width: 40px; height: 22px; }
+        .toggle input { opacity: 0; width: 0; height: 0; }
+        .toggle .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(255,255,255,0.2);
+            border-radius: 22px;
+            transition: 0.3s;
+        }
+        .toggle .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px; width: 16px;
+            left: 3px; bottom: 3px;
+            background: white;
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+        .toggle input:checked + .slider { background: #10b981; }
+        .toggle input:checked + .slider:before { transform: translateX(18px); }
+
+        /* Console */
+        .console {
+            background: #0f172a;
+            border-radius: 12px;
+            padding: 16px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .console-line { padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .console-line.info { color: #60a5fa; }
+        .console-line.success { color: #34d399; }
+        .console-line.error { color: #f87171; }
+        .console-line.warning { color: #fbbf24; }
+        .console-time { color: #64748b; margin-right: 8px; }
+
+        /* Danger Zone */
+        .danger-zone {
+            border: 2px solid rgba(239,68,68,0.5);
+            background: rgba(239,68,68,0.05);
+        }
+
+        /* API Key Section */
+        .api-key-section {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-top: 12px;
+        }
+        .api-key-section input {
+            flex: 1;
+            padding: 10px 14px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.2);
+            background: rgba(255,255,255,0.05);
+            color: white;
+            font-size: 13px;
+            font-family: monospace;
+        }
+        .api-key-section input:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+
+        /* Progress */
+        .progress-bar {
+            height: 4px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 2px;
+            margin-top: 12px;
+            overflow: hidden;
+        }
+        .progress-bar .fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        /* Feedback Box */
+        .feedback-box {
+            display: none;
+            margin-top: 12px;
+            padding: 12px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .feedback-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .feedback-status { font-weight: 600; font-size: 13px; }
+        .feedback-count { font-size: 14px; font-weight: 700; color: #60a5fa; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>E-Leiloes Backend</h1>
+            <p>Ferramentas de Scraping, Sync e Administracao</p>
+            <div class="stats">
+                <div class="stat"><strong id="stat-total">-</strong> total</div>
+                <div class="stat"><strong id="stat-complete">-</strong> completos</div>
+                <div class="stat"><strong id="stat-incomplete">-</strong> incompletos</div>
+                <div class="stat"><strong id="stat-nulls">-</strong> nulls</div>
+            </div>
+        </div>
+
+        <!-- Scraper Tools -->
+        <div class="card">
+            <div class="card-header">
+                <span class="icon">🔧</span>
+                <h3>Scraper Tools</h3>
+            </div>
+            <div class="grid grid-5">
+                <button class="btn btn-blue" onclick="runScraper('ids')">
+                    <span class="btn-icon">🔍</span>
+                    Descobrir IDs
+                </button>
+                <button class="btn btn-green" onclick="runScraper('content')">
+                    <span class="btn-icon">📋</span>
+                    Completar Info
+                </button>
+                <button class="btn btn-yellow" onclick="runUpdatePrices()">
+                    <span class="btn-icon">💰</span>
+                    Atualizar Precos
+                </button>
+                <button class="btn btn-purple" onclick="runFixNulls()">
+                    <span class="btn-icon">🔧</span>
+                    Fix NULLs
+                </button>
+                <button class="btn btn-gray" onclick="toggleManualIds()">
+                    <span class="btn-icon">🎯</span>
+                    IDs Manual
+                </button>
+            </div>
+
+            <!-- Manual IDs Input -->
+            <div id="manual-ids-section" style="display: none; margin-top: 12px;">
+                <div class="api-key-section">
+                    <input type="text" id="manual-ids-input" placeholder="LO1234562024, NP9876542024...">
+                    <button class="btn btn-purple" onclick="runManualIds()">Executar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pipelines Automaticas -->
+        <div class="card">
+            <div class="card-header">
+                <span class="icon">⚡</span>
+                <h3>Pipelines Automaticas</h3>
+            </div>
+            <div class="grid grid-3">
+                <!-- X-Monitor -->
+                <div class="pipeline-card red">
+                    <div class="pipeline-header">
+                        <div class="pipeline-name">
+                            <span>🔴</span>
+                            <span>X-Monitor</span>
+                            <span id="x-monitor-count" style="font-size: 10px; padding: 2px 6px; background: #dc2626; color: white; border-radius: 8px;">0</span>
+                        </div>
+                        <label class="toggle">
+                            <input type="checkbox" id="toggle-xmonitor" onchange="togglePipeline('xmonitor', this.checked)">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="pipeline-info">
+                        <div>🔴 <span id="x-critical">0</span> &nbsp; 🟠 <span id="x-urgent">0</span> &nbsp; 🟡 <span id="x-soon">0</span></div>
+                        <div class="pipeline-timer" id="timer-xmonitor" style="color: #f87171;">--:--</div>
+                    </div>
+                </div>
+
+                <!-- Y-Sync -->
+                <div class="pipeline-card blue">
+                    <div class="pipeline-header">
+                        <div class="pipeline-name">
+                            <span>🔄</span>
+                            <span>Y-Sync</span>
+                        </div>
+                        <label class="toggle">
+                            <input type="checkbox" id="toggle-ysync" onchange="togglePipeline('ysync', this.checked)">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="pipeline-info">
+                        <div>Sync completo + Terminados</div>
+                        <div class="pipeline-timer" id="timer-ysync" style="color: #60a5fa;">--:--:--</div>
+                    </div>
+                </div>
+
+                <!-- Z-Watch -->
+                <div class="pipeline-card green">
+                    <div class="pipeline-header">
+                        <div class="pipeline-name">
+                            <span>👁️</span>
+                            <span>Z-Watch</span>
+                        </div>
+                        <label class="toggle">
+                            <input type="checkbox" id="toggle-zwatch" onchange="togglePipeline('zwatch', this.checked)">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="pipeline-info">
+                        <div>Novos eventos (10min)</div>
+                        <div class="pipeline-timer" id="timer-zwatch" style="color: #34d399;">--:--</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pipeline API -->
+        <div class="card">
+            <div class="card-header">
+                <span class="icon">🚀</span>
+                <h3>Pipeline API</h3>
+                <span style="margin-left: auto; font-size: 11px; padding: 4px 10px; background: linear-gradient(135deg, #10b981, #059669); border-radius: 8px;">RAPIDO</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 16px;">
+                <div style="flex: 1; display: flex; align-items: center; gap: 12px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div id="stage1-dot" style="width: 28px; height: 28px; border-radius: 50%; background: rgba(59,130,246,0.2); color: #60a5fa; display: flex; align-items: center; justify-content: center; font-weight: 700;">1</div>
+                        <span>IDs</span>
+                        <span id="stage1-count" style="font-size: 11px; color: #64748b;"></span>
+                    </div>
+                    <div id="pipeline-line" style="flex: 1; height: 2px; background: rgba(255,255,255,0.1);"></div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div id="stage2-dot" style="width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,0.1); color: #64748b; display: flex; align-items: center; justify-content: center; font-weight: 700;">2</div>
+                        <span>API</span>
+                        <span id="stage2-count" style="font-size: 11px; color: #64748b;"></span>
+                    </div>
+                </div>
+                <button class="btn btn-blue" id="btn-pipeline" onclick="runApiPipeline()">
+                    ▶ Executar
+                </button>
+            </div>
+
+            <!-- Feedback Box -->
+            <div class="feedback-box" id="pipeline-feedback">
+                <div class="feedback-header">
+                    <span class="feedback-status" id="feedback-status">A processar...</span>
+                    <span class="feedback-count" id="feedback-count">0 / 0</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="fill" id="feedback-progress"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Console -->
+        <div class="card">
+            <div class="card-header">
+                <span class="icon">📟</span>
+                <h3>Console</h3>
+                <button class="btn btn-gray" style="margin-left: auto; padding: 6px 12px;" onclick="clearConsole()">Limpar</button>
+            </div>
+            <div class="console" id="console">
+                <div class="console-line info">
+                    <span class="console-time">[--:--:--]</span>
+                    Sistema pronto...
+                </div>
+            </div>
+        </div>
+
+        <!-- API Key -->
+        <div class="card">
+            <div class="card-header">
+                <span class="icon">🔐</span>
+                <h3>Chave API</h3>
+            </div>
+            <p style="font-size: 12px; color: #94a3b8; margin-bottom: 12px;">
+                Necessaria para operacoes de escrita (scrapers, pipelines, etc.)
+            </p>
+            <div class="api-key-section">
+                <input type="password" id="api-key-input" placeholder="Insira a chave API...">
+                <button class="btn btn-gray" onclick="toggleKeyVisibility()">👁️</button>
+                <button class="btn btn-yellow" onclick="saveApiKey()">Guardar</button>
+            </div>
+            <div id="api-key-status" style="margin-top: 8px; font-size: 11px; color: #64748b;">
+                <span id="api-key-indicator" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #64748b; margin-right: 6px;"></span>
+                <span id="api-key-text">Chave nao configurada</span>
+            </div>
+        </div>
+
+        <!-- Danger Zone -->
+        <div class="card danger-zone">
+            <div class="card-header">
+                <span class="icon">⚠️</span>
+                <h3 style="color: #f87171;">Zona de Perigo</h3>
+            </div>
+            <div class="grid grid-2">
+                <button class="btn btn-red" onclick="confirmClearDatabase()">
+                    🗑️ Apagar Todos os Eventos
+                </button>
+                <button class="btn btn-red" onclick="confirmClearNotifications()">
+                    🔔 Apagar Todas as Notificacoes
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+        let pipelineRunning = false;
+        let pipelinePollingInterval = null;
+
+        // ============== AUTH ==============
+        const ApiAuth = {
+            key: localStorage.getItem('api_auth_key') || '',
+
+            async generateSignature(method, path, body = '') {
+                if (!this.key) return null;
+                const timestamp = Math.floor(Date.now() / 1000).toString();
+                const message = `${method}:${path}:${timestamp}:${body}`;
+                const encoder = new TextEncoder();
+                const keyData = encoder.encode(this.key);
+                const messageData = encoder.encode(message);
+                const cryptoKey = await crypto.subtle.importKey('raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+                const signature = await crypto.subtle.sign('HMAC', cryptoKey, messageData);
+                const signatureHex = Array.from(new Uint8Array(signature)).map(b => b.toString(16).padStart(2, '0')).join('');
+                return { signature: signatureHex, timestamp };
+            }
+        };
+
+        async function authFetch(url, options = {}) {
+            const method = options.method || 'GET';
+            const urlPath = new URL(url, window.location.origin).pathname;
+            const body = options.body || '';
+            const auth = await ApiAuth.generateSignature(method, urlPath, body);
+
+            const headers = { ...options.headers };
+            if (auth) {
+                headers['X-Signature'] = auth.signature;
+                headers['X-Timestamp'] = auth.timestamp;
+            }
+
+            const response = await fetch(url, { ...options, headers });
+            if (!response.ok) {
+                const data = await response.json().catch(() => ({}));
+                throw new Error(data.detail || `HTTP ${response.status}`);
+            }
+            return response;
+        }
+
+        // ============== CONSOLE ==============
+        function addLog(message, level = 'info') {
+            const console = document.getElementById('console');
+            const time = new Date().toLocaleTimeString('pt-PT');
+            const line = document.createElement('div');
+            line.className = `console-line ${level}`;
+            line.innerHTML = `<span class="console-time">[${time}]</span> ${message}`;
+            console.appendChild(line);
+            console.scrollTop = console.scrollHeight;
+        }
+
+        function clearConsole() {
+            document.getElementById('console').innerHTML = '';
+            addLog('Console limpo', 'info');
+        }
+
+        // ============== STATS ==============
+        async function refreshStats(silent = false) {
+            try {
+                const response = await fetch(`${API_BASE}/api/db/stats`);
+                const data = await response.json();
+                document.getElementById('stat-total').textContent = data.total || 0;
+                document.getElementById('stat-complete').textContent = data.with_content || 0;
+                document.getElementById('stat-incomplete').textContent = data.incomplete || 0;
+                document.getElementById('stat-nulls').textContent = data.null_lance_atual || 0;
+                if (!silent) addLog('Estatisticas atualizadas', 'info');
+            } catch (e) {
+                if (!silent) addLog(`Erro ao carregar stats: ${e.message}`, 'error');
+            }
+        }
+
+        // ============== SCRAPERS ==============
+        async function runScraper(type) {
+            try {
+                addLog(`▶ A executar scraper: ${type.toUpperCase()}`, 'info');
+
+                let url, message;
+                if (type === 'ids') {
+                    url = `${API_BASE}/api/scrape/stage1/ids`;
+                    message = 'A descobrir IDs...';
+                } else if (type === 'content') {
+                    const refs = await fetch(`${API_BASE}/api/events?limit=100000`);
+                    const data = await refs.json();
+                    const references = data.events.map(e => e.reference);
+                    if (references.length === 0) {
+                        addLog('Nenhum evento na BD', 'warning');
+                        return;
+                    }
+                    url = `${API_BASE}/api/scrape/stage2/details?save_to_db=true&` + references.map(r => `references=${encodeURIComponent(r)}`).join('&');
+                    message = `A completar info de ${references.length} eventos...`;
+                }
+
+                addLog(message, 'info');
+                startPolling();
+
+                const response = await authFetch(url, { method: 'POST' });
+                const result = await response.json();
+
+                addLog(`✅ ${type.toUpperCase()}: ${result.message || 'Concluido!'}`, 'success');
+                refreshStats();
+            } catch (e) {
+                addLog(`❌ Erro: ${e.message}`, 'error');
+            }
+        }
+
+        async function runUpdatePrices() {
+            if (!confirm('Atualizar precos de todos os eventos?')) return;
+            try {
+                addLog('💰 A atualizar precos...', 'info');
+                const response = await authFetch(`${API_BASE}/api/db/update-prices`, { method: 'POST' });
+                const data = await response.json();
+                addLog(`✅ ${data.message}`, 'success');
+                refreshStats();
+            } catch (e) {
+                addLog(`❌ Erro: ${e.message}`, 'error');
+            }
+        }
+
+        async function runFixNulls() {
+            if (!confirm('Corrigir valores NULL?')) return;
+            try {
+                addLog('🔧 A corrigir NULLs...', 'info');
+                const response = await authFetch(`${API_BASE}/api/db/fix-nulls`, { method: 'POST' });
+                const data = await response.json();
+                addLog(`✅ ${data.fixed} valores corrigidos`, 'success');
+                refreshStats();
+            } catch (e) {
+                addLog(`❌ Erro: ${e.message}`, 'error');
+            }
+        }
+
+        function toggleManualIds() {
+            const section = document.getElementById('manual-ids-section');
+            section.style.display = section.style.display === 'none' ? 'block' : 'none';
+        }
+
+        async function runManualIds() {
+            const input = document.getElementById('manual-ids-input').value;
+            const ids = input.split(/[,\s\n]+/).map(s => s.trim()).filter(s => s);
+            if (ids.length === 0) {
+                addLog('Insira pelo menos um ID', 'warning');
+                return;
+            }
+            addLog(`🎯 A processar ${ids.length} IDs...`, 'info');
+            // TODO: implement
+        }
+
+        // ============== PIPELINES ==============
+        async function togglePipeline(type, enabled) {
+            try {
+                const response = await authFetch(`${API_BASE}/api/auto-pipelines/${type}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled })
+                });
+                const data = await response.json();
+                addLog(`${enabled ? '▶' : '⏹'} ${type}: ${data.message}`, enabled ? 'success' : 'warning');
+            } catch (e) {
+                addLog(`❌ Erro: ${e.message}`, 'error');
+                document.getElementById(`toggle-${type}`).checked = !enabled;
+            }
+        }
+
+        async function loadPipelinesStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/api/auto-pipelines/status`);
+                const data = await response.json();
+
+                for (const [type, info] of Object.entries(data)) {
+                    const toggle = document.getElementById(`toggle-${type}`);
+                    if (toggle) toggle.checked = info.enabled;
+
+                    const timer = document.getElementById(`timer-${type}`);
+                    if (timer && info.next_run_in) {
+                        const secs = info.next_run_in;
+                        if (type === 'ysync') {
+                            const h = Math.floor(secs / 3600);
+                            const m = Math.floor((secs % 3600) / 60);
+                            const s = secs % 60;
+                            timer.textContent = `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+                        } else {
+                            const m = Math.floor(secs / 60);
+                            const s = secs % 60;
+                            timer.textContent = `${m}:${String(s).padStart(2,'0')}`;
+                        }
+                    }
+                }
+
+                // X-Monitor counts
+                if (data.xmonitor) {
+                    const counts = data.xmonitor.cached_events || { critical: 0, urgent: 0, soon: 0 };
+                    document.getElementById('x-critical').textContent = counts.critical || 0;
+                    document.getElementById('x-urgent').textContent = counts.urgent || 0;
+                    document.getElementById('x-soon').textContent = counts.soon || 0;
+                    document.getElementById('x-monitor-count').textContent = (counts.critical || 0) + (counts.urgent || 0) + (counts.soon || 0);
+                }
+            } catch (e) {
+                console.error('Error loading pipelines:', e);
+            }
+        }
+
+        // ============== API PIPELINE ==============
+        async function runApiPipeline() {
+            const btn = document.getElementById('btn-pipeline');
+
+            if (pipelineRunning) {
+                // Stop
+                try {
+                    await fetch(`${API_BASE}/api/pipeline/kill`, { method: 'POST' });
+                    addLog('🛑 Pipeline terminada', 'warning');
+                } catch (e) {
+                    addLog(`Erro ao parar: ${e.message}`, 'error');
+                }
+                pipelineRunning = false;
+                btn.textContent = '▶ Executar';
+                btn.className = 'btn btn-blue';
+                document.getElementById('pipeline-feedback').style.display = 'none';
+                stopPolling();
+                return;
+            }
+
+            try {
+                pipelineRunning = true;
+                btn.textContent = '🛑 Parar';
+                btn.className = 'btn btn-red';
+
+                addLog('🚀 Pipeline API iniciada...', 'info');
+                document.getElementById('pipeline-feedback').style.display = 'block';
+                updateFeedback('A iniciar...', 0, 0);
+
+                startPolling();
+
+                const response = await authFetch(`${API_BASE}/api/pipeline/api`, { method: 'POST' });
+                const data = await response.json();
+
+                addLog('✅ Pipeline concluida!', 'success');
+                refreshStats();
+            } catch (e) {
+                addLog(`❌ Erro: ${e.message}`, 'error');
+            } finally {
+                pipelineRunning = false;
+                btn.textContent = '▶ Executar';
+                btn.className = 'btn btn-blue';
+                stopPolling();
+            }
+        }
+
+        function updateFeedback(status, current, total) {
+            document.getElementById('feedback-status').textContent = status;
+            document.getElementById('feedback-count').textContent = `${current} / ${total}`;
+            document.getElementById('feedback-progress').style.width = total > 0 ? `${(current/total)*100}%` : '0%';
+        }
+
+        // ============== POLLING ==============
+        function startPolling() {
+            if (pipelinePollingInterval) return;
+            pipelinePollingInterval = setInterval(async () => {
+                try {
+                    const response = await fetch(`${API_BASE}/api/pipeline/status`);
+                    const state = await response.json();
+
+                    if (state.active) {
+                        const stage = state.current_stage || 1;
+                        const current = state.stage_current || 0;
+                        const total = state.stage_total || 0;
+                        const action = state.current_action || 'A processar...';
+
+                        updateFeedback(action, current, total);
+
+                        // Update stage dots
+                        document.getElementById('stage1-dot').style.background = stage >= 1 ? 'rgba(59,130,246,0.3)' : 'rgba(255,255,255,0.1)';
+                        document.getElementById('stage2-dot').style.background = stage >= 2 ? 'rgba(59,130,246,0.3)' : 'rgba(255,255,255,0.1)';
+                    } else if (pipelineRunning) {
+                        // Pipeline finished
+                        pipelineRunning = false;
+                        document.getElementById('btn-pipeline').textContent = '▶ Executar';
+                        document.getElementById('btn-pipeline').className = 'btn btn-blue';
+                        document.getElementById('pipeline-feedback').style.display = 'none';
+                        stopPolling();
+                    }
+                } catch (e) {}
+            }, 1000);
+        }
+
+        function stopPolling() {
+            if (pipelinePollingInterval) {
+                clearInterval(pipelinePollingInterval);
+                pipelinePollingInterval = null;
+            }
+        }
+
+        // ============== API KEY ==============
+        function saveApiKey() {
+            const key = document.getElementById('api-key-input').value;
+            if (key) {
+                localStorage.setItem('api_auth_key', key);
+                ApiAuth.key = key;
+                document.getElementById('api-key-indicator').style.background = '#10b981';
+                document.getElementById('api-key-text').textContent = 'Chave configurada';
+                addLog('🔐 Chave API guardada', 'success');
+            }
+        }
+
+        function toggleKeyVisibility() {
+            const input = document.getElementById('api-key-input');
+            input.type = input.type === 'password' ? 'text' : 'password';
+        }
+
+        function loadApiKeyStatus() {
+            const key = localStorage.getItem('api_auth_key');
+            if (key) {
+                ApiAuth.key = key;
+                document.getElementById('api-key-indicator').style.background = '#10b981';
+                document.getElementById('api-key-text').textContent = 'Chave configurada';
+            }
+        }
+
+        // ============== DANGER ZONE ==============
+        async function confirmClearDatabase() {
+            const confirmed = prompt('Escreva "APAGAR" para confirmar:');
+            if (confirmed !== 'APAGAR') return;
+
+            try {
+                addLog('🗑️ A apagar base de dados...', 'warning');
+                const response = await authFetch(`${API_BASE}/api/db/clear`, { method: 'DELETE' });
+                const data = await response.json();
+                addLog(`✅ ${data.deleted} eventos apagados`, 'success');
+                refreshStats();
+            } catch (e) {
+                addLog(`❌ Erro: ${e.message}`, 'error');
+            }
+        }
+
+        async function confirmClearNotifications() {
+            if (!confirm('Apagar todas as notificacoes?')) return;
+
+            try {
+                addLog('🔔 A apagar notificacoes...', 'warning');
+                const response = await authFetch(`${API_BASE}/api/notifications/all`, { method: 'DELETE' });
+                addLog('✅ Notificacoes apagadas', 'success');
+            } catch (e) {
+                addLog(`❌ Erro: ${e.message}`, 'error');
+            }
+        }
+
+        // ============== INIT ==============
+        document.addEventListener('DOMContentLoaded', () => {
+            addLog('🚀 Sistema iniciado', 'success');
+            loadApiKeyStatus();
+            refreshStats(true);
+            loadPipelinesStatus();
+
+            // Auto refresh
+            setInterval(() => refreshStats(true), 10000);
+            setInterval(loadPipelinesStatus, 5000);
+        });
+    </script>
+</body>
+</html>
