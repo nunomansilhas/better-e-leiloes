@@ -212,9 +212,19 @@
                     <span id="health-text">--</span>
                 </div>
                 <div class="stat"><strong id="stat-total">-</strong> total</div>
-                <div class="stat"><strong id="stat-complete">-</strong> completos</div>
-                <div class="stat"><strong id="stat-incomplete">-</strong> incompletos</div>
-                <div class="stat"><strong id="stat-nulls">-</strong> nulls</div>
+                <div class="stat" style="color: #34d399;"><strong id="stat-ativos">-</strong> ativos</div>
+                <div class="stat" style="color: #f87171;"><strong id="stat-inativos">-</strong> inativos</div>
+            </div>
+        </div>
+        <!-- Stats por Tipo -->
+        <div class="header" style="margin-top: -8px; padding: 8px 16px;">
+            <div class="stats" style="width: 100%; justify-content: space-around;">
+                <div class="stat">🏠 <strong id="stat-type-1">-</strong></div>
+                <div class="stat">🚗 <strong id="stat-type-2">-</strong></div>
+                <div class="stat">📦 <strong id="stat-type-3">-</strong></div>
+                <div class="stat">⚖️ <strong id="stat-type-4">-</strong></div>
+                <div class="stat">🏢 <strong id="stat-type-5">-</strong></div>
+                <div class="stat">📄 <strong id="stat-type-6">-</strong></div>
             </div>
         </div>
 
@@ -410,12 +420,17 @@
                 const response = await fetch(`${API_BASE}/api/db/stats`);
                 const data = await response.json();
                 document.getElementById('stat-total').textContent = data.total || 0;
-                document.getElementById('stat-complete').textContent = data.with_content || 0;
-                document.getElementById('stat-incomplete').textContent = data.incomplete || 0;
-                document.getElementById('stat-nulls').textContent = data.null_lance_atual || 0;
-                if (!silent) addLog('Estatisticas atualizadas', 'info');
+                document.getElementById('stat-ativos').textContent = data.ativos || 0;
+                document.getElementById('stat-inativos').textContent = data.inativos || 0;
+
+                // Stats por tipo
+                const byType = data.by_type || {};
+                for (let i = 1; i <= 6; i++) {
+                    const el = document.getElementById(`stat-type-${i}`);
+                    if (el) el.textContent = byType[i] || 0;
+                }
             } catch (e) {
-                if (!silent) addLog(`Erro ao carregar stats: ${e.message}`, 'error');
+                console.error('Error loading stats:', e);
             }
         }
 

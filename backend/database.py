@@ -833,6 +833,20 @@ class DatabaseManager:
         )
         cancelados = cancelados_result.scalar()
 
+        # Inativos (ativo = False)
+        inativos_result = await self.session.execute(
+            select(func.count(EventDB.reference))
+            .where(EventDB.ativo == False)
+        )
+        inativos = inativos_result.scalar()
+
+        # Ativos
+        ativos_result = await self.session.execute(
+            select(func.count(EventDB.reference))
+            .where(EventDB.ativo == True)
+        )
+        ativos = ativos_result.scalar()
+
         # Por tipo_id
         by_type_result = await self.session.execute(
             select(EventDB.tipo_id, func.count(EventDB.reference))
@@ -842,6 +856,8 @@ class DatabaseManager:
 
         return {
             "total": total,
+            "ativos": ativos,
+            "inativos": inativos,
             "with_content": with_content,
             "with_images": with_images,
             "cancelados": cancelados,
