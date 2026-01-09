@@ -165,13 +165,13 @@
             background: rgba(239,68,68,0.05);
         }
 
-        /* API Key Section - Compacto */
-        .api-key-section {
+        /* Manual IDs Input */
+        .manual-input {
             display: flex;
             gap: 6px;
             align-items: center;
         }
-        .api-key-section input {
+        .manual-input input {
             flex: 1;
             padding: 6px 10px;
             border-radius: 6px;
@@ -181,7 +181,7 @@
             font-size: 11px;
             font-family: monospace;
         }
-        .api-key-section input:focus {
+        .manual-input input:focus {
             outline: none;
             border-color: #3b82f6;
         }
@@ -267,7 +267,7 @@
 
             <!-- Manual IDs Input -->
             <div id="manual-ids-section" style="display: none; margin-top: 12px;">
-                <div class="api-key-section">
+                <div class="manual-input">
                     <input type="text" id="manual-ids-input" placeholder="LO1234562024, NP9876542024...">
                     <button class="btn btn-purple" onclick="runManualIds()">Executar</button>
                 </div>
@@ -363,13 +363,12 @@
             </div>
         </div>
 
-        <!-- Console + History (side by side) -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <!-- Console + Danger Zone -->
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px;">
             <!-- Console -->
             <div class="card">
                 <div class="card-header">
                     <h3>Console</h3>
-                    <span id="sse-status" style="margin-left: 8px; font-size: 10px; color: #64748b;">polling</span>
                     <button class="btn btn-gray" style="margin-left: auto; padding: 6px 12px;" onclick="clearConsole()">Limpar</button>
                 </div>
                 <div class="console" id="console">
@@ -380,34 +379,7 @@
                 </div>
             </div>
 
-            <!-- History -->
-            <div class="card">
-                <div class="card-header">
-                    <h3>Histórico</h3>
-                    <button class="btn btn-gray" style="margin-left: auto; padding: 6px 12px;" onclick="loadHistory()">🔄</button>
-                </div>
-                <div class="console" id="history">
-                    <div class="console-line info">
-                        <span class="console-time">[--:--:--]</span>
-                        A carregar histórico...
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- API Key + Danger Zone (inline) -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-            <div class="card">
-                <div class="card-header">
-                    <h3>API Key</h3>
-                    <span id="api-key-indicator" style="margin-left: auto; width: 8px; height: 8px; border-radius: 50%; background: #64748b;"></span>
-                </div>
-                <div class="api-key-section">
-                    <input type="password" id="api-key-input" placeholder="Chave API...">
-                    <button class="btn btn-gray" onclick="toggleKeyVisibility()">👁️</button>
-                    <button class="btn btn-yellow" onclick="saveApiKey()">Save</button>
-                </div>
-            </div>
+            <!-- Danger Zone -->
             <div class="card danger-zone">
                 <div class="card-header">
                     <span class="icon">⚠️</span>
@@ -597,7 +569,6 @@
 
                     const timer = document.getElementById(`timer-${type}`);
                     if (timer && info.next_run) {
-                        // Calculate seconds until next run
                         const nextRun = new Date(info.next_run);
                         const now = new Date();
                         const secs = Math.max(0, Math.floor((nextRun - now) / 1000));
@@ -615,7 +586,6 @@
                     }
                 }
 
-                // X-Monitor counts from xmonitor_stats
                 if (data.xmonitor_stats) {
                     const counts = data.xmonitor_stats;
                     document.getElementById('x-critical').textContent = counts.critical || 0;
@@ -633,7 +603,6 @@
             const btn = document.getElementById('btn-pipeline');
 
             if (pipelineRunning) {
-                // Stop
                 try {
                     await fetch(`${API_BASE}/api/pipeline/kill`, { method: 'POST' });
                     addLog('🛑 Pipeline terminada', 'warning');
@@ -641,7 +610,7 @@
                     addLog(`Erro ao parar: ${e.message}`, 'error');
                 }
                 pipelineRunning = false;
-                btn.textContent = '▶ Executar';
+                btn.textContent = '▶ Run';
                 btn.className = 'btn btn-blue';
                 document.getElementById('pipeline-feedback').style.display = 'none';
                 stopPolling();
@@ -650,7 +619,7 @@
 
             try {
                 pipelineRunning = true;
-                btn.textContent = '🛑 Parar';
+                btn.textContent = '🛑 Stop';
                 btn.className = 'btn btn-red';
 
                 addLog('🚀 Pipeline API iniciada...', 'info');
@@ -668,7 +637,7 @@
                 addLog(`❌ Erro: ${e.message}`, 'error');
             } finally {
                 pipelineRunning = false;
-                btn.textContent = '▶ Executar';
+                btn.textContent = '▶ Run';
                 btn.className = 'btn btn-blue';
                 stopPolling();
             }
@@ -696,13 +665,11 @@
 
                         updateFeedback(action, current, total);
 
-                        // Update stage dots
                         document.getElementById('stage1-dot').style.background = stage >= 1 ? 'rgba(59,130,246,0.3)' : 'rgba(255,255,255,0.1)';
                         document.getElementById('stage2-dot').style.background = stage >= 2 ? 'rgba(59,130,246,0.3)' : 'rgba(255,255,255,0.1)';
                     } else if (pipelineRunning) {
-                        // Pipeline finished
                         pipelineRunning = false;
-                        document.getElementById('btn-pipeline').textContent = '▶ Executar';
+                        document.getElementById('btn-pipeline').textContent = '▶ Run';
                         document.getElementById('btn-pipeline').className = 'btn btn-blue';
                         document.getElementById('pipeline-feedback').style.display = 'none';
                         stopPolling();
@@ -718,30 +685,6 @@
             }
         }
 
-        // ============== API KEY ==============
-        function saveApiKey() {
-            const key = document.getElementById('api-key-input').value;
-            if (key) {
-                localStorage.setItem('api_auth_key', key);
-                ApiAuth.key = key;
-                document.getElementById('api-key-indicator').style.background = '#10b981';
-                addLog('🔐 API Key saved', 'success');
-            }
-        }
-
-        function toggleKeyVisibility() {
-            const input = document.getElementById('api-key-input');
-            input.type = input.type === 'password' ? 'text' : 'password';
-        }
-
-        function loadApiKeyStatus() {
-            const key = localStorage.getItem('api_auth_key');
-            if (key) {
-                ApiAuth.key = key;
-                document.getElementById('api-key-indicator').style.background = '#10b981';
-            }
-        }
-
         // ============== DANGER ZONE ==============
         async function confirmClearDatabase() {
             const confirmed = prompt('Escreva "APAGAR" para confirmar:');
@@ -749,9 +692,9 @@
 
             try {
                 addLog('🗑️ A apagar base de dados...', 'warning');
-                const response = await authFetch(`${API_BASE}/api/db/clear`, { method: 'DELETE' });
+                const response = await authFetch(`${API_BASE}/api/database`, { method: 'DELETE' });
                 const data = await response.json();
-                addLog(`✅ ${data.deleted} eventos apagados`, 'success');
+                addLog(`✅ ${data.deleted_events} eventos apagados`, 'success');
                 refreshStats();
             } catch (e) {
                 addLog(`❌ Erro: ${e.message}`, 'error');
@@ -763,7 +706,7 @@
 
             try {
                 addLog('🔔 A apagar notificacoes...', 'warning');
-                const response = await authFetch(`${API_BASE}/api/notifications/all`, { method: 'DELETE' });
+                const response = await authFetch(`${API_BASE}/api/notifications/delete-all`, { method: 'DELETE' });
                 addLog('✅ Notificacoes apagadas', 'success');
             } catch (e) {
                 addLog(`❌ Erro: ${e.message}`, 'error');
@@ -811,91 +754,12 @@
             alert(msg);
         }
 
-        // ============== HISTORY ==============
-        async function loadHistory() {
-            try {
-                const response = await fetch(`${API_BASE}/api/pipeline-history?limit=20`);
-                const data = await response.json();
-                const history = data.history || [];
-
-                const container = document.getElementById('history');
-                container.innerHTML = '';
-
-                if (history.length === 0) {
-                    container.innerHTML = '<div class="console-line info"><span class="console-time">[--:--:--]</span> Sem histórico</div>';
-                    return;
-                }
-
-                for (const item of history) {
-                    const time = new Date(item.timestamp).toLocaleTimeString('pt-PT');
-                    const level = item.status === 'completed' ? 'success' : item.status === 'error' ? 'error' : 'info';
-                    const icon = item.status === 'completed' ? '✅' : item.status === 'error' ? '❌' : '▶';
-
-                    let details = '';
-                    if (item.details) {
-                        if (item.details.ids) details += ` ${item.details.ids} IDs`;
-                        if (item.details.events) details += ` ${item.details.events} eventos`;
-                        if (item.details.duration_seconds) details += ` (${item.details.duration_seconds}s)`;
-                        if (item.details.error) details += ` ${item.details.error.substring(0, 50)}...`;
-                    }
-
-                    const line = document.createElement('div');
-                    line.className = `console-line ${level}`;
-                    line.innerHTML = `<span class="console-time">[${time}]</span> ${icon} ${item.pipeline}${details}`;
-                    container.appendChild(line);
-                }
-            } catch (e) {
-                console.error('Error loading history:', e);
-            }
-        }
-
-        // ============== SSE LOGS ==============
-        let logEventSource = null;
-
-        function connectSSELogs() {
-            if (logEventSource) {
-                logEventSource.close();
-            }
-
-            try {
-                logEventSource = new EventSource(`${API_BASE}/api/logs/stream`);
-
-                logEventSource.onopen = () => {
-                    document.getElementById('sse-status').textContent = '🟢 live';
-                    document.getElementById('sse-status').style.color = '#10b981';
-                };
-
-                logEventSource.onmessage = (event) => {
-                    try {
-                        const data = JSON.parse(event.data);
-                        if (data.type === 'log') {
-                            addLog(data.message, data.level);
-                        }
-                    } catch (e) {}
-                };
-
-                logEventSource.onerror = () => {
-                    document.getElementById('sse-status').textContent = 'polling';
-                    document.getElementById('sse-status').style.color = '#64748b';
-                    logEventSource.close();
-                    logEventSource = null;
-                    // Fallback to polling
-                    setTimeout(connectSSELogs, 5000);
-                };
-            } catch (e) {
-                console.error('SSE not supported, using polling');
-            }
-        }
-
         // ============== INIT ==============
         document.addEventListener('DOMContentLoaded', () => {
-            addLog('🚀 Sistema iniciado', 'success');
-            loadApiKeyStatus();
+            addLog('Sistema iniciado', 'success');
             refreshStats(true);
             loadPipelinesStatus();
             checkHealth();
-            loadHistory();
-            connectSSELogs();
 
             // Auto refresh
             setInterval(() => refreshStats(true), 10000);
