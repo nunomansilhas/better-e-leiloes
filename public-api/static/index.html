@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="pt" data-bs-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E-Leiloes Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #f8fafc;
+            min-height: 100vh;
+        }
+
+        /* Navbar */
+        .navbar-brand {
+            font-weight: 700;
+            font-size: 1.25rem;
+        }
+
+        .navbar-brand i {
+            color: #6366f1;
+        }
+
+        /* Stats Cards */
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.25rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            border: 1px solid #e2e8f0;
+            transition: all 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+        }
+
+        .stat-icon.blue { background: #dbeafe; color: #2563eb; }
+        .stat-icon.green { background: #dcfce7; color: #16a34a; }
+        .stat-icon.orange { background: #ffedd5; color: #ea580c; }
+        .stat-icon.purple { background: #f3e8ff; color: #9333ea; }
+        .stat-icon.cyan { background: #cffafe; color: #0891b2; }
+        .stat-icon.red { background: #fee2e2; color: #dc2626; }
+
+        .stat-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #0f172a;
+            line-height: 1.2;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Cards */
+        .dashboard-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            border: 1px solid #e2e8f0;
+        }
+
+        .card-header-custom {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .card-header-custom h5 {
+            margin: 0;
+            font-weight: 600;
+            font-size: 1rem;
+            color: #1e293b;
+        }
+
+        /* Event rows */
+        .event-row {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #f1f5f9;
+            transition: background 0.15s;
+            cursor: pointer;
+            gap: 0.75rem;
+        }
+
+        .event-row:hover {
+            background: #f8fafc;
+        }
+
+        .event-row:last-child {
+            border-bottom: none;
+        }
+
+        .event-image {
+            width: 64px;
+            height: 48px;
+            border-radius: 6px;
+            object-fit: cover;
+            background: #f1f5f9;
+            flex-shrink: 0;
+        }
+
+        .event-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .event-title {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #1e293b;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .event-meta {
+            font-size: 0.75rem;
+            color: #64748b;
+        }
+
+        .event-price {
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        .event-price-value {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #16a34a;
+        }
+
+        .event-price-base {
+            font-size: 0.7rem;
+            color: #94a3b8;
+        }
+
+        /* Timer badges */
+        .timer-badge {
+            font-size: 0.7rem;
+            font-weight: 600;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            white-space: nowrap;
+        }
+
+        .timer-urgent {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .timer-warning {
+            background: #ffedd5;
+            color: #ea580c;
+        }
+
+        .timer-normal {
+            background: #fef9c3;
+            color: #ca8a04;
+        }
+
+        /* Type badges */
+        .type-badge {
+            font-size: 0.65rem;
+            font-weight: 500;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .type-1 { background: #dbeafe; color: #1d4ed8; }
+        .type-2 { background: #dcfce7; color: #15803d; }
+        .type-3 { background: #fef3c7; color: #b45309; }
+        .type-4 { background: #fce7f3; color: #be185d; }
+        .type-5 { background: #e0e7ff; color: #4338ca; }
+        .type-6 { background: #f3e8ff; color: #7c3aed; }
+
+        /* Filters */
+        .filter-bar {
+            background: white;
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            border: 1px solid #e2e8f0;
+        }
+
+        .filter-bar .form-select,
+        .filter-bar .form-control {
+            font-size: 0.8rem;
+            border-radius: 6px;
+        }
+
+        /* Modal */
+        .modal-header-custom {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 0.5rem 0.5rem 0 0;
+        }
+
+        .modal-header-custom .btn-close {
+            filter: invert(1);
+        }
+
+        .detail-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #64748b;
+            margin-bottom: 0.25rem;
+        }
+
+        .detail-value {
+            font-size: 0.9rem;
+            color: #1e293b;
+            font-weight: 500;
+        }
+
+        /* Price chart */
+        .price-chart-container {
+            background: #fafbfc;
+            border-radius: 8px;
+            padding: 1rem;
+        }
+
+        /* Loading spinner */
+        .spinner-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(255,255,255,0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+
+        /* Dark mode adjustments */
+        [data-bs-theme="dark"] body {
+            background: #0f172a;
+        }
+
+        [data-bs-theme="dark"] .stat-card,
+        [data-bs-theme="dark"] .dashboard-card,
+        [data-bs-theme="dark"] .filter-bar {
+            background: #1e293b;
+            border-color: #334155;
+        }
+
+        [data-bs-theme="dark"] .event-row:hover {
+            background: #334155;
+        }
+
+        [data-bs-theme="dark"] .card-header-custom {
+            border-color: #334155;
+        }
+
+        [data-bs-theme="dark"] .stat-value,
+        [data-bs-theme="dark"] .event-title,
+        [data-bs-theme="dark"] .detail-value {
+            color: #f1f5f9;
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: #94a3b8;
+        }
+
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .stat-card {
+                padding: 1rem;
+            }
+            .stat-value {
+                font-size: 1.5rem;
+            }
+            .event-image {
+                width: 48px;
+                height: 36px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg bg-body-tertiary border-bottom sticky-top">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="bi bi-hammer"></i> E-Leiloes
+            </a>
+            <div class="d-flex align-items-center gap-3">
+                <div class="input-group" style="width: 280px;">
+                    <span class="input-group-text bg-transparent border-end-0">
+                        <i class="bi bi-search text-muted"></i>
+                    </span>
+                    <input type="text" class="form-control border-start-0" id="globalSearch" placeholder="Pesquisar...">
+                </div>
+                <button class="btn btn-outline-secondary btn-sm" id="themeToggle" title="Alternar tema">
+                    <i class="bi bi-moon-fill"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="container py-4">
+        <!-- Stats Row -->
+        <div class="row g-3 mb-4" id="statsRow">
+            <div class="col-6 col-md-4 col-lg-2">
+                <div class="stat-card">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="stat-icon blue">
+                            <i class="bi bi-grid-3x3-gap"></i>
+                        </div>
+                        <div>
+                            <div class="stat-value" id="statTotal">--</div>
+                            <div class="stat-label">Total</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-4 col-lg-2">
+                <div class="stat-card">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="stat-icon green">
+                            <i class="bi bi-check-circle"></i>
+                        </div>
+                        <div>
+                            <div class="stat-value" id="statActive">--</div>
+                            <div class="stat-label">Ativos</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-4 col-lg-2">
+                <div class="stat-card">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="stat-icon orange">
+                            <i class="bi bi-clock-history"></i>
+                        </div>
+                        <div>
+                            <div class="stat-value" id="statEndingSoon">--</div>
+                            <div class="stat-label">A Terminar</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-4 col-lg-2">
+                <div class="stat-card">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="stat-icon purple">
+                            <i class="bi bi-building"></i>
+                        </div>
+                        <div>
+                            <div class="stat-value" id="statImoveis">--</div>
+                            <div class="stat-label">Imoveis</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-4 col-lg-2">
+                <div class="stat-card">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="stat-icon cyan">
+                            <i class="bi bi-car-front"></i>
+                        </div>
+                        <div>
+                            <div class="stat-value" id="statVeiculos">--</div>
+                            <div class="stat-label">Veiculos</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-4 col-lg-2">
+                <div class="stat-card">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="stat-icon red">
+                            <i class="bi bi-box-seam"></i>
+                        </div>
+                        <div>
+                            <div class="stat-value" id="statOutros">--</div>
+                            <div class="stat-label">Outros</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Grid -->
+        <div class="row g-4">
+            <!-- Left Column - Events List -->
+            <div class="col-lg-8">
+                <!-- Filters -->
+                <div class="filter-bar">
+                    <div class="row g-2 align-items-center">
+                        <div class="col-6 col-md-3">
+                            <select class="form-select form-select-sm" id="filterTipo">
+                                <option value="">Todos os Tipos</option>
+                                <option value="1">Imoveis</option>
+                                <option value="2">Veiculos</option>
+                                <option value="3">Equipamentos</option>
+                                <option value="4">Mobiliario</option>
+                                <option value="5">Maquinas</option>
+                                <option value="6">Direitos</option>
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <select class="form-select form-select-sm" id="filterDistrito">
+                                <option value="">Todos os Distritos</option>
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <select class="form-select form-select-sm" id="filterOrder">
+                                <option value="data_fim">A Terminar</option>
+                                <option value="lance_atual">Maior Lance</option>
+                                <option value="valor_base">Valor Base</option>
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <button class="btn btn-outline-primary btn-sm w-100" id="btnRefresh">
+                                <i class="bi bi-arrow-clockwise"></i> Atualizar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Events List -->
+                <div class="dashboard-card">
+                    <div class="card-header-custom">
+                        <h5><i class="bi bi-list-ul me-2"></i>Eventos Ativos</h5>
+                        <span class="badge bg-primary" id="eventsCount">0</span>
+                    </div>
+                    <div id="eventsList" style="max-height: 600px; overflow-y: auto; position: relative;">
+                        <div class="spinner-overlay">
+                            <div class="spinner-border text-primary" role="status"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column - Widgets -->
+            <div class="col-lg-4">
+                <!-- Ending Soon Widget -->
+                <div class="dashboard-card mb-4">
+                    <div class="card-header-custom">
+                        <h5><i class="bi bi-alarm text-danger me-2"></i>A Terminar</h5>
+                        <span class="badge bg-danger" id="endingSoonCount">0</span>
+                    </div>
+                    <div id="endingSoonList" style="max-height: 350px; overflow-y: auto;">
+                        <div class="empty-state">
+                            <i class="bi bi-clock"></i>
+                            <p>A carregar...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- District Stats -->
+                <div class="dashboard-card">
+                    <div class="card-header-custom">
+                        <h5><i class="bi bi-geo-alt me-2"></i>Por Distrito</h5>
+                    </div>
+                    <div id="distritoStats" style="max-height: 300px; overflow-y: auto; padding: 0.75rem;">
+                        <div class="empty-state">
+                            <i class="bi bi-map"></i>
+                            <p>A carregar...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Event Detail Modal -->
+    <div class="modal fade" id="eventModal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header modal-header-custom">
+                    <h5 class="modal-title" id="eventModalTitle">Detalhes do Evento</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="eventModalBody">
+                    <div class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <a href="#" class="btn btn-primary" id="eventModalLink" target="_blank">
+                        <i class="bi bi-box-arrow-up-right me-1"></i>Ver no e-leiloes.pt
+                    </a>
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // ============ Configuration ============
+        const API_BASE = window.location.origin;
+        const TYPE_NAMES = {1: 'Imoveis', 2: 'Veiculos', 3: 'Equipamentos', 4: 'Mobiliario', 5: 'Maquinas', 6: 'Direitos'};
+        const TYPE_ICONS = {1: 'building', 2: 'car-front', 3: 'tools', 4: 'lamp', 5: 'gear', 6: 'file-text'};
+
+        let allEvents = [];
+        let endingSoonEvents = [];
+        let countdownInterval = null;
+
+        // ============ API Functions ============
+        async function fetchStats() {
+            try {
+                const res = await fetch(`${API_BASE}/api/stats`);
+                const data = await res.json();
+
+                document.getElementById('statTotal').textContent = data.total.toLocaleString();
+                document.getElementById('statActive').textContent = data.active.toLocaleString();
+                document.getElementById('statEndingSoon').textContent = data.ending_soon.toLocaleString();
+
+                const imoveis = data.by_type['1'] || 0;
+                const veiculos = data.by_type['2'] || 0;
+                const outros = data.active - imoveis - veiculos;
+
+                document.getElementById('statImoveis').textContent = imoveis.toLocaleString();
+                document.getElementById('statVeiculos').textContent = veiculos.toLocaleString();
+                document.getElementById('statOutros').textContent = outros.toLocaleString();
+            } catch (e) {
+                console.error('Error loading stats:', e);
+            }
+        }
+
+        async function fetchDistritos() {
+            try {
+                const res = await fetch(`${API_BASE}/api/distritos`);
+                const data = await res.json();
+
+                const select = document.getElementById('filterDistrito');
+                select.innerHTML = '<option value="">Todos os Distritos</option>' +
+                    data.map(d => `<option value="${d.distrito}">${d.distrito} (${d.count})</option>`).join('');
+
+                // Render distrito stats
+                const container = document.getElementById('distritoStats');
+                if (data.length === 0) {
+                    container.innerHTML = '<div class="empty-state"><i class="bi bi-map"></i><p>Sem dados</p></div>';
+                    return;
+                }
+
+                const maxCount = Math.max(...data.map(d => d.count));
+                container.innerHTML = data.slice(0, 10).map(d => {
+                    const pct = (d.count / maxCount * 100).toFixed(0);
+                    return `
+                        <div class="d-flex align-items-center mb-2" style="cursor: pointer;" onclick="filterByDistrito('${d.distrito}')">
+                            <span class="me-2" style="width: 100px; font-size: 0.8rem; color: #64748b;">${d.distrito}</span>
+                            <div class="flex-grow-1">
+                                <div class="progress" style="height: 8px;">
+                                    <div class="progress-bar bg-primary" style="width: ${pct}%"></div>
+                                </div>
+                            </div>
+                            <span class="ms-2" style="width: 35px; text-align: right; font-size: 0.75rem; font-weight: 600;">${d.count}</span>
+                        </div>
+                    `;
+                }).join('');
+            } catch (e) {
+                console.error('Error loading distritos:', e);
+            }
+        }
+
+        async function fetchEvents() {
+            const container = document.getElementById('eventsList');
+            container.innerHTML = '<div class="spinner-overlay"><div class="spinner-border text-primary" role="status"></div></div>';
+
+            try {
+                const tipo = document.getElementById('filterTipo').value;
+                const distrito = document.getElementById('filterDistrito').value;
+                const order = document.getElementById('filterOrder').value;
+                const search = document.getElementById('globalSearch').value;
+
+                let url = `${API_BASE}/api/events?limit=200&order_by=${order}`;
+                if (tipo) url += `&tipo_id=${tipo}`;
+                if (distrito) url += `&distrito=${encodeURIComponent(distrito)}`;
+                if (search) url += `&search=${encodeURIComponent(search)}`;
+
+                const res = await fetch(url);
+                allEvents = await res.json();
+
+                document.getElementById('eventsCount').textContent = allEvents.length;
+                renderEvents();
+            } catch (e) {
+                console.error('Error loading events:', e);
+                container.innerHTML = '<div class="empty-state"><i class="bi bi-exclamation-triangle"></i><p>Erro ao carregar eventos</p></div>';
+            }
+        }
+
+        async function fetchEndingSoon() {
+            try {
+                const res = await fetch(`${API_BASE}/api/ending-soon?hours=24&limit=50`);
+                endingSoonEvents = await res.json();
+
+                document.getElementById('endingSoonCount').textContent = endingSoonEvents.length;
+                renderEndingSoon();
+
+                // Start countdown timer
+                if (countdownInterval) clearInterval(countdownInterval);
+                countdownInterval = setInterval(updateCountdowns, 1000);
+            } catch (e) {
+                console.error('Error loading ending soon:', e);
+            }
+        }
+
+        async function fetchEventDetail(reference) {
+            const body = document.getElementById('eventModalBody');
+            body.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary" role="status"></div></div>';
+
+            document.getElementById('eventModalLink').href = `https://www.e-leiloes.pt/evento/${reference}`;
+
+            try {
+                const res = await fetch(`${API_BASE}/api/events/${reference}`);
+                const event = await res.json();
+
+                document.getElementById('eventModalTitle').textContent = event.titulo || reference;
+
+                const fotos = event.fotos || [];
+                const mainPhoto = fotos[0] || event.capa || '';
+
+                body.innerHTML = `
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            ${mainPhoto ? `<img src="${mainPhoto}" class="img-fluid rounded mb-3" alt="Foto">` : ''}
+                            ${fotos.length > 1 ? `
+                                <div class="d-flex gap-2 flex-wrap">
+                                    ${fotos.slice(1, 5).map(f => `<img src="${f}" class="rounded" style="width: 60px; height: 45px; object-fit: cover; cursor: pointer;" onclick="this.closest('.row').querySelector('.img-fluid').src='${f}'">`).join('')}
+                                </div>
+                            ` : ''}
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <div class="detail-label">Referencia</div>
+                                <div class="detail-value">${reference}</div>
+                            </div>
+                            <div class="mb-3">
+                                <div class="detail-label">Tipo</div>
+                                <div class="detail-value">${event.tipo || '-'} / ${event.subtipo || '-'}</div>
+                            </div>
+                            <div class="row g-3 mb-3">
+                                <div class="col-6">
+                                    <div class="detail-label">Valor Base</div>
+                                    <div class="detail-value">${formatCurrency(event.valor_base)}</div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="detail-label">Valor Minimo</div>
+                                    <div class="detail-value">${formatCurrency(event.valor_minimo)}</div>
+                                </div>
+                            </div>
+                            <div class="mb-3 p-3 bg-success bg-opacity-10 rounded">
+                                <div class="detail-label text-success">Lance Atual</div>
+                                <div class="detail-value text-success fs-4">${formatCurrency(event.lance_atual)}</div>
+                            </div>
+                            <div class="mb-3">
+                                <div class="detail-label">Termina em</div>
+                                <div class="detail-value">${event.data_fim ? new Date(event.data_fim).toLocaleString('pt-PT') : '-'}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="detail-label">Localizacao</div>
+                            <div class="detail-value">${[event.freguesia, event.concelho, event.distrito].filter(Boolean).join(', ') || '-'}</div>
+                        </div>
+                        ${event.area_total ? `
+                        <div class="col-md-6">
+                            <div class="detail-label">Area Total</div>
+                            <div class="detail-value">${event.area_total.toLocaleString()} m2</div>
+                        </div>
+                        ` : ''}
+                    </div>
+                    ${event.descricao ? `
+                    <hr>
+                    <div class="detail-label">Descricao</div>
+                    <div class="detail-value" style="white-space: pre-wrap; font-size: 0.85rem;">${event.descricao}</div>
+                    ` : ''}
+                `;
+            } catch (e) {
+                body.innerHTML = '<div class="empty-state"><i class="bi bi-exclamation-triangle"></i><p>Erro ao carregar detalhes</p></div>';
+            }
+        }
+
+        // ============ Render Functions ============
+        function renderEvents() {
+            const container = document.getElementById('eventsList');
+
+            if (allEvents.length === 0) {
+                container.innerHTML = '<div class="empty-state"><i class="bi bi-inbox"></i><p>Nenhum evento encontrado</p></div>';
+                return;
+            }
+
+            container.innerHTML = allEvents.map(event => {
+                const timer = getTimerInfo(event.data_fim);
+                return `
+                    <div class="event-row" onclick="openEventModal('${event.reference}')">
+                        <img src="${event.capa || 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2264%22 height=%2248%22><rect fill=%22%23e2e8f0%22 width=%22100%25%22 height=%22100%25%22/></svg>'}" class="event-image" alt="">
+                        <div class="event-info">
+                            <div class="event-title">${event.titulo || event.reference}</div>
+                            <div class="event-meta">
+                                <span class="type-badge type-${event.tipo_id || 0} me-1">${TYPE_NAMES[event.tipo_id] || 'Outro'}</span>
+                                ${event.distrito || ''}
+                            </div>
+                        </div>
+                        <div class="timer-badge ${timer.class}" data-end="${event.data_fim}">${timer.text}</div>
+                        <div class="event-price">
+                            <div class="event-price-value">${formatCurrency(event.lance_atual)}</div>
+                            <div class="event-price-base">Base: ${formatCurrency(event.valor_base)}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderEndingSoon() {
+            const container = document.getElementById('endingSoonList');
+
+            if (endingSoonEvents.length === 0) {
+                container.innerHTML = '<div class="empty-state"><i class="bi bi-clock"></i><p>Nenhum evento a terminar nas proximas 24h</p></div>';
+                return;
+            }
+
+            container.innerHTML = endingSoonEvents.map(event => {
+                const timer = getTimerInfo(event.data_fim);
+                return `
+                    <div class="event-row" onclick="openEventModal('${event.reference}')" style="padding: 0.5rem 0.75rem;">
+                        <div class="timer-badge ${timer.class}" data-end="${event.data_fim}" style="min-width: 65px;">${timer.text}</div>
+                        <div class="event-info">
+                            <div class="event-title" style="font-size: 0.8rem;">${event.titulo || event.reference}</div>
+                            <div class="event-meta">${event.distrito || '-'}</div>
+                        </div>
+                        <div class="event-price-value" style="font-size: 0.8rem;">${formatCurrency(event.lance_atual)}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // ============ Utility Functions ============
+        function formatCurrency(value) {
+            if (!value && value !== 0) return '-';
+            return new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(value);
+        }
+
+        function getTimerInfo(endDate) {
+            if (!endDate) return { text: '--:--', class: 'timer-normal' };
+
+            const now = new Date();
+            const end = new Date(endDate);
+            const diff = end - now;
+
+            if (diff <= 0) return { text: 'Terminado', class: 'timer-urgent' };
+
+            const hours = Math.floor(diff / (1000 * 60 * 60));
+            const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const secs = Math.floor((diff % (1000 * 60)) / 1000);
+
+            let text, timerClass;
+            if (hours >= 24) {
+                const days = Math.floor(hours / 24);
+                text = `${days}d ${hours % 24}h`;
+                timerClass = 'timer-normal';
+            } else if (hours > 0) {
+                text = `${hours}h ${mins}m`;
+                timerClass = hours < 6 ? 'timer-warning' : 'timer-normal';
+            } else {
+                text = `${mins}:${secs.toString().padStart(2, '0')}`;
+                timerClass = mins < 30 ? 'timer-urgent' : 'timer-warning';
+            }
+
+            return { text, class: timerClass };
+        }
+
+        function updateCountdowns() {
+            document.querySelectorAll('[data-end]').forEach(el => {
+                const timer = getTimerInfo(el.dataset.end);
+                el.textContent = timer.text;
+                el.className = `timer-badge ${timer.class}`;
+            });
+        }
+
+        function openEventModal(reference) {
+            const modal = new bootstrap.Modal(document.getElementById('eventModal'));
+            modal.show();
+            fetchEventDetail(reference);
+        }
+
+        function filterByDistrito(distrito) {
+            document.getElementById('filterDistrito').value = distrito;
+            fetchEvents();
+        }
+
+        // ============ Theme Toggle ============
+        function toggleTheme() {
+            const html = document.documentElement;
+            const current = html.getAttribute('data-bs-theme');
+            const newTheme = current === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-bs-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+
+            const icon = document.querySelector('#themeToggle i');
+            icon.className = newTheme === 'dark' ? 'bi bi-sun-fill' : 'bi bi-moon-fill';
+        }
+
+        // ============ Initialization ============
+        document.addEventListener('DOMContentLoaded', () => {
+            // Load saved theme
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-bs-theme', savedTheme);
+            if (savedTheme === 'dark') {
+                document.querySelector('#themeToggle i').className = 'bi bi-sun-fill';
+            }
+
+            // Event listeners
+            document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+            document.getElementById('filterTipo').addEventListener('change', fetchEvents);
+            document.getElementById('filterDistrito').addEventListener('change', fetchEvents);
+            document.getElementById('filterOrder').addEventListener('change', fetchEvents);
+            document.getElementById('btnRefresh').addEventListener('click', () => {
+                fetchStats();
+                fetchEvents();
+                fetchEndingSoon();
+            });
+
+            let searchTimeout;
+            document.getElementById('globalSearch').addEventListener('input', (e) => {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(fetchEvents, 300);
+            });
+
+            // Initial load
+            fetchStats();
+            fetchDistritos();
+            fetchEvents();
+            fetchEndingSoon();
+
+            // Auto refresh every 60 seconds
+            setInterval(() => {
+                fetchStats();
+                fetchEndingSoon();
+            }, 60000);
+        });
+    </script>
+</body>
+</html>
