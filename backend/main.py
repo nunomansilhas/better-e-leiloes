@@ -2380,9 +2380,8 @@ async def run_api_pipeline(tipo: Optional[int], max_pages: Optional[int]):
             )
             success_count = inserted + updated
 
-        # Update cache
-        for event in events:
-            await cache_manager.set(event.reference, event)
+        # Cache será populado on-demand quando os eventos forem acedidos
+        # (evita bloquear a pipeline com 3000+ operações sequenciais)
 
         add_dashboard_log(f"💾 BD: {inserted} novos + {updated} atualizados", "info")
 
