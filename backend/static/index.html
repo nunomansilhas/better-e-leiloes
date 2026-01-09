@@ -597,14 +597,19 @@
             try {
                 const response = await fetch(`${API_BASE}/api/auto-pipelines/status`);
                 const data = await response.json();
+                const pipelines = data.pipelines || {};
 
-                for (const [type, info] of Object.entries(data)) {
+                for (const [type, info] of Object.entries(pipelines)) {
                     const toggle = document.getElementById(`toggle-${type}`);
                     if (toggle) toggle.checked = info.enabled;
 
                     const timer = document.getElementById(`timer-${type}`);
-                    if (timer && info.next_run_in) {
-                        const secs = info.next_run_in;
+                    if (timer && info.next_run) {
+                        // Calculate seconds until next run
+                        const nextRun = new Date(info.next_run);
+                        const now = new Date();
+                        const secs = Math.max(0, Math.floor((nextRun - now) / 1000));
+
                         if (type === 'ysync') {
                             const h = Math.floor(secs / 3600);
                             const m = Math.floor((secs % 3600) / 60);
@@ -618,13 +623,13 @@
                     }
                 }
 
-                // X-Monitor counts
-                if (data.xmonitor) {
-                    const counts = data.xmonitor.cached_events || { critical: 0, urgent: 0, soon: 0 };
+                // X-Monitor counts from xmonitor_stats
+                if (data.xmonitor_stats) {
+                    const counts = data.xmonitor_stats;
                     document.getElementById('x-critical').textContent = counts.critical || 0;
                     document.getElementById('x-urgent').textContent = counts.urgent || 0;
                     document.getElementById('x-soon').textContent = counts.soon || 0;
-                    document.getElementById('x-monitor-count').textContent = (counts.critical || 0) + (counts.urgent || 0) + (counts.soon || 0);
+                    document.getElementById('x-monitor-count').textContent = counts.total || 0;
                 }
             } catch (e) {
                 console.error('Error loading pipelines:', e);
