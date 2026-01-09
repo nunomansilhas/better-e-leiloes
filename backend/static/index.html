@@ -141,24 +141,6 @@
         .toggle input:checked + .slider { background: #10b981; }
         .toggle input:checked + .slider:before { transform: translateX(14px); }
 
-        /* Console - Compacto */
-        .console {
-            background: #0f172a;
-            border-radius: 6px;
-            padding: 8px;
-            max-height: 150px;
-            overflow-y: auto;
-            font-family: 'Monaco', 'Consolas', monospace;
-            font-size: 10px;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        .console-line { padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
-        .console-line.info { color: #60a5fa; }
-        .console-line.success { color: #34d399; }
-        .console-line.error { color: #f87171; }
-        .console-line.warning { color: #fbbf24; }
-        .console-time { color: #64748b; margin-right: 6px; }
-
         /* Danger Zone */
         .danger-zone {
             border: 1px solid rgba(239,68,68,0.5);
@@ -363,32 +345,15 @@
             </div>
         </div>
 
-        <!-- Console + Danger Zone -->
-        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px;">
-            <!-- Console -->
-            <div class="card">
-                <div class="card-header">
-                    <h3>Console</h3>
-                    <button class="btn btn-gray" style="margin-left: auto; padding: 6px 12px;" onclick="clearConsole()">Limpar</button>
-                </div>
-                <div class="console" id="console">
-                    <div class="console-line info">
-                        <span class="console-time">[--:--:--]</span>
-                        Sistema pronto...
-                    </div>
-                </div>
+        <!-- Danger Zone -->
+        <div class="card danger-zone">
+            <div class="card-header">
+                <span class="icon">⚠️</span>
+                <h3 style="color: #f87171;">Danger Zone</h3>
             </div>
-
-            <!-- Danger Zone -->
-            <div class="card danger-zone">
-                <div class="card-header">
-                    <span class="icon">⚠️</span>
-                    <h3 style="color: #f87171;">Danger Zone</h3>
-                </div>
-                <div class="grid grid-2">
-                    <button class="btn btn-red" onclick="confirmClearDatabase()">🗑️ Clear DB</button>
-                    <button class="btn btn-red" onclick="confirmClearNotifications()">🔔 Clear Notifs</button>
-                </div>
+            <div class="grid grid-2">
+                <button class="btn btn-red" onclick="confirmClearDatabase()">🗑️ Clear DB</button>
+                <button class="btn btn-red" onclick="confirmClearNotifications()">🔔 Clear Notifs</button>
             </div>
         </div>
     </div>
@@ -436,21 +401,8 @@
             return response;
         }
 
-        // ============== CONSOLE ==============
-        function addLog(message, level = 'info') {
-            const console = document.getElementById('console');
-            const time = new Date().toLocaleTimeString('pt-PT');
-            const line = document.createElement('div');
-            line.className = `console-line ${level}`;
-            line.innerHTML = `<span class="console-time">[${time}]</span> ${message}`;
-            console.appendChild(line);
-            console.scrollTop = console.scrollHeight;
-        }
-
-        function clearConsole() {
-            document.getElementById('console').innerHTML = '';
-            addLog('Console limpo', 'info');
-        }
+        // No-op log function (console removed)
+        function addLog() {}
 
         // ============== STATS ==============
         async function refreshStats(silent = false) {
