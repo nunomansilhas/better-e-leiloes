@@ -174,18 +174,18 @@ app.add_middleware(
 from security import security_middleware
 app.middleware("http")(security_middleware)
 
-# Servir arquivos estáticos
-static_dir = os.path.join(os.path.dirname(__file__), "static")
-if os.path.exists(static_dir):
-    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+# Servir arquivos estáticos - Admin Dashboard (eleiloes.mansilhas.pt)
+admin_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "admin")
+if os.path.exists(admin_dir):
+    app.mount("/static", StaticFiles(directory=admin_dir), name="static")
 
 
 # ============== ENDPOINTS ==============
 
 @app.get("/")
 async def root():
-    """Redireciona para a dashboard"""
-    return FileResponse(os.path.join(static_dir, "index.html"))
+    """Redireciona para a dashboard de admin"""
+    return FileResponse(os.path.join(admin_dir, "index.html"))
 
 
 @app.get("/health")
