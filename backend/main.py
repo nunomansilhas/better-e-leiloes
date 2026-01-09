@@ -255,17 +255,24 @@ async def health_detailed():
         services["database"] = {"status": "error", "error": str(e)}
         overall_status = "unhealthy"
 
-    # Redis check
-    try:
-        if cache_manager and cache_manager.redis_client:
-            await cache_manager.redis_client.ping()
-            services["redis"] = {"status": "ok"}
-        else:
-            services["redis"] = {"status": "disabled", "note": "using memory cache"}
-    except Exception as e:
-        services["redis"] = {"status": "error", "error": str(e)}
-        if overall_status == "healthy":
-            overall_status = "degraded"
+    # Redis check - only if REDIS_URL is configured
+    redis_url = os.getenv("REDIS_URL")
+    if redis_url:
+        try:
+            if cache_manager and cache_manager.redis_client:
+                await cache_manager.redis_client.ping()
+                services["redis"] = {"status": "ok"}
+            else:
+                services["redis"] = {"status": "error", "error": "client not initialized"}
+                if overall_status == "healthy":
+                    overall_status = "degraded"
+        except Exception as e:
+            services["redis"] = {"status": "error", "error": str(e)}
+            if overall_status == "healthy":
+                overall_status = "degraded"
+    else:
+        # Redis not configured - this is fine, using memory cache
+        services["redis"] = {"status": "disabled", "note": "REDIS_URL not set, using memory cache"}
 
     # Pipelines check
     try:
