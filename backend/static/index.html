@@ -712,21 +712,30 @@
                 document.getElementById('pipeline-feedback').style.display = 'block';
                 updateFeedback('A iniciar...', 'A preparar pipeline...', 0, 0);
 
+                // Start polling FIRST - this will handle UI updates
                 startPolling();
 
+                // Fire and forget - don't wait for pipeline to complete
                 const response = await authFetch(`${API_BASE}/api/pipeline/api`, { method: 'POST' });
                 const data = await response.json();
 
-                addLog('✅ Pipeline concluida!', 'success');
-                refreshStats();
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                // Pipeline started successfully - polling will handle the rest
+                addLog(`✅ ${data.message}`, 'info');
+
             } catch (e) {
                 addLog(`❌ Erro: ${e.message}`, 'error');
-            } finally {
+                // Only reset on error
                 pipelineRunning = false;
                 btn.textContent = '▶ Run';
                 btn.className = 'btn btn-blue';
+                document.getElementById('pipeline-feedback').style.display = 'none';
                 stopPolling();
             }
+            // NOTE: No finally block - polling handles completion detection
         }
 
         function updateFeedback(stageName, message, current, total) {
@@ -756,14 +765,22 @@
                         document.getElementById('stage1-dot').style.background = stage >= 1 ? 'rgba(59,130,246,0.3)' : 'rgba(255,255,255,0.1)';
                         document.getElementById('stage2-dot').style.background = stage >= 2 ? 'rgba(59,130,246,0.3)' : 'rgba(255,255,255,0.1)';
                     } else if (pipelineRunning) {
+                        // Pipeline finished - reset UI
                         pipelineRunning = false;
                         document.getElementById('btn-pipeline').textContent = '▶ Run';
                         document.getElementById('btn-pipeline').className = 'btn btn-blue';
                         document.getElementById('pipeline-feedback').style.display = 'none';
+                        // Reset stage dots
+                        document.getElementById('stage1-dot').style.background = 'rgba(255,255,255,0.1)';
+                        document.getElementById('stage2-dot').style.background = 'rgba(255,255,255,0.1)';
+                        addLog('✅ Pipeline concluída!', 'success');
+                        refreshStats();
                         stopPolling();
                     }
-                } catch (e) {}
-            }, 1000);
+                } catch (e) {
+                    console.error('Polling error:', e);
+                }
+            }, 500);  // 500ms for more responsive updates
         }
 
         function stopPolling() {
