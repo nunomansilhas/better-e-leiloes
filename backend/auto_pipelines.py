@@ -90,7 +90,9 @@ class AutoPipelinesManager:
                 for key, value in data.items():
                     self.pipelines[key] = PipelineConfig(**value)
 
-                print(f"📂 Auto-pipelines config loaded: {len(self.pipelines)} pipelines")
+                # Log which pipelines are enabled
+                enabled = [k for k, p in self.pipelines.items() if p.enabled]
+                print(f"📂 Auto-pipelines config loaded: {len(self.pipelines)} pipelines (enabled: {enabled or 'none'})")
             except Exception as e:
                 print(f"⚠️ Error loading auto-pipelines config: {e}")
                 self._create_default_config()
@@ -111,7 +113,9 @@ class AutoPipelinesManager:
             with open(self.CONFIG_FILE, 'w') as f:
                 json.dump(data, f, indent=2)
 
-            print(f"💾 Auto-pipelines config saved")
+            # Log which pipelines are enabled
+            enabled = [k for k, v in data.items() if v.get('enabled')]
+            print(f"💾 Auto-pipelines config saved (enabled: {enabled or 'none'})")
         except Exception as e:
             print(f"⚠️ Error saving auto-pipelines config: {e}")
 

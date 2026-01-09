@@ -518,6 +518,8 @@
                 });
                 const data = await response.json();
                 addLog(`${enabled ? '▶' : '⏹'} ${type}: ${data.message}`, enabled ? 'success' : 'warning');
+                // Immediately refresh to sync UI with backend state
+                await loadPipelinesStatus();
             } catch (e) {
                 addLog(`❌ Erro: ${e.message}`, 'error');
                 document.getElementById(`toggle-${type}`).checked = !enabled;
@@ -530,9 +532,20 @@
                 const data = await response.json();
                 const pipelines = data.pipelines || {};
 
+                // Debug: log pipeline states on first load
+                if (!window._pipelinesLoaded) {
+                    console.log('Pipeline states loaded:', Object.fromEntries(
+                        Object.entries(pipelines).map(([k, v]) => [k, v.enabled])
+                    ));
+                    window._pipelinesLoaded = true;
+                }
+
                 for (const [type, info] of Object.entries(pipelines)) {
                     const toggle = document.getElementById(`toggle-${type}`);
-                    if (toggle) toggle.checked = info.enabled;
+                    if (toggle) {
+                        // Explicitly convert to boolean to handle any edge cases
+                        toggle.checked = info.enabled === true;
+                    }
 
                     const timer = document.getElementById(`timer-${type}`);
                     if (timer && info.next_run) {
