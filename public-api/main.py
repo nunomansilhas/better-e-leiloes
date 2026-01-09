@@ -1,24 +1,31 @@
 """
 E-Leiloes Public API - Read-Only
 Lightweight API for public frontend consumption
+Supports demo mode when database is unavailable
 """
 
 from fastapi import FastAPI, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from sqlalchemy import select, func, desc, and_, or_
 from datetime import datetime, timedelta
 from typing import Optional, List
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
-import json
 import os
+import random
 
 from dotenv import load_dotenv
 load_dotenv()
 
-from database import get_session, EventDB, PriceHistoryDB, init_db
+# Check if we can connect to database
+DEMO_MODE = False
+try:
+    from database import get_session, EventDB, PriceHistoryDB, init_db
+    from sqlalchemy import select, func, desc, and_, or_
+except Exception as e:
+    print(f"⚠️  Database unavailable, running in DEMO mode: {e}")
+    DEMO_MODE = True
 
 
 # ============ Pydantic Models ============
@@ -87,12 +94,70 @@ class PricePoint(BaseModel):
     timestamp: Optional[datetime] = None
 
 
+# ============ Demo Data ============
+
+DEMO_DISTRITOS = ["Lisboa", "Porto", "Faro", "Braga", "Coimbra", "Setubal", "Aveiro", "Leiria"]
+DEMO_TIPOS = {1: "Imoveis", 2: "Veiculos", 3: "Equipamentos", 4: "Mobiliario", 5: "Maquinas", 6: "Direitos"}
+DEMO_SUBTIPOS = {
+    1: ["Apartamento", "Moradia", "Terreno", "Loja", "Armazem"],
+    2: ["Automovel", "Motociclo", "Comercial", "Reboque"],
+    3: ["Industrial", "Informatica", "Escritorio"],
+    4: ["Moveis", "Decoracao", "Electrodomesticos"],
+    5: ["Agricola", "Construcao", "Industrial"],
+    6: ["Quotas", "Creditos", "Marcas"]
+}
+
+def generate_demo_events(count: int = 50) -> List[dict]:
+    """Generate realistic demo events"""
+    events = []
+    now = datetime.utcnow()
+
+    for i in range(count):
+        tipo_id = random.choice(list(DEMO_TIPOS.keys()))
+        distrito = random.choice(DEMO_DISTRITOS)
+        valor_base = random.randint(5000, 500000)
+
+        events.append({
+            "reference": f"LO{random.randint(1000000, 9999999)}2024",
+            "titulo": f"{random.choice(DEMO_SUBTIPOS[tipo_id])} em {distrito}",
+            "capa": f"https://picsum.photos/seed/{i}/400/300",
+            "tipo_id": tipo_id,
+            "tipo": DEMO_TIPOS[tipo_id],
+            "subtipo": random.choice(DEMO_SUBTIPOS[tipo_id]),
+            "valor_base": valor_base,
+            "valor_minimo": int(valor_base * 0.7),
+            "lance_atual": int(valor_base * random.uniform(0.8, 1.5)),
+            "data_fim": now + timedelta(hours=random.randint(1, 72)),
+            "distrito": distrito,
+            "concelho": f"{distrito} Centro",
+            "terminado": False,
+            "cancelado": False
+        })
+
+    return sorted(events, key=lambda x: x["data_fim"])
+
+
+DEMO_EVENTS = generate_demo_events(100)
+
+
 # ============ App Setup ============
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await init_db()
+    global DEMO_MODE
+    if not DEMO_MODE:
+        try:
+            await init_db()
+            print("✅ Connected to database")
+        except Exception as e:
+            print(f"⚠️  Database init failed, switching to demo mode: {e}")
+            DEMO_MODE = True
+            print("🎭 Running in DEMO mode with mock data")
+    else:
+        print("🎭 Running in DEMO mode with mock data")
+
     yield
+
 
 app = FastAPI(
     title="E-Leiloes Public API",
@@ -116,27 +181,46 @@ app.add_middleware(
 @app.get("/api/health")
 async def health_check():
     """Health check endpoint"""
-    return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
+    return {
+        "status": "ok",
+        "mode": "demo" if DEMO_MODE else "live",
+        "timestamp": datetime.utcnow().isoformat()
+    }
 
 
 @app.get("/api/stats", response_model=StatsResponse)
 async def get_stats():
     """Get general statistics"""
+    if DEMO_MODE:
+        by_type = {}
+        by_distrito = {}
+        for e in DEMO_EVENTS:
+            t = str(e["tipo_id"])
+            by_type[t] = by_type.get(t, 0) + 1
+            d = e["distrito"]
+            by_distrito[d] = by_distrito.get(d, 0) + 1
+
+        now = datetime.utcnow()
+        ending = len([e for e in DEMO_EVENTS if e["data_fim"] < now + timedelta(hours=24)])
+
+        return StatsResponse(
+            total=len(DEMO_EVENTS),
+            active=len(DEMO_EVENTS),
+            ending_soon=ending,
+            by_type=by_type,
+            by_distrito=dict(sorted(by_distrito.items(), key=lambda x: -x[1])[:10])
+        )
+
     async with get_session() as session:
         now = datetime.utcnow()
         soon = now + timedelta(hours=24)
 
-        # Total events
         total = await session.scalar(select(func.count()).select_from(EventDB))
-
-        # Active (not terminated, not cancelled)
         active = await session.scalar(
             select(func.count()).select_from(EventDB).where(
                 and_(EventDB.terminado == False, EventDB.cancelado == False)
             )
         )
-
-        # Ending soon (next 24h)
         ending_soon = await session.scalar(
             select(func.count()).select_from(EventDB).where(
                 and_(
@@ -148,7 +232,6 @@ async def get_stats():
             )
         )
 
-        # By type
         type_query = await session.execute(
             select(EventDB.tipo_id, func.count())
             .where(and_(EventDB.terminado == False, EventDB.cancelado == False))
@@ -156,7 +239,6 @@ async def get_stats():
         )
         by_type = {str(t or 0): c for t, c in type_query.all()}
 
-        # By distrito (top 10)
         distrito_query = await session.execute(
             select(EventDB.distrito, func.count())
             .where(
@@ -192,10 +274,27 @@ async def list_events(
     order_by: str = "data_fim"
 ):
     """List events with filters"""
+    if DEMO_MODE:
+        events = DEMO_EVENTS.copy()
+
+        if tipo_id:
+            events = [e for e in events if e["tipo_id"] == tipo_id]
+        if distrito:
+            events = [e for e in events if e["distrito"] == distrito]
+        if search:
+            search_lower = search.lower()
+            events = [e for e in events if search_lower in e["titulo"].lower() or search_lower in e["reference"].lower()]
+
+        if order_by == "lance_atual":
+            events = sorted(events, key=lambda x: -x["lance_atual"])
+        elif order_by == "valor_base":
+            events = sorted(events, key=lambda x: x["valor_base"])
+
+        return [EventSummary(**e) for e in events[offset:offset+limit]]
+
     async with get_session() as session:
         query = select(EventDB)
 
-        # Filters
         conditions = []
         if active_only:
             conditions.append(EventDB.terminado == False)
@@ -216,7 +315,6 @@ async def list_events(
         if conditions:
             query = query.where(and_(*conditions))
 
-        # Ordering
         if order_by == "data_fim":
             query = query.order_by(EventDB.data_fim)
         elif order_by == "lance_atual":
@@ -235,6 +333,25 @@ async def list_events(
 @app.get("/api/events/{reference}", response_model=EventDetail)
 async def get_event(reference: str):
     """Get event details by reference"""
+    if DEMO_MODE:
+        for e in DEMO_EVENTS:
+            if e["reference"] == reference:
+                return EventDetail(
+                    **e,
+                    tipologia="T3",
+                    valor_abertura=int(e["valor_base"] * 0.85),
+                    data_inicio=e["data_fim"] - timedelta(days=14),
+                    freguesia=f"Freguesia de {e['distrito']}",
+                    morada=f"Rua Exemplo, 123, {e['distrito']}",
+                    area_total=random.randint(50, 300),
+                    latitude=38.7 + random.random(),
+                    longitude=-9.1 + random.random(),
+                    descricao=f"Excelente {e['subtipo'].lower()} localizado em {e['distrito']}. Otima oportunidade de investimento.",
+                    fotos=[f"https://picsum.photos/seed/{i}/800/600" for i in range(4)],
+                    iniciado=True
+                )
+        raise HTTPException(status_code=404, detail="Event not found")
+
     async with get_session() as session:
         result = await session.execute(
             select(EventDB).where(EventDB.reference == reference)
@@ -244,10 +361,10 @@ async def get_event(reference: str):
         if not event:
             raise HTTPException(status_code=404, detail="Event not found")
 
-        # Parse fotos JSON
         fotos = None
         if event.fotos:
             try:
+                import json
                 fotos_data = json.loads(event.fotos)
                 if isinstance(fotos_data, list):
                     fotos = [f.get("url") if isinstance(f, dict) else f for f in fotos_data]
@@ -290,6 +407,14 @@ async def get_ending_soon(
     tipo_id: Optional[int] = None
 ):
     """Get events ending soon"""
+    if DEMO_MODE:
+        now = datetime.utcnow()
+        cutoff = now + timedelta(hours=hours)
+        events = [e for e in DEMO_EVENTS if e["data_fim"] <= cutoff]
+        if tipo_id:
+            events = [e for e in events if e["tipo_id"] == tipo_id]
+        return [EventSummary(**e) for e in events[:limit]]
+
     async with get_session() as session:
         now = datetime.utcnow()
         cutoff = now + timedelta(hours=hours)
@@ -317,6 +442,18 @@ async def get_ending_soon(
 @app.get("/api/price-history/{reference}", response_model=List[PricePoint])
 async def get_price_history(reference: str, limit: int = Query(50, le=200)):
     """Get price history for an event"""
+    if DEMO_MODE:
+        # Generate fake price history
+        now = datetime.utcnow()
+        base_price = random.randint(50000, 200000)
+        return [
+            PricePoint(
+                preco=base_price + (i * random.randint(500, 2000)),
+                timestamp=now - timedelta(hours=limit-i)
+            )
+            for i in range(min(10, limit))
+        ]
+
     async with get_session() as session:
         result = await session.execute(
             select(PriceHistoryDB)
@@ -332,6 +469,13 @@ async def get_price_history(reference: str, limit: int = Query(50, le=200)):
 @app.get("/api/distritos")
 async def list_distritos():
     """List all distritos with event counts"""
+    if DEMO_MODE:
+        counts = {}
+        for e in DEMO_EVENTS:
+            d = e["distrito"]
+            counts[d] = counts.get(d, 0) + 1
+        return [{"distrito": d, "count": c} for d, c in sorted(counts.items())]
+
     async with get_session() as session:
         result = await session.execute(
             select(EventDB.distrito, func.count())
@@ -351,6 +495,16 @@ async def list_distritos():
 @app.get("/api/tipos")
 async def list_tipos():
     """List event types with counts"""
+    if DEMO_MODE:
+        counts = {}
+        for e in DEMO_EVENTS:
+            t = e["tipo_id"]
+            counts[t] = counts.get(t, 0) + 1
+        return [
+            {"tipo_id": t, "name": DEMO_TIPOS.get(t, f"Tipo {t}"), "count": c}
+            for t, c in sorted(counts.items())
+        ]
+
     tipo_names = {
         1: "Imoveis",
         2: "Veiculos",
@@ -375,7 +529,6 @@ async def list_tipos():
 
 # ============ Static Files ============
 
-# Serve static files
 static_path = os.path.join(os.path.dirname(__file__), "static")
 if os.path.exists(static_path):
     app.mount("/static", StaticFiles(directory=static_path), name="static")
@@ -387,7 +540,7 @@ async def root():
     index_path = os.path.join(static_path, "index.html")
     if os.path.exists(index_path):
         return FileResponse(index_path)
-    return {"message": "E-Leiloes Public API", "docs": "/docs"}
+    return {"message": "E-Leiloes Public API", "docs": "/docs", "mode": "demo" if DEMO_MODE else "live"}
 
 
 # ============ Run ============
