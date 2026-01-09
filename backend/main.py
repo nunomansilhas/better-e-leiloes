@@ -53,13 +53,48 @@ sse_clients: Set[asyncio.Queue] = set()
 log_buffer = deque(maxlen=100)  # Circular buffer, keeps last 100 logs
 log_lock = threading.Lock()
 
+# SSE clients for real-time logs
+log_sse_clients: Set[asyncio.Queue] = set()
+
+# Pipeline execution history
+pipeline_history = deque(maxlen=50)  # Keep last 50 pipeline runs
+pipeline_history_lock = threading.Lock()
+
 def add_dashboard_log(message: str, level: str = "info"):
-    """Adiciona um log ao buffer para o dashboard console"""
+    """Adiciona um log ao buffer para o dashboard console e envia para SSE clients"""
+    log_entry = {
+        "message": message,
+        "level": level,
+        "timestamp": datetime.now().isoformat()
+    }
     with log_lock:
-        log_buffer.append({
-            "message": message,
-            "level": level,
-            "timestamp": datetime.now().isoformat()
+        log_buffer.append(log_entry)
+
+    # Broadcast to SSE clients
+    asyncio.create_task(broadcast_log(log_entry))
+
+
+async def broadcast_log(log_entry: dict):
+    """Broadcast log entry to all connected SSE log clients"""
+    dead_clients = set()
+    for queue in log_sse_clients:
+        try:
+            await queue.put(log_entry)
+        except:
+            dead_clients.add(queue)
+
+    for client in dead_clients:
+        log_sse_clients.discard(client)
+
+
+def add_pipeline_history(pipeline_type: str, status: str, details: dict = None):
+    """Adiciona uma execução de pipeline ao histórico"""
+    with pipeline_history_lock:
+        pipeline_history.append({
+            "pipeline": pipeline_type,
+            "status": status,
+            "timestamp": datetime.now().isoformat(),
+            "details": details or {}
         })
 
 
@@ -190,11 +225,73 @@ async def root():
 
 @app.get("/health")
 async def health():
-    """Health check"""
+    """Health check simples"""
+    return {"status": "ok"}
+
+
+@app.get("/api/health")
+async def health_detailed():
+    """
+    Health check detalhado com status de todos os serviços.
+
+    Retorna:
+    - status: "healthy" | "degraded" | "unhealthy"
+    - services: estado de cada serviço (database, redis, pipelines)
+    - uptime: tempo desde o início
+    - version: versão da API
+    """
+    import time
+
+    services = {}
+    overall_status = "healthy"
+
+    # Database check
+    try:
+        async with get_db() as db:
+            from sqlalchemy import text
+            await db.session.execute(text("SELECT 1"))
+        services["database"] = {"status": "ok", "type": "mysql"}
+    except Exception as e:
+        services["database"] = {"status": "error", "error": str(e)}
+        overall_status = "unhealthy"
+
+    # Redis check
+    try:
+        if cache_manager and cache_manager.redis:
+            await cache_manager.redis.ping()
+            services["redis"] = {"status": "ok"}
+        else:
+            services["redis"] = {"status": "disabled"}
+    except Exception as e:
+        services["redis"] = {"status": "error", "error": str(e)}
+        if overall_status == "healthy":
+            overall_status = "degraded"
+
+    # Pipelines check
+    try:
+        auto_pipelines = get_auto_pipelines_manager()
+        status = auto_pipelines.get_status()
+        pipelines_status = status.get("pipelines", {})
+        active_count = sum(1 for p in pipelines_status.values() if p.get("enabled"))
+        services["pipelines"] = {
+            "status": "ok",
+            "active": active_count,
+            "total": len(pipelines_status)
+        }
+    except Exception as e:
+        services["pipelines"] = {"status": "error", "error": str(e)}
+
+    # Scraper check
+    services["scraper"] = {
+        "status": "running" if scraper and scraper.is_running else "idle",
+        "stop_requested": scraper.stop_requested if scraper else False
+    }
+
     return {
-        "status": "online",
-        "service": "E-Leiloes Data API",
-        "version": "1.0.0"
+        "status": overall_status,
+        "timestamp": datetime.now().isoformat(),
+        "version": "1.0.0",
+        "services": services
     }
 
 
@@ -1703,6 +1800,71 @@ async def get_logs():
     return {"logs": logs_to_return}
 
 
+@app.get("/api/logs/stream")
+async def stream_logs():
+    """
+    Server-Sent Events (SSE) endpoint para logs em tempo real.
+    Conecta a este endpoint para receber logs instantaneamente.
+
+    Formato do evento:
+    {
+        "message": "Log message",
+        "level": "info|success|warning|error",
+        "timestamp": "2025-01-01T12:00:00"
+    }
+    """
+    async def log_stream():
+        queue = asyncio.Queue()
+        log_sse_clients.add(queue)
+
+        try:
+            # Send connection message
+            yield f"data: {json.dumps({'type': 'connected', 'message': 'Connected to log stream'})}\n\n"
+
+            while True:
+                try:
+                    log_entry = await asyncio.wait_for(queue.get(), timeout=30)
+                    yield f"data: {json.dumps({'type': 'log', **log_entry})}\n\n"
+                except asyncio.TimeoutError:
+                    yield f"data: {json.dumps({'type': 'ping'})}\n\n"
+        except asyncio.CancelledError:
+            pass
+        finally:
+            log_sse_clients.discard(queue)
+
+    return StreamingResponse(
+        log_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Access-Control-Allow-Origin": "*",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
+
+@app.get("/api/pipeline-history")
+async def get_pipeline_history(limit: int = Query(20, ge=1, le=50)):
+    """
+    Retorna o histórico de execuções de pipelines.
+
+    - **limit**: Número máximo de entradas (1-50)
+
+    Retorna lista de execuções com:
+    - pipeline: tipo da pipeline
+    - status: "started" | "completed" | "error"
+    - timestamp: quando executou
+    - details: informações adicionais
+    """
+    with pipeline_history_lock:
+        history = list(pipeline_history)
+
+    # Return most recent first
+    history.reverse()
+    return {"history": history[:limit], "total": len(history)}
+
+
 # ============== BACKGROUND TASKS ==============
 
 async def scrape_and_update(reference: str):
@@ -1758,6 +1920,10 @@ async def run_full_pipeline(tipo: Optional[int], max_pages: Optional[int]):
     Stage 1: Scrape IDs → Stage 2: Scrape Detalhes → Stage 3: Scrape Imagens
     """
     pipeline_state = get_pipeline_state()
+    start_time = datetime.now()
+
+    # Register pipeline start in history
+    add_pipeline_history("full_pipeline", "started", {"tipo": tipo, "max_pages": max_pages})
 
     try:
         # CRITICAL: Clean pipeline state at start
@@ -1931,6 +2097,14 @@ async def run_full_pipeline(tipo: Optional[int], max_pages: Optional[int]):
         print(msg)
         add_dashboard_log(msg, "success")
 
+        # Register completion in history
+        duration = (datetime.now() - start_time).total_seconds()
+        add_pipeline_history("full_pipeline", "completed", {
+            "ids": len(references),
+            "events": len(events),
+            "duration_seconds": round(duration, 1)
+        })
+
         # Delay to show final message, then stop
         await asyncio.sleep(3)
         await pipeline_state.stop()
@@ -1940,6 +2114,14 @@ async def run_full_pipeline(tipo: Optional[int], max_pages: Optional[int]):
         print(msg)
         add_dashboard_log(msg, "error")
         await pipeline_state.add_error(msg)
+
+        # Register error in history
+        duration = (datetime.now() - start_time).total_seconds()
+        add_pipeline_history("full_pipeline", "error", {
+            "error": str(e),
+            "duration_seconds": round(duration, 1)
+        })
+
         await asyncio.sleep(2)
         await pipeline_state.stop()
 
@@ -1981,6 +2163,10 @@ async def run_api_pipeline(tipo: Optional[int], max_pages: Optional[int]):
     Stage 2: Usa API para obter TUDO (detalhes + imagens) - SEM Stage 3!
     """
     pipeline_state = get_pipeline_state()
+    start_time = datetime.now()
+
+    # Register pipeline start in history
+    add_pipeline_history("api_pipeline", "started", {"tipo": tipo, "max_pages": max_pages})
 
     try:
         # CRITICAL: Clean pipeline state at start
@@ -2161,6 +2347,15 @@ async def run_api_pipeline(tipo: Optional[int], max_pages: Optional[int]):
         add_dashboard_log(msg, "success")
         add_dashboard_log("💡 Sem Stage 3 - API já incluiu as imagens!", "info")
 
+        # Register completion in history
+        duration = (datetime.now() - start_time).total_seconds()
+        add_pipeline_history("api_pipeline", "completed", {
+            "ids": len(references),
+            "events": success_count,
+            "images": total_images,
+            "duration_seconds": round(duration, 1)
+        })
+
         await asyncio.sleep(3)
         await pipeline_state.stop()
 
@@ -2169,6 +2364,14 @@ async def run_api_pipeline(tipo: Optional[int], max_pages: Optional[int]):
         print(msg)
         add_dashboard_log(msg, "error")
         await pipeline_state.add_error(msg)
+
+        # Register error in history
+        duration = (datetime.now() - start_time).total_seconds()
+        add_pipeline_history("api_pipeline", "error", {
+            "error": str(e),
+            "duration_seconds": round(duration, 1)
+        })
+
         await asyncio.sleep(2)
         await pipeline_state.stop()
 

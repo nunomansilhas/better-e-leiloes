@@ -225,6 +225,10 @@
         <div class="header">
             <h1>E-Leiloes Backend</h1>
             <div class="stats">
+                <div class="stat" id="health-status" style="cursor: pointer;" onclick="showHealthDetails()" title="Click para detalhes">
+                    <span id="health-dot" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #64748b; margin-right: 4px;"></span>
+                    <span id="health-text">--</span>
+                </div>
                 <div class="stat"><strong id="stat-total">-</strong> total</div>
                 <div class="stat"><strong id="stat-complete">-</strong> completos</div>
                 <div class="stat"><strong id="stat-incomplete">-</strong> incompletos</div>
@@ -359,17 +363,36 @@
             </div>
         </div>
 
-        <!-- Console -->
-        <div class="card">
-            <div class="card-header">
-                <span class="icon">📟</span>
-                <h3>Console</h3>
-                <button class="btn btn-gray" style="margin-left: auto; padding: 6px 12px;" onclick="clearConsole()">Limpar</button>
+        <!-- Console + History (side by side) -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <!-- Console -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="icon">📟</span>
+                    <h3>Console</h3>
+                    <span id="sse-status" style="margin-left: 8px; font-size: 10px; color: #64748b;">polling</span>
+                    <button class="btn btn-gray" style="margin-left: auto; padding: 6px 12px;" onclick="clearConsole()">Limpar</button>
+                </div>
+                <div class="console" id="console">
+                    <div class="console-line info">
+                        <span class="console-time">[--:--:--]</span>
+                        Sistema pronto...
+                    </div>
+                </div>
             </div>
-            <div class="console" id="console">
-                <div class="console-line info">
-                    <span class="console-time">[--:--:--]</span>
-                    Sistema pronto...
+
+            <!-- History -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="icon">📜</span>
+                    <h3>Histórico</h3>
+                    <button class="btn btn-gray" style="margin-left: auto; padding: 6px 12px;" onclick="loadHistory()">🔄</button>
+                </div>
+                <div class="console" id="history">
+                    <div class="console-line info">
+                        <span class="console-time">[--:--:--]</span>
+                        A carregar histórico...
+                    </div>
                 </div>
             </div>
         </div>
@@ -750,16 +773,137 @@
             }
         }
 
+        // ============== HEALTH CHECK ==============
+        let lastHealthData = null;
+
+        async function checkHealth() {
+            try {
+                const response = await fetch(`${API_BASE}/api/health`);
+                const data = await response.json();
+                lastHealthData = data;
+
+                const dot = document.getElementById('health-dot');
+                const text = document.getElementById('health-text');
+
+                if (data.status === 'healthy') {
+                    dot.style.background = '#10b981';
+                    text.textContent = 'healthy';
+                } else if (data.status === 'degraded') {
+                    dot.style.background = '#f59e0b';
+                    text.textContent = 'degraded';
+                } else {
+                    dot.style.background = '#ef4444';
+                    text.textContent = 'unhealthy';
+                }
+            } catch (e) {
+                document.getElementById('health-dot').style.background = '#ef4444';
+                document.getElementById('health-text').textContent = 'offline';
+            }
+        }
+
+        function showHealthDetails() {
+            if (!lastHealthData) return;
+            const services = lastHealthData.services || {};
+            let msg = `Status: ${lastHealthData.status}\n\n`;
+            for (const [name, info] of Object.entries(services)) {
+                msg += `${name}: ${info.status}`;
+                if (info.error) msg += ` (${info.error})`;
+                if (info.active !== undefined) msg += ` (${info.active}/${info.total} active)`;
+                msg += '\n';
+            }
+            alert(msg);
+        }
+
+        // ============== HISTORY ==============
+        async function loadHistory() {
+            try {
+                const response = await fetch(`${API_BASE}/api/pipeline-history?limit=20`);
+                const data = await response.json();
+                const history = data.history || [];
+
+                const container = document.getElementById('history');
+                container.innerHTML = '';
+
+                if (history.length === 0) {
+                    container.innerHTML = '<div class="console-line info"><span class="console-time">[--:--:--]</span> Sem histórico</div>';
+                    return;
+                }
+
+                for (const item of history) {
+                    const time = new Date(item.timestamp).toLocaleTimeString('pt-PT');
+                    const level = item.status === 'completed' ? 'success' : item.status === 'error' ? 'error' : 'info';
+                    const icon = item.status === 'completed' ? '✅' : item.status === 'error' ? '❌' : '▶';
+
+                    let details = '';
+                    if (item.details) {
+                        if (item.details.ids) details += ` ${item.details.ids} IDs`;
+                        if (item.details.events) details += ` ${item.details.events} eventos`;
+                        if (item.details.duration_seconds) details += ` (${item.details.duration_seconds}s)`;
+                        if (item.details.error) details += ` ${item.details.error.substring(0, 50)}...`;
+                    }
+
+                    const line = document.createElement('div');
+                    line.className = `console-line ${level}`;
+                    line.innerHTML = `<span class="console-time">[${time}]</span> ${icon} ${item.pipeline}${details}`;
+                    container.appendChild(line);
+                }
+            } catch (e) {
+                console.error('Error loading history:', e);
+            }
+        }
+
+        // ============== SSE LOGS ==============
+        let logEventSource = null;
+
+        function connectSSELogs() {
+            if (logEventSource) {
+                logEventSource.close();
+            }
+
+            try {
+                logEventSource = new EventSource(`${API_BASE}/api/logs/stream`);
+
+                logEventSource.onopen = () => {
+                    document.getElementById('sse-status').textContent = '🟢 live';
+                    document.getElementById('sse-status').style.color = '#10b981';
+                };
+
+                logEventSource.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        if (data.type === 'log') {
+                            addLog(data.message, data.level);
+                        }
+                    } catch (e) {}
+                };
+
+                logEventSource.onerror = () => {
+                    document.getElementById('sse-status').textContent = 'polling';
+                    document.getElementById('sse-status').style.color = '#64748b';
+                    logEventSource.close();
+                    logEventSource = null;
+                    // Fallback to polling
+                    setTimeout(connectSSELogs, 5000);
+                };
+            } catch (e) {
+                console.error('SSE not supported, using polling');
+            }
+        }
+
         // ============== INIT ==============
         document.addEventListener('DOMContentLoaded', () => {
             addLog('🚀 Sistema iniciado', 'success');
             loadApiKeyStatus();
             refreshStats(true);
             loadPipelinesStatus();
+            checkHealth();
+            loadHistory();
+            connectSSELogs();
 
             // Auto refresh
             setInterval(() => refreshStats(true), 10000);
             setInterval(loadPipelinesStatus, 5000);
+            setInterval(checkHealth, 30000);
         });
     </script>
 </body>
