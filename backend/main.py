@@ -176,6 +176,8 @@ app.middleware("http")(security_middleware)
 
 # Servir arquivos estáticos
 static_dir = os.path.join(os.path.dirname(__file__), "static")
+public_dir = os.path.join(static_dir, "public")
+admin_dir = os.path.join(static_dir, "admin")
 if os.path.exists(static_dir):
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
@@ -184,8 +186,32 @@ if os.path.exists(static_dir):
 
 @app.get("/")
 async def root():
-    """Redireciona para a dashboard"""
-    return FileResponse(os.path.join(static_dir, "index.html"))
+    """Serve landing page ou dashboard"""
+    landing_file = os.path.join(public_dir, "landing.html")
+    dashboard_file = os.path.join(public_dir, "dashboard.html")
+    if os.path.exists(landing_file):
+        return FileResponse(landing_file)
+    elif os.path.exists(dashboard_file):
+        return FileResponse(dashboard_file)
+    return {"message": "E-Leiloes API", "dashboard": "/dashboard", "admin": "/admin"}
+
+
+@app.get("/dashboard")
+async def serve_dashboard():
+    """Serve public dashboard"""
+    dashboard_file = os.path.join(public_dir, "dashboard.html")
+    if os.path.exists(dashboard_file):
+        return FileResponse(dashboard_file)
+    return {"error": "Dashboard not found"}
+
+
+@app.get("/admin")
+async def serve_admin():
+    """Serve admin/scraper dashboard"""
+    admin_file = os.path.join(admin_dir, "index.html")
+    if os.path.exists(admin_file):
+        return FileResponse(admin_file)
+    return {"error": "Admin dashboard not found"}
 
 
 @app.get("/health")
