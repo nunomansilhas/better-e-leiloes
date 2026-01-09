@@ -623,6 +623,38 @@ async def get_logs():
     """Return empty logs - actual logs are on local scraper"""
     return {"logs": [], "message": "Logs are available on the local scraper machine"}
 
+@app.get("/api/health")
+async def health_check():
+    """Health check and database connection test"""
+    result = {
+        "status": "ok",
+        "timestamp": datetime.now().isoformat(),
+        "database": {"connected": False, "error": None, "events_count": 0},
+        "env": {
+            "DATABASE_URL_SET": bool(os.environ.get("DATABASE_URL")),
+            "ENV_FILE_PATH": ENV_FILE,
+            "ENV_FILE_EXISTS": os.path.exists(ENV_FILE),
+        }
+    }
+
+    try:
+        async with async_session_maker() as session:
+            # Test connection
+            count_result = await session.execute(text("SELECT COUNT(*) FROM events"))
+            count = count_result.scalar() or 0
+            result["database"]["connected"] = True
+            result["database"]["events_count"] = count
+
+            # Get table list
+            tables_result = await session.execute(text("SHOW TABLES"))
+            tables = [row[0] for row in tables_result.fetchall()]
+            result["database"]["tables"] = tables
+    except Exception as e:
+        result["database"]["error"] = str(e)
+        result["status"] = "database_error"
+
+    return result
+
 # =============================================================================
 # WSGI APPLICATION
 # =============================================================================
