@@ -5,10 +5,11 @@ FastAPI is ASGI, but cPanel's Passenger expects WSGI.
 This file creates a Passenger-compatible version of the API.
 
 Serves:
-- / : Landing page with instructions
-- /dashboard : Main dashboard application
-- /api/* : REST API endpoints
-- /docs : Swagger API documentation
+- /           : Landing page with instructions
+- /dashboard  : Public dashboard application
+- /admin      : Admin/Scraper dashboard
+- /api/*      : REST API endpoints
+- /api/docs   : Swagger API documentation
 """
 
 import sys
@@ -21,6 +22,8 @@ import os
 APP_ROOT = os.path.dirname(os.path.abspath(__file__))
 BACKEND_DIR = os.path.join(APP_ROOT, 'backend')
 STATIC_DIR = os.path.join(BACKEND_DIR, 'static')
+PUBLIC_DIR = os.path.join(STATIC_DIR, 'public')
+ADMIN_DIR = os.path.join(STATIC_DIR, 'admin')
 ENV_FILE = os.path.join(BACKEND_DIR, '.env')
 
 # =============================================================================
@@ -44,7 +47,7 @@ from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from a2wsgi import ASGIMiddleware
 from sqlalchemy import text
-from database import async_session_maker
+from database import async_session_maker, get_pipeline_status, get_all_pipeline_stats
 from typing import Optional
 from datetime import datetime
 
@@ -95,23 +98,32 @@ def row_to_dict(row, columns):
 @app.get("/", response_class=HTMLResponse)
 async def landing_page():
     """Serve landing page"""
-    landing_file = os.path.join(STATIC_DIR, 'landing.html')
+    landing_file = os.path.join(PUBLIC_DIR, 'landing.html')
     if os.path.exists(landing_file):
         with open(landing_file, 'r', encoding='utf-8') as f:
             return HTMLResponse(content=f.read())
-    return HTMLResponse(content="<h1>E-Leiloes API</h1><p><a href='/dashboard'>Dashboard</a> | <a href='/api/docs'>API Docs</a></p>")
+    return HTMLResponse(content="<h1>E-Leiloes API</h1><p><a href='/dashboard'>Dashboard</a> | <a href='/admin'>Admin</a> | <a href='/api/docs'>API Docs</a></p>")
 
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard():
-    """Serve dashboard application"""
-    index_file = os.path.join(STATIC_DIR, 'index.html')
-    if os.path.exists(index_file):
-        with open(index_file, 'r', encoding='utf-8') as f:
+    """Serve public dashboard application"""
+    dashboard_file = os.path.join(PUBLIC_DIR, 'dashboard.html')
+    if os.path.exists(dashboard_file):
+        with open(dashboard_file, 'r', encoding='utf-8') as f:
             return HTMLResponse(content=f.read())
     return HTMLResponse(content="<h1>Dashboard not found</h1>", status_code=404)
 
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_dashboard():
+    """Serve admin/scraper dashboard"""
+    admin_file = os.path.join(ADMIN_DIR, 'index.html')
+    if os.path.exists(admin_file):
+        with open(admin_file, 'r', encoding='utf-8') as f:
+            return HTMLResponse(content=f.read())
+    return HTMLResponse(content="<h1>Admin Dashboard not found</h1>", status_code=404)
+
 # =============================================================================
-# API ENDPOINTS
+# API ENDPOINTS - CORE
 # =============================================================================
 
 @app.get("/api/health")
@@ -142,6 +154,47 @@ async def get_stats():
             }
     except Exception as e:
         return {"error": str(e)}
+
+# Alias for dashboard compatibility
+@app.get("/api/db/stats")
+async def get_db_stats():
+    """Alias for /api/stats - dashboard compatibility"""
+    return await get_stats()
+
+# =============================================================================
+# API ENDPOINTS - PIPELINE STATUS
+# =============================================================================
+
+@app.get("/api/pipeline/status/all")
+async def pipeline_status_all():
+    """Get status of all pipelines from database"""
+    try:
+        return await get_pipeline_status()
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.get("/api/pipeline/status/{pipeline_name}")
+async def pipeline_status_single(pipeline_name: str):
+    """Get status of a specific pipeline"""
+    try:
+        status = await get_pipeline_status(pipeline_name)
+        if status:
+            return status
+        return {"error": "Pipeline not found", "pipeline_name": pipeline_name}
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.get("/api/pipeline/stats")
+async def pipeline_stats():
+    """Get aggregated pipeline statistics"""
+    try:
+        return await get_all_pipeline_stats()
+    except Exception as e:
+        return {"error": str(e)}
+
+# =============================================================================
+# API ENDPOINTS - EVENTS
+# =============================================================================
 
 @app.get("/api/events")
 async def get_events(

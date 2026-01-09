@@ -292,6 +292,46 @@ class EventDB(Base):
         )
 
 
+# ========== PIPELINE STATUS TABLE ==========
+
+class PipelineStatusDB(Base):
+    """
+    Estado das pipelines sincronizado com a BD remota.
+    Permite que o dashboard público veja o estado do scraper local.
+    """
+    __tablename__ = "pipeline_status"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    pipeline_name: Mapped[str] = mapped_column(String(50), nullable=False, unique=True, index=True)
+
+    # Estado
+    status: Mapped[str] = mapped_column(String(20), default="stopped")  # running, stopped, error, scheduled
+    is_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # Tempos
+    last_run: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    next_run: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    duration_seconds: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+
+    # Progresso
+    progress_percent: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # 0-100
+    current_stage: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)  # "Stage 1: Scraping IDs"
+
+    # Estatísticas
+    events_processed: Mapped[int] = mapped_column(Integer, default=0)
+    events_updated: Mapped[int] = mapped_column(Integer, default=0)
+    events_new: Mapped[int] = mapped_column(Integer, default=0)
+    errors_count: Mapped[int] = mapped_column(Integer, default=0)
+
+    # Mensagem/Log
+    last_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    last_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Metadados
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    server_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)  # Identificador do servidor local
+
+
 # ========== NOTIFICATION TABLES ==========
 
 class PriceHistoryDB(Base):
@@ -1497,3 +1537,167 @@ async def get_db():
     """Context manager para obter sessão de BD"""
     async with async_session_maker() as session:
         yield DatabaseManager(session)
+
+
+# ========== PIPELINE STATUS HELPERS ==========
+
+async def update_pipeline_status(
+    pipeline_name: str,
+    status: str = None,
+    is_enabled: bool = None,
+    next_run: datetime = None,
+    last_run: datetime = None,
+    duration_seconds: int = None,
+    progress_percent: int = None,
+    current_stage: str = None,
+    events_processed: int = None,
+    events_updated: int = None,
+    events_new: int = None,
+    errors_count: int = None,
+    last_message: str = None,
+    last_error: str = None,
+    server_id: str = None
+):
+    """
+    Atualiza ou cria o estado de uma pipeline na BD.
+    Apenas atualiza os campos que são passados (não None).
+    """
+    import socket
+    async with async_session_maker() as session:
+        # Tenta encontrar registo existente
+        result = await session.execute(
+            select(PipelineStatusDB).where(PipelineStatusDB.pipeline_name == pipeline_name)
+        )
+        pipeline = result.scalar_one_or_none()
+
+        if not pipeline:
+            # Criar novo registo
+            pipeline = PipelineStatusDB(
+                pipeline_name=pipeline_name,
+                server_id=server_id or socket.gethostname()
+            )
+            session.add(pipeline)
+
+        # Atualizar campos passados
+        if status is not None:
+            pipeline.status = status
+        if is_enabled is not None:
+            pipeline.is_enabled = is_enabled
+        if next_run is not None:
+            pipeline.next_run = next_run
+        if last_run is not None:
+            pipeline.last_run = last_run
+        if duration_seconds is not None:
+            pipeline.duration_seconds = duration_seconds
+        if progress_percent is not None:
+            pipeline.progress_percent = progress_percent
+        if current_stage is not None:
+            pipeline.current_stage = current_stage
+        if events_processed is not None:
+            pipeline.events_processed = events_processed
+        if events_updated is not None:
+            pipeline.events_updated = events_updated
+        if events_new is not None:
+            pipeline.events_new = events_new
+        if errors_count is not None:
+            pipeline.errors_count = errors_count
+        if last_message is not None:
+            pipeline.last_message = last_message
+        if last_error is not None:
+            pipeline.last_error = last_error
+        if server_id is not None:
+            pipeline.server_id = server_id
+
+        pipeline.updated_at = datetime.utcnow()
+
+        await session.commit()
+        return pipeline
+
+
+async def get_pipeline_status(pipeline_name: str = None) -> dict:
+    """
+    Obtém o estado de uma ou todas as pipelines.
+    """
+    async with async_session_maker() as session:
+        if pipeline_name:
+            result = await session.execute(
+                select(PipelineStatusDB).where(PipelineStatusDB.pipeline_name == pipeline_name)
+            )
+            pipeline = result.scalar_one_or_none()
+            if pipeline:
+                return {
+                    "pipeline_name": pipeline.pipeline_name,
+                    "status": pipeline.status,
+                    "is_enabled": pipeline.is_enabled,
+                    "last_run": pipeline.last_run.isoformat() if pipeline.last_run else None,
+                    "next_run": pipeline.next_run.isoformat() if pipeline.next_run else None,
+                    "duration_seconds": pipeline.duration_seconds,
+                    "progress_percent": pipeline.progress_percent,
+                    "current_stage": pipeline.current_stage,
+                    "events_processed": pipeline.events_processed,
+                    "events_updated": pipeline.events_updated,
+                    "events_new": pipeline.events_new,
+                    "errors_count": pipeline.errors_count,
+                    "last_message": pipeline.last_message,
+                    "last_error": pipeline.last_error,
+                    "updated_at": pipeline.updated_at.isoformat() if pipeline.updated_at else None,
+                    "server_id": pipeline.server_id
+                }
+            return None
+        else:
+            # Todas as pipelines
+            result = await session.execute(select(PipelineStatusDB))
+            pipelines = result.scalars().all()
+            return {
+                p.pipeline_name: {
+                    "status": p.status,
+                    "is_enabled": p.is_enabled,
+                    "last_run": p.last_run.isoformat() if p.last_run else None,
+                    "next_run": p.next_run.isoformat() if p.next_run else None,
+                    "duration_seconds": p.duration_seconds,
+                    "progress_percent": p.progress_percent,
+                    "current_stage": p.current_stage,
+                    "events_processed": p.events_processed,
+                    "events_updated": p.events_updated,
+                    "events_new": p.events_new,
+                    "errors_count": p.errors_count,
+                    "last_message": p.last_message,
+                    "updated_at": p.updated_at.isoformat() if p.updated_at else None,
+                    "server_id": p.server_id
+                } for p in pipelines
+            }
+
+
+async def get_all_pipeline_stats() -> dict:
+    """
+    Obtém estatísticas agregadas de todas as pipelines.
+    """
+    async with async_session_maker() as session:
+        result = await session.execute(select(PipelineStatusDB))
+        pipelines = result.scalars().all()
+
+        total_events = sum(p.events_processed for p in pipelines)
+        total_updated = sum(p.events_updated for p in pipelines)
+        total_new = sum(p.events_new for p in pipelines)
+        total_errors = sum(p.errors_count for p in pipelines)
+        running_count = sum(1 for p in pipelines if p.status == "running")
+        enabled_count = sum(1 for p in pipelines if p.is_enabled)
+
+        return {
+            "total_pipelines": len(pipelines),
+            "running_count": running_count,
+            "enabled_count": enabled_count,
+            "total_events_processed": total_events,
+            "total_events_updated": total_updated,
+            "total_events_new": total_new,
+            "total_errors": total_errors,
+            "pipelines": {
+                p.pipeline_name: {
+                    "status": p.status,
+                    "is_enabled": p.is_enabled,
+                    "next_run": p.next_run.isoformat() if p.next_run else None,
+                    "progress_percent": p.progress_percent,
+                    "current_stage": p.current_stage
+                } for p in pipelines
+            }
+        }

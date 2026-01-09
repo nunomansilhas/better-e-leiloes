@@ -13,6 +13,48 @@ from dataclasses import dataclass, asdict
 # Price history tracking
 from price_history import record_price_change
 
+# Database status sync
+from database import update_pipeline_status
+
+
+async def sync_pipeline_to_db(
+    pipeline_name: str,
+    status: str = None,
+    is_enabled: bool = None,
+    next_run: datetime = None,
+    last_run: datetime = None,
+    progress_percent: int = None,
+    current_stage: str = None,
+    events_processed: int = None,
+    events_updated: int = None,
+    events_new: int = None,
+    errors_count: int = None,
+    last_message: str = None,
+    last_error: str = None
+):
+    """
+    Sync pipeline status to the remote database.
+    This allows the public dashboard to see pipeline status.
+    """
+    try:
+        await update_pipeline_status(
+            pipeline_name=pipeline_name,
+            status=status,
+            is_enabled=is_enabled,
+            next_run=next_run,
+            last_run=last_run,
+            progress_percent=progress_percent,
+            current_stage=current_stage,
+            events_processed=events_processed,
+            events_updated=events_updated,
+            events_new=events_new,
+            errors_count=errors_count,
+            last_message=last_message,
+            last_error=last_error
+        )
+    except Exception as e:
+        print(f"⚠️ Failed to sync pipeline status to DB: {e}")
+
 
 @dataclass
 class PipelineConfig:
@@ -1050,6 +1092,14 @@ class AutoPipelinesManager:
             # Mark as running
             self.pipelines['xmonitor'].is_running = True
 
+            # Sync to remote DB
+            await sync_pipeline_to_db(
+                pipeline_name="X-Monitor",
+                status="running",
+                is_enabled=True,
+                current_stage="A verificar eventos urgentes"
+            )
+
             # Refresh caches to get current events
             now = datetime.now()
             await self.refresh_critical_events_cache()
@@ -1188,6 +1238,17 @@ class AutoPipelinesManager:
                 pipeline.runs_count += 1
                 self._save_config()
 
+                # Sync completion to remote DB
+                next_run_dt = now + timedelta(seconds=next_interval_seconds)
+                await sync_pipeline_to_db(
+                    pipeline_name="X-Monitor",
+                    status="scheduled",
+                    last_run=now,
+                    next_run=next_run_dt,
+                    events_updated=updated_count,
+                    current_stage=f"Próximo em {next_interval_seconds}s"
+                )
+
             finally:
                 await scraper.close()
                 self.pipelines['xmonitor'].is_running = False
@@ -1219,6 +1280,15 @@ class AutoPipelinesManager:
 
                 print(f"🔄 Y-Sync: A iniciar sincronização completa...")
 
+                # Sync to remote DB
+                await sync_pipeline_to_db(
+                    pipeline_name="Y-Sync",
+                    status="running",
+                    is_enabled=True,
+                    current_stage="A iniciar sincronização completa",
+                    progress_percent=0
+                )
+
                 scraper = EventScraper()
                 cache_manager = CacheManager()
                 new_ids_count = 0
@@ -1226,6 +1296,7 @@ class AutoPipelinesManager:
 
                 # Stage 1: Discover ALL IDs (full scan, no page limit)
                 print(f"  🔍 Stage 1: A descobrir TODOS os IDs...")
+                await sync_pipeline_to_db(pipeline_name="Y-Sync", current_stage="Stage 1: A descobrir IDs", progress_percent=10)
                 ids = await scraper.scrape_ids_only(tipo=None, max_pages=None)
                 print(f"  📊 {len(ids)} IDs encontrados no site")
 
@@ -1278,9 +1349,11 @@ class AutoPipelinesManager:
                     print(f"  ✓ Nenhum ID novo encontrado")
 
                 print(f"  📊 Stage 1 completo: {new_ids_count} novos eventos adicionados")
+                await sync_pipeline_to_db(pipeline_name="Y-Sync", current_stage="Stage 1 completo", progress_percent=50, events_new=new_ids_count)
 
                 # Stage 2: Check events that have passed their dataFim
                 print(f"  🔄 Stage 2: A verificar eventos terminados...")
+                await sync_pipeline_to_db(pipeline_name="Y-Sync", current_stage="Stage 2: Verificando terminados", progress_percent=60)
                 now = datetime.now()
 
                 async with get_db() as db:
@@ -1410,6 +1483,15 @@ class AutoPipelinesManager:
                         print(f"    ✓ Nenhum evento terminado")
 
                 print(f"  ✅ Y-Sync completo: {new_ids_count} novos, {terminated_count} terminados")
+                await sync_pipeline_to_db(
+                    pipeline_name="Y-Sync",
+                    status="completed",
+                    current_stage="Completo",
+                    progress_percent=100,
+                    events_new=new_ids_count,
+                    events_updated=terminated_count,
+                    last_run=datetime.now()
+                )
 
                 # Stage 3: Cleanup old notifications (runs every Y-Sync = every 2h)
                 print(f"  🗑️ Stage 3: Limpeza de notificações antigas...")
@@ -1440,6 +1522,14 @@ class AutoPipelinesManager:
                     pipeline.next_run = (now + timedelta(hours=pipeline.interval_hours)).strftime("%Y-%m-%d %H:%M:%S")
                     self._save_config()
                     print(f"  ⏰ Y-Sync: próxima execução em {pipeline.interval_hours}h")
+
+                    # Sync scheduled status to remote DB
+                    next_run_dt = now + timedelta(hours=pipeline.interval_hours)
+                    await sync_pipeline_to_db(
+                        pipeline_name="Y-Sync",
+                        status="scheduled",
+                        next_run=next_run_dt
+                    )
 
                 # ALWAYS reschedule - even if skipped
                 self._reschedule_pipeline('ysync')
@@ -1479,6 +1569,14 @@ class AutoPipelinesManager:
                 self._save_config()
 
                 print(f"👁️ Z-Watch: A verificar EventosMaisRecentes...")
+
+                # Sync to remote DB
+                await sync_pipeline_to_db(
+                    pipeline_name="Z-Watch",
+                    status="running",
+                    is_enabled=True,
+                    current_stage="A verificar EventosMaisRecentes"
+                )
 
                 scraper = EventScraper()
                 cache_manager = CacheManager()
@@ -1597,6 +1695,16 @@ class AutoPipelinesManager:
                     pipeline.next_run = (now + timedelta(hours=pipeline.interval_hours)).strftime("%Y-%m-%d %H:%M:%S")
                     self._save_config()
                     print(f"  ⏰ Z-Watch: próxima execução em {pipeline.interval_hours * 60:.0f} min")
+
+                    # Sync to remote DB
+                    next_run_dt = now + timedelta(hours=pipeline.interval_hours)
+                    await sync_pipeline_to_db(
+                        pipeline_name="Z-Watch",
+                        status="scheduled",
+                        last_run=now,
+                        next_run=next_run_dt,
+                        current_stage="Agendado"
+                    )
 
                 # ALWAYS reschedule - even if skipped
                 self._reschedule_pipeline('zwatch')
