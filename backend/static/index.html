@@ -582,7 +582,7 @@
         // ============== PIPELINES ==============
         async function togglePipeline(type, enabled) {
             try {
-                const response = await authFetch(`${API_BASE}/api/auto-pipelines/${type}`, {
+                const response = await authFetch(`${API_BASE}/api/auto-pipelines/${type}/toggle`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ enabled })
