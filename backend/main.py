@@ -2363,16 +2363,24 @@ async def run_api_pipeline(tipo: Optional[int], max_pages: Optional[int]):
             scraper.stop_requested = False
             return
 
-        # BATCH SAVE - muito mais rápido!
+        # BATCH SAVE com progresso
         total_events = len(events)
-        await pipeline_state.update(message=f"💾 A guardar {total_events} eventos na BD (batch)...")
-        add_dashboard_log(f"💾 A guardar {total_events} eventos na BD (batch)...", "info")
+
+        async def on_db_progress(processed: int, total: int):
+            pct = int((processed / total) * 100) if total > 0 else 0
+            await pipeline_state.update(
+                message=f"💾 A guardar na BD: {processed}/{total} ({pct}%)"
+            )
 
         async with get_db() as db:
-            inserted, updated = await db.save_events_batch(events)
+            inserted, updated = await db.save_events_batch(
+                events,
+                chunk_size=50,
+                on_progress=on_db_progress
+            )
             success_count = inserted + updated
 
-        # Update cache for all events
+        # Update cache
         for event in events:
             await cache_manager.set(event.reference, event)
 
