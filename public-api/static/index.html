@@ -6008,7 +6008,29 @@
                 }
 
                 // Update pagination
-                renderPagination('eventos', page, totalPages, events.length);
+                const pagination = document.getElementById('pagination-eventos');
+                if (pagination) {
+                    if (totalPages <= 1) {
+                        pagination.style.display = 'none';
+                    } else {
+                        pagination.style.display = 'flex';
+                        pagination.innerHTML = `
+                            <button ${page === 1 ? 'disabled' : ''} onclick="loadAllEvents(${page - 1})">
+                                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+                                </svg>
+                                Anterior
+                            </button>
+                            <span class="page-info">Página ${page} de ${totalPages} (${events.length} eventos)</span>
+                            <button ${page === totalPages ? 'disabled' : ''} onclick="loadAllEvents(${page + 1})">
+                                Próxima
+                                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+                                </svg>
+                            </button>
+                        `;
+                    }
+                }
 
                 // Add filter listeners if first time
                 setupEventosFilters();
