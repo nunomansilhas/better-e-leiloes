@@ -5997,11 +5997,14 @@
                 if (pageEvents.length === 0) {
                     content.innerHTML = '<div style="text-align: center; padding: 40px; color: #94a3b8;">Nenhum evento encontrado</div>';
                 } else {
-                    content.innerHTML = `
-                        <div class="events-grid">
-                            ${pageEvents.map(e => renderEventCard(e)).join('')}
-                        </div>
-                    `;
+                    content.innerHTML = '';
+                    const grid = document.createElement('div');
+                    grid.className = 'events-grid';
+                    pageEvents.forEach(event => {
+                        const card = createEventCard(event);
+                        grid.appendChild(card);
+                    });
+                    content.appendChild(grid);
                 }
 
                 // Update pagination
