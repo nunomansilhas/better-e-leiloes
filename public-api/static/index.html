@@ -8628,92 +8628,19 @@
         updateNotificationBadge();
 
         // ============== LIVE PRICE UPDATES (SSE) ==============
+        // NOTE: SSE is disabled on public API - real-time updates not available
+        // The public dashboard uses polling instead (auto-refresh every few seconds)
 
         let sseConnection = null;
 
         function connectToLiveUpdates() {
-            if (sseConnection) {
-                sseConnection.close();
-            }
-
-            sseConnection = new EventSource(`${API_BASE}/api/live/events`);
-
-            sseConnection.onopen = () => {
-                console.log('🔴 SSE: Connected to live price updates');
-            };
-
-            sseConnection.onmessage = (event) => {
-                try {
-                    const data = JSON.parse(event.data);
-
-                    if (data.type === 'price_update') {
-                        // Show toast notification for price change
-                        const priceChange = data.new_price - data.old_price;
-                        const changeSymbol = priceChange >= 0 ? '+' : '';
-                        const changeColor = priceChange >= 0 ? '🔺' : '🔻';
-
-                        showToast(
-                            `${changeColor} Alteração de Preço`,
-                            `${data.reference}: €${data.old_price?.toLocaleString() || 0} → €${data.new_price?.toLocaleString() || 0} (${changeSymbol}€${priceChange?.toLocaleString() || 0})`,
-                            priceChange >= 0 ? 'warning' : 'success'
-                        );
-
-                        // Update badge instantly
-                        updateNotificationBadge();
-
-                        // If on alertas page, refresh notifications
-                        if (currentPage === 'alertas') {
-                            loadNotifications();
-                        }
-                    } else if (data.type === 'event_ended') {
-                        // Show toast notification for ended event
-                        const finalPrice = data.final_price?.toLocaleString() || '0';
-                        const titulo = data.titulo?.substring(0, 50) || data.reference;
-
-                        showToast(
-                            `🏁 Leilão Terminado`,
-                            `${data.reference}: ${titulo}... - Preço final: €${finalPrice}`,
-                            'info'
-                        );
-
-                        // Update badge instantly
-                        updateNotificationBadge();
-
-                        // If on alertas page, refresh notifications
-                        if (currentPage === 'alertas') {
-                            loadNotifications();
-                        }
-                    } else if (data.type === 'new_event') {
-                        // Add new event to banner
-                        addNewEventToTrack(data);
-
-                        // Show toast notification
-                        const price = data.lance_atual || data.valor_base || 0;
-                        showToast(
-                            `🆕 Novo Evento`,
-                            `${data.reference}: ${data.titulo?.substring(0, 40) || data.distrito || '-'}... - €${price.toLocaleString()}`,
-                            'info'
-                        );
-
-                        // Update badge
-                        updateNotificationBadge();
-                    } else if (data.type === 'connected') {
-                        console.log('🔴 SSE:', data.message);
-                    }
-                } catch (e) {
-                    // Ignore parsing errors (keepalive pings)
-                }
-            };
-
-            sseConnection.onerror = (error) => {
-                console.log('🔴 SSE: Connection error, reconnecting in 5s...');
-                sseConnection.close();
-                setTimeout(connectToLiveUpdates, 5000);
-            };
+            // SSE disabled on public API - use polling instead
+            console.log('ℹ️ SSE: Live updates disabled on public API (using polling)');
+            return;
         }
 
-        // Connect to live updates on page load
-        connectToLiveUpdates();
+        // SSE disabled - polling is used instead
+        // connectToLiveUpdates();
 
         // ============== TOAST NOTIFICATION SYSTEM ==============
 
