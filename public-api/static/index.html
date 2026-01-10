@@ -4907,15 +4907,21 @@
                 return;
             }
 
-            container.innerHTML = endingSoonEvents.map((event, idx) => {
+            // Separate active and terminated events
+            const activeEvents = endingSoonEvents.filter(e => !e.terminado);
+            const terminatedEvents = endingSoonEvents.filter(e => e.terminado);
+
+            const renderEvent = (event, idx, isTerminated) => {
                 const dataFim = new Date(event.data_fim);
                 const now = new Date();
                 const diffMs = dataFim - now;
                 const diffHours = diffMs / (1000 * 60 * 60);
 
-                // Color based on urgency
+                // Color based on urgency (gray for terminated)
                 let bgColor, borderColor, textColor;
-                if (diffHours < 3) {
+                if (isTerminated) {
+                    bgColor = '#f8fafc'; borderColor = '#94a3b8'; textColor = '#94a3b8';
+                } else if (diffHours < 3) {
                     bgColor = '#fef2f2'; borderColor = '#ef4444'; textColor = '#ef4444';
                 } else if (diffHours < 6) {
                     bgColor = '#fff7ed'; borderColor = '#f97316'; textColor = '#f97316';
@@ -4936,16 +4942,21 @@
                 const vMinimo = event.valor_minimo || 0;
                 const vAtual = event.lance_atual || 0;
 
+                // Timer text for terminated events
+                const timerText = isTerminated ? 'Terminado' : '--:--';
+                const valueColor = isTerminated ? '#94a3b8' : '#1e293b';
+                const labelColor = isTerminated ? '#94a3b8' : '#64748b';
+
                 return `
-                    <div class="ending-soon-row" data-ref="${event.reference}" style="display: flex; align-items: center; padding: 5px 10px; background: ${bgColor}; border-radius: 4px; border-left: 3px solid ${borderColor};">
-                        <span id="ending-timer-${idx}" style="font-size: 10px; font-weight: 600; color: ${textColor}; width: 72px;">--:--</span>
-                        <span style="font-size: 10px; color: #64748b; width: 85px; cursor: pointer; text-decoration: underline;" title="Ver detalhes" onclick="openInspectionModal('${event.reference}')">${event.reference}</span>
-                        <span style="font-size: 10px; color: #1e293b; width: 65px;">${tipo}</span>
-                        <span style="font-size: 10px; color: #64748b; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${subtipo}">${subtipo}</span>
-                        <span style="font-size: 10px; color: #64748b; width: 55px;">${zona}</span>
-                        <span style="font-size: 10px; font-weight: 600; color: #1e293b; width: 75px; text-align: right;">${valor}</span>
+                    <div class="ending-soon-row" data-ref="${event.reference}" data-terminated="${isTerminated}" style="display: flex; align-items: center; padding: 5px 10px; background: ${bgColor}; border-radius: 4px; border-left: 3px solid ${borderColor};">
+                        <span id="ending-timer-${idx}" style="font-size: 10px; font-weight: 600; color: ${textColor}; width: 72px;">${timerText}</span>
+                        <span style="font-size: 10px; color: ${labelColor}; width: 85px; cursor: pointer; text-decoration: underline;" title="Ver detalhes" onclick="openInspectionModal('${event.reference}')">${event.reference}</span>
+                        <span style="font-size: 10px; color: ${valueColor}; width: 65px;">${tipo}</span>
+                        <span style="font-size: 10px; color: ${labelColor}; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${subtipo}">${subtipo}</span>
+                        <span style="font-size: 10px; color: ${labelColor}; width: 55px;">${zona}</span>
+                        <span style="font-size: 10px; font-weight: 600; color: ${valueColor}; width: 75px; text-align: right;">${valor}</span>
                         <div class="price-chart-btn" data-ref="${event.reference}" data-base="${vBase}" data-abertura="${vAbertura}" data-minimo="${vMinimo}" data-atual="${vAtual}" style="width: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 12px;" title="Ver gráfico de preço">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${labelColor}" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
                             <div class="price-chart-tooltip" style="display: none; position: fixed; background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); z-index: 9999; min-width: 280px;">
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                                     <span style="font-size: 11px; font-weight: 600; color: #1e293b;">Evolucao de Preco</span>
@@ -4965,7 +4976,26 @@
                         <a href="https://www.e-leiloes.pt/evento/${event.reference}" target="_blank" onclick="event.stopPropagation()" style="width: 24px; display: flex; align-items: center; justify-content: center; text-decoration: none; font-size: 12px;" title="Abrir no e-leilões">🔗</a>
                     </div>
                 `;
-            }).join('');
+            };
+
+            let html = '';
+
+            // Render active events
+            html += activeEvents.map((event, idx) => renderEvent(event, idx, false)).join('');
+
+            // Add divider and terminated events if any
+            if (terminatedEvents.length > 0) {
+                html += `
+                    <div style="display: flex; align-items: center; gap: 8px; padding: 8px 0; margin: 4px 0;">
+                        <div style="flex: 1; height: 1px; background: #e2e8f0;"></div>
+                        <span style="font-size: 9px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">Terminados (${terminatedEvents.length})</span>
+                        <div style="flex: 1; height: 1px; background: #e2e8f0;"></div>
+                    </div>
+                `;
+                html += terminatedEvents.map((event, idx) => renderEvent(event, activeEvents.length + idx, true)).join('');
+            }
+
+            container.innerHTML = html;
 
             // Initial timer update
             updateEndingSoonTimers();
@@ -5297,6 +5327,9 @@
 
         function updateEndingSoonTimers() {
             endingSoonEvents.forEach((event, idx) => {
+                // Skip terminated events - they already show "Terminado"
+                if (event.terminado) return;
+
                 const timerEl = document.getElementById(`ending-timer-${idx}`);
                 if (!timerEl) return;
 

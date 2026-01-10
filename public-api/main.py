@@ -402,11 +402,17 @@ async def list_tipos():
 # ============ Dashboard Endpoints (compatibility with original frontend) ============
 
 @app.get("/api/dashboard/ending-soon")
-async def dashboard_ending_soon(hours: int = 24, limit: int = 1000):
-    """Alias for ending-soon endpoint"""
+async def dashboard_ending_soon(hours: int = 24, limit: int = 1000, include_terminated: bool = True, terminated_hours: int = 120):
+    """Get events ending soon + recently terminated events.
+    - hours: look ahead for active events (default 24h)
+    - include_terminated: include recently terminated events (default True)
+    - terminated_hours: how far back to look for terminated events (default 120h = 5 days)
+    """
     async with get_session() as session:
         now = datetime.utcnow()
         cutoff = now + timedelta(hours=hours)
+
+        # Get active events ending soon
         result = await session.execute(
             select(EventDB).where(
                 and_(
@@ -417,9 +423,26 @@ async def dashboard_ending_soon(hours: int = 24, limit: int = 1000):
                 )
             ).order_by(EventDB.data_fim).limit(limit)
         )
-        events = result.scalars().all()
-        return [
-            {
+        active_events = result.scalars().all()
+
+        # Get recently terminated events (last N hours)
+        terminated_events = []
+        if include_terminated:
+            terminated_cutoff = now - timedelta(hours=terminated_hours)
+            terminated_result = await session.execute(
+                select(EventDB).where(
+                    and_(
+                        EventDB.terminado == True,
+                        EventDB.cancelado == False,
+                        EventDB.data_fim >= terminated_cutoff,
+                        EventDB.data_fim <= now
+                    )
+                ).order_by(desc(EventDB.data_fim)).limit(limit)
+            )
+            terminated_events = terminated_result.scalars().all()
+
+        def format_event(e, is_terminated=False):
+            return {
                 "reference": e.reference,
                 "titulo": e.titulo,
                 "tipo_id": e.tipo_id,
@@ -429,10 +452,15 @@ async def dashboard_ending_soon(hours: int = 24, limit: int = 1000):
                 "valor_base": e.valor_base,
                 "valor_abertura": e.valor_abertura,
                 "valor_minimo": e.valor_minimo,
-                "data_fim": e.data_fim.isoformat() if e.data_fim else None
+                "data_fim": e.data_fim.isoformat() if e.data_fim else None,
+                "terminado": is_terminated
             }
-            for e in events
-        ]
+
+        # Return active first, then terminated
+        result_list = [format_event(e, False) for e in active_events]
+        result_list.extend([format_event(e, True) for e in terminated_events])
+
+        return result_list
 
 
 @app.get("/api/dashboard/price-history/{reference}")
