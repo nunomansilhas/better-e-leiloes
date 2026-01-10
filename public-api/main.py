@@ -536,21 +536,37 @@ async def dashboard_recent_bids(limit: int = 30, hours: int = 120):
 
 @app.get("/api/dashboard/stats-by-distrito")
 async def dashboard_stats_by_distrito(limit: int = 5):
-    """Get stats grouped by distrito"""
+    """Get stats grouped by distrito with breakdown by type"""
     async with get_session() as session:
+        # Get all active events with distrito
         result = await session.execute(
-            select(
-                EventDB.distrito,
-                func.count().label("count"),
-                func.sum(EventDB.lance_atual).label("total_value")
-            ).where(
-                and_(EventDB.terminado == False, EventDB.cancelado == False, EventDB.distrito != None)
-            ).group_by(EventDB.distrito).order_by(desc(func.count())).limit(limit)
+            select(EventDB.distrito, EventDB.tipo_id).where(
+                and_(
+                    EventDB.terminado == False,
+                    EventDB.cancelado == False,
+                    EventDB.distrito != None
+                )
+            )
         )
-        return [
-            {"distrito": d, "count": c, "total_value": float(v or 0)}
-            for d, c, v in result.all()
-        ]
+        events = result.all()
+
+        # tipo_id mapping: 1=Imóveis, 2=Veículos, 3=Equipamentos, 4=Mobiliário, 5=Máquinas, 6=Direitos
+        tipo_keys = {1: 'imoveis', 2: 'veiculos', 3: 'equipamentos', 4: 'mobiliario', 5: 'maquinas', 6: 'direitos'}
+
+        # Aggregate by distrito
+        distrito_stats = {}
+        for distrito, tipo_id in events:
+            if distrito not in distrito_stats:
+                distrito_stats[distrito] = {'distrito': distrito, 'total': 0, 'imoveis': 0, 'veiculos': 0, 'equipamentos': 0, 'mobiliario': 0, 'maquinas': 0, 'direitos': 0}
+            distrito_stats[distrito]['total'] += 1
+            tipo_key = tipo_keys.get(tipo_id)
+            if tipo_key:
+                distrito_stats[distrito][tipo_key] += 1
+
+        # Sort by total and limit
+        sorted_distritos = sorted(distrito_stats.values(), key=lambda x: x['total'], reverse=True)[:limit]
+
+        return sorted_distritos
 
 
 @app.get("/api/dashboard/recent-events")
