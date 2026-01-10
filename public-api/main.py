@@ -399,6 +399,29 @@ async def list_tipos():
         ]
 
 
+@app.get("/api/filters/subtypes/{tipo_id}")
+async def get_subtypes(tipo_id: int):
+    """Get subtypes for a specific tipo_id"""
+    async with get_session() as session:
+        result = await session.execute(
+            select(EventDB.subtipo, func.count())
+            .where(
+                and_(
+                    EventDB.terminado == False,
+                    EventDB.cancelado == False,
+                    EventDB.tipo_id == tipo_id,
+                    EventDB.subtipo != None
+                )
+            )
+            .group_by(EventDB.subtipo)
+            .order_by(EventDB.subtipo)
+        )
+        return [
+            {"subtipo": s, "count": c}
+            for s, c in result.all() if s
+        ]
+
+
 # ============ Dashboard Endpoints (compatibility with original frontend) ============
 
 @app.get("/api/dashboard/ending-soon")
