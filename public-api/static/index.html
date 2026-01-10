@@ -6041,17 +6041,32 @@
             }
         }
 
+        // Debounce utility
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
         let eventosFiltersSetup = false;
         function setupEventosFilters() {
             if (eventosFiltersSetup) return;
             eventosFiltersSetup = true;
+
+            const debouncedSearch = debounce(() => loadAllEvents(1), 300);
 
             ['search-eventos', 'tipo-eventos', 'sort-eventos', 'distrito-eventos'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) {
                     el.addEventListener('change', () => loadAllEvents(1));
                     if (id === 'search-eventos') {
-                        el.addEventListener('input', debounce(() => loadAllEvents(1), 300));
+                        el.addEventListener('input', debouncedSearch);
                     }
                 }
             });
