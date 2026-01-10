@@ -2958,65 +2958,37 @@
             </div>
 
             <!-- Quick Access Cards -->
-            <div id="dashboard-content" style="display: grid; grid-template-columns: 1fr; gap: 12px; margin-top: 16px;">
-                <!-- Pipelines Automáticas Card -->
-                <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
-                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1);">
-                        <span style="font-size: 14px;">⚡</span>
-                        <span style="font-weight: 600; color: white; font-size: 13px;">Pipelines Automáticas</span>
+            <div id="dashboard-content" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 16px;">
+                <!-- Pipelines Automáticas Card (compact) -->
+                <div style="background: white; border-radius: 10px; padding: 12px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                        <div style="width: 36px; height: 36px; background: linear-gradient(135deg, #6366f1, #8b5cf6); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                            <span style="font-size: 18px;">⚡</span>
+                        </div>
+                        <div>
+                            <div style="font-weight: 600; color: #1e293b; font-size: 13px;">Pipelines Automáticas</div>
+                            <div style="font-size: 10px; color: #64748b;">
+                                🔴 <span id="x-critical">0</span> &nbsp;
+                                🟠 <span id="x-urgent">0</span> &nbsp;
+                                🟡 <span id="x-soon">0</span>
+                            </div>
+                        </div>
                     </div>
-                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
-                        <!-- X-Monitor -->
-                        <div id="card-xmonitor" style="background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 8px; padding: 10px 12px;">
-                            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 6px;">
-                                <div>
-                                    <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
-                                        <span style="font-size: 12px;">🔴</span>
-                                        <span style="font-weight: 600; font-size: 11px; color: white;">X-Monitor</span>
-                                        <span id="status-xmonitor" style="font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: 600; display: none;"></span>
-                                        <span id="x-monitor-count" style="background: #ef4444; color: white; font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 8px; min-width: 18px; text-align: center;">0</span>
-                                    </div>
-                                    <div style="font-size: 10px; color: #94a3b8;">
-                                        🔴 <span id="x-critical">0</span> &nbsp;
-                                        🟠 <span id="x-urgent">0</span> &nbsp;
-                                        🟡 <span id="x-soon">0</span>
-                                    </div>
-                                </div>
-                                <div id="toggle-indicator-xmonitor" style="width: 8px; height: 8px; border-radius: 50%; background: #6b7280;"></div>
-                            </div>
-                            <div id="timer-xmonitor" style="font-size: 14px; font-weight: 600; font-family: monospace; color: #f87171;">--:--</div>
+                    <div style="display: flex; gap: 6px;">
+                        <!-- X-Monitor mini -->
+                        <div id="card-xmonitor" style="flex: 1; background: #fef2f2; border-radius: 6px; padding: 6px 8px; text-align: center;">
+                            <div style="font-size: 9px; color: #dc2626; font-weight: 600; margin-bottom: 2px;">🔴 X-Mon</div>
+                            <div id="timer-xmonitor" style="font-size: 11px; font-weight: 700; font-family: monospace; color: #dc2626;">--:--</div>
                         </div>
-
-                        <!-- Y-Sync -->
-                        <div id="card-ysync" style="background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.3); border-radius: 8px; padding: 10px 12px;">
-                            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 6px;">
-                                <div>
-                                    <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
-                                        <span style="font-size: 12px;">🔄</span>
-                                        <span style="font-weight: 600; font-size: 11px; color: white;">Y-Sync</span>
-                                        <span id="status-ysync" style="font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: 600; display: none;"></span>
-                                    </div>
-                                    <div style="font-size: 10px; color: #94a3b8;">Sync completo + Terminados</div>
-                                </div>
-                                <div id="toggle-indicator-ysync" style="width: 8px; height: 8px; border-radius: 50%; background: #6b7280;"></div>
-                            </div>
-                            <div id="timer-ysync" style="font-size: 14px; font-weight: 600; font-family: monospace; color: #60a5fa;">--:--:--</div>
+                        <!-- Y-Sync mini -->
+                        <div id="card-ysync" style="flex: 1; background: #eff6ff; border-radius: 6px; padding: 6px 8px; text-align: center;">
+                            <div style="font-size: 9px; color: #2563eb; font-weight: 600; margin-bottom: 2px;">🔄 Y-Sync</div>
+                            <div id="timer-ysync" style="font-size: 11px; font-weight: 700; font-family: monospace; color: #2563eb;">--:--</div>
                         </div>
-
-                        <!-- Z-Watch -->
-                        <div id="card-zwatch" style="background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); border-radius: 8px; padding: 10px 12px;">
-                            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 6px;">
-                                <div>
-                                    <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
-                                        <span style="font-size: 12px;">👁️</span>
-                                        <span style="font-weight: 600; font-size: 11px; color: white;">Z-Watch</span>
-                                        <span id="status-zwatch" style="font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: 600; display: none;"></span>
-                                    </div>
-                                    <div style="font-size: 10px; color: #94a3b8;">Novos eventos (10min)</div>
-                                </div>
-                                <div id="toggle-indicator-zwatch" style="width: 8px; height: 8px; border-radius: 50%; background: #6b7280;"></div>
-                            </div>
-                            <div id="timer-zwatch" style="font-size: 14px; font-weight: 600; font-family: monospace; color: #34d399;">--:--</div>
+                        <!-- Z-Watch mini -->
+                        <div id="card-zwatch" style="flex: 1; background: #ecfdf5; border-radius: 6px; padding: 6px 8px; text-align: center;">
+                            <div style="font-size: 9px; color: #059669; font-weight: 600; margin-bottom: 2px;">👁️ Z-Watch</div>
+                            <div id="timer-zwatch" style="font-size: 11px; font-weight: 700; font-family: monospace; color: #059669;">--:--</div>
                         </div>
                     </div>
                 </div>
@@ -7566,16 +7538,15 @@
             const now = new Date();
 
             const timerColors = {
-                'xmonitor': '#f87171',
-                'ysync': '#60a5fa',
-                'zwatch': '#34d399'
+                'xmonitor': '#dc2626',
+                'ysync': '#2563eb',
+                'zwatch': '#059669'
             };
 
             for (const [type, nextRunStr] of Object.entries(pipelineNextRuns)) {
                 const timerEl = document.getElementById(`pipeline-timer-${type}-scraping`);
                 const dashTimerEl = document.getElementById(`dash-${type}-timer`);
-                const mainTimerEl = document.getElementById(`timer-${type}`);  // New dashboard card timer
-                const toggleIndicator = document.getElementById(`toggle-indicator-${type}`);
+                const mainTimerEl = document.getElementById(`timer-${type}`);  // Dashboard card timer
 
                 // Use stored enabled status (from API), fallback to checkbox if available
                 const checkbox = document.getElementById(`auto-pipeline-${type}-scraping`);
@@ -7583,11 +7554,6 @@
 
                 let displayText = '--:--';
                 let displayColor = timerColors[type] || '#94a3b8';
-
-                // Update toggle indicator color
-                if (toggleIndicator) {
-                    toggleIndicator.style.background = isEnabled ? '#10b981' : '#6b7280';
-                }
 
                 if (!isEnabled) {
                     displayText = 'OFF';
@@ -7710,21 +7676,16 @@
                         if (urgSoon) urgSoon.textContent = stats.soon || 0;
                     }
 
-                    // Update is_running status badges on dashboard
+                    // Update is_running visual state on dashboard cards
                     for (const [type, config] of Object.entries(data.pipelines || {})) {
-                        const statusEl = document.getElementById(`status-${type}`);
                         const cardEl = document.getElementById(`card-${type}`);
-
-                        if (statusEl) {
+                        if (cardEl) {
                             if (config.is_running) {
-                                statusEl.textContent = 'A EXECUTAR';
-                                statusEl.style.display = 'inline-block';
-                                statusEl.style.background = '#10b981';
-                                statusEl.style.color = 'white';
-                                if (cardEl) cardEl.style.boxShadow = '0 0 15px rgba(16, 185, 129, 0.4)';
+                                cardEl.style.boxShadow = '0 0 8px rgba(16, 185, 129, 0.5)';
+                                cardEl.style.borderColor = '#10b981';
                             } else {
-                                statusEl.style.display = 'none';
-                                if (cardEl) cardEl.style.boxShadow = 'none';
+                                cardEl.style.boxShadow = 'none';
+                                cardEl.style.borderColor = 'transparent';
                             }
                         }
                     }
