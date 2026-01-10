@@ -250,55 +250,63 @@ async def list_events(
         return {"events": result_events, "total": len(result_events), "page": offset // limit + 1 if limit > 0 else 1}
 
 
-@app.get("/api/events/{reference}", response_model=EventDetail)
+@app.get("/api/events/{reference}")
 async def get_event(reference: str):
     """Get event details by reference"""
-    async with get_session() as session:
-        result = await session.execute(
-            select(EventDB).where(EventDB.reference == reference)
-        )
-        event = result.scalar_one_or_none()
+    try:
+        async with get_session() as session:
+            result = await session.execute(
+                select(EventDB).where(EventDB.reference == reference)
+            )
+            event = result.scalar_one_or_none()
 
-        if not event:
-            raise HTTPException(status_code=404, detail="Event not found")
+            if not event:
+                raise HTTPException(status_code=404, detail="Event not found")
 
-        fotos = None
-        if event.fotos:
-            try:
-                import json
-                fotos_data = json.loads(event.fotos)
-                if isinstance(fotos_data, list):
-                    fotos = [f.get("url") if isinstance(f, dict) else f for f in fotos_data]
-            except:
-                pass
+            fotos = None
+            if event.fotos:
+                try:
+                    import json
+                    fotos_data = json.loads(event.fotos)
+                    if isinstance(fotos_data, list):
+                        fotos = [f.get("url") if isinstance(f, dict) else f for f in fotos_data]
+                except:
+                    pass
 
-        return EventDetail(
-            reference=event.reference,
-            titulo=event.titulo,
-            capa=event.capa,
-            tipo_id=event.tipo_id,
-            tipo=event.tipo,
-            subtipo=event.subtipo,
-            tipologia=event.tipologia,
-            valor_base=event.valor_base,
-            valor_abertura=event.valor_abertura,
-            valor_minimo=event.valor_minimo,
-            lance_atual=event.lance_atual,
-            data_inicio=event.data_inicio,
-            data_fim=event.data_fim,
-            distrito=event.distrito,
-            concelho=event.concelho,
-            freguesia=event.freguesia,
-            morada=event.morada,
-            area_total=event.area_total,
-            latitude=event.latitude,
-            longitude=event.longitude,
-            descricao=event.descricao,
-            fotos=fotos,
-            terminado=event.terminado,
-            cancelado=event.cancelado,
-            iniciado=event.iniciado
-        )
+            # Return dict directly to avoid Pydantic validation issues with None fields
+            return {
+                "reference": event.reference,
+                "titulo": event.titulo,
+                "capa": event.capa,
+                "tipo_id": event.tipo_id,
+                "tipo": event.tipo,
+                "subtipo": event.subtipo,
+                "tipologia": event.tipologia,
+                "valor_base": event.valor_base,
+                "valor_abertura": event.valor_abertura,
+                "valor_minimo": event.valor_minimo,
+                "lance_atual": event.lance_atual or 0,
+                "data_inicio": event.data_inicio.isoformat() if event.data_inicio else None,
+                "data_fim": event.data_fim.isoformat() if event.data_fim else None,
+                "distrito": event.distrito,
+                "concelho": event.concelho,
+                "freguesia": event.freguesia,
+                "morada": event.morada,
+                "area_total": event.area_total,
+                "latitude": event.latitude,
+                "longitude": event.longitude,
+                "descricao": event.descricao,
+                "fotos": fotos,
+                "terminado": event.terminado if event.terminado is not None else False,
+                "cancelado": event.cancelado if event.cancelado is not None else False,
+                "iniciado": event.iniciado if event.iniciado is not None else False,
+                "ativo": not (event.terminado or event.cancelado)
+            }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error getting event {reference}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/ending-soon", response_model=List[EventSummary])
@@ -545,12 +553,62 @@ async def get_volatile_data(reference: str):
 
 @app.get("/api/auto-pipelines/status")
 async def auto_pipelines_status():
-    """Stub: Pipelines not available on public API"""
-    return {
-        "xmonitor": {"enabled": False, "next_run": None},
-        "ysync": {"enabled": False, "next_run": None},
-        "zwatch": {"enabled": False, "next_run": None}
-    }
+    """Returns event urgency counts (critical/urgent/soon) for dashboard"""
+    try:
+        async with get_session() as session:
+            from datetime import timedelta
+            now = datetime.utcnow()
+
+            # Count events by urgency level
+            critical_cutoff = now + timedelta(minutes=5)
+            urgent_cutoff = now + timedelta(hours=1)
+            soon_cutoff = now + timedelta(hours=24)
+
+            # Get all active events ending in next 24h
+            result = await session.execute(
+                select(EventDB).where(
+                    and_(
+                        EventDB.terminado == False,
+                        EventDB.cancelado == False,
+                        EventDB.data_fim >= now,
+                        EventDB.data_fim <= soon_cutoff
+                    )
+                )
+            )
+            events = result.scalars().all()
+
+            critical = 0
+            urgent = 0
+            soon = 0
+
+            for e in events:
+                if e.data_fim:
+                    if e.data_fim <= critical_cutoff:
+                        critical += 1
+                    elif e.data_fim <= urgent_cutoff:
+                        urgent += 1
+                    else:
+                        soon += 1
+
+            return {
+                "pipelines": {
+                    "xmonitor": {"type": "xmonitor", "name": "X-Monitor", "enabled": False, "next_run": None},
+                    "ysync": {"type": "ysync", "name": "Y-Sync", "enabled": False, "next_run": None},
+                    "zwatch": {"type": "zwatch", "name": "Z-Watch", "enabled": False, "next_run": None}
+                },
+                "xmonitor_stats": {
+                    "total": critical + urgent + soon,
+                    "critical": critical,
+                    "urgent": urgent,
+                    "soon": soon
+                }
+            }
+    except Exception as e:
+        print(f"Error getting pipeline status: {e}")
+        return {
+            "pipelines": {},
+            "xmonitor_stats": {"total": 0, "critical": 0, "urgent": 0, "soon": 0}
+        }
 
 
 @app.get("/api/notifications/count")

@@ -2958,7 +2958,34 @@
             </div>
 
             <!-- Quick Access Cards -->
-            <div id="dashboard-content" style="display: grid; grid-template-columns: 1fr; gap: 12px; margin-top: 16px;">
+            <div id="dashboard-content" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 16px;">
+                <!-- Eventos por Urgência -->
+                <div style="background: white; border-radius: 10px; padding: 12px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); display: flex; align-items: center; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="width: 36px; height: 36px; background: linear-gradient(135deg, #dc2626, #ef4444); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                            <span style="font-size: 18px;">⏱️</span>
+                        </div>
+                        <div>
+                            <div style="font-weight: 600; color: #1e293b; font-size: 13px;">Eventos por Urgência</div>
+                            <div style="font-size: 11px; color: #64748b;">Próximas 24 horas</div>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <div style="text-align: center; padding: 4px 8px; background: #fef2f2; border-radius: 6px;" title="Crítico: < 5 minutos">
+                            <div style="font-size: 9px; color: #dc2626;">🔴 Crítico</div>
+                            <div id="urgency-critical" style="font-size: 14px; font-weight: 700; color: #dc2626;">0</div>
+                        </div>
+                        <div style="text-align: center; padding: 4px 8px; background: #fff7ed; border-radius: 6px;" title="Urgente: < 1 hora">
+                            <div style="font-size: 9px; color: #ea580c;">🟠 Urgente</div>
+                            <div id="urgency-urgent" style="font-size: 14px; font-weight: 700; color: #ea580c;">0</div>
+                        </div>
+                        <div style="text-align: center; padding: 4px 8px; background: #fefce8; border-radius: 6px;" title="Em breve: < 24 horas">
+                            <div style="font-size: 9px; color: #ca8a04;">🟡 Em breve</div>
+                            <div id="urgency-soon" style="font-size: 14px; font-weight: 700; color: #ca8a04;">0</div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Alertas Quick Access -->
                 <div style="background: white; border-radius: 10px; padding: 12px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); display: flex; align-items: center; justify-content: space-between;">
                     <div style="display: flex; align-items: center; gap: 10px; flex: 1;">
@@ -7605,6 +7632,14 @@
                         setCount('x-critical-count', stats.critical);
                         setCount('x-urgent-count', stats.urgent);
                         setCount('x-soon-count', stats.soon);
+
+                        // Update urgency card on dashboard
+                        const urgCritical = document.getElementById('urgency-critical');
+                        const urgUrgent = document.getElementById('urgency-urgent');
+                        const urgSoon = document.getElementById('urgency-soon');
+                        if (urgCritical) urgCritical.textContent = stats.critical || 0;
+                        if (urgUrgent) urgUrgent.textContent = stats.urgent || 0;
+                        if (urgSoon) urgSoon.textContent = stats.soon || 0;
                     }
 
                     // Update timers immediately
