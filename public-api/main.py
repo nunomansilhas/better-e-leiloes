@@ -17,7 +17,7 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
-from database import get_session, EventDB, PriceHistoryDB, init_db
+from database import get_session, EventDB, PriceHistoryDB, PipelineStateDB, init_db
 from sqlalchemy import select, func, desc, and_, or_
 
 
@@ -553,11 +553,40 @@ async def get_volatile_data(reference: str):
 
 @app.get("/api/auto-pipelines/status")
 async def auto_pipelines_status():
-    """Returns event urgency counts (critical/urgent/soon) for dashboard"""
+    """Returns pipeline status and event urgency counts from database"""
     try:
         async with get_session() as session:
             from datetime import timedelta
             now = datetime.utcnow()
+
+            # Read pipeline states from database
+            pipeline_result = await session.execute(select(PipelineStateDB))
+            pipeline_states = pipeline_result.scalars().all()
+
+            pipelines = {}
+            for state in pipeline_states:
+                pipelines[state.pipeline_name] = {
+                    "type": state.pipeline_name,
+                    "name": {"xmonitor": "X-Monitor", "ysync": "Y-Sync", "zwatch": "Z-Watch"}.get(state.pipeline_name, state.pipeline_name),
+                    "enabled": state.enabled,
+                    "is_running": state.is_running,
+                    "interval_hours": state.interval_hours,
+                    "last_run": state.last_run.isoformat() if state.last_run else None,
+                    "next_run": state.next_run.isoformat() if state.next_run else None,
+                    "runs_count": state.runs_count,
+                    "description": state.description
+                }
+
+            # Ensure all 3 pipelines are present
+            for name in ["xmonitor", "ysync", "zwatch"]:
+                if name not in pipelines:
+                    pipelines[name] = {
+                        "type": name,
+                        "name": {"xmonitor": "X-Monitor", "ysync": "Y-Sync", "zwatch": "Z-Watch"}.get(name),
+                        "enabled": False,
+                        "is_running": False,
+                        "next_run": None
+                    }
 
             # Count events by urgency level
             critical_cutoff = now + timedelta(minutes=5)
@@ -591,11 +620,7 @@ async def auto_pipelines_status():
                         soon += 1
 
             return {
-                "pipelines": {
-                    "xmonitor": {"type": "xmonitor", "name": "X-Monitor", "enabled": False, "next_run": None},
-                    "ysync": {"type": "ysync", "name": "Y-Sync", "enabled": False, "next_run": None},
-                    "zwatch": {"type": "zwatch", "name": "Z-Watch", "enabled": False, "next_run": None}
-                },
+                "pipelines": pipelines,
                 "xmonitor_stats": {
                     "total": critical + urgent + soon,
                     "critical": critical,

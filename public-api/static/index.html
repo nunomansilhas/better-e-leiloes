@@ -2958,30 +2958,65 @@
             </div>
 
             <!-- Quick Access Cards -->
-            <div id="dashboard-content" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 16px;">
-                <!-- Eventos por Urgência -->
-                <div style="background: white; border-radius: 10px; padding: 12px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); display: flex; align-items: center; justify-content: space-between;">
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <div style="width: 36px; height: 36px; background: linear-gradient(135deg, #dc2626, #ef4444); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
-                            <span style="font-size: 18px;">⏱️</span>
-                        </div>
-                        <div>
-                            <div style="font-weight: 600; color: #1e293b; font-size: 13px;">Eventos por Urgência</div>
-                            <div style="font-size: 11px; color: #64748b;">Próximas 24 horas</div>
-                        </div>
+            <div id="dashboard-content" style="display: grid; grid-template-columns: 1fr; gap: 12px; margin-top: 16px;">
+                <!-- Pipelines Automáticas Card -->
+                <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                        <span style="font-size: 14px;">⚡</span>
+                        <span style="font-weight: 600; color: white; font-size: 13px;">Pipelines Automáticas</span>
                     </div>
-                    <div style="display: flex; gap: 8px; align-items: center;">
-                        <div style="text-align: center; padding: 4px 8px; background: #fef2f2; border-radius: 6px;" title="Crítico: < 5 minutos">
-                            <div style="font-size: 9px; color: #dc2626;">🔴 Crítico</div>
-                            <div id="urgency-critical" style="font-size: 14px; font-weight: 700; color: #dc2626;">0</div>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                        <!-- X-Monitor -->
+                        <div id="card-xmonitor" style="background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 8px; padding: 10px 12px;">
+                            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 6px;">
+                                <div>
+                                    <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+                                        <span style="font-size: 12px;">🔴</span>
+                                        <span style="font-weight: 600; font-size: 11px; color: white;">X-Monitor</span>
+                                        <span id="status-xmonitor" style="font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: 600; display: none;"></span>
+                                        <span id="x-monitor-count" style="background: #ef4444; color: white; font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 8px; min-width: 18px; text-align: center;">0</span>
+                                    </div>
+                                    <div style="font-size: 10px; color: #94a3b8;">
+                                        🔴 <span id="x-critical">0</span> &nbsp;
+                                        🟠 <span id="x-urgent">0</span> &nbsp;
+                                        🟡 <span id="x-soon">0</span>
+                                    </div>
+                                </div>
+                                <div id="toggle-indicator-xmonitor" style="width: 8px; height: 8px; border-radius: 50%; background: #6b7280;"></div>
+                            </div>
+                            <div id="timer-xmonitor" style="font-size: 14px; font-weight: 600; font-family: monospace; color: #f87171;">--:--</div>
                         </div>
-                        <div style="text-align: center; padding: 4px 8px; background: #fff7ed; border-radius: 6px;" title="Urgente: < 1 hora">
-                            <div style="font-size: 9px; color: #ea580c;">🟠 Urgente</div>
-                            <div id="urgency-urgent" style="font-size: 14px; font-weight: 700; color: #ea580c;">0</div>
+
+                        <!-- Y-Sync -->
+                        <div id="card-ysync" style="background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.3); border-radius: 8px; padding: 10px 12px;">
+                            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 6px;">
+                                <div>
+                                    <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+                                        <span style="font-size: 12px;">🔄</span>
+                                        <span style="font-weight: 600; font-size: 11px; color: white;">Y-Sync</span>
+                                        <span id="status-ysync" style="font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: 600; display: none;"></span>
+                                    </div>
+                                    <div style="font-size: 10px; color: #94a3b8;">Sync completo + Terminados</div>
+                                </div>
+                                <div id="toggle-indicator-ysync" style="width: 8px; height: 8px; border-radius: 50%; background: #6b7280;"></div>
+                            </div>
+                            <div id="timer-ysync" style="font-size: 14px; font-weight: 600; font-family: monospace; color: #60a5fa;">--:--:--</div>
                         </div>
-                        <div style="text-align: center; padding: 4px 8px; background: #fefce8; border-radius: 6px;" title="Em breve: < 24 horas">
-                            <div style="font-size: 9px; color: #ca8a04;">🟡 Em breve</div>
-                            <div id="urgency-soon" style="font-size: 14px; font-weight: 700; color: #ca8a04;">0</div>
+
+                        <!-- Z-Watch -->
+                        <div id="card-zwatch" style="background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); border-radius: 8px; padding: 10px 12px;">
+                            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 6px;">
+                                <div>
+                                    <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+                                        <span style="font-size: 12px;">👁️</span>
+                                        <span style="font-weight: 600; font-size: 11px; color: white;">Z-Watch</span>
+                                        <span id="status-zwatch" style="font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: 600; display: none;"></span>
+                                    </div>
+                                    <div style="font-size: 10px; color: #94a3b8;">Novos eventos (10min)</div>
+                                </div>
+                                <div id="toggle-indicator-zwatch" style="width: 8px; height: 8px; border-radius: 50%; background: #6b7280;"></div>
+                            </div>
+                            <div id="timer-zwatch" style="font-size: 14px; font-weight: 600; font-family: monospace; color: #34d399;">--:--</div>
                         </div>
                     </div>
                 </div>
@@ -7530,16 +7565,29 @@
         function updatePipelineTimers() {
             const now = new Date();
 
+            const timerColors = {
+                'xmonitor': '#f87171',
+                'ysync': '#60a5fa',
+                'zwatch': '#34d399'
+            };
+
             for (const [type, nextRunStr] of Object.entries(pipelineNextRuns)) {
                 const timerEl = document.getElementById(`pipeline-timer-${type}-scraping`);
                 const dashTimerEl = document.getElementById(`dash-${type}-timer`);
+                const mainTimerEl = document.getElementById(`timer-${type}`);  // New dashboard card timer
+                const toggleIndicator = document.getElementById(`toggle-indicator-${type}`);
 
                 // Use stored enabled status (from API), fallback to checkbox if available
                 const checkbox = document.getElementById(`auto-pipeline-${type}-scraping`);
                 const isEnabled = pipelineEnabled[type] !== undefined ? pipelineEnabled[type] : (checkbox && checkbox.checked);
 
                 let displayText = '--:--';
-                let displayColor = '#94a3b8';
+                let displayColor = timerColors[type] || '#94a3b8';
+
+                // Update toggle indicator color
+                if (toggleIndicator) {
+                    toggleIndicator.style.background = isEnabled ? '#10b981' : '#6b7280';
+                }
 
                 if (!isEnabled) {
                     displayText = 'OFF';
@@ -7561,11 +7609,17 @@
                             if (type === 'xmonitor') timerEl.style.color = '#dc2626';
                             else if (type === 'ysync') timerEl.style.color = '#1e40af';
                         }
-                        // Compact format for dashboard
-                        const mins = Math.floor(diffSeconds / 60);
+                        // Compact format
+                        const hours = Math.floor(diffSeconds / 3600);
+                        const mins = Math.floor((diffSeconds % 3600) / 60);
                         const secs = Math.floor(diffSeconds % 60);
-                        displayText = `${mins}:${secs.toString().padStart(2, '0')}`;
-                        displayColor = type === 'xmonitor' ? '#dc2626' : '#1e40af';
+
+                        if (hours > 0) {
+                            displayText = `${hours}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                        } else {
+                            displayText = `${mins}:${secs.toString().padStart(2, '0')}`;
+                        }
+                        displayColor = timerColors[type] || '#94a3b8';
                     }
                 }
 
@@ -7575,10 +7629,16 @@
                     timerEl.style.color = displayColor;
                 }
 
-                // Update dashboard timer
+                // Update old dashboard timer
                 if (dashTimerEl) {
                     dashTimerEl.textContent = displayText;
                     dashTimerEl.style.color = displayColor;
+                }
+
+                // Update new main dashboard card timer
+                if (mainTimerEl) {
+                    mainTimerEl.textContent = displayText;
+                    mainTimerEl.style.color = displayColor;
                 }
             }
         }
@@ -7633,13 +7693,40 @@
                         setCount('x-urgent-count', stats.urgent);
                         setCount('x-soon-count', stats.soon);
 
-                        // Update urgency card on dashboard
+                        // Update new dashboard pipeline card urgency counts
+                        const xCritical = document.getElementById('x-critical');
+                        const xUrgent = document.getElementById('x-urgent');
+                        const xSoon = document.getElementById('x-soon');
+                        if (xCritical) xCritical.textContent = stats.critical || 0;
+                        if (xUrgent) xUrgent.textContent = stats.urgent || 0;
+                        if (xSoon) xSoon.textContent = stats.soon || 0;
+
+                        // Update urgency card on dashboard (legacy)
                         const urgCritical = document.getElementById('urgency-critical');
                         const urgUrgent = document.getElementById('urgency-urgent');
                         const urgSoon = document.getElementById('urgency-soon');
                         if (urgCritical) urgCritical.textContent = stats.critical || 0;
                         if (urgUrgent) urgUrgent.textContent = stats.urgent || 0;
                         if (urgSoon) urgSoon.textContent = stats.soon || 0;
+                    }
+
+                    // Update is_running status badges on dashboard
+                    for (const [type, config] of Object.entries(data.pipelines || {})) {
+                        const statusEl = document.getElementById(`status-${type}`);
+                        const cardEl = document.getElementById(`card-${type}`);
+
+                        if (statusEl) {
+                            if (config.is_running) {
+                                statusEl.textContent = 'A EXECUTAR';
+                                statusEl.style.display = 'inline-block';
+                                statusEl.style.background = '#10b981';
+                                statusEl.style.color = 'white';
+                                if (cardEl) cardEl.style.boxShadow = '0 0 15px rgba(16, 185, 129, 0.4)';
+                            } else {
+                                statusEl.style.display = 'none';
+                                if (cardEl) cardEl.style.boxShadow = 'none';
+                            }
+                        }
                     }
 
                     // Update timers immediately

@@ -100,6 +100,22 @@ class PriceHistoryDB(Base):
     timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
+class PipelineStateDB(Base):
+    """Pipeline state table - mirrors backend for read-only access"""
+    __tablename__ = "pipeline_state"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    pipeline_name: Mapped[str] = mapped_column(String(50), nullable=False)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_running: Mapped[bool] = mapped_column(Boolean, default=False)
+    interval_hours: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    description: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    last_run: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    next_run: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    runs_count: Mapped[int] = mapped_column(Integer, default=0)
+    last_result: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+
 @asynccontextmanager
 async def get_session():
     """Get async database session"""
