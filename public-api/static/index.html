@@ -4166,10 +4166,14 @@
                     if (!response.ok) throw new Error('Event not found');
                     const apiEvent = await response.json();
 
-                    // Extract images from fotos array (API returns {image, thumbnail} objects)
+                    // Extract images from fotos array (API returns strings or {image, thumbnail} objects)
                     let imagens = [];
                     if (apiEvent.fotos && Array.isArray(apiEvent.fotos)) {
-                        imagens = apiEvent.fotos.map(f => f.image || f.thumbnail).filter(Boolean);
+                        imagens = apiEvent.fotos.map(f => {
+                            if (typeof f === 'string') return f;
+                            if (f && typeof f === 'object') return f.image || f.thumbnail || f.url;
+                            return null;
+                        }).filter(Boolean);
                     }
                     if (imagens.length === 0 && apiEvent.capa) {
                         imagens = [apiEvent.capa];
