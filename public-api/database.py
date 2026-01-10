@@ -96,8 +96,18 @@ class PriceHistoryDB(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     reference: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
-    preco: Mapped[float] = mapped_column(Float, nullable=False)
-    timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    # Prices
+    old_price: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    new_price: Mapped[float] = mapped_column(Float, nullable=False)
+
+    # Calculated change
+    change_amount: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    change_percent: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+
+    # Metadata
+    recorded_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    source: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
 
 
 class PipelineStateDB(Base):

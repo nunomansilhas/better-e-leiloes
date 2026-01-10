@@ -19,7 +19,6 @@ load_dotenv()
 
 from database import get_session, EventDB, PriceHistoryDB, PipelineStateDB, init_db
 from sqlalchemy import select, func, desc, and_, or_
-from collections import defaultdict
 
 
 # ============ Pydantic Models ============
@@ -348,12 +347,12 @@ async def get_price_history(reference: str, limit: int = Query(50, le=200)):
         result = await session.execute(
             select(PriceHistoryDB)
             .where(PriceHistoryDB.reference == reference)
-            .order_by(PriceHistoryDB.timestamp)
+            .order_by(PriceHistoryDB.recorded_at)
             .limit(limit)
         )
         history = result.scalars().all()
 
-        return [PricePoint(preco=h.preco, timestamp=h.timestamp) for h in history]
+        return [PricePoint(preco=h.new_price, timestamp=h.recorded_at) for h in history]
 
 
 @app.get("/api/distritos")
@@ -446,57 +445,29 @@ async def dashboard_price_history(reference: str):
 async def dashboard_recent_bids(limit: int = 30):
     """Get recent bid activity with price changes from price_history table"""
     async with get_session() as session:
-        # Get recent price history entries
+        # Get recent price history entries (already has old_price, new_price, change_amount)
         result = await session.execute(
             select(PriceHistoryDB)
-            .order_by(desc(PriceHistoryDB.timestamp))
-            .limit(limit * 2)  # Get more to have enough after grouping
+            .where(PriceHistoryDB.change_amount != None)  # Only get entries with actual changes
+            .order_by(desc(PriceHistoryDB.recorded_at))
+            .limit(limit)
         )
         history_entries = result.scalars().all()
 
         if not history_entries:
             return []
 
-        # Group by reference and collect all prices
-        price_by_ref = defaultdict(list)
-        for h in history_entries:
-            price_by_ref[h.reference].append({
-                "preco": h.preco,
-                "timestamp": h.timestamp
-            })
-
         # Get event details for these references
-        refs = list(price_by_ref.keys())
+        refs = list(set(h.reference for h in history_entries))
         events_result = await session.execute(
             select(EventDB).where(EventDB.reference.in_(refs))
         )
         events_map = {e.reference: e for e in events_result.scalars().all()}
 
-        # Build response with price changes
+        # Build response
         bids = []
         for h in history_entries:
-            ref = h.reference
-            prices = sorted(price_by_ref[ref], key=lambda x: x["timestamp"])
-
-            # Find current price and previous price
-            current_idx = None
-            for i, p in enumerate(prices):
-                if p["preco"] == h.preco and p["timestamp"] == h.timestamp:
-                    current_idx = i
-                    break
-
-            if current_idx is None:
-                continue
-
-            preco_atual = h.preco
-            preco_anterior = prices[current_idx - 1]["preco"] if current_idx > 0 else None
-            variacao = (preco_atual - preco_anterior) if preco_anterior else None
-
-            # Skip if no variation (duplicate entry)
-            if variacao == 0:
-                continue
-
-            event = events_map.get(ref)
+            event = events_map.get(h.reference)
             ativo = True
             data_fim = None
             if event:
@@ -504,25 +475,16 @@ async def dashboard_recent_bids(limit: int = 30):
                 data_fim = event.data_fim.isoformat() if event.data_fim else None
 
             bids.append({
-                "reference": ref,
-                "preco_anterior": preco_anterior,
-                "preco_atual": preco_atual,
-                "variacao": variacao,
-                "timestamp": h.timestamp.isoformat() if h.timestamp else None,
+                "reference": h.reference,
+                "preco_anterior": h.old_price,
+                "preco_atual": h.new_price,
+                "variacao": h.change_amount,
+                "timestamp": h.recorded_at.isoformat() if h.recorded_at else None,
                 "ativo": ativo,
                 "data_fim": data_fim
             })
 
-        # Remove duplicates (same ref, same preco_atual) and limit
-        seen = set()
-        unique_bids = []
-        for bid in bids:
-            key = (bid["reference"], bid["preco_atual"])
-            if key not in seen:
-                seen.add(key)
-                unique_bids.append(bid)
-
-        return unique_bids[:limit]
+        return bids
 
 
 @app.get("/api/dashboard/stats-by-distrito")
