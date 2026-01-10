@@ -1164,6 +1164,7 @@ class AutoPipelinesManager:
 
             # Mark as running
             self.pipelines['xmonitor'].is_running = True
+            await self.save_to_database('xmonitor')
 
             # Refresh caches to get current events
             now = datetime.now()
@@ -1211,6 +1212,7 @@ class AutoPipelinesManager:
             else:
                 print(f"🔴 X-Monitor: Sem eventos nas próximas 24h")
                 self.pipelines['xmonitor'].is_running = False
+                await self.save_to_database('xmonitor')
                 # Reschedule to check again in 30 minutes
                 self._reschedule_xmonitor(1800)
                 return
@@ -1306,6 +1308,8 @@ class AutoPipelinesManager:
             finally:
                 await scraper.close()
                 self.pipelines['xmonitor'].is_running = False
+                # Save to database so frontend sees updated state
+                await self.save_to_database('xmonitor')
                 # Reschedule with adaptive interval
                 self._reschedule_xmonitor(next_interval_seconds)
 
@@ -1346,6 +1350,7 @@ class AutoPipelinesManager:
                 # Mark as running
                 self.pipelines['ysync'].is_running = True
                 self._save_config()
+                await self.save_to_database('ysync')
 
                 print(f"🔄 Y-Sync: A iniciar sincronização completa...")
 
@@ -1569,6 +1574,8 @@ class AutoPipelinesManager:
                     pipeline.runs_count += 1
                     pipeline.next_run = (now + timedelta(hours=pipeline.interval_hours)).strftime("%Y-%m-%d %H:%M:%S")
                     self._save_config()
+                    # Save to database so frontend sees updated state
+                    await self.save_to_database('ysync')
                     print(f"  ⏰ Y-Sync: próxima execução em {pipeline.interval_hours}h")
 
                 # Release heavy pipeline lock
@@ -1620,6 +1627,7 @@ class AutoPipelinesManager:
                 # Mark as running
                 self.pipelines['zwatch'].is_running = True
                 self._save_config()
+                await self.save_to_database('zwatch')
 
                 print(f"👁️ Z-Watch: A verificar EventosMaisRecentes...")
 
@@ -1739,6 +1747,8 @@ class AutoPipelinesManager:
                     pipeline.runs_count += 1
                     pipeline.next_run = (now + timedelta(hours=pipeline.interval_hours)).strftime("%Y-%m-%d %H:%M:%S")
                     self._save_config()
+                    # Save to database so frontend sees updated state
+                    await self.save_to_database('zwatch')
                     print(f"  ⏰ Z-Watch: próxima execução em {pipeline.interval_hours * 60:.0f} min")
 
                 # Release heavy pipeline lock
