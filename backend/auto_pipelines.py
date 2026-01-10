@@ -1308,10 +1308,10 @@ class AutoPipelinesManager:
             finally:
                 await scraper.close()
                 self.pipelines['xmonitor'].is_running = False
-                # Save to database so frontend sees updated state
-                await self.save_to_database('xmonitor')
-                # Reschedule with adaptive interval
+                # Reschedule with adaptive interval (updates next_run)
                 self._reschedule_xmonitor(next_interval_seconds)
+                # Save to database AFTER reschedule so next_run is correct
+                await self.save_to_database('xmonitor')
 
         async def run_ysync_pipeline():
             """Y-Sync: Sincroniza novos IDs e marca eventos terminados"""
@@ -1574,8 +1574,6 @@ class AutoPipelinesManager:
                     pipeline.runs_count += 1
                     pipeline.next_run = (now + timedelta(hours=pipeline.interval_hours)).strftime("%Y-%m-%d %H:%M:%S")
                     self._save_config()
-                    # Save to database so frontend sees updated state
-                    await self.save_to_database('ysync')
                     print(f"  ⏰ Y-Sync: próxima execução em {pipeline.interval_hours}h")
 
                 # Release heavy pipeline lock
@@ -1584,6 +1582,10 @@ class AutoPipelinesManager:
 
                 # ALWAYS reschedule - even if skipped
                 self._reschedule_pipeline('ysync')
+
+                # Save to database AFTER reschedule so next_run is correct
+                if not skipped:
+                    await self.save_to_database('ysync')
 
         async def run_zwatch_pipeline():
             """Z-Watch: Monitoriza EventosMaisRecentes API para novos eventos"""
@@ -1747,8 +1749,6 @@ class AutoPipelinesManager:
                     pipeline.runs_count += 1
                     pipeline.next_run = (now + timedelta(hours=pipeline.interval_hours)).strftime("%Y-%m-%d %H:%M:%S")
                     self._save_config()
-                    # Save to database so frontend sees updated state
-                    await self.save_to_database('zwatch')
                     print(f"  ⏰ Z-Watch: próxima execução em {pipeline.interval_hours * 60:.0f} min")
 
                 # Release heavy pipeline lock
@@ -1757,6 +1757,10 @@ class AutoPipelinesManager:
 
                 # ALWAYS reschedule - even if skipped
                 self._reschedule_pipeline('zwatch')
+
+                # Save to database AFTER reschedule so next_run is correct
+                if not skipped:
+                    await self.save_to_database('zwatch')
 
         # Return the appropriate function
         tasks = {
