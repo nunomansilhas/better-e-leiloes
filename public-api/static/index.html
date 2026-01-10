@@ -2959,36 +2959,30 @@
 
             <!-- Quick Access Cards -->
             <div id="dashboard-content" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 16px;">
-                <!-- Pipelines Automáticas Card (compact) -->
-                <div style="background: white; border-radius: 10px; padding: 12px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
-                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
-                        <div style="width: 36px; height: 36px; background: linear-gradient(135deg, #6366f1, #8b5cf6); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
-                            <span style="font-size: 18px;">⚡</span>
+                <!-- Scraping & Sync Quick Access -->
+                <div style="background: white; border-radius: 10px; padding: 12px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); display: flex; align-items: center; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="width: 36px; height: 36px; background: linear-gradient(135deg, #3b82f6, #2563eb); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                            <span style="font-size: 18px;">🔄</span>
                         </div>
                         <div>
-                            <div style="font-weight: 600; color: #1e293b; font-size: 13px;">Pipelines Automáticas</div>
-                            <div style="font-size: 10px; color: #64748b;">
-                                🔴 <span id="x-critical">0</span> &nbsp;
-                                🟠 <span id="x-urgent">0</span> &nbsp;
-                                🟡 <span id="x-soon">0</span>
-                            </div>
+                            <div style="font-weight: 600; color: #1e293b; font-size: 13px;">Scraping & Sync</div>
+                            <div style="font-size: 11px; color: #64748b;">Pipelines automáticas</div>
                         </div>
                     </div>
-                    <div style="display: flex; gap: 6px;">
-                        <!-- X-Monitor mini -->
-                        <div id="card-xmonitor" style="flex: 1; background: #fef2f2; border-radius: 6px; padding: 6px 8px; text-align: center;">
-                            <div style="font-size: 9px; color: #dc2626; font-weight: 600; margin-bottom: 2px;">🔴 X-Mon</div>
-                            <div id="timer-xmonitor" style="font-size: 11px; font-weight: 700; font-family: monospace; color: #dc2626;">--:--</div>
+                    <div style="display: flex; gap: 6px; align-items: center;">
+                        <div style="display: flex; gap: 4px; font-size: 9px; margin-right: 4px;">
+                            <span title="Crítico < 5min">🔴 <span id="x-critical">0</span></span>
+                            <span title="Urgente < 1h">🟠 <span id="x-urgent">0</span></span>
+                            <span title="Em breve < 24h">🟡 <span id="x-soon">0</span></span>
                         </div>
-                        <!-- Y-Sync mini -->
-                        <div id="card-ysync" style="flex: 1; background: #eff6ff; border-radius: 6px; padding: 6px 8px; text-align: center;">
-                            <div style="font-size: 9px; color: #2563eb; font-weight: 600; margin-bottom: 2px;">🔄 Y-Sync</div>
-                            <div id="timer-ysync" style="font-size: 11px; font-weight: 700; font-family: monospace; color: #2563eb;">--:--</div>
+                        <div id="card-xmonitor" style="padding: 4px 8px; background: #f8fafc; border-radius: 4px; text-align: center;">
+                            <div style="font-size: 9px; color: #64748b;">X-Mon</div>
+                            <div id="timer-xmonitor" style="font-size: 10px; font-weight: 600; color: #dc2626;">--:--</div>
                         </div>
-                        <!-- Z-Watch mini -->
-                        <div id="card-zwatch" style="flex: 1; background: #ecfdf5; border-radius: 6px; padding: 6px 8px; text-align: center;">
-                            <div style="font-size: 9px; color: #059669; font-weight: 600; margin-bottom: 2px;">👁️ Z-Watch</div>
-                            <div id="timer-zwatch" style="font-size: 11px; font-weight: 700; font-family: monospace; color: #059669;">--:--</div>
+                        <div id="card-ysync" style="padding: 4px 8px; background: #f8fafc; border-radius: 4px; text-align: center;">
+                            <div style="font-size: 9px; color: #64748b;">Y-Sync</div>
+                            <div id="timer-ysync" style="font-size: 10px; font-weight: 600; color: #1e40af;">--:--</div>
                         </div>
                     </div>
                 </div>
@@ -7539,7 +7533,7 @@
 
             const timerColors = {
                 'xmonitor': '#dc2626',
-                'ysync': '#2563eb',
+                'ysync': '#1e40af',
                 'zwatch': '#059669'
             };
 
