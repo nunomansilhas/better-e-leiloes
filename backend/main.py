@@ -165,6 +165,10 @@ async def lifespan(app: FastAPI):
     # Auto-start enabled pipelines
     from auto_pipelines import get_auto_pipelines_manager
     pipelines_manager = get_auto_pipelines_manager()
+
+    # Load pipeline state from database (overrides JSON file)
+    await pipelines_manager.load_from_database()
+
     enabled_count = 0
     for pipeline_type, pipeline in pipelines_manager.pipelines.items():
         if pipeline.enabled:

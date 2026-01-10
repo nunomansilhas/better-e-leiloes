@@ -382,6 +382,36 @@ class NotificationDB(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
+class PipelineStateDB(Base):
+    """
+    Estado persistente das pipelines automáticas (X-Monitor, Y-Sync, Z-Watch)
+    """
+    __tablename__ = "pipeline_state"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    pipeline_name: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)  # xmonitor, ysync, zwatch
+
+    # Estado
+    enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_running: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # Configuração
+    interval_hours: Mapped[float] = mapped_column(Float, default=1.0)
+    description: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+
+    # Timestamps
+    last_run: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    next_run: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+    # Estatísticas
+    runs_count: Mapped[int] = mapped_column(Integer, default=0)
+    last_result: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON with last run stats
+
+    # Timestamps de controlo
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 async def init_db():
     """Cria tabelas se não existirem"""
     async with engine.begin() as conn:
@@ -403,6 +433,11 @@ async def init_db():
                 print("✅ Added event_reference column to notification_rules")
             except Exception as e:
                 print(f"⚠️ Migration note: {e}")
+
+    # Initialize default pipeline states
+    async with async_session_maker() as session:
+        db = DatabaseManager(session)
+        await db.init_default_pipelines()
 
     print("✅ Database inicializada")
 
@@ -1755,6 +1790,105 @@ class DatabaseManager:
 
         await self.session.commit()
         return count
+
+    # ========== PIPELINE STATE METHODS ==========
+
+    async def get_pipeline_state(self, pipeline_name: str) -> Optional[PipelineStateDB]:
+        """Get pipeline state by name"""
+        result = await self.session.execute(
+            select(PipelineStateDB).where(PipelineStateDB.pipeline_name == pipeline_name)
+        )
+        return result.scalar_one_or_none()
+
+    async def get_all_pipeline_states(self) -> list:
+        """Get all pipeline states"""
+        result = await self.session.execute(
+            select(PipelineStateDB).order_by(PipelineStateDB.pipeline_name)
+        )
+        return list(result.scalars().all())
+
+    async def save_pipeline_state(
+        self,
+        pipeline_name: str,
+        enabled: bool = None,
+        is_running: bool = None,
+        interval_hours: float = None,
+        description: str = None,
+        last_run: datetime = None,
+        next_run: datetime = None,
+        runs_count: int = None,
+        last_result: str = None
+    ) -> PipelineStateDB:
+        """Save or update pipeline state"""
+        result = await self.session.execute(
+            select(PipelineStateDB).where(PipelineStateDB.pipeline_name == pipeline_name)
+        )
+        existing = result.scalar_one_or_none()
+
+        if existing:
+            if enabled is not None:
+                existing.enabled = enabled
+            if is_running is not None:
+                existing.is_running = is_running
+            if interval_hours is not None:
+                existing.interval_hours = interval_hours
+            if description is not None:
+                existing.description = description
+            if last_run is not None:
+                existing.last_run = last_run
+            if next_run is not None:
+                existing.next_run = next_run
+            if runs_count is not None:
+                existing.runs_count = runs_count
+            if last_result is not None:
+                existing.last_result = last_result
+            existing.updated_at = datetime.utcnow()
+            await self.session.commit()
+            return existing
+        else:
+            # Create new
+            new_state = PipelineStateDB(
+                pipeline_name=pipeline_name,
+                enabled=enabled or False,
+                is_running=is_running or False,
+                interval_hours=interval_hours or 1.0,
+                description=description,
+                last_run=last_run,
+                next_run=next_run,
+                runs_count=runs_count or 0,
+                last_result=last_result
+            )
+            self.session.add(new_state)
+            await self.session.commit()
+            return new_state
+
+    async def init_default_pipelines(self):
+        """Initialize default pipeline states if they don't exist"""
+        defaults = {
+            "xmonitor": {
+                "description": "Monitoriza eventos nas próximas 24h - atualiza lance_atual e data_fim",
+                "interval_hours": 5/3600  # 5 seconds
+            },
+            "ysync": {
+                "description": "Sincronização completa: todos os IDs + marca terminados",
+                "interval_hours": 2.0  # 2 hours
+            },
+            "zwatch": {
+                "description": "Monitoriza EventosMaisRecentes API a cada 10 minutos",
+                "interval_hours": 10/60  # 10 minutes
+            }
+        }
+
+        for name, config in defaults.items():
+            existing = await self.get_pipeline_state(name)
+            if not existing:
+                await self.save_pipeline_state(
+                    pipeline_name=name,
+                    enabled=False,
+                    interval_hours=config["interval_hours"],
+                    description=config["description"]
+                )
+                print(f"✨ Created default pipeline state: {name}")
 
 
 @asynccontextmanager

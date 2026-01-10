@@ -86,7 +86,7 @@ class AutoPipelinesManager:
         self._load_config()
 
     def _load_config(self):
-        """Load configuration from file or create default"""
+        """Load configuration from file or create default (sync fallback)"""
         if self.CONFIG_FILE.exists():
             try:
                 with open(self.CONFIG_FILE, 'r') as f:
@@ -98,7 +98,7 @@ class AutoPipelinesManager:
 
                 # Log which pipelines are enabled
                 enabled = [k for k, p in self.pipelines.items() if p.enabled]
-                print(f"📂 Auto-pipelines config loaded: {len(self.pipelines)} pipelines (enabled: {enabled or 'none'})")
+                print(f"📂 Auto-pipelines config loaded from JSON: {len(self.pipelines)} pipelines (enabled: {enabled or 'none'})")
             except Exception as e:
                 print(f"⚠️ Error loading auto-pipelines config: {e}")
                 self._create_default_config()
@@ -112,7 +112,7 @@ class AutoPipelinesManager:
         print(f"✨ Created default auto-pipelines config")
 
     def _save_config(self):
-        """Save configuration to file"""
+        """Save configuration to JSON file (sync fallback)"""
         try:
             data = {k: asdict(v) for k, v in self.pipelines.items()}
 
@@ -121,9 +121,79 @@ class AutoPipelinesManager:
 
             # Log which pipelines are enabled
             enabled = [k for k, v in data.items() if v.get('enabled')]
-            print(f"💾 Auto-pipelines config saved (enabled: {enabled or 'none'})")
+            print(f"💾 Auto-pipelines config saved to JSON (enabled: {enabled or 'none'})")
         except Exception as e:
             print(f"⚠️ Error saving auto-pipelines config: {e}")
+
+    async def load_from_database(self):
+        """Load pipeline state from database (async)"""
+        from database import get_db
+
+        try:
+            async with get_db() as db:
+                states = await db.get_all_pipeline_states()
+
+                for state in states:
+                    if state.pipeline_name in self.pipelines:
+                        # Update in-memory config from database
+                        self.pipelines[state.pipeline_name].enabled = state.enabled
+                        self.pipelines[state.pipeline_name].is_running = state.is_running
+                        self.pipelines[state.pipeline_name].last_run = state.last_run.isoformat() if state.last_run else None
+                        self.pipelines[state.pipeline_name].next_run = state.next_run.isoformat() if state.next_run else None
+                        self.pipelines[state.pipeline_name].runs_count = state.runs_count
+
+                enabled = [s.pipeline_name for s in states if s.enabled]
+                print(f"📂 Auto-pipelines loaded from DB: {len(states)} pipelines (enabled: {enabled or 'none'})")
+
+                # Also save to JSON for quick startup next time
+                self._save_config()
+
+        except Exception as e:
+            print(f"⚠️ Error loading from database, using JSON fallback: {e}")
+
+    async def save_to_database(self, pipeline_type: str):
+        """Save single pipeline state to database (async)"""
+        from database import get_db
+
+        if pipeline_type not in self.pipelines:
+            return
+
+        config = self.pipelines[pipeline_type]
+
+        try:
+            async with get_db() as db:
+                # Parse datetime strings
+                last_run = None
+                if config.last_run:
+                    try:
+                        last_run = datetime.fromisoformat(config.last_run)
+                    except:
+                        pass
+
+                next_run = None
+                if config.next_run:
+                    try:
+                        next_run = datetime.fromisoformat(config.next_run)
+                    except:
+                        pass
+
+                await db.save_pipeline_state(
+                    pipeline_name=pipeline_type,
+                    enabled=config.enabled,
+                    is_running=config.is_running,
+                    interval_hours=config.interval_hours,
+                    description=config.description,
+                    last_run=last_run,
+                    next_run=next_run,
+                    runs_count=config.runs_count
+                )
+                print(f"💾 Pipeline {pipeline_type} saved to DB (enabled: {config.enabled})")
+
+        except Exception as e:
+            print(f"⚠️ Error saving to database: {e}")
+
+        # Also save to JSON as backup
+        self._save_config()
 
     async def refresh_critical_events_cache(self):
         """Refresh cache of events ending in < 6 minutes (called every 5 minutes)"""
@@ -300,6 +370,9 @@ class AutoPipelinesManager:
                 await self._unschedule_pipeline(pipeline_type, scheduler)
 
         self._save_config()
+
+        # Save to database (async)
+        await self.save_to_database(pipeline_type)
 
         status = "ativada" if enabled else "desativada"
         message = f"Pipeline {pipeline.name} {status}"
