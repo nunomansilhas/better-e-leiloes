@@ -6308,14 +6308,16 @@
             // Remove prefix LO/NP from reference text
             const referenceWithoutPrefix = event.reference.substring(2);
 
-            // Build carousel HTML
+            // Build carousel HTML - use imagens if available, otherwise capa, otherwise placeholder
             let carouselHTML = '';
-            if (event.imagens && event.imagens.length > 0) {
-                const imagesHTML = event.imagens.map((img, idx) =>
+            const images = (event.imagens && event.imagens.length > 0) ? event.imagens : (event.capa ? [event.capa] : []);
+
+            if (images.length > 0) {
+                const imagesHTML = images.map((img, idx) =>
                     `<div class="event-carousel-image" style="background-image: url('${img}')"></div>`
                 ).join('');
 
-                const indicatorsHTML = event.imagens.map((_, idx) =>
+                const indicatorsHTML = images.map((_, idx) =>
                     `<div class="event-carousel-indicator ${idx === 0 ? 'active' : ''}" data-index="${idx}"></div>`
                 ).join('');
 
@@ -6324,7 +6326,7 @@
                         <div class="event-carousel-images">
                             ${imagesHTML}
                         </div>
-                        ${event.imagens.length > 1 ? `
+                        ${images.length > 1 ? `
                             <button class="event-carousel-nav prev">
                                 <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
