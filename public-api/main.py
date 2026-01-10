@@ -442,23 +442,42 @@ async def dashboard_price_history(reference: str):
 
 
 @app.get("/api/dashboard/recent-bids")
-async def dashboard_recent_bids(limit: int = 30):
-    """Get recent bid activity with price changes from price_history table"""
+async def dashboard_recent_bids(limit: int = 30, hours: int = 120):
+    """Get recent bid activity with price changes from price_history table.
+    Shows only the most recent bid per event, limited to last N hours (default 120h = 5 days)."""
     async with get_session() as session:
+        # Calculate cutoff time
+        cutoff = datetime.utcnow() - timedelta(hours=hours)
+
         # Get recent price history entries (already has old_price, new_price, change_amount)
         result = await session.execute(
             select(PriceHistoryDB)
-            .where(PriceHistoryDB.change_amount != None)  # Only get entries with actual changes
+            .where(
+                and_(
+                    PriceHistoryDB.change_amount != None,  # Only entries with actual changes
+                    PriceHistoryDB.recorded_at >= cutoff   # Last N hours only
+                )
+            )
             .order_by(desc(PriceHistoryDB.recorded_at))
-            .limit(limit)
+            .limit(limit * 3)  # Get more to filter down to unique events
         )
         history_entries = result.scalars().all()
 
         if not history_entries:
             return []
 
+        # Keep only the most recent bid per event
+        seen_refs = set()
+        unique_entries = []
+        for h in history_entries:
+            if h.reference not in seen_refs:
+                seen_refs.add(h.reference)
+                unique_entries.append(h)
+                if len(unique_entries) >= limit:
+                    break
+
         # Get event details for these references
-        refs = list(set(h.reference for h in history_entries))
+        refs = list(seen_refs)
         events_result = await session.execute(
             select(EventDB).where(EventDB.reference.in_(refs))
         )
@@ -466,7 +485,7 @@ async def dashboard_recent_bids(limit: int = 30):
 
         # Build response
         bids = []
-        for h in history_entries:
+        for h in unique_entries:
             event = events_map.get(h.reference)
             ativo = True
             data_fim = None
