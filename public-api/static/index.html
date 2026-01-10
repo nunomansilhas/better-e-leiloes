@@ -2984,6 +2984,10 @@
                             <div style="font-size: 9px; color: #64748b;">Y-Sync</div>
                             <div id="timer-ysync" style="font-size: 10px; font-weight: 600; color: #1e40af;">--:--</div>
                         </div>
+                        <div id="card-zwatch" style="padding: 4px 8px; background: #f8fafc; border-radius: 4px; text-align: center;">
+                            <div style="font-size: 9px; color: #64748b;">Z-Watch</div>
+                            <div id="timer-zwatch" style="font-size: 10px; font-weight: 600; color: #059669;">--:--</div>
+                        </div>
                     </div>
                 </div>
 
@@ -7510,6 +7514,7 @@
         // Pipeline countdown timers storage
         let pipelineNextRuns = {};
         let pipelineEnabled = {}; // Store enabled status from API
+        let pipelineIsRunning = {}; // Store is_running status from API
         let pipelineCountdownInterval = null;
 
         function formatCountdown(seconds) {
@@ -7549,9 +7554,16 @@
                 let displayText = '--:--';
                 let displayColor = timerColors[type] || '#94a3b8';
 
+                // Check if pipeline is currently running (from API)
+                const isRunning = pipelineIsRunning[type] || false;
+
                 if (!isEnabled) {
                     displayText = 'OFF';
                     displayColor = '#94a3b8';
+                } else if (isRunning) {
+                    // Use is_running from API, not just next_run time
+                    displayText = 'A executar';
+                    displayColor = '#f59e0b';
                 } else if (!nextRunStr) {
                     displayText = '...';
                     displayColor = '#64748b';
@@ -7560,8 +7572,9 @@
                     const diffSeconds = (nextRun - now) / 1000;
 
                     if (diffSeconds <= 0) {
-                        displayText = 'A executar';
-                        displayColor = '#f59e0b';
+                        // Timer expired but not running - waiting or just finished
+                        displayText = 'A aguardar';
+                        displayColor = '#64748b';
                     } else {
                         // Full format for scraping page
                         if (timerEl) {
@@ -7623,8 +7636,9 @@
                             checkbox.checked = config.enabled;
                         }
 
-                        // Store enabled status and next_run for countdown timer
+                        // Store enabled status, is_running, and next_run for countdown timer
                         pipelineEnabled[type] = config.enabled;
+                        pipelineIsRunning[type] = config.is_running;
                         pipelineNextRuns[type] = config.next_run;
 
                         // If pipeline is running, show running state on scraping page
@@ -7668,20 +7682,6 @@
                         if (urgCritical) urgCritical.textContent = stats.critical || 0;
                         if (urgUrgent) urgUrgent.textContent = stats.urgent || 0;
                         if (urgSoon) urgSoon.textContent = stats.soon || 0;
-                    }
-
-                    // Update is_running visual state on dashboard cards
-                    for (const [type, config] of Object.entries(data.pipelines || {})) {
-                        const cardEl = document.getElementById(`card-${type}`);
-                        if (cardEl) {
-                            if (config.is_running) {
-                                cardEl.style.boxShadow = '0 0 8px rgba(16, 185, 129, 0.5)';
-                                cardEl.style.borderColor = '#10b981';
-                            } else {
-                                cardEl.style.boxShadow = 'none';
-                                cardEl.style.borderColor = 'transparent';
-                            }
-                        }
                     }
 
                     // Update timers immediately
