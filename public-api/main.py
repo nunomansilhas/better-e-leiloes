@@ -654,6 +654,12 @@ async def scrape_status():
     return {"running": False, "status": "disabled"}
 
 
+@app.get("/api/pipeline/status")
+async def pipeline_status():
+    """Stub: Pipeline status not available on public API"""
+    return {"running": False, "stage": None, "progress": 0}
+
+
 @app.get("/api/logs")
 async def get_logs():
     """Stub: Logs not available on public API"""
