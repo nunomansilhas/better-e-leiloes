@@ -517,7 +517,7 @@ async def dashboard_ending_soon(hours: int = 24, limit: int = 1000, include_term
                 select(EventDB).where(
                     and_(
                         EventDB.terminado == 1,  # Use 1 instead of True for MySQL tinyint
-                        EventDB.cancelado == 0,  # Use 0 instead of False
+                        # Removed cancelado filter - terminated events may also be marked as cancelled
                         EventDB.data_fim >= terminated_cutoff,
                         EventDB.data_fim <= now
                     )
