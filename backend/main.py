@@ -1476,6 +1476,12 @@ async def clear_database():
     pipeline_state = get_pipeline_state()
     await pipeline_state.stop()
 
+    # Reset auto pipelines manager (X-Monitor, Y-Sync, Z-Watch)
+    auto_pipelines = get_auto_pipelines_manager()
+    for pipeline_name in auto_pipelines.pipelines:
+        auto_pipelines.pipelines[pipeline_name].is_running = False
+        auto_pipelines.pipelines[pipeline_name].enabled = False
+
     # Reset scraper state
     if scraper:
         scraper.is_running = False
