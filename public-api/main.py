@@ -575,6 +575,94 @@ async def debug_terminated():
         }
 
 
+@app.get("/api/debug/recent-bids")
+async def debug_recent_bids():
+    """DEBUG: Check data for recent bids widget"""
+    async with get_session() as session:
+        now = datetime.utcnow()
+        cutoff = now - timedelta(hours=120)
+
+        # 1. Check price_history with change_amount
+        ph_result = await session.execute(
+            select(PriceHistoryDB)
+            .where(
+                and_(
+                    PriceHistoryDB.change_amount != None,
+                    PriceHistoryDB.recorded_at >= cutoff
+                )
+            )
+            .order_by(desc(PriceHistoryDB.recorded_at))
+            .limit(10)
+        )
+        price_history = ph_result.scalars().all()
+
+        # 2. Check terminated events with lance_atual > 0
+        te_result = await session.execute(
+            select(EventDB)
+            .where(
+                and_(
+                    EventDB.terminado == 1,
+                    EventDB.data_fim >= cutoff,
+                    EventDB.data_fim <= now,
+                    EventDB.lance_atual > 0
+                )
+            )
+            .order_by(desc(EventDB.data_fim))
+            .limit(10)
+        )
+        terminated_events = te_result.scalars().all()
+
+        # 3. Check ALL terminated events (without lance_atual filter)
+        te_all_result = await session.execute(
+            select(EventDB)
+            .where(
+                and_(
+                    EventDB.terminado == 1,
+                    EventDB.data_fim >= cutoff,
+                    EventDB.data_fim <= now
+                )
+            )
+            .order_by(desc(EventDB.data_fim))
+            .limit(10)
+        )
+        terminated_all = te_all_result.scalars().all()
+
+        return {
+            "now_utc": now.isoformat(),
+            "cutoff_utc": cutoff.isoformat(),
+            "price_history_with_changes": [
+                {
+                    "ref": ph.reference,
+                    "old_price": ph.old_price,
+                    "new_price": ph.new_price,
+                    "change_amount": ph.change_amount,
+                    "recorded_at": ph.recorded_at.isoformat() if ph.recorded_at else None
+                }
+                for ph in price_history
+            ],
+            "terminated_with_lance": [
+                {
+                    "ref": e.reference,
+                    "lance_atual": e.lance_atual,
+                    "valor_base": e.valor_base,
+                    "data_fim": e.data_fim.isoformat() if e.data_fim else None,
+                    "terminado": e.terminado
+                }
+                for e in terminated_events
+            ],
+            "terminated_all": [
+                {
+                    "ref": e.reference,
+                    "lance_atual": e.lance_atual,
+                    "valor_base": e.valor_base,
+                    "data_fim": e.data_fim.isoformat() if e.data_fim else None,
+                    "terminado": e.terminado
+                }
+                for e in terminated_all
+            ]
+        }
+
+
 @app.get("/api/dashboard/price-history/{reference}")
 async def dashboard_price_history(reference: str):
     """Alias for price-history endpoint"""
@@ -591,6 +679,8 @@ async def dashboard_recent_bids(limit: int = 30, hours: int = 120):
         now = datetime.utcnow()
         cutoff = now - timedelta(hours=hours)
 
+        print(f"[DEBUG recent-bids] now={now}, cutoff={cutoff}", flush=True)
+
         # Get recent price history entries (already has old_price, new_price, change_amount)
         result = await session.execute(
             select(PriceHistoryDB)
@@ -604,6 +694,7 @@ async def dashboard_recent_bids(limit: int = 30, hours: int = 120):
             .limit(limit * 3)  # Get more to filter down to unique events
         )
         history_entries = result.scalars().all()
+        print(f"[DEBUG recent-bids] price_history entries with changes: {len(history_entries)}", flush=True)
 
         # Keep only the most recent bid per event
         seen_refs = set()
@@ -612,6 +703,8 @@ async def dashboard_recent_bids(limit: int = 30, hours: int = 120):
             if h.reference not in seen_refs:
                 seen_refs.add(h.reference)
                 unique_entries.append((h, None))
+
+        print(f"[DEBUG recent-bids] unique price_history entries: {len(unique_entries)}", flush=True)
 
         # Also get recently terminated events to include their last bids
         terminated_result = await session.execute(
@@ -625,9 +718,14 @@ async def dashboard_recent_bids(limit: int = 30, hours: int = 120):
             ).order_by(desc(EventDB.data_fim)).limit(limit)
         )
         terminated_events = terminated_result.scalars().all()
+        print(f"[DEBUG recent-bids] terminated events with lance_atual>0: {len(terminated_events)}", flush=True)
+        for te in terminated_events[:5]:
+            print(f"[DEBUG recent-bids]   - {te.reference}: lance={te.lance_atual}, data_fim={te.data_fim}, terminado={te.terminado}", flush=True)
 
         # For terminated events not already in our list, get their last price history entry
         # If no price_history exists, create synthetic entry from event data
+        added_from_terminated = 0
+        added_synthetic = 0
         for event in terminated_events:
             if event.reference not in seen_refs:
                 # Get the last price history entry for this event
@@ -641,9 +739,15 @@ async def dashboard_recent_bids(limit: int = 30, hours: int = 120):
                 seen_refs.add(event.reference)
                 if last_bid:
                     unique_entries.append((last_bid, None))
+                    added_from_terminated += 1
                 else:
                     # No price history - create synthetic entry from event
                     unique_entries.append((None, event))
+                    added_synthetic += 1
+
+        print(f"[DEBUG recent-bids] added from terminated (with history): {added_from_terminated}", flush=True)
+        print(f"[DEBUG recent-bids] added synthetic (no history): {added_synthetic}", flush=True)
+        print(f"[DEBUG recent-bids] total unique_entries: {len(unique_entries)}", flush=True)
 
         if not unique_entries:
             return []
