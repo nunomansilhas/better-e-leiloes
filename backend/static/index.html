@@ -108,6 +108,60 @@
         }
         .btn i { font-size: 0.85rem; }
 
+        /* Tool buttons - compact icon-only with tooltips */
+        .tool-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            border: 1px solid;
+            background: transparent;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+        .tool-btn i { font-size: 0.9rem; }
+        .tool-btn.blue { border-color: #3b82f6; color: #3b82f6; }
+        .tool-btn.green { border-color: #10b981; color: #10b981; }
+        .tool-btn.yellow { border-color: #f59e0b; color: #f59e0b; }
+        .tool-btn.purple { border-color: #8b5cf6; color: #8b5cf6; }
+        .tool-btn.gray { border-color: #64748b; color: #94a3b8; }
+
+        .tool-btn.blue:hover { background: rgba(59,130,246,0.2); color: #60a5fa; border-color: #60a5fa; }
+        .tool-btn.green:hover { background: rgba(16,185,129,0.2); color: #34d399; border-color: #34d399; }
+        .tool-btn.yellow:hover { background: rgba(245,158,11,0.2); color: #fbbf24; border-color: #fbbf24; }
+        .tool-btn.purple:hover { background: rgba(139,92,246,0.2); color: #a78bfa; border-color: #a78bfa; }
+        .tool-btn.gray:hover { background: rgba(100,116,139,0.2); color: #cbd5e1; border-color: #94a3b8; }
+
+        .tool-btn:hover { transform: translateY(-2px); }
+
+        /* Tooltip on hover */
+        .tool-btn::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: calc(100% + 8px);
+            right: 0;
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            white-space: nowrap;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s ease;
+            pointer-events: none;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 1000;
+        }
+        .tool-btn:hover::after {
+            opacity: 1;
+            visibility: visible;
+        }
+
         /* Pipeline cards - ultra compact */
         .pipeline-card {
             border-radius: 4px;
@@ -298,48 +352,35 @@
 
         <!-- Scraper Tools -->
         <div class="custom-card p-3 mb-3">
-            <div class="d-flex align-items-center gap-2 mb-2 pb-1 border-bottom border-secondary">
-                <i class="bi bi-tools"></i>
-                <h6 class="mb-0 fw-semibold">Scraper Tools</h6>
-            </div>
-            <div class="row g-2">
-                <div class="col-6 col-md-4 col-lg">
-                    <button class="btn btn-outline-blue w-100" onclick="runScraper('ids')">
-                        <i class="bi bi-search me-1"></i>
-                        <span class="d-none d-sm-inline">Descobrir </span>IDs
-                    </button>
+            <div class="d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-tools text-muted"></i>
+                    <span class="fw-semibold small">Tools</span>
                 </div>
-                <div class="col-6 col-md-4 col-lg">
-                    <button class="btn btn-outline-green w-100" onclick="runScraper('content')">
-                        <i class="bi bi-card-text me-1"></i>
-                        <span class="d-none d-sm-inline">Completar </span>Info
+                <div class="d-flex gap-1">
+                    <button class="tool-btn blue" onclick="runScraper('ids')" data-tooltip="Descobrir IDs - Scrape todas as páginas para encontrar novos eventos">
+                        <i class="bi bi-search"></i>
                     </button>
-                </div>
-                <div class="col-6 col-md-4 col-lg">
-                    <button class="btn btn-outline-yellow w-100" onclick="runUpdatePrices()">
-                        <i class="bi bi-currency-euro me-1"></i>
-                        <span class="d-none d-sm-inline">Atualizar </span>Preços
+                    <button class="tool-btn green" onclick="runScraper('content')" data-tooltip="Completar Info - Buscar detalhes dos eventos sem informação">
+                        <i class="bi bi-card-text"></i>
                     </button>
-                </div>
-                <div class="col-6 col-md-6 col-lg">
-                    <button class="btn btn-outline-purple w-100" onclick="runFixNulls()">
-                        <i class="bi bi-wrench me-1"></i>
-                        Fix NULLs
+                    <button class="tool-btn yellow" onclick="runUpdatePrices()" data-tooltip="Atualizar Preços - Verificar lance_atual de todos os eventos ativos">
+                        <i class="bi bi-currency-euro"></i>
                     </button>
-                </div>
-                <div class="col-12 col-md-6 col-lg">
-                    <button class="btn btn-outline-gray w-100" onclick="toggleManualIds()">
-                        <i class="bi bi-input-cursor-text me-1"></i>
-                        IDs Manual
+                    <button class="tool-btn purple" onclick="runFixNulls()" data-tooltip="Fix NULLs - Corrigir eventos com campos em falta">
+                        <i class="bi bi-wrench"></i>
+                    </button>
+                    <button class="tool-btn gray" onclick="toggleManualIds()" data-tooltip="IDs Manual - Inserir referências específicas para processar">
+                        <i class="bi bi-input-cursor-text"></i>
                     </button>
                 </div>
             </div>
 
             <!-- Manual IDs Input -->
-            <div id="manual-ids-section" class="mt-3" style="display: none;">
-                <div class="manual-input d-flex gap-2">
+            <div id="manual-ids-section" class="mt-2" style="display: none;">
+                <div class="d-flex gap-2">
                     <input type="text" class="form-control form-control-sm" id="manual-ids-input" placeholder="LO1234562024, NP9876542024...">
-                    <button class="btn btn-outline-purple btn-sm" onclick="runManualIds()">Executar</button>
+                    <button class="btn btn-outline-purple btn-sm" onclick="runManualIds()">Go</button>
                 </div>
             </div>
         </div>
