@@ -617,6 +617,77 @@
             to { transform: translateX(100%); opacity: 0; }
         }
 
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes scaleIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+
+        @keyframes starPop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.3); }
+            100% { transform: scale(1); }
+        }
+
+        /* Animation utility classes */
+        .animate-fadeInUp {
+            animation: fadeInUp 0.3s ease forwards;
+        }
+
+        .animate-fadeIn {
+            animation: fadeIn 0.2s ease forwards;
+        }
+
+        .animate-scaleIn {
+            animation: scaleIn 0.2s ease forwards;
+        }
+
+        /* Card hover effects */
+        .card-hover {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        /* Star favorite animation */
+        .star-pop {
+            animation: starPop 0.3s ease;
+        }
+
+        /* Loading skeleton shimmer */
+        .skeleton {
+            background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 4px;
+        }
+
+        /* Row hover highlight */
+        .ending-soon-row {
+            transition: transform 0.15s ease, background 0.15s ease !important;
+        }
+
+        .ending-soon-row:hover {
+            transform: translateX(2px);
+        }
+
         .nav-dropdown {
             margin-top: 4px;
             max-height: 0;
@@ -2715,6 +2786,135 @@
                 width: 100%;
                 min-width: 0;
             }
+
+            /* Dashboard grid mobile */
+            #dashboard-content {
+                grid-template-columns: 1fr !important;
+            }
+
+            /* Dashboard 2-column grid to single column */
+            #dashboard > div[style*="grid-template-columns: 1fr 1fr"] {
+                grid-template-columns: 1fr !important;
+            }
+
+            /* Ending soon header - hide less important columns */
+            .ending-soon-row span:nth-child(3),
+            .ending-soon-row span:nth-child(5) {
+                display: none;
+            }
+
+            /* Better touch targets */
+            .nav-item {
+                min-height: 48px;
+            }
+
+            button, .btn, [onclick] {
+                min-height: 44px;
+                min-width: 44px;
+            }
+
+            /* Favorites widget responsive */
+            #favorites-widget-content > div {
+                padding: 12px !important;
+            }
+
+            /* Toast positioning on mobile */
+            #toast-container {
+                right: 16px !important;
+                left: 16px !important;
+                max-width: none !important;
+            }
+
+            /* Modal full width on mobile */
+            .modal-content, .inspection-modal .inspection-dialog {
+                width: 95% !important;
+                max-width: none !important;
+                margin: 10px !important;
+            }
+
+            /* Top districts chart stack vertically */
+            #dashboard > div[style*="grid-template-columns: 200px 1fr"] {
+                grid-template-columns: 1fr !important;
+            }
+
+            .page-header h2 {
+                font-size: 20px;
+            }
+
+            /* Mobile hamburger menu */
+            .mobile-menu-btn {
+                display: flex !important;
+            }
+        }
+
+        /* Extra small screens */
+        @media (max-width: 480px) {
+            .main-content {
+                padding: 12px;
+            }
+
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
+
+            .ending-soon-row {
+                padding: 8px !important;
+                font-size: 9px !important;
+            }
+
+            .ending-soon-row span:nth-child(4) {
+                display: none;
+            }
+        }
+
+        /* Mobile menu button (hidden by default) */
+        .mobile-menu-btn {
+            display: none;
+            position: fixed;
+            top: 16px;
+            left: 16px;
+            z-index: 1001;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease;
+        }
+
+        .mobile-menu-btn:active {
+            transform: scale(0.95);
+        }
+
+        .mobile-menu-btn.active {
+            background: var(--accent-primary);
+            color: white;
+            border-color: var(--accent-primary);
+        }
+
+        /* Mobile overlay */
+        .mobile-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .mobile-overlay.active {
+            display: block;
+            opacity: 1;
+        }
+
+        @media (max-width: 768px) {
+            .mobile-overlay.active {
+                display: block;
+            }
         }
 
         /* Multi-Stage Controls */
@@ -2985,6 +3185,18 @@
     <div id="toast-container" class="toast-container"></div>
 
     <!-- Sidebar -->
+    <!-- Mobile Overlay -->
+    <div class="mobile-overlay" id="mobile-overlay" onclick="closeMobileMenu()"></div>
+
+    <!-- Mobile Menu Button -->
+    <button class="mobile-menu-btn" id="mobile-menu-btn" onclick="toggleMobileMenu()" aria-label="Menu">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="3" y1="6" x2="21" y2="6"/>
+            <line x1="3" y1="12" x2="21" y2="12"/>
+            <line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+    </button>
+
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <h1>
@@ -3270,6 +3482,25 @@
 
             </div>
 
+            <!-- Favorites Widget -->
+            <div style="background: white; border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-top: 16px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 16px;">⭐</span>
+                        <span style="font-weight: 600; color: #1e293b; font-size: 14px;">Meus Favoritos</span>
+                        <span id="favorites-count" style="background: #fef3c7; color: #d97706; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px;">0</span>
+                    </div>
+                    <button onclick="showPage('eventos'); document.getElementById('search-eventos').value = 'favoritos:true'; document.getElementById('search-eventos').dispatchEvent(new Event('input'));" style="padding: 4px 8px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer; font-size: 10px; color: #64748b; transition: all 0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#f8fafc'">Ver todos</button>
+                </div>
+                <div id="favorites-widget-content" style="display: flex; flex-direction: column; gap: 6px;">
+                    <div style="text-align: center; padding: 20px; color: #94a3b8;">
+                        <div style="font-size: 24px; margin-bottom: 8px;">⭐</div>
+                        <div style="font-size: 11px;">Sem favoritos</div>
+                        <div style="font-size: 10px; color: #cbd5e1; margin-top: 4px;">Clique no ⭐ nos eventos para adicionar</div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Dashboard Grid: 2 columns -->
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;">
 
@@ -3303,6 +3534,8 @@
                         <span onclick="sortEndingSoon('subtipo')" style="flex: 1; cursor: pointer; display: flex; align-items: center; gap: 2px;" title="Ordenar por subtipo">Subtipo <span id="sort-icon-subtipo"></span></span>
                         <span onclick="sortEndingSoon('distrito')" style="width: 55px; cursor: pointer; display: flex; align-items: center; gap: 2px;" title="Ordenar por distrito">Zona <span id="sort-icon-distrito"></span></span>
                         <span onclick="sortEndingSoon('lance_atual')" style="width: 75px; cursor: pointer; display: flex; align-items: center; gap: 2px; justify-content: flex-end;" title="Ordenar por valor">Valor <span id="sort-icon-lance_atual"></span></span>
+                        <span style="width: 24px;"></span>
+                        <span style="width: 24px;"></span>
                         <span style="width: 24px;"></span>
                     </div>
                     <div id="dash-ending-soon" style="display: flex; flex-direction: column; gap: 2px; max-height: 320px; overflow-y: auto;">
@@ -4330,6 +4563,33 @@
             }
         })();
 
+        // ============== Mobile Menu ==============
+        function toggleMobileMenu() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobile-overlay');
+            const menuBtn = document.getElementById('mobile-menu-btn');
+
+            const isOpen = sidebar.classList.contains('mobile-open');
+
+            if (isOpen) {
+                closeMobileMenu();
+            } else {
+                sidebar.classList.add('mobile-open');
+                overlay.classList.add('active');
+                menuBtn.classList.add('active');
+            }
+        }
+
+        function closeMobileMenu() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobile-overlay');
+            const menuBtn = document.getElementById('mobile-menu-btn');
+
+            sidebar.classList.remove('mobile-open');
+            overlay.classList.remove('active');
+            menuBtn.classList.remove('active');
+        }
+
         // ============== FAVORITES MANAGEMENT ==============
 
         const FAVORITES = {
@@ -4448,11 +4708,15 @@
 
         function toggleFavorite(reference, eventData = {}) {
             FAVORITES.toggle(reference, eventData);
-            // Update star icons
+            // Update star icons with animation
             document.querySelectorAll(`[data-favorite-ref="${reference}"]`).forEach(el => {
                 const isFav = FAVORITES.isFavorite(reference);
                 el.textContent = isFav ? '⭐' : '☆';
                 el.style.color = isFav ? '#f59e0b' : '#cbd5e1';
+                el.title = isFav ? 'Remover dos favoritos' : 'Adicionar aos favoritos';
+                // Add pop animation
+                el.classList.add('star-pop');
+                setTimeout(() => el.classList.remove('star-pop'), 300);
             });
         }
 
@@ -5430,6 +5694,11 @@
 
         // Navigation
         function showPage(pageId) {
+            // Close mobile menu if open
+            if (window.innerWidth <= 768) {
+                closeMobileMenu();
+            }
+
             // Hide all pages
             document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
 
@@ -5795,6 +6064,7 @@
                                 </div>
                             </div>
                         </div>
+                        <button data-favorite-ref="${event.reference}" onclick="event.stopPropagation(); toggleFavorite('${event.reference}', {titulo: '${(event.titulo || '').replace(/'/g, "\\'")}', tipo_id: ${event.tipo_id || 'null'}, lance_atual: ${event.lance_atual || 'null'}, data_fim: '${event.data_fim || ''}'});" style="background: none; border: none; cursor: pointer; width: 24px; display: flex; align-items: center; justify-content: center; font-size: 14px; color: ${FAVORITES.isFavorite(event.reference) ? '#f59e0b' : '#cbd5e1'}; transition: color 0.2s;" title="${FAVORITES.isFavorite(event.reference) ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}">${FAVORITES.isFavorite(event.reference) ? '⭐' : '☆'}</button>
                         <a href="https://www.e-leiloes.pt/evento/${event.reference}" target="_blank" onclick="event.stopPropagation()" style="width: 24px; display: flex; align-items: center; justify-content: center; text-decoration: none; font-size: 12px;" title="Abrir no e-leilões">🔗</a>
                     </div>
                 `;
@@ -9465,6 +9735,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             initTheme();
             updateAuthStatus(!!API_AUTH.secretKey);
+            FAVORITES.updateWidget();
         });
 
         // ============== End Security Key Management ==============
