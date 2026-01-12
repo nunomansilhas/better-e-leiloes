@@ -251,6 +251,7 @@ async def list_events(
                 "valor_base": e.valor_base,
                 "valor_minimo": e.valor_minimo,
                 "lance_atual": e.lance_atual,
+                "data_inicio": e.data_inicio.isoformat() if e.data_inicio else None,
                 "data_fim": e.data_fim.isoformat() if e.data_fim else None,
                 "distrito": e.distrito,
                 "concelho": e.concelho,
