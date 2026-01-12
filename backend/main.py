@@ -253,6 +253,10 @@ async def lifespan(app: FastAPI):
     )
     print("🔄 Refresh queue processor started (5s interval)")
 
+    # Schedule automatic cleanup jobs
+    from cleanup import schedule_cleanup_jobs
+    schedule_cleanup_jobs(scheduler)
+
     print("✅ API pronta!")
 
     yield
@@ -266,11 +270,75 @@ async def lifespan(app: FastAPI):
     if cache_manager:
         await cache_manager.close()
 
+# API Documentation Tags
+tags_metadata = [
+    {
+        "name": "Health",
+        "description": "System health and status monitoring endpoints",
+    },
+    {
+        "name": "Events",
+        "description": "Query and manage auction events data",
+    },
+    {
+        "name": "Pipelines",
+        "description": "Control data scraping pipelines (X-Monitor, Y-Sync, Z-Watch)",
+    },
+    {
+        "name": "Notifications",
+        "description": "Manage notification rules and view triggered notifications",
+    },
+    {
+        "name": "Statistics",
+        "description": "View system and data statistics",
+    },
+    {
+        "name": "Cache",
+        "description": "Cache management and statistics",
+    },
+    {
+        "name": "Cleanup",
+        "description": "Data cleanup and maintenance operations",
+    },
+    {
+        "name": "Admin",
+        "description": "Administrative operations (scraping, database management)",
+    },
+]
+
 app = FastAPI(
     title="E-Leiloes Data API",
-    description="API para recolha e consulta de dados de leilões do e-leiloes.pt",
-    version="1.0.0",
-    lifespan=lifespan
+    description="""
+## API para gestão de dados de leilões do e-leiloes.pt
+
+### Funcionalidades:
+- **Scraping automático** de dados de leilões
+- **Monitorização em tempo real** de preços e eventos
+- **Sistema de notificações** configurável
+- **Histórico de preços** completo
+- **API pública** para consulta de dados
+
+### Autenticação:
+A API usa autenticação HMAC-SHA256 para endpoints protegidos.
+Headers necessários: `X-Signature`, `X-Timestamp`
+
+### Rate Limiting:
+- 100 requests por minuto por IP
+- Headers de resposta: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Window`
+    """,
+    version="2.0.0",
+    lifespan=lifespan,
+    openapi_tags=tags_metadata,
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json",
+    contact={
+        "name": "E-Leiloes API Support",
+        "url": "https://github.com/nunomansilhas/better-e-leiloes",
+    },
+    license_info={
+        "name": "MIT",
+    },
 )
 
 # CORS - Restrict to allowed origins
@@ -293,8 +361,9 @@ from error_handlers import setup_error_handlers
 setup_error_handlers(app)
 
 # Register modular routers
-from routers import cache_router
+from routers import cache_router, cleanup_router
 app.include_router(cache_router)
+app.include_router(cleanup_router)
 
 # Servir arquivos estáticos
 static_dir = os.path.join(os.path.dirname(__file__), "static")
