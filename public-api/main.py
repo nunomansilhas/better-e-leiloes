@@ -227,12 +227,24 @@ async def list_events(
         events = result.scalars().all()
 
         # Convert to dict format with ativo field
+        import json
         result_events = []
         for e in events:
+            # Parse fotos JSON
+            fotos = None
+            if e.fotos:
+                try:
+                    fotos_data = json.loads(e.fotos)
+                    if isinstance(fotos_data, list):
+                        fotos = [f.get("url") if isinstance(f, dict) else f for f in fotos_data]
+                except:
+                    pass
+
             result_events.append({
                 "reference": e.reference,
                 "titulo": e.titulo,
                 "capa": e.capa,
+                "fotos": fotos,
                 "tipo_id": e.tipo_id,
                 "tipo": e.tipo,
                 "subtipo": e.subtipo,
