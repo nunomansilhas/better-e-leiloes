@@ -384,19 +384,23 @@ async def get_ending_soon(
         return [EventSummary.model_validate(e) for e in events]
 
 
-@app.get("/api/price-history/{reference}", response_model=List[PricePoint])
+@app.get("/api/price-history/{reference}")
 async def get_price_history(reference: str, limit: int = Query(50, le=200)):
     """Get price history for an event"""
-    async with get_session() as session:
-        result = await session.execute(
-            select(PriceHistoryDB)
-            .where(PriceHistoryDB.reference == reference)
-            .order_by(PriceHistoryDB.recorded_at)
-            .limit(limit)
-        )
-        history = result.scalars().all()
+    try:
+        async with get_session() as session:
+            result = await session.execute(
+                select(PriceHistoryDB)
+                .where(PriceHistoryDB.reference == reference)
+                .order_by(PriceHistoryDB.recorded_at)
+                .limit(limit)
+            )
+            history = result.scalars().all()
 
-        return [PricePoint(preco=h.new_price, timestamp=h.recorded_at) for h in history]
+            return [{"preco": h.new_price or 0, "timestamp": h.recorded_at.isoformat() if h.recorded_at else None} for h in history if h.new_price is not None]
+    except Exception as e:
+        print(f"[ERROR] get_price_history({reference}): {e}", flush=True)
+        return []
 
 
 @app.get("/api/distritos")
