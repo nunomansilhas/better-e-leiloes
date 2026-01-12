@@ -101,9 +101,9 @@ class TestPipelineEndpoints:
         assert response.status_code == 200
 
     @pytest.mark.asyncio
-    async def test_pipelines_status(self, api_client):
+    async def test_auto_pipelines_status(self, api_client):
         """Test all pipelines status endpoint"""
-        response = await api_client.get("/api/pipelines/status")
+        response = await api_client.get("/api/auto-pipelines/status")
         assert response.status_code == 200
         data = response.json()
         assert "pipelines" in data
@@ -124,9 +124,9 @@ class TestStatsEndpoints:
         assert "total_events" in data or "total" in data
 
     @pytest.mark.asyncio
-    async def test_extended_stats(self, api_client):
-        """Test extended stats endpoint"""
-        response = await api_client.get("/api/stats/extended")
+    async def test_db_stats(self, api_client):
+        """Test database stats endpoint"""
+        response = await api_client.get("/api/db/stats")
         assert response.status_code == 200
 
 
@@ -138,7 +138,7 @@ class TestEventsEndpoints:
     @pytest.mark.asyncio
     async def test_events_ending_soon(self, api_client):
         """Test events ending soon endpoint"""
-        response = await api_client.get("/api/events/ending-soon")
+        response = await api_client.get("/api/dashboard/ending-soon")
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, list)
@@ -146,13 +146,13 @@ class TestEventsEndpoints:
     @pytest.mark.asyncio
     async def test_events_ending_soon_with_hours(self, api_client):
         """Test events ending soon with custom hours"""
-        response = await api_client.get("/api/events/ending-soon?hours=12")
+        response = await api_client.get("/api/dashboard/ending-soon?hours=12")
         assert response.status_code == 200
 
     @pytest.mark.asyncio
     async def test_distritos_by_tipo(self, api_client):
         """Test distritos list by tipo endpoint"""
-        response = await api_client.get("/api/distritos/1")
+        response = await api_client.get("/api/filters/distritos/1")
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, list)
@@ -160,7 +160,7 @@ class TestEventsEndpoints:
     @pytest.mark.asyncio
     async def test_subtipos_by_tipo(self, api_client):
         """Test subtipos list by tipo endpoint"""
-        response = await api_client.get("/api/subtipos/1")
+        response = await api_client.get("/api/filters/subtypes/1")
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, list)
@@ -180,15 +180,15 @@ class TestNotificationEndpoints:
         assert isinstance(data, list)
 
     @pytest.mark.asyncio
-    async def test_notifications_unread_count(self, api_client):
+    async def test_notifications_count(self, api_client):
         """Test unread notifications count endpoint"""
-        response = await api_client.get("/api/notifications/unread")
+        response = await api_client.get("/api/notifications/count")
         assert response.status_code == 200
 
     @pytest.mark.asyncio
     async def test_notification_rules_list(self, api_client):
         """Test notification rules list endpoint"""
-        response = await api_client.get("/api/notifications/rules")
+        response = await api_client.get("/api/notification-rules")
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, list)
@@ -200,17 +200,52 @@ class TestDashboardEndpoints:
     """Tests for dashboard endpoints"""
 
     @pytest.mark.asyncio
-    async def test_dashboard_logs(self, api_client):
-        """Test dashboard logs endpoint"""
-        response = await api_client.get("/api/dashboard/logs")
+    async def test_logs(self, api_client):
+        """Test logs endpoint"""
+        response = await api_client.get("/api/logs")
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, list)
 
     @pytest.mark.asyncio
-    async def test_dashboard_history(self, api_client):
-        """Test dashboard pipeline history endpoint"""
-        response = await api_client.get("/api/dashboard/history")
+    async def test_pipeline_history(self, api_client):
+        """Test pipeline history endpoint"""
+        response = await api_client.get("/api/pipeline-history")
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, list)
+
+    @pytest.mark.asyncio
+    async def test_activity(self, api_client):
+        """Test activity endpoint"""
+        response = await api_client.get("/api/dashboard/activity")
+        assert response.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_stats_by_distrito(self, api_client):
+        """Test stats by distrito endpoint"""
+        response = await api_client.get("/api/dashboard/stats-by-distrito")
+        assert response.status_code == 200
+
+
+@pytest.mark.api
+@pytest.mark.integration
+class TestCleanupEndpoints:
+    """Tests for cleanup endpoints"""
+
+    @pytest.mark.asyncio
+    async def test_cleanup_stats(self, api_client):
+        """Test cleanup stats endpoint"""
+        response = await api_client.get("/api/cleanup/stats")
+        assert response.status_code == 200
+        data = response.json()
+        assert "config" in data
+
+    @pytest.mark.asyncio
+    async def test_cleanup_config(self, api_client):
+        """Test cleanup config endpoint"""
+        response = await api_client.get("/api/cleanup/config")
+        assert response.status_code == 200
+        data = response.json()
+        assert "config" in data
+        assert "description" in data
