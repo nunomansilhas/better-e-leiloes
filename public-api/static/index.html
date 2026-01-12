@@ -7,6 +7,43 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
     <link rel="stylesheet" href="/static/utilities.css">
     <style>
+        /* ============ THEME VARIABLES ============ */
+        :root {
+            /* Light Theme (default) */
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #f1f5f9;
+            --bg-hover: #e2e8f0;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #64748b;
+            --text-light: #94a3b8;
+            --border-color: #e2e8f0;
+            --border-light: #f1f5f9;
+            --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+            --card-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.1);
+            --sidebar-bg: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+            --modal-backdrop: rgba(15, 23, 42, 0.6);
+        }
+
+        [data-theme="dark"] {
+            /* Dark Theme */
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --bg-hover: #475569;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            --text-light: #64748b;
+            --border-color: #334155;
+            --border-light: #1e293b;
+            --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+            --card-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.4);
+            --sidebar-bg: linear-gradient(180deg, #0f172a 0%, #020617 100%);
+            --modal-backdrop: rgba(0, 0, 0, 0.8);
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -15,9 +52,144 @@
 
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: #f8fafc;
+            background: var(--bg-primary);
+            color: var(--text-primary);
             display: flex;
             min-height: 100vh;
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+
+        /* ============ DARK MODE OVERRIDES ============ */
+        [data-theme="dark"] .main-content {
+            background: var(--bg-primary);
+        }
+
+        /* Cards with white background */
+        [data-theme="dark"] [style*="background: white"],
+        [data-theme="dark"] [style*="background:#ffffff"],
+        [data-theme="dark"] [style*="background: #ffffff"],
+        [data-theme="dark"] [style*="background:#fff"],
+        [data-theme="dark"] [style*="background: #fff"] {
+            background: var(--bg-secondary) !important;
+        }
+
+        /* Text colors */
+        [data-theme="dark"] [style*="color: #1e293b"],
+        [data-theme="dark"] [style*="color:#1e293b"],
+        [data-theme="dark"] [style*="color: #0f172a"],
+        [data-theme="dark"] [style*="color:#0f172a"] {
+            color: var(--text-primary) !important;
+        }
+
+        [data-theme="dark"] [style*="color: #64748b"],
+        [data-theme="dark"] [style*="color:#64748b"],
+        [data-theme="dark"] [style*="color: #475569"],
+        [data-theme="dark"] [style*="color:#475569"] {
+            color: var(--text-muted) !important;
+        }
+
+        /* Background colors */
+        [data-theme="dark"] [style*="background: #f8fafc"],
+        [data-theme="dark"] [style*="background:#f8fafc"],
+        [data-theme="dark"] [style*="background: #f1f5f9"],
+        [data-theme="dark"] [style*="background:#f1f5f9"] {
+            background: var(--bg-tertiary) !important;
+        }
+
+        /* Border colors */
+        [data-theme="dark"] [style*="border: 1px solid #e2e8f0"],
+        [data-theme="dark"] [style*="border:1px solid #e2e8f0"],
+        [data-theme="dark"] [style*="border-color: #e2e8f0"],
+        [data-theme="dark"] [style*="border: 1px solid #e5e7eb"] {
+            border-color: var(--border-color) !important;
+        }
+
+        /* Stats cards */
+        [data-theme="dark"] .stats-card,
+        [data-theme="dark"] .stats-total-card {
+            background: var(--bg-secondary) !important;
+            border-color: var(--border-color) !important;
+        }
+
+        [data-theme="dark"] .stats-card-value,
+        [data-theme="dark"] .stats-total-value {
+            color: var(--text-primary) !important;
+        }
+
+        [data-theme="dark"] .stats-card-label,
+        [data-theme="dark"] .stats-total-label {
+            color: var(--text-muted) !important;
+        }
+
+        /* Page headers */
+        [data-theme="dark"] .page-header h2 {
+            color: var(--text-primary) !important;
+        }
+
+        [data-theme="dark"] .page-header p {
+            color: var(--text-muted) !important;
+        }
+
+        /* Inputs and selects */
+        [data-theme="dark"] input,
+        [data-theme="dark"] select,
+        [data-theme="dark"] textarea {
+            background: var(--bg-tertiary) !important;
+            color: var(--text-primary) !important;
+            border-color: var(--border-color) !important;
+        }
+
+        [data-theme="dark"] input::placeholder {
+            color: var(--text-light) !important;
+        }
+
+        /* Table headers */
+        [data-theme="dark"] .table-header,
+        [data-theme="dark"] [style*="background: #f8fafc"][style*="border-radius: 4px"] {
+            background: var(--bg-tertiary) !important;
+            color: var(--text-muted) !important;
+        }
+
+        /* Modal backdrops */
+        [data-theme="dark"] [style*="background: rgba(15, 23, 42"] {
+            background: var(--modal-backdrop) !important;
+        }
+
+        /* Modal content */
+        [data-theme="dark"] [style*="background: white"][style*="border-radius: 20px"],
+        [data-theme="dark"] [style*="background: white"][style*="border-radius: 16px"],
+        [data-theme="dark"] [style*="background: white"][style*="border-radius: 12px"] {
+            background: var(--bg-secondary) !important;
+        }
+
+        /* Buttons secondary */
+        [data-theme="dark"] button[style*="background: #f1f5f9"],
+        [data-theme="dark"] button[style*="background:#f1f5f9"],
+        [data-theme="dark"] button[style*="background: #f8fafc"] {
+            background: var(--bg-tertiary) !important;
+            color: var(--text-secondary) !important;
+        }
+
+        /* Event cards / rows */
+        [data-theme="dark"] .event-row,
+        [data-theme="dark"] .table-row {
+            border-color: var(--border-color) !important;
+        }
+
+        [data-theme="dark"] .table-row:hover {
+            background: var(--bg-tertiary) !important;
+        }
+
+        /* Pagination */
+        [data-theme="dark"] .pagination button {
+            background: var(--bg-tertiary) !important;
+            color: var(--text-secondary) !important;
+            border-color: var(--border-color) !important;
+        }
+
+        /* Sidebar */
+        [data-theme="dark"] .sidebar {
+            background: var(--sidebar-bg) !important;
         }
 
         /* Sidebar */
@@ -2890,6 +3062,16 @@
             </div>
 
             <div class="nav-divider"></div>
+            <!-- Theme Toggle -->
+            <div class="nav-item" onclick="toggleTheme()" id="theme-toggle">
+                <svg id="theme-icon-light" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+                </svg>
+                <svg id="theme-icon-dark" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="display: none;">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+                </svg>
+                <span id="theme-text">Modo Escuro</span>
+            </div>
             <div class="nav-item" onclick="showPage('settings')" data-page="settings">
                 <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
@@ -4096,6 +4278,48 @@
         const API_BASE = window.location.origin;
         // Backend URL for scraping/refresh operations (defaults to same origin, configure if different)
         const BACKEND_URL = window.BACKEND_URL || API_BASE;
+
+        // ============== THEME MANAGEMENT ==============
+
+        function initTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            applyTheme(savedTheme);
+        }
+
+        function applyTheme(theme) {
+            const html = document.documentElement;
+            const lightIcon = document.getElementById('theme-icon-light');
+            const darkIcon = document.getElementById('theme-icon-dark');
+            const themeText = document.getElementById('theme-text');
+
+            if (theme === 'dark') {
+                html.setAttribute('data-theme', 'dark');
+                if (lightIcon) lightIcon.style.display = 'none';
+                if (darkIcon) darkIcon.style.display = 'block';
+                if (themeText) themeText.textContent = 'Modo Claro';
+            } else {
+                html.removeAttribute('data-theme');
+                if (lightIcon) lightIcon.style.display = 'block';
+                if (darkIcon) darkIcon.style.display = 'none';
+                if (themeText) themeText.textContent = 'Modo Escuro';
+            }
+        }
+
+        function toggleTheme() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            localStorage.setItem('theme', newTheme);
+            applyTheme(newTheme);
+        }
+
+        // Initialize theme immediately to prevent flash
+        (function() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            if (savedTheme === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            }
+        })();
 
         // ============== SECURITY: HMAC Authentication ==============
 
@@ -9047,8 +9271,9 @@
             }
         }
 
-        // Update auth status on page load
+        // Update auth status and theme on page load
         document.addEventListener('DOMContentLoaded', () => {
+            initTheme();
             updateAuthStatus(!!API_AUTH.secretKey);
         });
 
