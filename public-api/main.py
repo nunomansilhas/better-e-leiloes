@@ -17,7 +17,7 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
-from database import get_session, EventDB, PriceHistoryDB, PipelineStateDB, init_db
+from database import get_session, EventDB, PriceHistoryDB, PipelineStateDB, RefreshLogDB, init_db
 from sqlalchemy import select, func, desc, and_, or_
 
 
@@ -108,7 +108,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=False,
-    allow_methods=["GET"],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 
@@ -766,6 +766,67 @@ async def get_volatile_data(reference: str):
             "data_fim": event.data_fim.isoformat() if event.data_fim else None,
             "ultimos_5m": getattr(event, 'ultimos_5m', False)
         }
+
+
+# ============ Refresh Logging Endpoints ============
+
+@app.post("/api/refresh/{reference}")
+async def log_refresh_request(reference: str, refresh_type: str = "price"):
+    """Log a refresh request for metrics tracking.
+    This is called when user clicks refresh on an event.
+    """
+    try:
+        async with get_session() as session:
+            # Create refresh log entry
+            refresh_log = RefreshLogDB(
+                reference=reference,
+                refresh_type=refresh_type
+            )
+            session.add(refresh_log)
+            await session.commit()
+
+            return {"success": True, "message": "Refresh logged", "reference": reference}
+    except Exception as e:
+        print(f"Error logging refresh: {e}")
+        return {"success": False, "message": str(e)}
+
+
+@app.get("/api/refresh/stats")
+async def get_refresh_stats():
+    """Get refresh request statistics for the last 24 hours"""
+    try:
+        async with get_session() as session:
+            now = datetime.utcnow()
+            cutoff_24h = now - timedelta(hours=24)
+
+            # Count refreshes in last 24h
+            total_24h = await session.scalar(
+                select(func.count()).select_from(RefreshLogDB).where(
+                    RefreshLogDB.created_at >= cutoff_24h
+                )
+            )
+
+            # Count by type in last 24h
+            type_counts = await session.execute(
+                select(RefreshLogDB.refresh_type, func.count())
+                .where(RefreshLogDB.created_at >= cutoff_24h)
+                .group_by(RefreshLogDB.refresh_type)
+            )
+            by_type = {t: c for t, c in type_counts.all()}
+
+            # Total all-time (for info)
+            total_all = await session.scalar(
+                select(func.count()).select_from(RefreshLogDB)
+            )
+
+            return {
+                "total_24h": total_24h or 0,
+                "by_type": by_type,
+                "total_all_time": total_all or 0
+            }
+    except Exception as e:
+        print(f"Error getting refresh stats: {e}")
+        return {"total_24h": 0, "by_type": {}, "total_all_time": 0}
 
 
 # ============ Stub Endpoints (for dashboard compatibility) ============

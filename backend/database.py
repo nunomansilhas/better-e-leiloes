@@ -412,6 +412,18 @@ class PipelineStateDB(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class RefreshLogDB(Base):
+    """
+    Logs de pedidos de refresh - tracking de atualizações manuais
+    """
+    __tablename__ = "refresh_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    reference: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    refresh_type: Mapped[str] = mapped_column(String(20), default='price')  # 'price' or 'full'
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+
+
 async def init_db():
     """Cria tabelas se não existirem"""
     async with engine.begin() as conn:

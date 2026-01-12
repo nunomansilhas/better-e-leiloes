@@ -126,6 +126,16 @@ class PipelineStateDB(Base):
     last_result: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
 
+class RefreshLogDB(Base):
+    """Refresh requests log - tracks manual refresh requests for metrics"""
+    __tablename__ = "refresh_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    reference: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    refresh_type: Mapped[str] = mapped_column(String(20), default='price')  # 'price' or 'full'
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+
+
 @asynccontextmanager
 async def get_session():
     """Get async database session"""
