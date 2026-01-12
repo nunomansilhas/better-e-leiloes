@@ -7036,14 +7036,28 @@
         // Card Actions - uses queue system for refresh
         async function reloadEvent(reference) {
             const oldCard = document.querySelector(`.event-card[data-reference="${reference}"]`);
+            let originalBadgeHTML = null;
+
+            // Helper to restore original card state
+            const restoreCard = () => {
+                if (oldCard) {
+                    oldCard.style.opacity = '1';
+                    oldCard.style.pointerEvents = 'auto';
+                    const badge = oldCard.querySelector('.event-type-badge');
+                    if (badge && originalBadgeHTML) {
+                        badge.innerHTML = originalBadgeHTML;
+                    }
+                }
+            };
 
             try {
-                // Show loading indicator on card
+                // Save original badge HTML and show loading indicator
                 if (oldCard) {
+                    const badge = oldCard.querySelector('.event-type-badge');
+                    if (badge) originalBadgeHTML = badge.innerHTML;
                     oldCard.style.opacity = '0.5';
                     oldCard.style.pointerEvents = 'none';
-                    const badge = oldCard.querySelector('.event-type-badge');
-                    if (badge) badge.textContent = '⏳ Na fila...';
+                    if (badge) badge.innerHTML = '⏳ Na fila...';
                 }
 
                 // Step 1: Queue the refresh request
@@ -7057,7 +7071,7 @@
 
                 if (oldCard) {
                     const badge = oldCard.querySelector('.event-type-badge');
-                    if (badge) badge.textContent = '🔄 A processar...';
+                    if (badge) badge.innerHTML = '🔄 A processar...';
                 }
 
                 // Step 2: Poll for completion (max 30 seconds)
@@ -7073,31 +7087,41 @@
                     if (status.state === 2) {
                         // Completed - fetch updated data from our DB
                         const response = await fetch(`${API_BASE}/api/events/${reference}?t=${Date.now()}`);
-                        if (response.ok) {
-                            const apiEvent = await response.json();
+                        if (!response.ok) throw new Error('Failed to fetch updated event');
 
-                            // Update the event in allLoadedEvents
-                            const activePage = document.querySelector('.page.active')?.id;
-                            if (allLoadedEvents[activePage]) {
-                                const idx = allLoadedEvents[activePage].findIndex(e => e.reference === reference);
-                                if (idx !== -1) {
-                                    const event = allLoadedEvents[activePage][idx];
-                                    event.valores.lanceAtual = apiEvent.lance_atual || 0;
-                                    event.dataFim = apiEvent.data_fim;
+                        const apiEvent = await response.json();
 
-                                    // Create new card with updated data
-                                    const newCard = createEventCard(event);
-                                    newCard.style.animation = 'none';
+                        // Update the event in allLoadedEvents
+                        const activePage = document.querySelector('.page.active')?.id;
+                        if (!allLoadedEvents[activePage]) throw new Error('Page data not found');
 
-                                    if (oldCard && oldCard.parentNode) {
-                                        oldCard.parentNode.replaceChild(newCard, oldCard);
-                                    }
+                        const idx = allLoadedEvents[activePage].findIndex(e => e.reference === reference);
+                        if (idx === -1) throw new Error('Event not found in local data');
 
-                                    // Success highlight effect
-                                    newCard.style.boxShadow = '0 0 0 2px #10b981';
-                                    setTimeout(() => { newCard.style.boxShadow = ''; }, 1500);
-                                }
-                            }
+                        const event = allLoadedEvents[activePage][idx];
+                        // Update all relevant fields from API response
+                        event.valores.lanceAtual = apiEvent.lance_atual || 0;
+                        event.dataFim = apiEvent.data_fim;
+                        event.dataInicio = apiEvent.data_inicio;
+                        if (apiEvent.subtipo) event.subtipo = apiEvent.subtipo;
+                        if (apiEvent.tipo) event.tipo = apiEvent.tipo;
+                        if (apiEvent.detalhes) {
+                            event.detalhes.subtipo = apiEvent.subtipo || event.detalhes.subtipo;
+                            event.detalhes.tipo = apiEvent.tipo || event.detalhes.tipo;
+                        }
+
+                        // Create new card with updated data
+                        const newCard = createEventCard(event);
+                        newCard.style.animation = 'none';
+
+                        if (oldCard && oldCard.parentNode) {
+                            oldCard.parentNode.replaceChild(newCard, oldCard);
+                            // Success highlight effect
+                            newCard.style.boxShadow = '0 0 0 2px #10b981';
+                            setTimeout(() => { newCard.style.boxShadow = ''; }, 1500);
+                        } else {
+                            // Card not in DOM anymore, just restore
+                            restoreCard();
                         }
                         return;
                     } else if (status.state === 3) {
@@ -7108,20 +7132,7 @@
                 throw new Error('Timeout - demorou demasiado');
             } catch (error) {
                 console.error('Erro ao recarregar evento:', error);
-
-                if (oldCard) {
-                    oldCard.style.opacity = '1';
-                    oldCard.style.pointerEvents = 'auto';
-                    // Restore badge
-                    const activePage = document.querySelector('.page.active')?.id;
-                    if (allLoadedEvents[activePage]) {
-                        const event = allLoadedEvents[activePage].find(e => e.reference === reference);
-                        if (event) {
-                            const badge = oldCard.querySelector('.event-type-badge');
-                            if (badge) badge.textContent = event.subtipo || event.tipo || 'Evento';
-                        }
-                    }
-                }
+                restoreCard();
             }
         }
 

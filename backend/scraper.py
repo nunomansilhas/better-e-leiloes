@@ -1745,9 +1745,14 @@ class EventScraper:
             except:
                 return None
 
-        data_inicio = parse_date(item.get('dataInicio'))
+        data_inicio_raw = item.get('dataInicio')
+        data_inicio = parse_date(data_inicio_raw)
         data_fim_inicial = parse_date(item.get('dataFimInicial'))
         data_fim = parse_date(item.get('dataFim'))
+
+        # Debug: log if data_inicio is missing
+        if not data_inicio and data_fim:
+            print(f"⚠️ {reference}: dataInicio missing/null (raw={data_inicio_raw}), but dataFim={data_fim}")
         cerimonia_data = parse_date(item.get('cerimoniaData'))
         data_servidor = parse_date(item.get('dataServidor'))
         data_atualizacao = parse_date(item.get('dataAtualizacao'))
