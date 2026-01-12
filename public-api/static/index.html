@@ -4929,7 +4929,7 @@
                     if (status.state === 2) {
                         // Completed - show result
                         if (status.result_lance !== null && priceElement) {
-                            const formatted = new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(status.result_lance);
+                            const formatted = new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(status.result_lance);
                             priceElement.innerHTML = `<span class="inspection-value price">${formatted}</span>`;
 
                             // Update stored event
@@ -4949,7 +4949,7 @@
                         const volatileRes = await fetch(`${API_BASE}/api/volatile/${reference}`);
                         if (volatileRes.ok && priceElement) {
                             const data = await volatileRes.json();
-                            const formatted = new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(data.lance_atual || 0);
+                            const formatted = new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(data.lance_atual || 0);
                             priceElement.innerHTML = `<span class="inspection-value price">${formatted}</span>`;
                         }
                         return;
@@ -4962,7 +4962,7 @@
                 const volatileRes = await fetch(`${API_BASE}/api/volatile/${reference}`);
                 if (volatileRes.ok && priceElement) {
                     const data = await volatileRes.json();
-                    const formatted = new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(data.lance_atual || 0);
+                    const formatted = new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(data.lance_atual || 0);
                     priceElement.innerHTML = `<span class="inspection-value price">${formatted}</span>`;
                 }
 
@@ -4974,7 +4974,7 @@
                     const volatileRes = await fetch(`${API_BASE}/api/volatile/${reference}`);
                     if (volatileRes.ok) {
                         const data = await volatileRes.json();
-                        const formatted = new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(data.lance_atual || 0);
+                        const formatted = new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(data.lance_atual || 0);
                         priceElement.innerHTML = `<span class="inspection-value price">${formatted}</span>`;
                     }
                 }
@@ -5388,7 +5388,7 @@
                     bgColor = '#fefce8'; borderColor = '#eab308'; textColor = '#eab308';
                 }
 
-                const valor = event.lance_atual ? `€${event.lance_atual.toLocaleString()}` : '-';
+                const valor = event.lance_atual ? `€${event.lance_atual.toLocaleString('pt-PT', {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : '-';
                 const zona = event.distrito || '-';
                 // Map tipo_id to category name
                 const tipoIdToName = {1: 'Imóveis', 2: 'Veículos', 3: 'Equip.', 4: 'Mobil.', 5: 'Máq.', 6: 'Direitos'};
@@ -5704,22 +5704,22 @@
                     <div style="display: flex; align-items: center; gap: 6px;">
                         <span style="width: 8px; height: 8px; background: #94a3b8; border-radius: 2px;"></span>
                         <span style="color: #64748b;">Base</span>
-                        <strong style="color: #1e293b; margin-left: auto;">${vBase.toLocaleString()}€</strong>
+                        <strong style="color: #1e293b; margin-left: auto;">${vBase.toLocaleString('pt-PT', {minimumFractionDigits: 2, maximumFractionDigits: 2})}€</strong>
                     </div>
                     <div style="display: flex; align-items: center; gap: 6px;">
                         <span style="width: 8px; height: 8px; background: #3b82f6; border-radius: 2px;"></span>
                         <span style="color: #64748b;">Abertura</span>
-                        <strong style="color: #1e293b; margin-left: auto;">${vAbertura.toLocaleString()}€</strong>
+                        <strong style="color: #1e293b; margin-left: auto;">${vAbertura.toLocaleString('pt-PT', {minimumFractionDigits: 2, maximumFractionDigits: 2})}€</strong>
                     </div>
                     <div style="display: flex; align-items: center; gap: 6px;">
                         <span style="width: 8px; height: 2px; background: #f59e0b;"></span>
                         <span style="color: #64748b;">Minimo</span>
-                        <strong style="color: #1e293b; margin-left: auto;">${vMinimo.toLocaleString()}€</strong>
+                        <strong style="color: #1e293b; margin-left: auto;">${vMinimo.toLocaleString('pt-PT', {minimumFractionDigits: 2, maximumFractionDigits: 2})}€</strong>
                     </div>
                     <div style="display: flex; align-items: center; gap: 6px;">
                         <span style="width: 8px; height: 8px; background: #22c55e; border-radius: 50%;"></span>
                         <span style="color: #64748b;">Atual</span>
-                        <strong style="color: #22c55e; margin-left: auto;">${vAtual.toLocaleString()}€</strong>
+                        <strong style="color: #22c55e; margin-left: auto;">${vAtual.toLocaleString('pt-PT', {minimumFractionDigits: 2, maximumFractionDigits: 2})}€</strong>
                     </div>
                 </div>
             `;
@@ -5744,7 +5744,7 @@
             if (pt) pt.classList.add('active');
 
             const timeStr = time ? `<span style="color: #94a3b8; margin-left: 6px;">${time}</span>` : '';
-            chartPointTip.innerHTML = `<strong style="color: #22c55e;">${price.toLocaleString()}€</strong>${timeStr}`;
+            chartPointTip.innerHTML = `<strong style="color: #22c55e;">${price.toLocaleString('pt-PT', {minimumFractionDigits: 2, maximumFractionDigits: 2})}€</strong>${timeStr}`;
             chartPointTip.style.display = 'block';
             chartPointTip.style.left = (e.clientX + 10) + 'px';
             chartPointTip.style.top = (e.clientY - 25) + 'px';
@@ -6066,7 +6066,7 @@
         // New Events Banner Functions
         function createNewEventCard(e, animate = true) {
             const valorMinimo = e.valor_minimo || e.valor_base || 0;
-            const priceStr = Number(valorMinimo).toLocaleString('pt-PT', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + '€';
+            const priceStr = Number(valorMinimo).toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '€';
             const refPrefix = e.reference?.substring(0, 2) || '';
             const prefixColor = refPrefix === 'LO' ? '#3b82f6' : '#f59e0b';
             const location = [e.concelho, e.distrito].filter(Boolean).join(', ') || '-';
@@ -8835,7 +8835,7 @@
                     const filters = [];
                     if (rule.tipos) filters.push(rule.tipos.join(', '));
                     if (rule.distritos) filters.push(rule.distritos.join(', '));
-                    if (rule.preco_max) filters.push(`< €${rule.preco_max.toLocaleString()}`);
+                    if (rule.preco_max) filters.push(`< €${rule.preco_max.toLocaleString('pt-PT', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`);
                     const filtersStr = filters.length > 0 ? filters.join(' · ') : '—';
 
                     return `
@@ -8906,7 +8906,7 @@
 
                     // Price variation for price_change
                     const priceVariation = notif.notification_type === 'price_change' && notif.preco_variacao
-                        ? `<span style="color: ${notif.preco_variacao < 0 ? '#ef4444' : '#059669'}; font-weight: 600; font-size: 11px;">${notif.preco_variacao > 0 ? '+' : ''}€${notif.preco_variacao.toLocaleString()}</span>`
+                        ? `<span style="color: ${notif.preco_variacao < 0 ? '#ef4444' : '#059669'}; font-weight: 600; font-size: 11px;">${notif.preco_variacao > 0 ? '+' : ''}€${notif.preco_variacao.toLocaleString('pt-PT', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>`
                         : '';
 
                     return `
@@ -8924,7 +8924,7 @@
                                     </div>
                                     <div style="font-size: 12px; color: #64748b;">
                                         ${notif.event_tipo || ''} ${notif.event_subtipo ? `· ${notif.event_subtipo}` : ''} ${notif.event_distrito ? `· ${notif.event_distrito}` : ''}
-                                        ${notif.preco_atual ? ` · <span style="color: #059669; font-weight: 600;">€${notif.preco_atual.toLocaleString()}</span>` : ''}
+                                        ${notif.preco_atual ? ` · <span style="color: #059669; font-weight: 600;">€${notif.preco_atual.toLocaleString('pt-PT', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>` : ''}
                                     </div>
                                 </div>
                                 <div style="font-size: 11px; color: #94a3b8; white-space: nowrap;">${timeAgo}</div>
