@@ -65,7 +65,7 @@ class EventScraper:
     async def scrape_event(self, reference: str) -> EventData:
         """
         Scrape público de um único evento por referência.
-        Detecta automaticamente se é imóvel (LO) ou móvel (NP) pela referência.
+        Usa a API oficial e-leiloes.pt para obter dados completos.
 
         Args:
             reference: Referência do evento (ex: LO1234567890 ou NP1234567890)
@@ -73,24 +73,11 @@ class EventScraper:
         Returns:
             EventData completo do evento
         """
-        await self.init_browser()
-
-        # Determina tipo baseado no prefixo da referência
-        # LO = Leilão Online (geralmente imóveis)
-        # NP = Negociação Particular (pode ser móveis ou imóveis)
-        # Para segurança, vamos tentar buscar a página e detectar o tipo
-        tipo_evento = "imovel" if reference.startswith("LO") else "imovel"  # default imovel
-
-        # Cria preview fake (valores virão da página individual)
-        preview = {
-            'reference': reference,
-            'valores': ValoresLeilao()  # Vazio, será preenchido na página
-        }
-
-        try:
-            return await self._scrape_event_details(preview, tipo_evento)
-        except Exception as e:
-            raise Exception(f"Erro ao fazer scrape do evento {reference}: {str(e)}")
+        # Usa o API scraper que é mais rápido e tem schema correto
+        events = await self.scrape_details_via_api([reference], None)
+        if events and len(events) > 0:
+            return events[0]
+        raise Exception(f"Evento {reference} não encontrado na API")
 
     async def _scrape_event_details(self, preview: dict, tipo_evento: str) -> EventData:
         """
