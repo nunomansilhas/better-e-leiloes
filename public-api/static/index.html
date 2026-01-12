@@ -5079,7 +5079,7 @@
             if (!container) return;
 
             try {
-                const response = await fetch(`${API_BASE}/api/dashboard/ending-soon?hours=24&limit=1000`);
+                const response = await fetch(`${API_BASE}/api/dashboard/ending-soon?hours=24&limit=1000&include_terminated=true&terminated_hours=120`);
                 endingSoonEventsAll = await response.json();
 
                 if (endingSoonEventsAll.length === 0) {

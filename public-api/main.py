@@ -496,6 +496,7 @@ async def dashboard_ending_soon(hours: int = 24, limit: int = 1000, include_term
         terminated_events = []
         if include_terminated:
             terminated_cutoff = now - timedelta(hours=terminated_hours)
+            print(f"[DEBUG ending-soon] Looking for terminated: terminado=True, data_fim between {terminated_cutoff} and {now}")
             terminated_result = await session.execute(
                 select(EventDB).where(
                     and_(
@@ -507,6 +508,7 @@ async def dashboard_ending_soon(hours: int = 24, limit: int = 1000, include_term
                 ).order_by(desc(EventDB.data_fim)).limit(limit)
             )
             terminated_events = terminated_result.scalars().all()
+            print(f"[DEBUG ending-soon] Found {len(terminated_events)} terminated events, {len(active_events)} active events")
 
         def format_event(e, is_terminated=False):
             return {
