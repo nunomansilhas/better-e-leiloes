@@ -719,6 +719,13 @@
             return response;
         }
 
+        // ============== SECURITY: HTML ESCAPE ==============
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
         // ============== TOAST NOTIFICATIONS ==============
         function showToast(message, type = 'info', duration = 4000) {
             const container = document.getElementById('toast-container');
@@ -730,9 +737,11 @@
             };
             const toast = document.createElement('div');
             toast.className = `toast ${type}`;
+            // SECURITY: Escape message to prevent XSS
+            const safeMessage = escapeHtml(message);
             toast.innerHTML = `
                 <i class="bi ${icons[type] || icons.info}"></i>
-                <span>${message}</span>
+                <span>${safeMessage}</span>
                 <span class="toast-close" onclick="this.parentElement.remove()">×</span>
             `;
             container.appendChild(toast);
@@ -1236,8 +1245,8 @@
                             <svg width="20" height="20" fill="none" stroke="#ef4444" stroke-width="2" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
                         </div>
                         <div>
-                            <div style="font-weight:600;color:#f1f5f9;font-size:15px;">${title}</div>
-                            <div style="font-size:12px;color:#94a3b8;">${message}</div>
+                            <div style="font-weight:600;color:#f1f5f9;font-size:15px;">${escapeHtml(title)}</div>
+                            <div style="font-size:12px;color:#94a3b8;">${escapeHtml(message)}</div>
                         </div>
                     </div>
                     <div style="display:flex;gap:10px;justify-content:flex-end;">

@@ -15,7 +15,24 @@ from functools import wraps
 
 # ============== Configuration ==============
 
-API_SECRET_KEY = os.getenv("API_SECRET_KEY", "default-dev-key-change-in-production")
+# SECURITY: API_SECRET_KEY must be configured in .env
+# No default value to prevent accidental deployment with insecure key
+API_SECRET_KEY = os.getenv("API_SECRET_KEY")
+
+# Check if running in production (not localhost)
+_is_development = os.getenv("ENVIRONMENT", "development").lower() in ("development", "dev", "local")
+
+if not API_SECRET_KEY:
+    if _is_development:
+        # Allow development without key (with warning)
+        API_SECRET_KEY = "dev-only-insecure-key-do-not-use-in-production"
+        print("⚠️  WARNING: API_SECRET_KEY not set. Using insecure dev key. Set in .env for production!")
+    else:
+        raise ValueError(
+            "SECURITY ERROR: API_SECRET_KEY not configured!\n"
+            "Set API_SECRET_KEY in .env file for production deployment.\n"
+            "This is required to secure admin API endpoints."
+        )
 
 # Rate limiting config
 RATE_LIMIT_REQUESTS = int(os.getenv("RATE_LIMIT_REQUESTS", "100"))  # requests per window

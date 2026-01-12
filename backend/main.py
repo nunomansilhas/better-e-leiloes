@@ -39,6 +39,7 @@ from pipeline_state import get_pipeline_state, SafeJSONEncoder
 from auto_pipelines import get_auto_pipelines_manager
 from collections import deque
 import threading
+from logger import log_info, log_error, log_warning, log_exception
 
 # Global instances
 scraper = None
@@ -196,7 +197,7 @@ async def process_refresh_queue():
                     add_dashboard_log(f"❌ Refresh failed: {request.reference} - {e}", "error")
 
     except Exception as e:
-        print(f"Error in refresh queue processor: {e}")
+        log_exception(f"Error in refresh queue processor: {e}")
 
 
 @asynccontextmanager
@@ -1071,7 +1072,7 @@ async def scrape_stage1_ids(
                         )
 
                     except Exception as e:
-                        print(f"  ⚠️ Erro ao guardar {item['reference']}: {e}")
+                        log_error(f"Erro ao guardar {item['reference']}", e)
                         await pipeline_state.add_error(f"Erro ao guardar {item['reference']}: {e}")
                         continue
 
@@ -1692,7 +1693,7 @@ async def refresh_single_event(reference: str):
         }
 
     except Exception as e:
-        print(f"Error refreshing event {reference}: {e}")
+        log_error(f"Error refreshing event {reference}", e)
         return JSONResponse(
             {"success": False, "message": str(e)},
             status_code=500
@@ -2067,9 +2068,9 @@ async def scrape_and_update(reference: str):
         
         await cache_manager.set(reference, event_data)
         
-        print(f"✅ Evento {reference} atualizado")
+        log_info(f"Evento {reference} atualizado")
     except Exception as e:
-        print(f"❌ Erro ao atualizar {reference}: {e}")
+        log_error(f"Erro ao atualizar {reference}", e)
 
 
 async def scrape_all_events(max_pages: Optional[int] = None):
@@ -2084,10 +2085,10 @@ async def scrape_all_events(max_pages: Optional[int] = None):
                 await db.save_event(event)
                 await cache_manager.set(event.reference, event)
 
-        print(f"✅ Scraping total concluído: {len(all_events)} eventos")
+        log_info(f"Scraping total concluído: {len(all_events)} eventos")
 
     except Exception as e:
-        print(f"❌ Erro no scraping total: {e}")
+        log_error("Erro no scraping total", e)
 
 
 async def scheduled_scrape_task():
@@ -2300,9 +2301,9 @@ async def run_full_pipeline(tipo: Optional[int], max_pages: Optional[int]):
         await pipeline_state.stop()
 
     except Exception as e:
-        msg = f"❌ Erro no pipeline: {e}"
-        print(msg)
-        add_dashboard_log(msg, "error")
+        msg = f"Erro no pipeline: {e}"
+        log_exception(msg)
+        add_dashboard_log(f"❌ {msg}", "error")
         await pipeline_state.add_error(msg)
 
         # Register error in history
@@ -2600,9 +2601,9 @@ async def run_api_pipeline(tipo: Optional[int], max_pages: Optional[int]):
         await pipeline_state.stop()
 
     except Exception as e:
-        msg = f"❌ Erro no API pipeline: {e}"
-        print(msg)
-        add_dashboard_log(msg, "error")
+        msg = f"Erro no API pipeline: {e}"
+        log_exception(msg)
+        add_dashboard_log(f"❌ {msg}", "error")
         await pipeline_state.add_error(msg)
 
         # Register error in history

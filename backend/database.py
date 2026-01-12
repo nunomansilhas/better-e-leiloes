@@ -5,7 +5,7 @@ Schema v2 - Baseado na API oficial e-leiloes.pt
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy import select, func, String, Float, DateTime, Text, Integer, Boolean, JSON, text, Numeric
+from sqlalchemy import select, func, String, Float, DateTime, Text, Integer, Boolean, JSON, text, Numeric, Index
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from typing import List, Tuple, Optional
 from datetime import datetime
@@ -40,6 +40,11 @@ class EventDB(Base):
     Baseado na API oficial e-leiloes.pt
     """
     __tablename__ = "events"
+    __table_args__ = (
+        Index('idx_events_active', 'terminado', 'cancelado', 'data_fim'),
+        Index('idx_events_tipo', 'tipo_id'),
+        Index('idx_events_distrito', 'distrito'),
+    )
 
     # ========== IDENTIFICAÇÃO ==========
     reference: Mapped[str] = mapped_column(String(50), primary_key=True)
@@ -300,6 +305,9 @@ class PriceHistoryDB(Base):
     Guarda cada mudança de preço para análise e treino de AI.
     """
     __tablename__ = "price_history"
+    __table_args__ = (
+        Index('idx_price_history_ref_time', 'reference', 'recorded_at'),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     reference: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
@@ -418,6 +426,9 @@ class RefreshLogDB(Base):
     States: 0=pending, 1=processing, 2=completed, 3=error
     """
     __tablename__ = "refresh_logs"
+    __table_args__ = (
+        Index('idx_refresh_logs_state_time', 'state', 'created_at'),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     reference: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
