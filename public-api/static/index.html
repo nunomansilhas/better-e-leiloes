@@ -2127,9 +2127,29 @@
             color: #10b981;
         }
 
-        .event-type-badge.movel {
+        .event-type-badge.veiculo {
+            background: rgba(59, 130, 246, 0.15);
+            color: #3b82f6;
+        }
+
+        .event-type-badge.equipamento {
             background: rgba(139, 92, 246, 0.15);
             color: #8b5cf6;
+        }
+
+        .event-type-badge.mobiliario {
+            background: rgba(245, 158, 11, 0.15);
+            color: #f59e0b;
+        }
+
+        .event-type-badge.maquina {
+            background: rgba(107, 114, 128, 0.15);
+            color: #6b7280;
+        }
+
+        .event-type-badge.direito {
+            background: rgba(236, 72, 153, 0.15);
+            color: #ec4899;
         }
 
         .event-type-badge svg {
@@ -6488,7 +6508,18 @@
 
             const typePrefix = event.reference.substring(0, 2);
             const typePrefixClass = typePrefix === 'LO' ? 'lo' : 'np';
-            const eventType = (event.tipoEvento === 'imoveis' || event.tipoId === 1) ? 'imovel' : 'movel';
+
+            // Get type info based on tipoId
+            const tipoId = event.tipoId || 1;
+            const tipoInfo = {
+                1: { name: 'Imóvel', class: 'imovel', icon: '<path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>' },
+                2: { name: 'Veículo', class: 'veiculo', icon: '<path stroke-linecap="round" stroke-linejoin="round" d="M8 17h8M8 17v-4m8 4v-4m-8 0h8m-8 0l-2-4h12l-2 4M6 17H4a1 1 0 01-1-1v-1a2 2 0 012-2h14a2 2 0 012 2v1a1 1 0 01-1 1h-2"/>' },
+                3: { name: 'Equipamento', class: 'equipamento', icon: '<path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>' },
+                4: { name: 'Mobiliário', class: 'mobiliario', icon: '<path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>' },
+                5: { name: 'Máquina', class: 'maquina', icon: '<path stroke-linecap="round" stroke-linejoin="round" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/>' },
+                6: { name: 'Direito', class: 'direito', icon: '<path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>' }
+            };
+            const currentTipo = tipoInfo[tipoId] || tipoInfo[1];
 
             const formatDate = (dateStr) => {
                 if (!dateStr) return 'N/A';
@@ -6587,18 +6618,11 @@
                         <span class="event-type-prefix ${typePrefixClass}">${typePrefix}</span>
                         <span class="event-ref-text">${referenceWithoutPrefix}</span>
                     </div>
-                    <div class="event-type-badge ${eventType}">
-                        ${eventType === 'imovel' ? `
-                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
-                            </svg>
-                            Imóvel
-                        ` : `
-                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
-                            </svg>
-                            Móvel
-                        `}
+                    <div class="event-type-badge ${currentTipo.class}">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            ${currentTipo.icon}
+                        </svg>
+                        ${currentTipo.name}
                     </div>
                 </div>
 
