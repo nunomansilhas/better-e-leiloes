@@ -4720,6 +4720,112 @@
             });
         }
 
+        // ============== EVENT NOTIFICATIONS (localStorage) ==============
+
+        const EVENT_NOTIFICATIONS = {
+            storageKey: 'eleiloes_event_notifications',
+
+            getAll() {
+                try {
+                    return JSON.parse(localStorage.getItem(this.storageKey) || '[]');
+                } catch {
+                    return [];
+                }
+            },
+
+            add(reference, eventData = {}) {
+                const notifications = this.getAll();
+                if (!notifications.some(n => n.reference === reference)) {
+                    notifications.push({
+                        reference,
+                        titulo: eventData.titulo || '',
+                        tipoEvento: eventData.tipoEvento || '',
+                        lance_atual: eventData.lance_atual,
+                        addedAt: new Date().toISOString()
+                    });
+                    localStorage.setItem(this.storageKey, JSON.stringify(notifications));
+                    showToast('Notificação ativada', `Será notificado sobre alterações em ${reference}`, 'success');
+                }
+                return notifications;
+            },
+
+            remove(reference) {
+                const notifications = this.getAll().filter(n => n.reference !== reference);
+                localStorage.setItem(this.storageKey, JSON.stringify(notifications));
+                showToast('Notificação desativada', `Deixará de ser notificado sobre ${reference}`, 'info');
+                return notifications;
+            },
+
+            toggle(reference, eventData = {}) {
+                if (this.isWatching(reference)) {
+                    return this.remove(reference);
+                } else {
+                    return this.add(reference, eventData);
+                }
+            },
+
+            isWatching(reference) {
+                return this.getAll().some(n => n.reference === reference);
+            },
+
+            // Check for price changes (call periodically)
+            async checkForChanges() {
+                const watching = this.getAll();
+                if (watching.length === 0) return;
+
+                try {
+                    const response = await fetch(`${API_BASE}/api/events?limit=200&active_only=false`);
+                    const data = await response.json();
+                    if (!data.events) return;
+
+                    const eventsMap = {};
+                    data.events.forEach(e => eventsMap[e.reference] = e);
+
+                    watching.forEach(w => {
+                        const current = eventsMap[w.reference];
+                        if (current && w.lance_atual && current.lance_atual !== w.lance_atual) {
+                            // Price changed! Show notification
+                            const diff = current.lance_atual - w.lance_atual;
+                            const diffStr = diff > 0 ? `+€${diff.toLocaleString('pt-PT')}` : `-€${Math.abs(diff).toLocaleString('pt-PT')}`;
+                            showToast(
+                                `💰 Preço alterado: ${w.reference}`,
+                                `Novo lance: €${current.lance_atual.toLocaleString('pt-PT')} (${diffStr})`,
+                                'warning',
+                                8000
+                            );
+                            // Update stored price
+                            this.updatePrice(w.reference, current.lance_atual);
+                        }
+                    });
+                } catch (err) {
+                    console.error('Error checking for price changes:', err);
+                }
+            },
+
+            updatePrice(reference, newPrice) {
+                const notifications = this.getAll();
+                const idx = notifications.findIndex(n => n.reference === reference);
+                if (idx !== -1) {
+                    notifications[idx].lance_atual = newPrice;
+                    localStorage.setItem(this.storageKey, JSON.stringify(notifications));
+                }
+            },
+
+            getCount() {
+                return this.getAll().length;
+            }
+        };
+
+        // Update notification button states on page load
+        function updateNotificationButtons() {
+            EVENT_NOTIFICATIONS.getAll().forEach(n => {
+                const btn = document.getElementById(`notify-event-${n.reference}`);
+                if (btn) {
+                    btn.classList.add('active');
+                }
+            });
+        }
+
         // ============== SECURITY: HMAC Authentication ==============
 
         const API_AUTH = {
@@ -9736,6 +9842,10 @@
             initTheme();
             updateAuthStatus(!!API_AUTH.secretKey);
             FAVORITES.updateWidget();
+
+            // Check for price changes on watched events every 2 minutes
+            EVENT_NOTIFICATIONS.checkForChanges();
+            setInterval(() => EVENT_NOTIFICATIONS.checkForChanges(), 2 * 60 * 1000);
         });
 
         // ============== End Security Key Management ==============
@@ -9767,65 +9877,48 @@
             runIndependentScraperWithIds(input);
         }
 
-        // Toggle event-specific notification
+        // Toggle event-specific notification (localStorage-based)
         async function toggleEventNotification(reference, titulo, tipoEvento) {
             const btn = document.getElementById(`notify-event-${reference}`);
-            const isActive = btn && btn.classList.contains('active');
+            const isWatching = EVENT_NOTIFICATIONS.isWatching(reference);
 
+            // Get current price for tracking
+            let lance_atual = null;
             try {
-                // Check if rule exists for this event
-                const rulesResponse = await fetch(`${API_BASE}/api/notification-rules`);
-                const rules = await rulesResponse.json();
-                const existingRule = rules.find(r => r.event_reference === reference);
-
-                if (isActive && existingRule) {
-                    // Delete the rule
-                    await fetch(`${API_BASE}/api/notification-rules/${existingRule.id}`, { method: 'DELETE' });
-                    btn.classList.remove('active');
-                    showToast('Notificação desativada', `Deixará de ser notificado sobre: ${titulo.substring(0, 40)}...`, 'info');
-                } else if (!isActive) {
-                    // Create new rule for this event
-                    const ruleData = {
-                        name: `Evento: ${titulo.substring(0, 50)}`,
-                        rule_type: 'price_change',
-                        event_reference: reference,
-                        active: true
-                    };
-
-                    await fetch(`${API_BASE}/api/notification-rules`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(ruleData)
-                    });
-
-                    if (btn) btn.classList.add('active');
-                    showToast('Notificação ativada', `Será notificado sobre alterações em: ${titulo.substring(0, 40)}...`, 'success');
+                const response = await fetch(`${API_BASE}/api/events/${reference}`);
+                if (response.ok) {
+                    const event = await response.json();
+                    lance_atual = event.lance_atual;
                 }
-            } catch (error) {
-                console.error('Erro ao toggle notificação:', error);
-                showToast('Erro', 'Não foi possível alterar a notificação', 'error');
+            } catch (e) {
+                console.log('Could not fetch current price');
+            }
+
+            EVENT_NOTIFICATIONS.toggle(reference, { titulo, tipoEvento, lance_atual });
+
+            // Update button state
+            if (btn) {
+                const nowWatching = EVENT_NOTIFICATIONS.isWatching(reference);
+                if (nowWatching) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+                // Add animation
+                btn.classList.add('star-pop');
+                setTimeout(() => btn.classList.remove('star-pop'), 300);
             }
         }
 
-        // Update notification button states based on existing rules
-        async function updateNotifyButtonStates() {
-            try {
-                const rulesResponse = await fetch(`${API_BASE}/api/notification-rules`);
-                const rules = await rulesResponse.json();
-
-                // Get all event-specific rules
-                const eventRules = rules.filter(r => r.event_reference);
-
-                // Update button states
-                eventRules.forEach(rule => {
-                    const btn = document.getElementById(`notify-event-${rule.event_reference}`);
-                    if (btn && rule.active) {
-                        btn.classList.add('active');
-                    }
-                });
-            } catch (error) {
-                console.error('Erro ao carregar estados de notificação:', error);
-            }
+        // Update notification button states based on localStorage
+        function updateNotifyButtonStates() {
+            const watching = EVENT_NOTIFICATIONS.getAll();
+            watching.forEach(n => {
+                const btn = document.getElementById(`notify-event-${n.reference}`);
+                if (btn) {
+                    btn.classList.add('active');
+                }
+            });
         }
 
         // Update notification badge in sidebar
