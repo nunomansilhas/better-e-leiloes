@@ -254,6 +254,8 @@ async def list_events(
                 "data_fim": e.data_fim.isoformat() if e.data_fim else None,
                 "distrito": e.distrito,
                 "concelho": e.concelho,
+                "latitude": e.latitude,
+                "longitude": e.longitude,
                 "terminado": e.terminado,
                 "cancelado": e.cancelado,
                 "ativo": not e.terminado and not e.cancelado
