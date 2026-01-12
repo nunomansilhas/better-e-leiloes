@@ -4217,7 +4217,13 @@
                     distrito: event.distrito,
                     concelho: event.concelho,
                     freguesia: event.freguesia,
+                    morada: event.morada,
                     matricula: event.matricula
+                },
+                processo: {
+                    numero: event.processo_numero,
+                    tribunal: event.processo_tribunal,
+                    comarca: event.processo_comarca
                 },
                 dataInicio: event.data_inicio,
                 dataFim: event.data_fim,
@@ -4229,9 +4235,7 @@
                 ativo: event.ativo !== undefined ? event.ativo : true,
                 // New fields from API
                 gestor_nome: event.gestor_nome,
-                gestor_email: event.gestor_email,
-                processo_numero: event.processo_numero,
-                processo_tribunal: event.processo_tribunal
+                gestor_email: event.gestor_email
             };
         }
 
