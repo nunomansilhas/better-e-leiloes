@@ -584,10 +584,12 @@ async def dashboard_price_history(reference: str):
 @app.get("/api/dashboard/recent-bids")
 async def dashboard_recent_bids(limit: int = 30, hours: int = 120):
     """Get recent bid activity with price changes from price_history table.
-    Shows only the most recent bid per event, limited to last N hours (default 120h = 5 days)."""
+    Shows only the most recent bid per event, limited to last N hours (default 120h = 5 days).
+    Also includes last bids from recently terminated events."""
     async with get_session() as session:
         # Calculate cutoff time
-        cutoff = datetime.utcnow() - timedelta(hours=hours)
+        now = datetime.utcnow()
+        cutoff = now - timedelta(hours=hours)
 
         # Get recent price history entries (already has old_price, new_price, change_amount)
         result = await session.execute(
@@ -603,9 +605,6 @@ async def dashboard_recent_bids(limit: int = 30, hours: int = 120):
         )
         history_entries = result.scalars().all()
 
-        if not history_entries:
-            return []
-
         # Keep only the most recent bid per event
         seen_refs = set()
         unique_entries = []
@@ -613,8 +612,37 @@ async def dashboard_recent_bids(limit: int = 30, hours: int = 120):
             if h.reference not in seen_refs:
                 seen_refs.add(h.reference)
                 unique_entries.append(h)
-                if len(unique_entries) >= limit:
-                    break
+
+        # Also get recently terminated events to include their last bids
+        terminated_result = await session.execute(
+            select(EventDB).where(
+                and_(
+                    EventDB.terminado == 1,
+                    EventDB.data_fim >= cutoff,
+                    EventDB.data_fim <= now,
+                    EventDB.lance_atual > 0  # Only if there was a bid
+                )
+            ).order_by(desc(EventDB.data_fim)).limit(limit)
+        )
+        terminated_events = terminated_result.scalars().all()
+
+        # For terminated events not already in our list, get their last price history entry
+        for event in terminated_events:
+            if event.reference not in seen_refs:
+                # Get the last price history entry for this event
+                last_bid_result = await session.execute(
+                    select(PriceHistoryDB)
+                    .where(PriceHistoryDB.reference == event.reference)
+                    .order_by(desc(PriceHistoryDB.recorded_at))
+                    .limit(1)
+                )
+                last_bid = last_bid_result.scalar_one_or_none()
+                if last_bid:
+                    seen_refs.add(event.reference)
+                    unique_entries.append(last_bid)
+
+        if not unique_entries:
+            return []
 
         # Get event details for these references
         refs = list(seen_refs)
@@ -643,7 +671,10 @@ async def dashboard_recent_bids(limit: int = 30, hours: int = 120):
                 "data_fim": data_fim
             })
 
-        return bids
+        # Sort by timestamp descending (most recent first)
+        bids.sort(key=lambda x: x['timestamp'] or '', reverse=True)
+
+        return bids[:limit]
 
 
 @app.get("/api/dashboard/stats-by-distrito")
