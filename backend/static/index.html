@@ -1036,9 +1036,9 @@
             // Smooth countdown - update display every 1 second
             setInterval(updateTimersDisplay, 1000);
 
-            // Sync with backend every 30 seconds (not 5s - reduces API calls)
+            // Sync with backend
             setInterval(loadPipelinesStatus, 30000);
-            setInterval(loadRefreshStats, 30000);
+            setInterval(loadRefreshStats, 1000);
 
             setInterval(() => refreshStats(true), 10000);
             setInterval(checkHealth, 30000);
