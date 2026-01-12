@@ -6308,43 +6308,18 @@
             // Remove prefix LO/NP from reference text
             const referenceWithoutPrefix = event.reference.substring(2);
 
-            // Build carousel HTML - use imagens if available, otherwise capa, otherwise placeholder
-            let carouselHTML = '';
-            const images = (event.imagens && event.imagens.length > 0) ? event.imagens : (event.capa ? [event.capa] : []);
-
-            if (images.length > 0) {
-                const imagesHTML = images.map((img, idx) =>
-                    `<div class="event-carousel-image" style="background-image: url('${img}')"></div>`
-                ).join('');
-
-                const indicatorsHTML = images.map((_, idx) =>
-                    `<div class="event-carousel-indicator ${idx === 0 ? 'active' : ''}" data-index="${idx}"></div>`
-                ).join('');
-
-                carouselHTML = `
+            // Build image HTML - just show capa (cover image), carousel is in the modal
+            let imageHTML = '';
+            if (event.capa) {
+                imageHTML = `
                     <div class="event-carousel" data-reference="${event.reference}">
                         <div class="event-carousel-images">
-                            ${imagesHTML}
+                            <div class="event-carousel-image" style="background-image: url('${event.capa}')"></div>
                         </div>
-                        ${images.length > 1 ? `
-                            <button class="event-carousel-nav prev">
-                                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
-                                </svg>
-                            </button>
-                            <button class="event-carousel-nav next">
-                                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
-                                </svg>
-                            </button>
-                            <div class="event-carousel-indicators">
-                                ${indicatorsHTML}
-                            </div>
-                        ` : ''}
                     </div>
                 `;
             } else {
-                carouselHTML = `
+                imageHTML = `
                     <div class="event-carousel">
                         <div class="event-carousel-placeholder">
                             <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 48px; height: 48px;">
@@ -6395,7 +6370,7 @@
                     </div>
                 </div>
 
-                ${carouselHTML}
+                ${imageHTML}
                 ${locationBadgeHTML}
 
                 <div class="event-card-body">
