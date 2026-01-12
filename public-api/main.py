@@ -548,6 +548,33 @@ async def dashboard_ending_soon(hours: int = 24, limit: int = 1000, include_term
         return result_list
 
 
+@app.get("/api/debug/terminated")
+async def debug_terminated():
+    """DEBUG: Check terminated events in database"""
+    async with get_session() as session:
+        from datetime import timedelta
+        now = datetime.utcnow()
+        cutoff = now - timedelta(hours=120)
+
+        # Simple query - just get terminated events
+        result = await session.execute(
+            select(EventDB.reference, EventDB.terminado, EventDB.cancelado, EventDB.data_fim)
+            .where(EventDB.terminado == 1)
+            .order_by(desc(EventDB.data_fim))
+            .limit(10)
+        )
+        rows = result.all()
+
+        return {
+            "now_utc": now.isoformat(),
+            "cutoff_utc": cutoff.isoformat(),
+            "terminated_events": [
+                {"ref": r[0], "terminado": r[1], "cancelado": r[2], "data_fim": r[3].isoformat() if r[3] else None}
+                for r in rows
+            ]
+        }
+
+
 @app.get("/api/dashboard/price-history/{reference}")
 async def dashboard_price_history(reference: str):
     """Alias for price-history endpoint"""
