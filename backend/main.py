@@ -1521,10 +1521,10 @@ async def get_db_extended_stats():
 
 
 @app.get("/api/dashboard/ending-soon")
-async def get_events_ending_soon(hours: int = 24, limit: int = 5):
-    """Get events ending within the next X hours"""
+async def get_events_ending_soon(hours: int = 24, limit: int = 1000, include_terminated: bool = True, terminated_hours: int = 120):
+    """Get events ending within the next X hours + recently terminated events"""
     async with get_db() as db:
-        events = await db.get_events_ending_soon(hours=hours, limit=limit)
+        events = await db.get_events_ending_soon(hours=hours, limit=limit, include_terminated=include_terminated, terminated_hours=terminated_hours)
         return JSONResponse(events)
 
 

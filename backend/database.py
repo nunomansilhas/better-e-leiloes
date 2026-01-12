@@ -1173,38 +1173,64 @@ class DatabaseManager:
         )
         return list(result.scalars().all())
 
-    async def get_events_ending_soon(self, hours: int = 24, limit: int = 10) -> List[dict]:
-        """Get events ending within the next X hours"""
+    async def get_events_ending_soon(self, hours: int = 24, limit: int = 1000, include_terminated: bool = True, terminated_hours: int = 120) -> List[dict]:
+        """Get events ending within the next X hours + recently terminated events"""
         from datetime import timedelta
         now = datetime.utcnow()
         end_time = now + timedelta(hours=hours)
 
+        # Get active events ending soon
         result = await self.session.execute(
             select(EventDB)
             .where(EventDB.data_fim.isnot(None))
-            .where(EventDB.data_fim > now)
+            .where(EventDB.data_fim >= now)
             .where(EventDB.data_fim <= end_time)
-            .where(EventDB.cancelado == False)
+            .where(EventDB.terminado == 0)  # Use 0 for MySQL tinyint
+            .where(EventDB.cancelado == 0)
             .order_by(EventDB.data_fim.asc())
             .limit(limit)
         )
-        events = result.scalars().all()
+        active_events = result.scalars().all()
+
+        # Get recently terminated events
+        terminated_events = []
+        if include_terminated:
+            terminated_cutoff = now - timedelta(hours=terminated_hours)
+            terminated_result = await self.session.execute(
+                select(EventDB)
+                .where(EventDB.data_fim.isnot(None))
+                .where(EventDB.data_fim >= terminated_cutoff)
+                .where(EventDB.data_fim <= now)
+                .where(EventDB.terminado == 1)  # Use 1 for MySQL tinyint
+                .where(EventDB.cancelado == 0)
+                .order_by(EventDB.data_fim.desc())
+                .limit(limit)
+            )
+            terminated_events = terminated_result.scalars().all()
 
         modalidades = {1: 'LO', 2: 'NP'}
-        return [{
-            "reference": e.reference,
-            "titulo": e.titulo,
-            "tipo_id": e.tipo_id,
-            "tipo": e.tipo,
-            "subtipo": e.subtipo,
-            "distrito": e.distrito,
-            "lance_atual": e.lance_atual,
-            "valor_base": e.valor_base,
-            "valor_abertura": e.valor_abertura,
-            "valor_minimo": e.valor_minimo,
-            "data_fim": e.data_fim.isoformat() if e.data_fim else None,
-            "modalidade": modalidades.get(e.modalidade_id, '')
-        } for e in events]
+
+        def format_event(e, is_terminated=False):
+            return {
+                "reference": e.reference,
+                "titulo": e.titulo,
+                "tipo_id": e.tipo_id,
+                "tipo": e.tipo,
+                "subtipo": e.subtipo,
+                "distrito": e.distrito,
+                "lance_atual": e.lance_atual,
+                "valor_base": e.valor_base,
+                "valor_abertura": e.valor_abertura,
+                "valor_minimo": e.valor_minimo,
+                "data_fim": e.data_fim.isoformat() if e.data_fim else None,
+                "modalidade": modalidades.get(e.modalidade_id, ''),
+                "terminado": is_terminated
+            }
+
+        # Return active first, then terminated
+        result_list = [format_event(e, False) for e in active_events]
+        result_list.extend([format_event(e, True) for e in terminated_events])
+        return result_list
 
     async def get_stats_by_distrito(self, limit: int = 10) -> List[dict]:
         """Get event counts by distrito with breakdown by tipo"""
