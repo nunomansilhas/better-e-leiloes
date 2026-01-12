@@ -197,22 +197,23 @@
             border-radius: 8px;
         }
 
-        /* Danger zone - minimal */
+        /* Danger zone */
         .danger-zone {
-            border: none !important;
-            background: transparent !important;
-            padding: 0.5rem !important;
+            background: rgba(239,68,68,0.05);
+            border: 1px solid rgba(239,68,68,0.15);
+            border-radius: 6px;
+            padding: 0.4rem 0.6rem;
         }
         .danger-zone .btn {
-            font-size: 0.65rem;
-            padding: 0.25rem 0.5rem;
-            opacity: 0.6;
+            font-size: 0.6rem;
+            padding: 0.2rem 0.4rem;
+            opacity: 0.7;
             border-color: rgba(239,68,68,0.3);
             color: #f87171;
         }
         .danger-zone .btn:hover {
             opacity: 1;
-            background: rgba(239,68,68,0.1);
+            background: rgba(239,68,68,0.15);
         }
 
         /* Health dot */
@@ -472,15 +473,19 @@
             </div>
         </div>
 
-        <!-- Danger Zone - minimal -->
-        <div class="danger-zone d-flex align-items-center justify-content-end gap-2 mt-2">
-            <span class="text-muted" style="font-size: 0.6rem; opacity: 0.5;">Danger:</span>
-            <button class="btn btn-sm" onclick="confirmClearDatabase()">
-                <i class="bi bi-trash3"></i> Clear DB
-            </button>
-            <button class="btn btn-sm" onclick="confirmClearNotifications()">
-                <i class="bi bi-bell-slash"></i> Clear Notifs
-            </button>
+        <!-- Danger Zone -->
+        <div class="danger-zone mt-2">
+            <div class="d-flex align-items-center justify-content-between">
+                <span style="font-size: 0.6rem; color: #f87171; opacity: 0.7;">⚠️ Danger Zone</span>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm" onclick="confirmClearDatabase()">
+                        <i class="bi bi-trash3"></i> Clear DB
+                    </button>
+                    <button class="btn btn-sm" onclick="confirmClearNotifications()">
+                        <i class="bi bi-bell-slash"></i> Clear Notifs
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 

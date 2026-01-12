@@ -1906,40 +1906,35 @@ class DatabaseManager:
             return new_state
 
     async def get_refresh_stats(self) -> dict:
-        """Get refresh request statistics - counts completed refreshes (state=2)"""
+        """Get refresh request statistics"""
         from datetime import timedelta
         try:
             now = datetime.utcnow()
             cutoff_24h = now - timedelta(hours=24)
 
-            # Count COMPLETED refreshes in last 24h (state=2)
-            completed_24h = await self.session.scalar(
+            # Count ALL requests in last 24h
+            total_24h = await self.session.scalar(
                 select(func.count()).select_from(RefreshLogDB).where(
-                    and_(
-                        RefreshLogDB.created_at >= cutoff_24h,
-                        RefreshLogDB.state == 2  # completed
-                    )
+                    RefreshLogDB.created_at >= cutoff_24h
                 )
             )
 
-            # Count pending (state=0)
+            # Count pending (state=0) or processing (state=1)
             pending = await self.session.scalar(
                 select(func.count()).select_from(RefreshLogDB).where(
-                    RefreshLogDB.state == 0
+                    RefreshLogDB.state.in_([0, 1])
                 )
             )
 
-            # Total completed all-time
-            total_completed = await self.session.scalar(
-                select(func.count()).select_from(RefreshLogDB).where(
-                    RefreshLogDB.state == 2
-                )
+            # Total all-time
+            total_all = await self.session.scalar(
+                select(func.count()).select_from(RefreshLogDB)
             )
 
             return {
-                "total_24h": completed_24h or 0,
+                "total_24h": total_24h or 0,
                 "pending": pending or 0,
-                "total_all_time": total_completed or 0
+                "total_all_time": total_all or 0
             }
         except Exception as e:
             print(f"Error getting refresh stats: {e}")
