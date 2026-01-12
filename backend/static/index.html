@@ -949,8 +949,8 @@
                         const data = await response.json();
                         const d = data.deleted || {};
                         addLog(`✅ Apagados: ${d.events||0} eventos, ${d.price_history||0} preços, ${d.notifications||0} notifs, ${d.refresh_logs||0} refresh, ${d.pipeline_states||0} pipelines`, 'success');
-                        refreshStats();
-                        loadRefreshStats();
+                        // Refresh page after 1 second to show success message
+                        setTimeout(() => location.reload(), 1000);
                     } catch (e) {
                         addLog(`❌ Erro: ${e.message}`, 'error');
                     }
