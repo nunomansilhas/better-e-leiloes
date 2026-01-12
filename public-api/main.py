@@ -768,28 +768,9 @@ async def get_volatile_data(reference: str):
         }
 
 
-# ============ Refresh Logging Endpoints ============
-
-@app.post("/api/refresh/{reference}")
-async def log_refresh_request(reference: str, refresh_type: str = "price"):
-    """Log a refresh request for metrics tracking.
-    This is called when user clicks refresh on an event.
-    """
-    try:
-        async with get_session() as session:
-            # Create refresh log entry
-            refresh_log = RefreshLogDB(
-                reference=reference,
-                refresh_type=refresh_type
-            )
-            session.add(refresh_log)
-            await session.commit()
-
-            return {"success": True, "message": "Refresh logged", "reference": reference}
-    except Exception as e:
-        print(f"Error logging refresh: {e}")
-        return {"success": False, "message": str(e)}
-
+# ============ Refresh Stats Endpoint ============
+# Note: POST /api/refresh/{reference} is handled by the BACKEND (does actual scraping + logging)
+# This public-api only provides the stats endpoint for reading
 
 @app.get("/api/refresh/stats")
 async def get_refresh_stats():
