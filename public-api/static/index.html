@@ -3069,7 +3069,7 @@
                         <span onclick="sortEndingSoon('lance_atual')" style="width: 75px; cursor: pointer; display: flex; align-items: center; gap: 2px; justify-content: flex-end;" title="Ordenar por valor">Valor <span id="sort-icon-lance_atual"></span></span>
                         <span style="width: 24px;"></span>
                     </div>
-                    <div id="dash-ending-soon" style="display: flex; flex-direction: column; gap: 2px; max-height: 200px; overflow-y: auto;">
+                    <div id="dash-ending-soon" style="display: flex; flex-direction: column; gap: 2px; max-height: 320px; overflow-y: auto;">
                         <!-- Loading placeholder -->
                         <div style="text-align: center; padding: 20px; color: #94a3b8; font-size: 11px;">A carregar...</div>
                     </div>
@@ -3083,7 +3083,7 @@
                             <span style="font-weight: 600; color: #1e293b; font-size: 14px;">Licitações Recentes</span>
                         </div>
                     </div>
-                    <div id="dash-recent-bids" style="display: flex; flex-direction: column; gap: 4px; max-height: 200px; overflow-y: auto;">
+                    <div id="dash-recent-bids" style="display: flex; flex-direction: column; gap: 4px; max-height: 320px; overflow-y: auto;">
                         <div style="text-align: center; padding: 20px; color: #94a3b8; font-size: 11px;">A carregar...</div>
                     </div>
                 </div>
@@ -5192,7 +5192,7 @@
             const activeEvents = endingSoonEvents.filter(e => !e.terminado);
             const terminatedEvents = endingSoonEvents.filter(e => e.terminado);
 
-            const renderEvent = (event, idx, isTerminated) => {
+            const renderEvent = (event, isTerminated) => {
                 const dataFim = new Date(event.data_fim);
                 const now = new Date();
                 const diffMs = dataFim - now;
@@ -5230,7 +5230,7 @@
 
                 return `
                     <div class="ending-soon-row" data-ref="${event.reference}" data-terminated="${isTerminated}" style="display: flex; align-items: center; padding: 5px 10px; background: ${bgColor}; border-radius: 4px; border-left: 3px solid ${borderColor};">
-                        <span id="ending-timer-${idx}" style="font-size: 10px; font-weight: 600; color: ${textColor}; width: 72px;">${timerText}</span>
+                        <span class="ending-timer" data-ref="${event.reference}" data-terminated="${isTerminated}" style="font-size: 10px; font-weight: 600; color: ${textColor}; width: 72px;">${timerText}</span>
                         <span style="font-size: 10px; color: ${labelColor}; width: 85px; cursor: pointer; text-decoration: underline;" title="Ver detalhes" onclick="openInspectionModal('${event.reference}')">${event.reference}</span>
                         <span style="font-size: 10px; color: ${valueColor}; width: 65px;">${tipo}</span>
                         <span style="font-size: 10px; color: ${labelColor}; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${subtipo}">${subtipo}</span>
@@ -5262,7 +5262,7 @@
             let html = '';
 
             // Render active events
-            html += activeEvents.map((event, idx) => renderEvent(event, idx, false)).join('');
+            html += activeEvents.map(event => renderEvent(event, false)).join('');
 
             // Add divider and terminated events if any
             if (terminatedEvents.length > 0) {
@@ -5273,7 +5273,7 @@
                         <div style="flex: 1; height: 1px; background: #e2e8f0;"></div>
                     </div>
                 `;
-                html += terminatedEvents.map((event, idx) => renderEvent(event, activeEvents.length + idx, true)).join('');
+                html += terminatedEvents.map(event => renderEvent(event, true)).join('');
             }
 
             container.innerHTML = html;
@@ -5607,12 +5607,14 @@
         }
 
         function updateEndingSoonTimers() {
-            endingSoonEvents.forEach((event, idx) => {
+            // Update timers for all non-terminated events using reference-based selectors
+            document.querySelectorAll('.ending-timer').forEach(timerEl => {
                 // Skip terminated events - they already show "Terminado"
-                if (event.terminado) return;
+                if (timerEl.dataset.terminated === 'true') return;
 
-                const timerEl = document.getElementById(`ending-timer-${idx}`);
-                if (!timerEl) return;
+                const ref = timerEl.dataset.ref;
+                const event = endingSoonEvents.find(e => e.reference === ref);
+                if (!event) return;
 
                 const dataFim = new Date(event.data_fim);
                 const now = new Date();
