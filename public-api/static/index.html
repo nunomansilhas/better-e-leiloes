@@ -4361,6 +4361,9 @@
                 `<div class="inspection-carousel-image" style="background-image: url('${img || ''}')"></div>`
             ).join('');
 
+            // Reset carousel position to first image
+            imagesContainer.style.transform = 'translateX(0)';
+
             // Build indicators
             indicatorsContainer.innerHTML = images.map((_, idx) =>
                 `<div class="inspection-carousel-indicator ${idx === 0 ? 'active' : ''}" onclick="inspectionGoTo(${idx})"></div>`
