@@ -388,8 +388,8 @@ async def get_ending_soon(
 
 
 @app.get("/api/price-history/{reference}")
-async def get_price_history(reference: str, limit: int = Query(50, le=200)):
-    """Get price history for an event"""
+async def get_price_history(reference: str, limit: int = Query(500, le=1000)):
+    """Get price history for an event - returns all bids"""
     try:
         async with get_session() as session:
             result = await session.execute(

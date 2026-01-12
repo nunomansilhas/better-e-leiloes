@@ -4452,7 +4452,7 @@
 
             const formatPrice = (price) => {
                 if (!price) return 'N/A';
-                return new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(price);
+                return new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(price);
             };
 
             const formatDate = (dateStr) => {
@@ -5918,9 +5918,10 @@
             const inactiveBids = recentBidsData.filter(b => b.ativo === false || isExpired(b));
 
             const renderBid = (bid) => {
-                const anterior = bid.preco_anterior ? `€${bid.preco_anterior.toLocaleString()}` : '?';
-                const atual = bid.preco_atual ? `€${bid.preco_atual.toLocaleString()}` : '?';
-                const variacao = bid.variacao ? `+€${bid.variacao.toLocaleString()}` : '';
+                const fmtPrice = (p) => p ? `€${p.toLocaleString('pt-PT', {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : '?';
+                const anterior = fmtPrice(bid.preco_anterior);
+                const atual = fmtPrice(bid.preco_atual);
+                const variacao = bid.variacao ? `+€${bid.variacao.toLocaleString('pt-PT', {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : '';
                 const isActive = bid.ativo !== false && !isExpired(bid);
 
                 // Time ago
@@ -6788,7 +6789,9 @@
                 if (!price) return 'N/A';
                 return new Intl.NumberFormat('pt-PT', {
                     style: 'currency',
-                    currency: 'EUR'
+                    currency: 'EUR',
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
                 }).format(price);
             };
 
