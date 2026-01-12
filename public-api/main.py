@@ -236,7 +236,7 @@ async def list_events(
                 try:
                     fotos_data = json.loads(e.fotos)
                     if isinstance(fotos_data, list):
-                        fotos = [f.get("url") if isinstance(f, dict) else f for f in fotos_data]
+                        fotos = [f.get("image") or f.get("url") if isinstance(f, dict) else f for f in fotos_data]
                 except:
                     pass
 
@@ -281,7 +281,7 @@ async def get_event(reference: str):
                     import json
                     fotos_data = json.loads(event.fotos)
                     if isinstance(fotos_data, list):
-                        fotos = [f.get("url") if isinstance(f, dict) else f for f in fotos_data]
+                        fotos = [f.get("image") or f.get("url") if isinstance(f, dict) else f for f in fotos_data]
                 except:
                     pass
 
