@@ -3033,23 +3033,6 @@
                     </button>
                 </div>
 
-                <!-- Refresh Stats Quick Access -->
-                <div style="background: white; border-radius: 10px; padding: 12px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); display: flex; align-items: center; justify-content: space-between;">
-                    <div style="display: flex; align-items: center; gap: 10px; flex: 1;">
-                        <div style="width: 36px; height: 36px; background: linear-gradient(135deg, #10b981, #059669); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
-                            <span style="font-size: 18px;">🔄</span>
-                        </div>
-                        <div>
-                            <div style="font-weight: 600; color: #1e293b; font-size: 13px;">Refresh Requests</div>
-                            <div style="font-size: 11px; color: #64748b;">Concluídos 24h: <span id="refresh-count-24h" style="font-weight: 600; color: #10b981;">0</span></div>
-                        </div>
-                    </div>
-                    <div style="text-align: right;">
-                        <div style="font-size: 9px; color: #94a3b8;">Total</div>
-                        <div id="refresh-count-all" style="font-size: 14px; font-weight: 600; color: #1e293b;">0</div>
-                    </div>
-                </div>
-
             </div>
 
             <!-- Dashboard Grid: 2 columns -->
@@ -4824,9 +4807,6 @@
                     }
 
                     showToast('Lance atualizado', formatted, 'success');
-
-                    // Refresh stats counter
-                    loadRefreshStats();
                 }
             } catch (error) {
                 console.error('Error refreshing price:', error);
@@ -7279,26 +7259,6 @@
         // Auto-refresh DB stats every 10 seconds
         refreshDbStats(true);
         setInterval(() => refreshDbStats(true), 10000);
-
-        // Load and refresh stats for refresh requests
-        async function loadRefreshStats() {
-            try {
-                const response = await fetch(`${API_BASE}/api/refresh/stats`);
-                if (response.ok) {
-                    const data = await response.json();
-                    const el24h = document.getElementById('refresh-count-24h');
-                    const elAll = document.getElementById('refresh-count-all');
-                    if (el24h) el24h.textContent = data.total_24h || 0;
-                    if (elAll) elAll.textContent = data.total_all_time || 0;
-                }
-            } catch (e) {
-                console.error('Error loading refresh stats:', e);
-            }
-        }
-
-        // Load refresh stats initially and every 30 seconds
-        loadRefreshStats();
-        setInterval(loadRefreshStats, 30000);
 
         // Fix NULL lance_atual values
         async function runFixNulls() {

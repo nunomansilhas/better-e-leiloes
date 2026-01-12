@@ -1520,6 +1520,14 @@ async def get_db_extended_stats():
         return stats
 
 
+@app.get("/api/refresh/stats")
+async def get_refresh_stats():
+    """Get refresh request statistics for the last 24 hours"""
+    async with get_db() as db:
+        stats = await db.get_refresh_stats()
+        return stats
+
+
 @app.get("/api/dashboard/ending-soon")
 async def get_events_ending_soon(hours: int = 24, limit: int = 1000, include_terminated: bool = True, terminated_hours: int = 120):
     """Get events ending within the next X hours + recently terminated events"""

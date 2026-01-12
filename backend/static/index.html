@@ -414,6 +414,31 @@
                         <div class="pipeline-timer green" id="timer-zwatch">--:--</div>
                     </div>
                 </div>
+
+                <!-- Refresh Stats -->
+                <div class="col-12 col-md-4">
+                    <div class="pipeline-card" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.15) 100%); border-color: rgba(16, 185, 129, 0.3);">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    <span>🔄</span>
+                                    <strong class="small">Refresh Requests</strong>
+                                </div>
+                                <div class="small text-muted">Pedidos manuais de atualização</div>
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-end">
+                            <div>
+                                <div class="small text-muted">24h</div>
+                                <div id="refresh-count-24h" style="font-size: 1.5rem; font-weight: 700; color: #10b981;">0</div>
+                            </div>
+                            <div class="text-end">
+                                <div class="small text-muted">Total</div>
+                                <div id="refresh-count-all" style="font-size: 1rem; font-weight: 600; color: #94a3b8;">0</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -976,11 +1001,28 @@
             }
         }
 
+        // Load refresh stats
+        async function loadRefreshStats() {
+            try {
+                const response = await fetch(`${API_BASE}/api/refresh/stats`);
+                if (response.ok) {
+                    const data = await response.json();
+                    const el24h = document.getElementById('refresh-count-24h');
+                    const elAll = document.getElementById('refresh-count-all');
+                    if (el24h) el24h.textContent = data.total_24h || 0;
+                    if (elAll) elAll.textContent = data.total_all_time || 0;
+                }
+            } catch (e) {
+                console.error('Error loading refresh stats:', e);
+            }
+        }
+
         // ============== INIT ==============
         document.addEventListener('DOMContentLoaded', () => {
             addLog('Sistema iniciado', 'success');
             refreshStats(true);
             loadPipelinesStatus();
+            loadRefreshStats();
             checkHealth();
             checkPipelineStateOnLoad();
 
@@ -989,6 +1031,7 @@
 
             // Sync with backend every 30 seconds (not 5s - reduces API calls)
             setInterval(loadPipelinesStatus, 30000);
+            setInterval(loadRefreshStats, 30000);
 
             setInterval(() => refreshStats(true), 10000);
             setInterval(checkHealth, 30000);

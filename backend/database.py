@@ -1900,6 +1900,42 @@ class DatabaseManager:
             await self.session.commit()
             return new_state
 
+    async def get_refresh_stats(self) -> dict:
+        """Get refresh request statistics for the last 24 hours"""
+        from datetime import timedelta
+        try:
+            now = datetime.utcnow()
+            cutoff_24h = now - timedelta(hours=24)
+
+            # Count refreshes in last 24h
+            total_24h = await self.session.scalar(
+                select(func.count()).select_from(RefreshLogDB).where(
+                    RefreshLogDB.created_at >= cutoff_24h
+                )
+            )
+
+            # Count by type in last 24h
+            type_counts = await self.session.execute(
+                select(RefreshLogDB.refresh_type, func.count())
+                .where(RefreshLogDB.created_at >= cutoff_24h)
+                .group_by(RefreshLogDB.refresh_type)
+            )
+            by_type = {t: c for t, c in type_counts.all()}
+
+            # Total all-time
+            total_all = await self.session.scalar(
+                select(func.count()).select_from(RefreshLogDB)
+            )
+
+            return {
+                "total_24h": total_24h or 0,
+                "by_type": by_type,
+                "total_all_time": total_all or 0
+            }
+        except Exception as e:
+            print(f"Error getting refresh stats: {e}")
+            return {"total_24h": 0, "by_type": {}, "total_all_time": 0}
+
     async def init_default_pipelines(self):
         """Initialize default pipeline states if they don't exist"""
         defaults = {
