@@ -475,9 +475,11 @@ async def dashboard_ending_soon(hours: int = 24, limit: int = 1000, include_term
     - include_terminated: include recently terminated events (default True)
     - terminated_hours: how far back to look for terminated events (default 120h = 5 days)
     """
+    print(f"[DEBUG] ending-soon called: hours={hours}, include_terminated={include_terminated}, terminated_hours={terminated_hours}")
     async with get_session() as session:
         now = datetime.utcnow()
         cutoff = now + timedelta(hours=hours)
+        print(f"[DEBUG] now={now}, cutoff={cutoff}")
 
         # Get active events ending soon
         result = await session.execute(
