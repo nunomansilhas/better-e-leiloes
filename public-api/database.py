@@ -127,13 +127,20 @@ class PipelineStateDB(Base):
 
 
 class RefreshLogDB(Base):
-    """Refresh requests log - tracks manual refresh requests for metrics"""
+    """
+    Refresh request queue - frontend creates, backend processes
+    States: 0=pending, 1=processing, 2=completed, 3=error
+    """
     __tablename__ = "refresh_logs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     reference: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     refresh_type: Mapped[str] = mapped_column(String(20), default='price')  # 'price' or 'full'
+    state: Mapped[int] = mapped_column(Integer, default=0, index=True)  # 0=pending, 1=processing, 2=completed, 3=error
+    result_lance: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # Updated price after refresh
+    result_message: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)  # Error message or success info
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    processed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)  # When backend processed it
 
 
 @asynccontextmanager

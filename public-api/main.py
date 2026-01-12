@@ -768,46 +768,111 @@ async def get_volatile_data(reference: str):
         }
 
 
-# ============ Refresh Stats Endpoint ============
-# Note: POST /api/refresh/{reference} is handled by the BACKEND (does actual scraping + logging)
-# This public-api only provides the stats endpoint for reading
+# ============ Refresh Queue Endpoints ============
+# Frontend creates refresh requests (state=0), Backend processes them
+
+@app.post("/api/refresh/{reference}")
+async def queue_refresh_request(reference: str, refresh_type: str = "price"):
+    """
+    Queue a refresh request for the backend to process.
+    Frontend creates the request, backend polls and processes it.
+    Returns the request ID for polling.
+    """
+    try:
+        async with get_session() as session:
+            # Create refresh request with state=0 (pending)
+            refresh_log = RefreshLogDB(
+                reference=reference,
+                refresh_type=refresh_type,
+                state=0  # pending
+            )
+            session.add(refresh_log)
+            await session.commit()
+            await session.refresh(refresh_log)
+
+            return {
+                "success": True,
+                "request_id": refresh_log.id,
+                "reference": reference,
+                "state": 0,
+                "message": "Refresh queued"
+            }
+    except Exception as e:
+        print(f"Error queuing refresh: {e}")
+        return {"success": False, "message": str(e)}
+
+
+@app.get("/api/refresh/status/{request_id}")
+async def get_refresh_status(request_id: int):
+    """
+    Check the status of a refresh request.
+    Frontend polls this to know when backend has processed the request.
+    States: 0=pending, 1=processing, 2=completed, 3=error
+    """
+    try:
+        async with get_session() as session:
+            result = await session.execute(
+                select(RefreshLogDB).where(RefreshLogDB.id == request_id)
+            )
+            refresh_log = result.scalar_one_or_none()
+
+            if not refresh_log:
+                return {"success": False, "message": "Request not found", "state": -1}
+
+            return {
+                "success": True,
+                "request_id": refresh_log.id,
+                "reference": refresh_log.reference,
+                "state": refresh_log.state,
+                "result_lance": refresh_log.result_lance,
+                "result_message": refresh_log.result_message,
+                "processed_at": refresh_log.processed_at.isoformat() if refresh_log.processed_at else None
+            }
+    except Exception as e:
+        print(f"Error getting refresh status: {e}")
+        return {"success": False, "message": str(e), "state": -1}
+
 
 @app.get("/api/refresh/stats")
 async def get_refresh_stats():
-    """Get refresh request statistics for the last 24 hours"""
+    """Get refresh request statistics - counts completed refreshes (state=2)"""
     try:
         async with get_session() as session:
             now = datetime.utcnow()
             cutoff_24h = now - timedelta(hours=24)
 
-            # Count refreshes in last 24h
-            total_24h = await session.scalar(
+            # Count COMPLETED refreshes in last 24h (state=2)
+            completed_24h = await session.scalar(
                 select(func.count()).select_from(RefreshLogDB).where(
-                    RefreshLogDB.created_at >= cutoff_24h
+                    and_(
+                        RefreshLogDB.created_at >= cutoff_24h,
+                        RefreshLogDB.state == 2  # completed
+                    )
                 )
             )
 
-            # Count by type in last 24h
-            type_counts = await session.execute(
-                select(RefreshLogDB.refresh_type, func.count())
-                .where(RefreshLogDB.created_at >= cutoff_24h)
-                .group_by(RefreshLogDB.refresh_type)
+            # Count pending (state=0)
+            pending = await session.scalar(
+                select(func.count()).select_from(RefreshLogDB).where(
+                    RefreshLogDB.state == 0
+                )
             )
-            by_type = {t: c for t, c in type_counts.all()}
 
-            # Total all-time (for info)
-            total_all = await session.scalar(
-                select(func.count()).select_from(RefreshLogDB)
+            # Total completed all-time
+            total_completed = await session.scalar(
+                select(func.count()).select_from(RefreshLogDB).where(
+                    RefreshLogDB.state == 2
+                )
             )
 
             return {
-                "total_24h": total_24h or 0,
-                "by_type": by_type,
-                "total_all_time": total_all or 0
+                "total_24h": completed_24h or 0,
+                "pending": pending or 0,
+                "total_all_time": total_completed or 0
             }
     except Exception as e:
         print(f"Error getting refresh stats: {e}")
-        return {"total_24h": 0, "by_type": {}, "total_all_time": 0}
+        return {"total_24h": 0, "pending": 0, "total_all_time": 0}
 
 
 # ============ Stub Endpoints (for dashboard compatibility) ============

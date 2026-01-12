@@ -414,14 +414,19 @@ class PipelineStateDB(Base):
 
 class RefreshLogDB(Base):
     """
-    Logs de pedidos de refresh - tracking de atualizações manuais
+    Refresh request queue - frontend creates, backend processes
+    States: 0=pending, 1=processing, 2=completed, 3=error
     """
     __tablename__ = "refresh_logs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     reference: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     refresh_type: Mapped[str] = mapped_column(String(20), default='price')  # 'price' or 'full'
+    state: Mapped[int] = mapped_column(Integer, default=0, index=True)  # 0=pending, 1=processing, 2=completed, 3=error
+    result_lance: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # Updated price after refresh
+    result_message: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)  # Error message or success info
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    processed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)  # When backend processed it
 
 
 async def init_db():
@@ -1901,40 +1906,44 @@ class DatabaseManager:
             return new_state
 
     async def get_refresh_stats(self) -> dict:
-        """Get refresh request statistics for the last 24 hours"""
+        """Get refresh request statistics - counts completed refreshes (state=2)"""
         from datetime import timedelta
         try:
             now = datetime.utcnow()
             cutoff_24h = now - timedelta(hours=24)
 
-            # Count refreshes in last 24h
-            total_24h = await self.session.scalar(
+            # Count COMPLETED refreshes in last 24h (state=2)
+            completed_24h = await self.session.scalar(
                 select(func.count()).select_from(RefreshLogDB).where(
-                    RefreshLogDB.created_at >= cutoff_24h
+                    and_(
+                        RefreshLogDB.created_at >= cutoff_24h,
+                        RefreshLogDB.state == 2  # completed
+                    )
                 )
             )
 
-            # Count by type in last 24h
-            type_counts = await self.session.execute(
-                select(RefreshLogDB.refresh_type, func.count())
-                .where(RefreshLogDB.created_at >= cutoff_24h)
-                .group_by(RefreshLogDB.refresh_type)
+            # Count pending (state=0)
+            pending = await self.session.scalar(
+                select(func.count()).select_from(RefreshLogDB).where(
+                    RefreshLogDB.state == 0
+                )
             )
-            by_type = {t: c for t, c in type_counts.all()}
 
-            # Total all-time
-            total_all = await self.session.scalar(
-                select(func.count()).select_from(RefreshLogDB)
+            # Total completed all-time
+            total_completed = await self.session.scalar(
+                select(func.count()).select_from(RefreshLogDB).where(
+                    RefreshLogDB.state == 2
+                )
             )
 
             return {
-                "total_24h": total_24h or 0,
-                "by_type": by_type,
-                "total_all_time": total_all or 0
+                "total_24h": completed_24h or 0,
+                "pending": pending or 0,
+                "total_all_time": total_completed or 0
             }
         except Exception as e:
             print(f"Error getting refresh stats: {e}")
-            return {"total_24h": 0, "by_type": {}, "total_all_time": 0}
+            return {"total_24h": 0, "pending": 0, "total_all_time": 0}
 
     async def init_default_pipelines(self):
         """Initialize default pipeline states if they don't exist"""

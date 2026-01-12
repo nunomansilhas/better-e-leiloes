@@ -134,6 +134,71 @@ def get_sse_clients():
     return sse_clients
 
 
+async def process_refresh_queue():
+    """
+    Background job that polls for pending refresh requests and processes them.
+    Runs every 5 seconds.
+    States: 0=pending, 1=processing, 2=completed, 3=error
+    """
+    global scraper
+    try:
+        async with get_db() as db:
+            from database import RefreshLogDB
+            from sqlalchemy import select
+
+            # Find pending requests (state=0)
+            result = await db.session.execute(
+                select(RefreshLogDB)
+                .where(RefreshLogDB.state == 0)
+                .order_by(RefreshLogDB.created_at)
+                .limit(5)  # Process up to 5 at a time
+            )
+            pending_requests = result.scalars().all()
+
+            if not pending_requests:
+                return  # Nothing to process
+
+            for request in pending_requests:
+                try:
+                    # Mark as processing (state=1)
+                    request.state = 1
+                    await db.session.commit()
+
+                    # Scrape fresh data
+                    events = await scraper.scrape_details_via_api([request.reference], None)
+
+                    if events and len(events) > 0:
+                        event = events[0]
+                        # Save to database
+                        await db.save_event(event)
+
+                        # Mark as completed (state=2)
+                        request.state = 2
+                        request.result_lance = event.valores.lanceAtual if event.valores else None
+                        request.result_message = "Atualizado com sucesso"
+                        request.processed_at = datetime.utcnow()
+                        await db.session.commit()
+
+                        add_dashboard_log(f"🔄 Refresh: {request.reference} → {request.result_lance}€", "success")
+                    else:
+                        # Event not found
+                        request.state = 3  # error
+                        request.result_message = "Evento não encontrado"
+                        request.processed_at = datetime.utcnow()
+                        await db.session.commit()
+
+                except Exception as e:
+                    # Mark as error (state=3)
+                    request.state = 3
+                    request.result_message = str(e)[:500]
+                    request.processed_at = datetime.utcnow()
+                    await db.session.commit()
+                    add_dashboard_log(f"❌ Refresh failed: {request.reference} - {e}", "error")
+
+    except Exception as e:
+        print(f"Error in refresh queue processor: {e}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup e shutdown da aplicação"""
@@ -177,6 +242,15 @@ async def lifespan(app: FastAPI):
             print(f"  ▶️ Auto-started: {pipeline.name}")
     if enabled_count > 0:
         print(f"🔄 {enabled_count} pipeline(s) auto-started from saved config")
+
+    # Start refresh queue processor (polls every 5 seconds)
+    scheduler.add_job(
+        process_refresh_queue,
+        IntervalTrigger(seconds=5),
+        id="refresh_queue_processor",
+        replace_existing=True
+    )
+    print("🔄 Refresh queue processor started (5s interval)")
 
     print("✅ API pronta!")
 

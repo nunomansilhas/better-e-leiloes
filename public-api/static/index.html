@@ -4785,48 +4785,90 @@
         }
 
         // Refresh only the price (lance atual) for modal
+        // Uses queue system: creates request in DB, backend processes it, frontend polls for result
         async function refreshModalPrice(reference) {
+            const priceElement = document.querySelector('.inspection-lance-atual-value');
             try {
-                const priceElement = document.querySelector('.inspection-lance-atual-value');
                 if (priceElement) {
-                    priceElement.innerHTML = '<span style="color: #94a3b8; font-size: 11px;">A atualizar...</span>';
+                    priceElement.innerHTML = '<span style="color: #f59e0b; font-size: 11px;">⏳ Na fila...</span>';
                 }
 
-                // Call backend to actually scrape and update the event
-                const response = await fetch(`${BACKEND_URL}/api/refresh/${reference}`, { method: 'POST' });
+                // Step 1: Queue the refresh request
+                const queueResponse = await fetch(`${API_BASE}/api/refresh/${reference}`, { method: 'POST' });
+                if (!queueResponse.ok) throw new Error('Failed to queue request');
 
-                if (!response.ok) {
-                    // Fallback: just read from database if scrape fails
-                    const volatileRes = await fetch(`${API_BASE}/api/volatile/${reference}`);
-                    if (volatileRes.ok) {
-                        const data = await volatileRes.json();
-                        if (data.lance_atual !== undefined && priceElement) {
-                            const formatted = new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(data.lance_atual);
+                const queueData = await queueResponse.json();
+                if (!queueData.success) throw new Error(queueData.message || 'Queue failed');
+
+                const requestId = queueData.request_id;
+
+                if (priceElement) {
+                    priceElement.innerHTML = '<span style="color: #3b82f6; font-size: 11px;">🔄 A processar...</span>';
+                }
+
+                // Step 2: Poll for completion (max 30 seconds)
+                const maxAttempts = 30;
+                for (let i = 0; i < maxAttempts; i++) {
+                    await new Promise(r => setTimeout(r, 1000)); // Wait 1 second
+
+                    const statusResponse = await fetch(`${API_BASE}/api/refresh/status/${requestId}`);
+                    if (!statusResponse.ok) continue;
+
+                    const status = await statusResponse.json();
+
+                    // State: 0=pending, 1=processing, 2=completed, 3=error
+                    if (status.state === 2) {
+                        // Completed - show result
+                        if (status.result_lance !== null && priceElement) {
+                            const formatted = new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(status.result_lance);
+                            priceElement.innerHTML = `<span class="inspection-value price">${formatted}</span>`;
+
+                            // Update stored event
+                            if (inspectionCurrentEvent) {
+                                inspectionCurrentEvent.valores.lanceAtual = status.result_lance;
+                            }
+
+                            showToast('Lance atualizado', formatted, 'success');
+                        } else {
+                            showToast('Atualizado', status.result_message || 'Concluído', 'success');
+                        }
+                        return;
+                    } else if (status.state === 3) {
+                        // Error
+                        showToast('Erro', status.result_message || 'Falha no refresh', 'error');
+                        // Show current DB value
+                        const volatileRes = await fetch(`${API_BASE}/api/volatile/${reference}`);
+                        if (volatileRes.ok && priceElement) {
+                            const data = await volatileRes.json();
+                            const formatted = new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(data.lance_atual || 0);
                             priceElement.innerHTML = `<span class="inspection-value price">${formatted}</span>`;
                         }
+                        return;
                     }
-                    showToast('Aviso', 'Dados da BD (scrape falhou)', 'warning');
-                    return;
+                    // Still pending or processing - continue polling
                 }
 
-                const data = await response.json();
-
-                if (data.success && data.lance_atual !== undefined && priceElement) {
-                    const formatted = new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(data.lance_atual);
+                // Timeout - show current DB value
+                showToast('Timeout', 'Demorou demasiado tempo', 'warning');
+                const volatileRes = await fetch(`${API_BASE}/api/volatile/${reference}`);
+                if (volatileRes.ok && priceElement) {
+                    const data = await volatileRes.json();
+                    const formatted = new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(data.lance_atual || 0);
                     priceElement.innerHTML = `<span class="inspection-value price">${formatted}</span>`;
-
-                    // Update stored event
-                    if (inspectionCurrentEvent) {
-                        inspectionCurrentEvent.valores.lanceAtual = data.lance_atual;
-                    }
-
-                    showToast('Lance atualizado', formatted, 'success');
-                } else if (!data.success) {
-                    showToast('Erro', data.message || 'Falha ao atualizar', 'error');
                 }
+
             } catch (error) {
                 console.error('Error refreshing price:', error);
                 showToast('Erro', 'Não foi possível atualizar o lance', 'error');
+                // Show current value from DB
+                if (priceElement) {
+                    const volatileRes = await fetch(`${API_BASE}/api/volatile/${reference}`);
+                    if (volatileRes.ok) {
+                        const data = await volatileRes.json();
+                        const formatted = new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(data.lance_atual || 0);
+                        priceElement.innerHTML = `<span class="inspection-value price">${formatted}</span>`;
+                    }
+                }
             }
         }
 
