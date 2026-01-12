@@ -361,9 +361,10 @@ from error_handlers import setup_error_handlers
 setup_error_handlers(app)
 
 # Register modular routers
-from routers import cache_router, cleanup_router
+from routers import cache_router, cleanup_router, metrics_router
 app.include_router(cache_router)
 app.include_router(cleanup_router)
+app.include_router(metrics_router)
 
 # Servir arquivos estáticos
 static_dir = os.path.join(os.path.dirname(__file__), "static")
