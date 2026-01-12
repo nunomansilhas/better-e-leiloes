@@ -1471,6 +1471,15 @@ async def clear_database():
     # Limpa também o cache
     await cache_manager.clear_all()
 
+    # Reset pipeline states in memory
+    pipeline_state = get_pipeline_state()
+    await pipeline_state.stop()
+
+    # Reset scraper state
+    if scraper:
+        scraper.is_running = False
+        scraper.stop_requested = False
+
     return {
         "message": "Base de dados limpa com sucesso",
         "deleted": deleted_counts
