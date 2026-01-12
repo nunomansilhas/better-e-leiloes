@@ -1,0 +1,12 @@
+"""
+API Routers Package
+Modular organization of API endpoints
+"""
+
+from fastapi import APIRouter
+
+# Re-export routers for easy import
+from .health import router as health_router
+from .cache_router import router as cache_router
+
+__all__ = ['health_router', 'cache_router']

@@ -25,8 +25,18 @@ if not DATABASE_URL:
         "DATABASE_URL=mysql+aiomysql://user:password@localhost:3306/eleiloes"
     )
 
-# SQLAlchemy setup
-engine = create_async_engine(DATABASE_URL, echo=False)
+# SQLAlchemy setup with Connection Pooling
+# Pool configuration for production performance
+engine = create_async_engine(
+    DATABASE_URL,
+    echo=False,
+    # Connection pool settings
+    pool_size=10,           # Number of connections to keep open
+    max_overflow=20,        # Extra connections when pool is exhausted
+    pool_timeout=30,        # Seconds to wait before giving up on getting a connection
+    pool_recycle=1800,      # Recycle connections after 30 minutes (avoid stale connections)
+    pool_pre_ping=True,     # Test connections before using (handles disconnects gracefully)
+)
 async_session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 

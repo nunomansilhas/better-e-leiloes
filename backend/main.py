@@ -288,6 +288,14 @@ app.add_middleware(
 from security import security_middleware
 app.middleware("http")(security_middleware)
 
+# Error handlers for consistent error responses
+from error_handlers import setup_error_handlers
+setup_error_handlers(app)
+
+# Register modular routers
+from routers import cache_router
+app.include_router(cache_router)
+
 # Servir arquivos estáticos
 static_dir = os.path.join(os.path.dirname(__file__), "static")
 if os.path.exists(static_dir):
