@@ -300,15 +300,39 @@ async def get_event(reference: str):
                 "lance_atual": event.lance_atual or 0,
                 "data_inicio": event.data_inicio.isoformat() if event.data_inicio else None,
                 "data_fim": event.data_fim.isoformat() if event.data_fim else None,
+                # Location
                 "distrito": event.distrito,
                 "concelho": event.concelho,
                 "freguesia": event.freguesia,
                 "morada": event.morada,
-                "area_total": event.area_total,
+                "morada_cp": event.morada_cp,
                 "latitude": event.latitude,
                 "longitude": event.longitude,
+                # Areas
+                "area_privativa": event.area_privativa,
+                "area_dependente": event.area_dependente,
+                "area_total": event.area_total,
+                # Vehicle
+                "matricula": event.matricula,
+                # Process
+                "processo_numero": event.processo_numero,
+                "processo_tribunal": event.processo_tribunal,
+                "processo_comarca": event.processo_comarca,
+                # Ceremony
+                "cerimonia_data": event.cerimonia_data.isoformat() if event.cerimonia_data else None,
+                "cerimonia_local": event.cerimonia_local,
+                "cerimonia_morada": event.cerimonia_morada,
+                # Manager
+                "gestor_nome": event.gestor_nome,
+                "gestor_email": event.gestor_email,
+                "gestor_telefone": event.gestor_telefone,
+                "gestor_tipo": event.gestor_tipo,
+                "gestor_cedula": event.gestor_cedula,
+                # Content
                 "descricao": event.descricao,
+                "observacoes": event.observacoes,
                 "fotos": fotos,
+                # Status
                 "terminado": event.terminado if event.terminado is not None else False,
                 "cancelado": event.cancelado if event.cancelado is not None else False,
                 "iniciado": event.iniciado if event.iniciado is not None else False,
