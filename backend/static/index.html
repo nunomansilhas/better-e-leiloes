@@ -767,8 +767,10 @@
         }
 
         // Update timer display every second (smooth countdown)
+        let timerRefreshPending = false;
         function updateTimersDisplay() {
             const now = new Date();
+            let needsRefresh = false;
 
             for (const [type, nextRun] of Object.entries(pipelineTimers)) {
                 const timer = document.getElementById(`timer-${type}`);
@@ -779,7 +781,14 @@
                     continue;
                 }
 
-                const secs = Math.max(0, Math.floor((nextRun - now) / 1000));
+                const secs = Math.floor((nextRun - now) / 1000);
+
+                // If timer hit 0 or went negative, mark for refresh
+                if (secs <= 0) {
+                    timer.textContent = '0:00';
+                    needsRefresh = true;
+                    continue;
+                }
 
                 if (type === 'ysync') {
                     const h = Math.floor(secs / 3600);
@@ -791,6 +800,15 @@
                     const s = secs % 60;
                     timer.textContent = `${m}:${String(s).padStart(2,'0')}`;
                 }
+            }
+
+            // Refresh pipeline status when any timer hits 0
+            if (needsRefresh && !timerRefreshPending) {
+                timerRefreshPending = true;
+                setTimeout(() => {
+                    loadPipelinesStatus();
+                    timerRefreshPending = false;
+                }, 2000); // Wait 2s for backend to update
             }
         }
 
