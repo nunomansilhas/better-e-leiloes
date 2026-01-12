@@ -483,8 +483,8 @@ async def dashboard_ending_soon(hours: int = 24, limit: int = 1000, include_term
         result = await session.execute(
             select(EventDB).where(
                 and_(
-                    EventDB.terminado == False,
-                    EventDB.cancelado == False,
+                    EventDB.terminado == 0,  # Use 0 instead of False for MySQL tinyint
+                    EventDB.cancelado == 0,
                     EventDB.data_fim >= now,
                     EventDB.data_fim <= cutoff
                 )
@@ -496,12 +496,12 @@ async def dashboard_ending_soon(hours: int = 24, limit: int = 1000, include_term
         terminated_events = []
         if include_terminated:
             terminated_cutoff = now - timedelta(hours=terminated_hours)
-            print(f"[DEBUG ending-soon] Looking for terminated: terminado=True, data_fim between {terminated_cutoff} and {now}")
+            print(f"[DEBUG ending-soon] Looking for terminated: terminado=1, data_fim between {terminated_cutoff} and {now}")
             terminated_result = await session.execute(
                 select(EventDB).where(
                     and_(
-                        EventDB.terminado == True,
-                        EventDB.cancelado == False,
+                        EventDB.terminado == 1,  # Use 1 instead of True for MySQL tinyint
+                        EventDB.cancelado == 0,  # Use 0 instead of False
                         EventDB.data_fim >= terminated_cutoff,
                         EventDB.data_fim <= now
                     )
