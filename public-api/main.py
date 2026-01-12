@@ -607,11 +607,11 @@ async def dashboard_recent_bids(limit: int = 30, hours: int = 120):
 
         # Keep only the most recent bid per event
         seen_refs = set()
-        unique_entries = []
+        unique_entries = []  # Stores (price_history_entry, event_for_synthetic) tuples
         for h in history_entries:
             if h.reference not in seen_refs:
                 seen_refs.add(h.reference)
-                unique_entries.append(h)
+                unique_entries.append((h, None))
 
         # Also get recently terminated events to include their last bids
         terminated_result = await session.execute(
@@ -627,6 +627,7 @@ async def dashboard_recent_bids(limit: int = 30, hours: int = 120):
         terminated_events = terminated_result.scalars().all()
 
         # For terminated events not already in our list, get their last price history entry
+        # If no price_history exists, create synthetic entry from event data
         for event in terminated_events:
             if event.reference not in seen_refs:
                 # Get the last price history entry for this event
@@ -637,39 +638,58 @@ async def dashboard_recent_bids(limit: int = 30, hours: int = 120):
                     .limit(1)
                 )
                 last_bid = last_bid_result.scalar_one_or_none()
+                seen_refs.add(event.reference)
                 if last_bid:
-                    seen_refs.add(event.reference)
-                    unique_entries.append(last_bid)
+                    unique_entries.append((last_bid, None))
+                else:
+                    # No price history - create synthetic entry from event
+                    unique_entries.append((None, event))
 
         if not unique_entries:
             return []
 
-        # Get event details for these references
-        refs = list(seen_refs)
-        events_result = await session.execute(
-            select(EventDB).where(EventDB.reference.in_(refs))
-        )
-        events_map = {e.reference: e for e in events_result.scalars().all()}
+        # Get event details for references that have price_history entries
+        refs_with_history = [h.reference for h, e in unique_entries if h is not None]
+        events_map = {}
+        if refs_with_history:
+            events_result = await session.execute(
+                select(EventDB).where(EventDB.reference.in_(refs_with_history))
+            )
+            events_map = {e.reference: e for e in events_result.scalars().all()}
 
         # Build response
         bids = []
-        for h in unique_entries:
-            event = events_map.get(h.reference)
-            ativo = True
-            data_fim = None
-            if event:
-                ativo = not event.terminado and not event.cancelado
-                data_fim = event.data_fim.isoformat() if event.data_fim else None
+        for h, synthetic_event in unique_entries:
+            if h is not None:
+                # Normal entry from price_history
+                event = events_map.get(h.reference)
+                ativo = True
+                data_fim = None
+                if event:
+                    ativo = not event.terminado and not event.cancelado
+                    data_fim = event.data_fim.isoformat() if event.data_fim else None
 
-            bids.append({
-                "reference": h.reference,
-                "preco_anterior": h.old_price,
-                "preco_atual": h.new_price,
-                "variacao": h.change_amount,
-                "timestamp": h.recorded_at.isoformat() if h.recorded_at else None,
-                "ativo": ativo,
-                "data_fim": data_fim
-            })
+                bids.append({
+                    "reference": h.reference,
+                    "preco_anterior": h.old_price,
+                    "preco_atual": h.new_price,
+                    "variacao": h.change_amount,
+                    "timestamp": h.recorded_at.isoformat() if h.recorded_at else None,
+                    "ativo": ativo,
+                    "data_fim": data_fim
+                })
+            else:
+                # Synthetic entry from terminated event (no price_history)
+                event = synthetic_event
+                bids.append({
+                    "reference": event.reference,
+                    "preco_anterior": event.valor_base or event.valor_abertura,
+                    "preco_atual": event.lance_atual,
+                    "variacao": (event.lance_atual - (event.valor_base or event.valor_abertura or 0)) if event.lance_atual else None,
+                    "timestamp": event.data_fim.isoformat() if event.data_fim else None,
+                    "ativo": False,
+                    "data_fim": event.data_fim.isoformat() if event.data_fim else None
+                })
 
         # Sort by timestamp descending (most recent first)
         bids.sort(key=lambda x: x['timestamp'] or '', reverse=True)

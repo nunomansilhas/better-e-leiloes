@@ -3088,7 +3088,7 @@
                         <span onclick="sortRecentBids('reference')" style="width: 80px; cursor: pointer; display: flex; align-items: center; gap: 2px;" title="Ordenar por ID">ID <span id="bids-sort-icon-reference"></span></span>
                         <span onclick="sortRecentBids('preco_atual')" style="flex: 1; cursor: pointer; display: flex; align-items: center; gap: 2px;" title="Ordenar por preço">Preço <span id="bids-sort-icon-preco_atual"></span></span>
                         <span onclick="sortRecentBids('variacao')" style="width: 55px; cursor: pointer; display: flex; align-items: center; gap: 2px; justify-content: flex-end;" title="Ordenar por variação">Var. <span id="bids-sort-icon-variacao"></span></span>
-                        <span onclick="sortRecentBids('timestamp')" style="width: 30px; cursor: pointer; display: flex; align-items: center; gap: 2px; justify-content: flex-end;" title="Ordenar por tempo">Há <span id="bids-sort-icon-timestamp">↑</span></span>
+                        <span onclick="sortRecentBids('timestamp')" style="width: 30px; cursor: pointer; display: flex; align-items: center; gap: 2px; justify-content: flex-end;" title="Ordenar por tempo">Há <span id="bids-sort-icon-timestamp">↓</span></span>
                     </div>
                     <div id="dash-recent-bids" style="display: flex; flex-direction: column; gap: 4px; max-height: 320px; overflow-y: auto;">
                         <div style="text-align: center; padding: 20px; color: #94a3b8; font-size: 11px;">A carregar...</div>
@@ -5646,7 +5646,7 @@
 
         let recentBidsInterval = null;
         let recentBidsData = [];
-        let recentBidsSort = { column: 'timestamp', direction: 'asc' };
+        let recentBidsSort = { column: 'timestamp', direction: 'desc' };
 
         async function loadRecentBidsWidget() {
             const container = document.getElementById('dash-recent-bids');
