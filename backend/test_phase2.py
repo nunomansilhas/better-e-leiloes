@@ -508,10 +508,23 @@ async def main():
         return 1
 
 
+async def cleanup():
+    """Properly close database connections to avoid warnings"""
+    from database import engine
+    await engine.dispose()
+
+
 if __name__ == "__main__":
     # Load environment
     from dotenv import load_dotenv
     load_dotenv()
 
-    exit_code = asyncio.run(main())
+    async def run_all():
+        try:
+            result = await main()
+            return result
+        finally:
+            await cleanup()
+
+    exit_code = asyncio.run(run_all())
     sys.exit(exit_code)
