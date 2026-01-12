@@ -4982,8 +4982,8 @@
 
         async function updateDashboardStats() {
             try {
-                // Load ALL events to calculate accurate totals
-                const eventsResponse = await fetch(`${API_BASE}/api/events?limit=100000`);
+                // Load ALL events (including terminated) to calculate accurate totals
+                const eventsResponse = await fetch(`${API_BASE}/api/events?limit=100000&active_only=false`);
                 const eventsData = await eventsResponse.json();
 
                 // Normalize events to handle new API format

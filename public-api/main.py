@@ -135,14 +135,14 @@ async def get_stats():
         total = await session.scalar(select(func.count()).select_from(EventDB))
         active = await session.scalar(
             select(func.count()).select_from(EventDB).where(
-                and_(EventDB.terminado == False, EventDB.cancelado == False)
+                and_(EventDB.terminado == 0, EventDB.cancelado == 0)
             )
         )
         ending_soon = await session.scalar(
             select(func.count()).select_from(EventDB).where(
                 and_(
-                    EventDB.terminado == False,
-                    EventDB.cancelado == False,
+                    EventDB.terminado == 0,
+                    EventDB.cancelado == 0,
                     EventDB.data_fim >= now,
                     EventDB.data_fim <= soon
                 )
@@ -151,7 +151,7 @@ async def get_stats():
 
         type_query = await session.execute(
             select(EventDB.tipo_id, func.count())
-            .where(and_(EventDB.terminado == False, EventDB.cancelado == False))
+            .where(and_(EventDB.terminado == 0, EventDB.cancelado == 0))
             .group_by(EventDB.tipo_id)
         )
         by_type = {str(t or 0): c for t, c in type_query.all()}
@@ -160,8 +160,8 @@ async def get_stats():
             select(EventDB.distrito, func.count())
             .where(
                 and_(
-                    EventDB.terminado == False,
-                    EventDB.cancelado == False,
+                    EventDB.terminado == 0,
+                    EventDB.cancelado == 0,
                     EventDB.distrito != None
                 )
             )
@@ -196,8 +196,8 @@ async def list_events(
 
         conditions = []
         if active_only:
-            conditions.append(EventDB.terminado == False)
-            conditions.append(EventDB.cancelado == False)
+            conditions.append(EventDB.terminado == 0)  # Use 0 for MySQL tinyint
+            conditions.append(EventDB.cancelado == 0)  # Use 0 for MySQL tinyint
         if tipo_id:
             conditions.append(EventDB.tipo_id == tipo_id)
         if distrito:
@@ -366,8 +366,8 @@ async def get_ending_soon(
 
         query = select(EventDB).where(
             and_(
-                EventDB.terminado == False,
-                EventDB.cancelado == False,
+                EventDB.terminado == 0,
+                EventDB.cancelado == 0,
                 EventDB.data_fim >= now,
                 EventDB.data_fim <= cutoff
             )
@@ -411,8 +411,8 @@ async def list_distritos():
             select(EventDB.distrito, func.count())
             .where(
                 and_(
-                    EventDB.terminado == False,
-                    EventDB.cancelado == False,
+                    EventDB.terminado == 0,
+                    EventDB.cancelado == 0,
                     EventDB.distrito != None
                 )
             )
@@ -437,7 +437,7 @@ async def list_tipos():
     async with get_session() as session:
         result = await session.execute(
             select(EventDB.tipo_id, func.count())
-            .where(and_(EventDB.terminado == False, EventDB.cancelado == False))
+            .where(and_(EventDB.terminado == 0, EventDB.cancelado == 0))
             .group_by(EventDB.tipo_id)
             .order_by(EventDB.tipo_id)
         )
@@ -455,8 +455,8 @@ async def get_subtypes(tipo_id: int):
             select(EventDB.subtipo, func.count())
             .where(
                 and_(
-                    EventDB.terminado == False,
-                    EventDB.cancelado == False,
+                    EventDB.terminado == 0,
+                    EventDB.cancelado == 0,
                     EventDB.tipo_id == tipo_id,
                     EventDB.subtipo != None
                 )
@@ -685,8 +685,8 @@ async def dashboard_stats_by_distrito(limit: int = 5):
         result = await session.execute(
             select(EventDB.distrito, EventDB.tipo_id).where(
                 and_(
-                    EventDB.terminado == False,
-                    EventDB.cancelado == False,
+                    EventDB.terminado == 0,
+                    EventDB.cancelado == 0,
                     EventDB.distrito != None
                 )
             )
@@ -718,7 +718,7 @@ async def dashboard_recent_events(limit: int = 20, days: int = 7):
     async with get_session() as session:
         result = await session.execute(
             select(EventDB).where(
-                and_(EventDB.terminado == False, EventDB.cancelado == False)
+                and_(EventDB.terminado == 0, EventDB.cancelado == 0)
             ).order_by(desc(EventDB.data_atualizacao)).limit(limit)
         )
         events = result.scalars().all()
@@ -745,7 +745,7 @@ async def db_stats():
         total = await session.scalar(select(func.count()).select_from(EventDB))
         active = await session.scalar(
             select(func.count()).select_from(EventDB).where(
-                and_(EventDB.terminado == False, EventDB.cancelado == False)
+                and_(EventDB.terminado == 0, EventDB.cancelado == 0)
             )
         )
         type_query = await session.execute(
@@ -827,8 +827,8 @@ async def auto_pipelines_status():
             result = await session.execute(
                 select(EventDB).where(
                     and_(
-                        EventDB.terminado == False,
-                        EventDB.cancelado == False,
+                        EventDB.terminado == 0,
+                        EventDB.cancelado == 0,
                         EventDB.data_fim >= now,
                         EventDB.data_fim <= soon_cutoff
                     )
