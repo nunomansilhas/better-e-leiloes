@@ -479,17 +479,15 @@ async def dashboard_ending_soon(hours: int = 24, limit: int = 1000, include_term
     - include_terminated: include recently terminated events (default True)
     - terminated_hours: how far back to look for terminated events (default 120h = 5 days)
     """
-    print(f"[DEBUG] ending-soon called: hours={hours}, include_terminated={include_terminated}, terminated_hours={terminated_hours}", flush=True)
     async with get_session() as session:
         now = datetime.utcnow()
         cutoff = now + timedelta(hours=hours)
-        print(f"[DEBUG] now={now}, cutoff={cutoff}", flush=True)
 
         # Get active events ending soon
         result = await session.execute(
             select(EventDB).where(
                 and_(
-                    EventDB.terminado == 0,  # Use 0 instead of False for MySQL tinyint
+                    EventDB.terminado == 0,
                     EventDB.cancelado == 0,
                     EventDB.data_fim >= now,
                     EventDB.data_fim <= cutoff
@@ -502,29 +500,16 @@ async def dashboard_ending_soon(hours: int = 24, limit: int = 1000, include_term
         terminated_events = []
         if include_terminated:
             terminated_cutoff = now - timedelta(hours=terminated_hours)
-            print(f"[DEBUG ending-soon] Looking for terminated: terminado=1, data_fim between {terminated_cutoff} and {now}", flush=True)
-
-            # Debug: check what's in the database
-            debug_result = await session.execute(
-                select(EventDB.reference, EventDB.terminado, EventDB.cancelado, EventDB.data_fim)
-                .where(EventDB.terminado == 1)
-                .limit(5)
-            )
-            debug_rows = debug_result.all()
-            print(f"[DEBUG] Sample terminated events in DB: {debug_rows}", flush=True)
-
             terminated_result = await session.execute(
                 select(EventDB).where(
                     and_(
-                        EventDB.terminado == 1,  # Use 1 instead of True for MySQL tinyint
-                        # Removed cancelado filter - terminated events may also be marked as cancelled
+                        EventDB.terminado == 1,
                         EventDB.data_fim >= terminated_cutoff,
                         EventDB.data_fim <= now
                     )
                 ).order_by(desc(EventDB.data_fim)).limit(limit)
             )
             terminated_events = terminated_result.scalars().all()
-            print(f"[DEBUG ending-soon] Found {len(terminated_events)} terminated events, {len(active_events)} active events", flush=True)
 
         def format_event(e, is_terminated=False):
             return {
@@ -548,121 +533,6 @@ async def dashboard_ending_soon(hours: int = 24, limit: int = 1000, include_term
         return result_list
 
 
-@app.get("/api/debug/terminated")
-async def debug_terminated():
-    """DEBUG: Check terminated events in database"""
-    async with get_session() as session:
-        from datetime import timedelta
-        now = datetime.utcnow()
-        cutoff = now - timedelta(hours=120)
-
-        # Simple query - just get terminated events
-        result = await session.execute(
-            select(EventDB.reference, EventDB.terminado, EventDB.cancelado, EventDB.data_fim)
-            .where(EventDB.terminado == 1)
-            .order_by(desc(EventDB.data_fim))
-            .limit(10)
-        )
-        rows = result.all()
-
-        return {
-            "now_utc": now.isoformat(),
-            "cutoff_utc": cutoff.isoformat(),
-            "terminated_events": [
-                {"ref": r[0], "terminado": r[1], "cancelado": r[2], "data_fim": r[3].isoformat() if r[3] else None}
-                for r in rows
-            ]
-        }
-
-
-@app.get("/api/debug/recent-bids")
-async def debug_recent_bids():
-    """DEBUG: Check data for recent bids widget"""
-    async with get_session() as session:
-        now = datetime.utcnow()
-        cutoff = now - timedelta(hours=120)
-
-        # 1. Check price_history with change_amount
-        ph_result = await session.execute(
-            select(PriceHistoryDB)
-            .where(
-                and_(
-                    PriceHistoryDB.change_amount != None,
-                    PriceHistoryDB.recorded_at >= cutoff
-                )
-            )
-            .order_by(desc(PriceHistoryDB.recorded_at))
-            .limit(10)
-        )
-        price_history = ph_result.scalars().all()
-
-        # 2. Check terminated events with lance_atual > 0
-        te_result = await session.execute(
-            select(EventDB)
-            .where(
-                and_(
-                    EventDB.terminado == 1,
-                    EventDB.data_fim >= cutoff,
-                    EventDB.data_fim <= now,
-                    EventDB.lance_atual > 0
-                )
-            )
-            .order_by(desc(EventDB.data_fim))
-            .limit(10)
-        )
-        terminated_events = te_result.scalars().all()
-
-        # 3. Check ALL terminated events (without lance_atual filter)
-        te_all_result = await session.execute(
-            select(EventDB)
-            .where(
-                and_(
-                    EventDB.terminado == 1,
-                    EventDB.data_fim >= cutoff,
-                    EventDB.data_fim <= now
-                )
-            )
-            .order_by(desc(EventDB.data_fim))
-            .limit(10)
-        )
-        terminated_all = te_all_result.scalars().all()
-
-        return {
-            "now_utc": now.isoformat(),
-            "cutoff_utc": cutoff.isoformat(),
-            "price_history_with_changes": [
-                {
-                    "ref": ph.reference,
-                    "old_price": ph.old_price,
-                    "new_price": ph.new_price,
-                    "change_amount": ph.change_amount,
-                    "recorded_at": ph.recorded_at.isoformat() if ph.recorded_at else None
-                }
-                for ph in price_history
-            ],
-            "terminated_with_lance": [
-                {
-                    "ref": e.reference,
-                    "lance_atual": e.lance_atual,
-                    "valor_base": e.valor_base,
-                    "data_fim": e.data_fim.isoformat() if e.data_fim else None,
-                    "terminado": e.terminado
-                }
-                for e in terminated_events
-            ],
-            "terminated_all": [
-                {
-                    "ref": e.reference,
-                    "lance_atual": e.lance_atual,
-                    "valor_base": e.valor_base,
-                    "data_fim": e.data_fim.isoformat() if e.data_fim else None,
-                    "terminado": e.terminado
-                }
-                for e in terminated_all
-            ]
-        }
-
-
 @app.get("/api/dashboard/price-history/{reference}")
 async def dashboard_price_history(reference: str):
     """Alias for price-history endpoint"""
@@ -679,8 +549,6 @@ async def dashboard_recent_bids(limit: int = 30, hours: int = 120):
         now = datetime.utcnow()
         cutoff = now - timedelta(hours=hours)
 
-        print(f"[DEBUG recent-bids] now={now}, cutoff={cutoff}", flush=True)
-
         # Get recent price history entries (already has old_price, new_price, change_amount)
         result = await session.execute(
             select(PriceHistoryDB)
@@ -694,7 +562,6 @@ async def dashboard_recent_bids(limit: int = 30, hours: int = 120):
             .limit(limit * 3)  # Get more to filter down to unique events
         )
         history_entries = result.scalars().all()
-        print(f"[DEBUG recent-bids] price_history entries with changes: {len(history_entries)}", flush=True)
 
         # Keep only the most recent bid per event
         seen_refs = set()
@@ -703,8 +570,6 @@ async def dashboard_recent_bids(limit: int = 30, hours: int = 120):
             if h.reference not in seen_refs:
                 seen_refs.add(h.reference)
                 unique_entries.append((h, None))
-
-        print(f"[DEBUG recent-bids] unique price_history entries: {len(unique_entries)}", flush=True)
 
         # Also get recently terminated events to include their last bids
         terminated_result = await session.execute(
@@ -718,14 +583,9 @@ async def dashboard_recent_bids(limit: int = 30, hours: int = 120):
             ).order_by(desc(EventDB.data_fim)).limit(limit)
         )
         terminated_events = terminated_result.scalars().all()
-        print(f"[DEBUG recent-bids] terminated events with lance_atual>0: {len(terminated_events)}", flush=True)
-        for te in terminated_events[:5]:
-            print(f"[DEBUG recent-bids]   - {te.reference}: lance={te.lance_atual}, data_fim={te.data_fim}, terminado={te.terminado}", flush=True)
 
         # For terminated events not already in our list, get their last price history entry
         # If no price_history exists, create synthetic entry from event data
-        added_from_terminated = 0
-        added_synthetic = 0
         for event in terminated_events:
             if event.reference not in seen_refs:
                 # Get the last price history entry for this event
@@ -739,15 +599,9 @@ async def dashboard_recent_bids(limit: int = 30, hours: int = 120):
                 seen_refs.add(event.reference)
                 if last_bid:
                     unique_entries.append((last_bid, None))
-                    added_from_terminated += 1
                 else:
                     # No price history - create synthetic entry from event
                     unique_entries.append((None, event))
-                    added_synthetic += 1
-
-        print(f"[DEBUG recent-bids] added from terminated (with history): {added_from_terminated}", flush=True)
-        print(f"[DEBUG recent-bids] added synthetic (no history): {added_synthetic}", flush=True)
-        print(f"[DEBUG recent-bids] total unique_entries: {len(unique_entries)}", flush=True)
 
         if not unique_entries:
             return []
@@ -803,8 +657,6 @@ async def dashboard_recent_bids(limit: int = 30, hours: int = 120):
         # Sort each group by timestamp descending
         active_bids.sort(key=lambda x: x['timestamp'] or '', reverse=True)
         inactive_bids.sort(key=lambda x: x['timestamp'] or '', reverse=True)
-
-        print(f"[DEBUG recent-bids] active_bids: {len(active_bids)}, inactive_bids: {len(inactive_bids)}", flush=True)
 
         # Return active bids (limited) + ALL inactive bids (so they always show)
         # This ensures terminated events are always visible
