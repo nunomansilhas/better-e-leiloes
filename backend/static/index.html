@@ -367,12 +367,114 @@
             .type-row { gap: 4px; flex-wrap: wrap; }
             .type-item { font-size: 0.6rem; padding: 2px 5px; }
             .btn { font-size: 0.7rem; padding: 0.35rem 0.6rem; }
-            .tool-btn { width: 28px; height: 28px; }
-            .tool-btn i { font-size: 0.8rem; }
+            .tool-btn { width: 38px; height: 38px; } /* Bigger touch targets */
+            .tool-btn i { font-size: 0.9rem; }
             .pipeline-card { padding: 0.5rem; }
             .custom-card.p-3 { padding: 0.5rem !important; }
             .custom-card.p-2 { padding: 0.4rem !important; }
             .shortcuts-hint { display: none; } /* Hide on mobile */
+            .main-container { padding: 0.5rem; }
+            body { padding-bottom: 60px; } /* Space for bottom nav */
+        }
+
+        /* Tablet adjustments */
+        @media (min-width: 577px) and (max-width: 991px) {
+            .main-container { padding: 1rem; }
+            .tool-btn { width: 36px; height: 36px; }
+        }
+
+        /* Touch-friendly improvements */
+        @media (hover: none) and (pointer: coarse) {
+            .tool-btn { min-width: 44px; min-height: 44px; } /* iOS minimum touch target */
+            .btn { min-height: 44px; display: inline-flex; align-items: center; }
+            .form-check-input { min-width: 44px; min-height: 22px; }
+            .pipeline-card { padding: 0.75rem; }
+        }
+
+        /* Bottom mobile navigation */
+        .mobile-nav {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(15, 23, 42, 0.98);
+            border-top: 1px solid rgba(255,255,255,0.1);
+            padding: 8px 0;
+            z-index: 9999;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+        @media (max-width: 576px) {
+            .mobile-nav { display: flex; justify-content: space-around; }
+        }
+        .mobile-nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 6px 12px;
+            color: #64748b;
+            text-decoration: none;
+            font-size: 0.6rem;
+            transition: all 0.2s;
+            border-radius: 8px;
+        }
+        .mobile-nav-item i { font-size: 1.2rem; margin-bottom: 2px; }
+        .mobile-nav-item.active, .mobile-nav-item:hover { color: #60a5fa; background: rgba(59,130,246,0.1); }
+
+        /* Pull to refresh indicator */
+        .ptr-indicator {
+            position: fixed;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%) translateY(-100%);
+            background: rgba(59,130,246,0.95);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 0 0 8px 8px;
+            font-size: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            z-index: 9999;
+            transition: transform 0.3s;
+        }
+        .ptr-indicator.visible { transform: translateX(-50%) translateY(0); }
+        .ptr-indicator i { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        /* Smooth scrolling */
+        html { scroll-behavior: smooth; }
+
+        /* Better focus states for accessibility */
+        .btn:focus, .tool-btn:focus, .form-check-input:focus {
+            outline: 2px solid #60a5fa;
+            outline-offset: 2px;
+        }
+
+        /* Swipe hint animation */
+        .swipe-hint {
+            position: fixed;
+            bottom: 70px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(30,41,59,0.95);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            color: #94a3b8;
+            display: none;
+            animation: fadeInOut 3s ease forwards;
+            z-index: 100;
+        }
+        @media (max-width: 576px) {
+            .swipe-hint.show { display: block; }
+        }
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateX(-50%) translateY(10px); }
+            20% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            80% { opacity: 1; }
+            100% { opacity: 0; }
         }
 
         /* Toast notifications */
@@ -1417,7 +1519,74 @@
 
             setInterval(() => refreshStats(true), 10000);
             setInterval(checkHealth, 30000);
+
+            // Mobile: Pull to refresh
+            let touchStartY = 0;
+            let isPulling = false;
+            const ptrIndicator = document.getElementById('ptr-indicator');
+
+            document.addEventListener('touchstart', (e) => {
+                if (window.scrollY === 0) {
+                    touchStartY = e.touches[0].clientY;
+                }
+            }, { passive: true });
+
+            document.addEventListener('touchmove', (e) => {
+                if (touchStartY > 0 && window.scrollY === 0) {
+                    const touchY = e.touches[0].clientY;
+                    const diff = touchY - touchStartY;
+                    if (diff > 60 && !isPulling) {
+                        isPulling = true;
+                        ptrIndicator?.classList.add('visible');
+                    }
+                }
+            }, { passive: true });
+
+            document.addEventListener('touchend', () => {
+                if (isPulling) {
+                    isPulling = false;
+                    refreshStats(true);
+                    loadPipelinesStatus();
+                    checkHealth();
+                    setTimeout(() => ptrIndicator?.classList.remove('visible'), 1000);
+                }
+                touchStartY = 0;
+            }, { passive: true });
+
+            // Mobile nav active state
+            document.querySelectorAll('.mobile-nav-item').forEach(item => {
+                item.addEventListener('click', function(e) {
+                    document.querySelectorAll('.mobile-nav-item').forEach(i => i.classList.remove('active'));
+                    this.classList.add('active');
+                });
+            });
         });
     </script>
+
+    <!-- Pull to refresh indicator -->
+    <div id="ptr-indicator" class="ptr-indicator">
+        <i class="bi bi-arrow-clockwise"></i>
+        A atualizar...
+    </div>
+
+    <!-- Mobile Bottom Navigation -->
+    <nav class="mobile-nav">
+        <a href="#" class="mobile-nav-item active" onclick="scrollTo(0,0);return false;">
+            <i class="bi bi-house"></i>
+            <span>Início</span>
+        </a>
+        <a href="#pipelines" class="mobile-nav-item" onclick="document.getElementById('pipelines')?.scrollIntoView({behavior:'smooth'});return false;">
+            <i class="bi bi-play-circle"></i>
+            <span>Pipelines</span>
+        </a>
+        <a href="#" class="mobile-nav-item" onclick="refreshStats(true);showToast('Stats atualizados','success');return false;">
+            <i class="bi bi-arrow-clockwise"></i>
+            <span>Refresh</span>
+        </a>
+        <a href="#console" class="mobile-nav-item" onclick="document.getElementById('console')?.scrollIntoView({behavior:'smooth'});return false;">
+            <i class="bi bi-terminal"></i>
+            <span>Console</span>
+        </a>
+    </nav>
 </body>
 </html>
