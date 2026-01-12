@@ -285,6 +285,14 @@ async def get_event(reference: str):
                 except:
                     pass
 
+            # Helper to safely get attribute with default
+            def safe_get(attr, default=None):
+                return getattr(event, attr, default)
+
+            def safe_date(attr):
+                val = getattr(event, attr, None)
+                return val.isoformat() if val else None
+
             # Return dict directly to avoid Pydantic validation issues with None fields
             return {
                 "reference": event.reference,
@@ -293,49 +301,49 @@ async def get_event(reference: str):
                 "tipo_id": event.tipo_id,
                 "tipo": event.tipo,
                 "subtipo": event.subtipo,
-                "tipologia": event.tipologia,
+                "tipologia": safe_get('tipologia'),
                 "valor_base": event.valor_base,
-                "valor_abertura": event.valor_abertura,
-                "valor_minimo": event.valor_minimo,
+                "valor_abertura": safe_get('valor_abertura'),
+                "valor_minimo": safe_get('valor_minimo'),
                 "lance_atual": event.lance_atual or 0,
-                "data_inicio": event.data_inicio.isoformat() if event.data_inicio else None,
-                "data_fim": event.data_fim.isoformat() if event.data_fim else None,
+                "data_inicio": safe_date('data_inicio'),
+                "data_fim": safe_date('data_fim'),
                 # Location
                 "distrito": event.distrito,
                 "concelho": event.concelho,
-                "freguesia": event.freguesia,
-                "morada": event.morada,
-                "morada_cp": event.morada_cp,
-                "latitude": event.latitude,
-                "longitude": event.longitude,
+                "freguesia": safe_get('freguesia'),
+                "morada": safe_get('morada'),
+                "morada_cp": safe_get('morada_cp'),
+                "latitude": safe_get('latitude'),
+                "longitude": safe_get('longitude'),
                 # Areas
-                "area_privativa": event.area_privativa,
-                "area_dependente": event.area_dependente,
-                "area_total": event.area_total,
+                "area_privativa": safe_get('area_privativa'),
+                "area_dependente": safe_get('area_dependente'),
+                "area_total": safe_get('area_total'),
                 # Vehicle
-                "matricula": event.matricula,
+                "matricula": safe_get('matricula'),
                 # Process
-                "processo_numero": event.processo_numero,
-                "processo_tribunal": event.processo_tribunal,
-                "processo_comarca": event.processo_comarca,
+                "processo_numero": safe_get('processo_numero'),
+                "processo_tribunal": safe_get('processo_tribunal'),
+                "processo_comarca": safe_get('processo_comarca'),
                 # Ceremony
-                "cerimonia_data": event.cerimonia_data.isoformat() if event.cerimonia_data else None,
-                "cerimonia_local": event.cerimonia_local,
-                "cerimonia_morada": event.cerimonia_morada,
+                "cerimonia_data": safe_date('cerimonia_data'),
+                "cerimonia_local": safe_get('cerimonia_local'),
+                "cerimonia_morada": safe_get('cerimonia_morada'),
                 # Manager
-                "gestor_nome": event.gestor_nome,
-                "gestor_email": event.gestor_email,
-                "gestor_telefone": event.gestor_telefone,
-                "gestor_tipo": event.gestor_tipo,
-                "gestor_cedula": event.gestor_cedula,
+                "gestor_nome": safe_get('gestor_nome'),
+                "gestor_email": safe_get('gestor_email'),
+                "gestor_telefone": safe_get('gestor_telefone'),
+                "gestor_tipo": safe_get('gestor_tipo'),
+                "gestor_cedula": safe_get('gestor_cedula'),
                 # Content
-                "descricao": event.descricao,
-                "observacoes": event.observacoes,
+                "descricao": safe_get('descricao'),
+                "observacoes": safe_get('observacoes'),
                 "fotos": fotos,
                 # Status
                 "terminado": event.terminado if event.terminado is not None else False,
                 "cancelado": event.cancelado if event.cancelado is not None else False,
-                "iniciado": event.iniciado if event.iniciado is not None else False,
+                "iniciado": safe_get('iniciado', False),
                 "ativo": not (event.terminado or event.cancelado)
             }
     except HTTPException:
