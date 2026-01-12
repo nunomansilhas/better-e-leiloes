@@ -475,11 +475,11 @@ async def dashboard_ending_soon(hours: int = 24, limit: int = 1000, include_term
     - include_terminated: include recently terminated events (default True)
     - terminated_hours: how far back to look for terminated events (default 120h = 5 days)
     """
-    print(f"[DEBUG] ending-soon called: hours={hours}, include_terminated={include_terminated}, terminated_hours={terminated_hours}")
+    print(f"[DEBUG] ending-soon called: hours={hours}, include_terminated={include_terminated}, terminated_hours={terminated_hours}", flush=True)
     async with get_session() as session:
         now = datetime.utcnow()
         cutoff = now + timedelta(hours=hours)
-        print(f"[DEBUG] now={now}, cutoff={cutoff}")
+        print(f"[DEBUG] now={now}, cutoff={cutoff}", flush=True)
 
         # Get active events ending soon
         result = await session.execute(
@@ -498,7 +498,17 @@ async def dashboard_ending_soon(hours: int = 24, limit: int = 1000, include_term
         terminated_events = []
         if include_terminated:
             terminated_cutoff = now - timedelta(hours=terminated_hours)
-            print(f"[DEBUG ending-soon] Looking for terminated: terminado=1, data_fim between {terminated_cutoff} and {now}")
+            print(f"[DEBUG ending-soon] Looking for terminated: terminado=1, data_fim between {terminated_cutoff} and {now}", flush=True)
+
+            # Debug: check what's in the database
+            debug_result = await session.execute(
+                select(EventDB.reference, EventDB.terminado, EventDB.cancelado, EventDB.data_fim)
+                .where(EventDB.terminado == 1)
+                .limit(5)
+            )
+            debug_rows = debug_result.all()
+            print(f"[DEBUG] Sample terminated events in DB: {debug_rows}", flush=True)
+
             terminated_result = await session.execute(
                 select(EventDB).where(
                     and_(
@@ -510,7 +520,7 @@ async def dashboard_ending_soon(hours: int = 24, limit: int = 1000, include_term
                 ).order_by(desc(EventDB.data_fim)).limit(limit)
             )
             terminated_events = terminated_result.scalars().all()
-            print(f"[DEBUG ending-soon] Found {len(terminated_events)} terminated events, {len(active_events)} active events")
+            print(f"[DEBUG ending-soon] Found {len(terminated_events)} terminated events, {len(active_events)} active events", flush=True)
 
         def format_event(e, is_terminated=False):
             return {
