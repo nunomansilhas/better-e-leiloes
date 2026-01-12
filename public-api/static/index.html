@@ -1968,7 +1968,7 @@
             transition: all 0.2s;
             display: flex;
             flex-direction: column;
-            height: 520px;
+            height: 580px;
         }
 
         .event-card:hover {
@@ -2140,20 +2140,40 @@
         .event-card-body {
             padding: 10px;
             flex: 1;
-            overflow: hidden;
+            overflow-y: auto;
             display: flex;
             flex-direction: column;
+            min-height: 0;
+        }
+
+        .event-card-body::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .event-card-body::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 2px;
+        }
+
+        .event-card-body::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 2px;
+        }
+
+        .event-card-body::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
         }
 
         .event-section {
-            margin-bottom: 10px;
-            padding-bottom: 8px;
+            margin-bottom: 6px;
+            padding-bottom: 6px;
             border-bottom: 1px solid #f1f5f9;
         }
 
         .event-section:last-child {
             margin-bottom: 0;
             border-bottom: none;
+            padding-bottom: 0;
         }
 
         .card-actions {
@@ -2230,7 +2250,7 @@
             color: #64748b;
             text-transform: uppercase;
             letter-spacing: 0.8px;
-            margin-bottom: 6px;
+            margin-bottom: 4px;
             display: flex;
             align-items: center;
             gap: 4px;
@@ -2245,8 +2265,8 @@
             display: flex;
             justify-content: space-between;
             align-items: start;
-            padding: 4px 0;
-            gap: 8px;
+            padding: 2px 0;
+            gap: 6px;
         }
 
         .detail-label {
