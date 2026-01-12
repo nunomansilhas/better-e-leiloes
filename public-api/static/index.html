@@ -4069,7 +4069,11 @@
             // Extract images from fotos array
             let imagens = [];
             if (event.fotos && Array.isArray(event.fotos)) {
-                imagens = event.fotos.map(f => f.image || f).filter(Boolean);
+                imagens = event.fotos.map(f => {
+                    if (!f) return null;
+                    if (typeof f === 'string') return f;
+                    return f.image || f.url || null;
+                }).filter(Boolean);
             }
 
             return {
