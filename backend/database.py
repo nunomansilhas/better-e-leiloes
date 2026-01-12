@@ -5,7 +5,7 @@ Schema v2 - Baseado na API oficial e-leiloes.pt
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy import select, func, String, Float, DateTime, Text, Integer, Boolean, JSON, text
+from sqlalchemy import select, func, String, Float, DateTime, Text, Integer, Boolean, JSON, text, Numeric
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from typing import List, Tuple, Optional
 from datetime import datetime
@@ -60,11 +60,11 @@ class EventDB(Base):
     tipologia: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     modalidade_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
-    # ========== VALORES (€) ==========
-    valor_base: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    valor_abertura: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    valor_minimo: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    lance_atual: Mapped[float] = mapped_column(Float, default=0)
+    # ========== VALORES (€) - DECIMAL for precision ==========
+    valor_base: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True)
+    valor_abertura: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True)
+    valor_minimo: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True)
+    lance_atual: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
     lance_atual_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
     # ========== IVA ==========
@@ -304,12 +304,12 @@ class PriceHistoryDB(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     reference: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
 
-    # Preços
-    old_price: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # Null no primeiro registo
-    new_price: Mapped[float] = mapped_column(Float, nullable=False)
+    # Preços - DECIMAL for precision
+    old_price: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True)  # Null no primeiro registo
+    new_price: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
 
     # Variação calculada
-    change_amount: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # new_price - old_price
+    change_amount: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True)  # new_price - old_price
     change_percent: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # Percentagem de variação
 
     # Metadados
@@ -423,7 +423,7 @@ class RefreshLogDB(Base):
     reference: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     refresh_type: Mapped[str] = mapped_column(String(20), default='price')  # 'price' or 'full'
     state: Mapped[int] = mapped_column(Integer, default=0, index=True)  # 0=pending, 1=processing, 2=completed, 3=error
-    result_lance: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # Updated price after refresh
+    result_lance: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True)  # Updated price after refresh
     result_message: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)  # Error message or success info
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
     processed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)  # When backend processed it
