@@ -1428,18 +1428,52 @@ async def clear_cache():
 @app.delete("/api/database")
 async def clear_database():
     """
-    Apaga TODOS os eventos da base de dados.
+    Apaga TODOS os dados da base de dados (eventos, histórico, notificações, etc).
     ATENÇÃO: Esta operação é irreversível!
     """
+    deleted_counts = {}
+
     async with get_db() as db:
-        deleted = await db.delete_all_events()
-    
+        # Delete events
+        result = await db.session.execute(text("DELETE FROM events"))
+        deleted_counts["events"] = result.rowcount
+
+        # Delete price history
+        try:
+            result = await db.session.execute(text("DELETE FROM price_history"))
+            deleted_counts["price_history"] = result.rowcount
+        except:
+            deleted_counts["price_history"] = 0
+
+        # Delete refresh logs
+        try:
+            result = await db.session.execute(text("DELETE FROM refresh_logs"))
+            deleted_counts["refresh_logs"] = result.rowcount
+        except:
+            deleted_counts["refresh_logs"] = 0
+
+        # Delete notifications
+        try:
+            result = await db.session.execute(text("DELETE FROM notification_rules"))
+            deleted_counts["notifications"] = result.rowcount
+        except:
+            deleted_counts["notifications"] = 0
+
+        # Delete pipeline states
+        try:
+            result = await db.session.execute(text("DELETE FROM pipeline_states"))
+            deleted_counts["pipeline_states"] = result.rowcount
+        except:
+            deleted_counts["pipeline_states"] = 0
+
+        await db.session.commit()
+
     # Limpa também o cache
     await cache_manager.clear_all()
-    
+
     return {
         "message": "Base de dados limpa com sucesso",
-        "deleted_events": deleted
+        "deleted": deleted_counts
     }
 
 
