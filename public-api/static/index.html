@@ -4330,6 +4330,132 @@
             }
         })();
 
+        // ============== FAVORITES MANAGEMENT ==============
+
+        const FAVORITES = {
+            storageKey: 'eleiloes_favorites',
+
+            getAll() {
+                try {
+                    return JSON.parse(localStorage.getItem(this.storageKey) || '[]');
+                } catch {
+                    return [];
+                }
+            },
+
+            add(reference, eventData = {}) {
+                const favorites = this.getAll();
+                if (!favorites.some(f => f.reference === reference)) {
+                    favorites.push({
+                        reference,
+                        titulo: eventData.titulo || '',
+                        tipo_id: eventData.tipo_id,
+                        lance_atual: eventData.lance_atual,
+                        data_fim: eventData.data_fim,
+                        addedAt: new Date().toISOString()
+                    });
+                    localStorage.setItem(this.storageKey, JSON.stringify(favorites));
+                    this.updateWidget();
+                    showToast('Favorito adicionado', `${reference} foi adicionado aos favoritos`, 'success');
+                }
+                return favorites;
+            },
+
+            remove(reference) {
+                const favorites = this.getAll().filter(f => f.reference !== reference);
+                localStorage.setItem(this.storageKey, JSON.stringify(favorites));
+                this.updateWidget();
+                showToast('Favorito removido', `${reference} foi removido dos favoritos`, 'info');
+                return favorites;
+            },
+
+            toggle(reference, eventData = {}) {
+                if (this.isFavorite(reference)) {
+                    return this.remove(reference);
+                } else {
+                    return this.add(reference, eventData);
+                }
+            },
+
+            isFavorite(reference) {
+                return this.getAll().some(f => f.reference === reference);
+            },
+
+            async updateWidget() {
+                const container = document.getElementById('favorites-widget-content');
+                if (!container) return;
+
+                const favorites = this.getAll();
+                const count = document.getElementById('favorites-count');
+                if (count) count.textContent = favorites.length;
+
+                if (favorites.length === 0) {
+                    container.innerHTML = `
+                        <div style="text-align: center; padding: 20px; color: #94a3b8;">
+                            <div style="font-size: 24px; margin-bottom: 8px;">⭐</div>
+                            <div style="font-size: 11px;">Sem favoritos</div>
+                            <div style="font-size: 10px; color: #cbd5e1; margin-top: 4px;">Clique no ⭐ nos eventos para adicionar</div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                // Get updated data for favorites
+                const refs = favorites.map(f => f.reference);
+                let eventsData = {};
+
+                try {
+                    const response = await fetch(`${API_BASE}/api/events?limit=100&active_only=false`);
+                    const data = await response.json();
+                    if (data.events) {
+                        data.events.forEach(e => {
+                            if (refs.includes(e.reference)) {
+                                eventsData[e.reference] = e;
+                            }
+                        });
+                    }
+                } catch (err) {
+                    console.error('Error fetching favorites data:', err);
+                }
+
+                container.innerHTML = favorites.slice(0, 5).map(fav => {
+                    const event = eventsData[fav.reference] || fav;
+                    const tipoEmoji = {1: '🏠', 2: '🚗', 3: '🔧', 4: '🪑', 5: '⚙️', 6: '📜'}[event.tipo_id] || '📦';
+                    const lance = event.lance_atual ? `€${Number(event.lance_atual).toLocaleString('pt-PT')}` : '-';
+                    const dataFim = event.data_fim ? getTimeLeftShort(new Date(event.data_fim)) : '-';
+                    const isActive = event.ativo !== false && !event.terminado;
+
+                    return `
+                        <div style="display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 6px; background: ${isActive ? '#f8fafc' : '#fef2f2'}; transition: all 0.2s; cursor: pointer;" onclick="openEventModal('${fav.reference}')" onmouseover="this.style.background='${isActive ? '#f1f5f9' : '#fee2e2'}'" onmouseout="this.style.background='${isActive ? '#f8fafc' : '#fef2f2'}'">
+                            <span style="font-size: 14px;">${tipoEmoji}</span>
+                            <div style="flex: 1; min-width: 0;">
+                                <div style="font-size: 11px; font-weight: 600; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${fav.reference}</div>
+                                <div style="font-size: 10px; color: #64748b;">${lance}</div>
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="font-size: 10px; font-weight: 500; color: ${isActive ? '#3b82f6' : '#ef4444'};">${isActive ? dataFim : 'Terminado'}</div>
+                            </div>
+                            <button onclick="event.stopPropagation(); FAVORITES.remove('${fav.reference}'); this.closest('div').remove();" style="background: none; border: none; cursor: pointer; color: #f59e0b; font-size: 14px; padding: 2px;" title="Remover dos favoritos">⭐</button>
+                        </div>
+                    `;
+                }).join('');
+
+                if (favorites.length > 5) {
+                    container.innerHTML += `<div style="text-align: center; font-size: 10px; color: #64748b; margin-top: 4px;">+${favorites.length - 5} mais</div>`;
+                }
+            }
+        };
+
+        function toggleFavorite(reference, eventData = {}) {
+            FAVORITES.toggle(reference, eventData);
+            // Update star icons
+            document.querySelectorAll(`[data-favorite-ref="${reference}"]`).forEach(el => {
+                const isFav = FAVORITES.isFavorite(reference);
+                el.textContent = isFav ? '⭐' : '☆';
+                el.style.color = isFav ? '#f59e0b' : '#cbd5e1';
+            });
+        }
+
         // ============== SECURITY: HMAC Authentication ==============
 
         const API_AUTH = {
