@@ -1528,6 +1528,53 @@ async def get_refresh_stats():
         return stats
 
 
+@app.post("/api/refresh/{reference}")
+async def refresh_single_event(reference: str):
+    """
+    Refresh a single event's data by scraping the latest info from e-leiloes.pt.
+    This is called when user clicks the refresh button on an event.
+    """
+    try:
+        # Scrape fresh data for this single event
+        events = await scraper.scrape_details_via_api([reference], None)
+
+        if not events:
+            return JSONResponse(
+                {"success": False, "message": "Event not found on source"},
+                status_code=404
+            )
+
+        event = events[0]
+
+        # Save to database
+        async with get_db() as db:
+            await db.save_event(event)
+
+            # Log the refresh
+            from database import RefreshLogDB
+            session = db.session
+            refresh_log = RefreshLogDB(reference=reference, refresh_type='price')
+            session.add(refresh_log)
+            await session.commit()
+
+        # Update cache
+        await cache_manager.set(reference, event)
+
+        return {
+            "success": True,
+            "reference": reference,
+            "lance_atual": event.valores.lanceAtual if event.valores else 0,
+            "data_fim": event.datas.dataFim.isoformat() if event.datas and event.datas.dataFim else None
+        }
+
+    except Exception as e:
+        print(f"Error refreshing event {reference}: {e}")
+        return JSONResponse(
+            {"success": False, "message": str(e)},
+            status_code=500
+        )
+
+
 @app.get("/api/dashboard/ending-soon")
 async def get_events_ending_soon(hours: int = 24, limit: int = 1000, include_terminated: bool = True, terminated_hours: int = 120):
     """Get events ending within the next X hours + recently terminated events"""

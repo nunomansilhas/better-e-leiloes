@@ -4043,6 +4043,8 @@
     <script>
         // Dynamic API base - works from any host/port
         const API_BASE = window.location.origin;
+        // Backend URL for scraping/refresh operations (defaults to same origin, configure if different)
+        const BACKEND_URL = window.BACKEND_URL || API_BASE;
 
         // ============== SECURITY: HMAC Authentication ==============
 
@@ -4787,26 +4789,40 @@
             try {
                 const priceElement = document.querySelector('.inspection-lance-atual-value');
                 if (priceElement) {
-                    priceElement.innerHTML = '<span style="color: #94a3b8;">...</span>';
+                    priceElement.innerHTML = '<span style="color: #94a3b8; font-size: 11px;">A atualizar...</span>';
                 }
 
-                // Log the refresh request (fire and forget)
-                fetch(`${API_BASE}/api/refresh/${reference}?refresh_type=price`, { method: 'POST' }).catch(() => {});
+                // Call backend to actually scrape and update the event
+                const response = await fetch(`${BACKEND_URL}/api/refresh/${reference}`, { method: 'POST' });
 
-                const response = await fetch(`${API_BASE}/api/volatile/${reference}`);
-                if (!response.ok) throw new Error('Failed to fetch');
+                if (!response.ok) {
+                    // Fallback: just read from database if scrape fails
+                    const volatileRes = await fetch(`${API_BASE}/api/volatile/${reference}`);
+                    if (volatileRes.ok) {
+                        const data = await volatileRes.json();
+                        if (data.lance_atual !== undefined && priceElement) {
+                            const formatted = new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(data.lance_atual);
+                            priceElement.innerHTML = `<span class="inspection-value price">${formatted}</span>`;
+                        }
+                    }
+                    showToast('Aviso', 'Dados da BD (scrape falhou)', 'warning');
+                    return;
+                }
+
                 const data = await response.json();
 
-                if (data.lanceAtual !== undefined && priceElement) {
-                    const formatted = new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(data.lanceAtual);
+                if (data.success && data.lance_atual !== undefined && priceElement) {
+                    const formatted = new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(data.lance_atual);
                     priceElement.innerHTML = `<span class="inspection-value price">${formatted}</span>`;
 
                     // Update stored event
                     if (inspectionCurrentEvent) {
-                        inspectionCurrentEvent.valores.lanceAtual = data.lanceAtual;
+                        inspectionCurrentEvent.valores.lanceAtual = data.lance_atual;
                     }
 
                     showToast('Lance atualizado', formatted, 'success');
+                } else if (!data.success) {
+                    showToast('Erro', data.message || 'Falha ao atualizar', 'error');
                 }
             } catch (error) {
                 console.error('Error refreshing price:', error);
