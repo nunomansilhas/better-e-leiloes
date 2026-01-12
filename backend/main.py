@@ -174,7 +174,7 @@ async def process_refresh_queue():
 
                         # Mark as completed (state=2)
                         request.state = 2
-                        request.result_lance = event.valores.lanceAtual if event.valores else None
+                        request.result_lance = event.lance_atual
                         request.result_message = "Atualizado com sucesso"
                         request.processed_at = datetime.utcnow()
                         await db.session.commit()
