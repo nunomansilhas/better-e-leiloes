@@ -680,6 +680,11 @@
                         pipelineTimers[type] = new Date(info.next_run);
                     } else {
                         pipelineTimers[type] = null;
+                        // Immediately update timer display when disabled/no next_run
+                        const timer = document.getElementById(`timer-${type}`);
+                        if (timer) {
+                            timer.textContent = type === 'ysync' ? '--:--:--' : '--:--';
+                        }
                     }
                 }
 
