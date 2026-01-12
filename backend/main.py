@@ -1460,9 +1460,9 @@ async def clear_database():
         except:
             deleted_counts["notifications"] = 0
 
-        # Delete ALL pipeline states
+        # Delete ALL pipeline states (table name is singular: pipeline_state)
         try:
-            result = await db.session.execute(text("DELETE FROM pipeline_states"))
+            result = await db.session.execute(text("DELETE FROM pipeline_state"))
             deleted_counts["pipeline_states"] = result.rowcount
         except:
             deleted_counts["pipeline_states"] = 0
