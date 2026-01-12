@@ -58,30 +58,90 @@
         .custom-card.p-3 { padding: 0.75rem !important; }
         .mb-3 { margin-bottom: 0.5rem !important; }
 
-        /* Stats badges */
-        .stat-badge {
-            padding: 6px 12px;
-            background: rgba(255,255,255,0.05);
-            border-radius: 8px;
-            font-size: 0.75rem;
-        }
-        .stat-badge strong { color: #60a5fa; }
-        .stat-badge.success strong { color: #34d399; }
-        .stat-badge.danger strong { color: #f87171; }
-
-        /* Type stats icons */
-        .type-stats {
+        /* Health badge */
+        .health-badge {
             display: flex;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-            justify-content: center;
-        }
-        .type-stat {
-            padding: 4px 10px;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 8px;
             background: rgba(255,255,255,0.05);
-            border-radius: 6px;
-            font-size: 0.7rem;
+            border-radius: 12px;
+            font-size: 0.65rem;
+            cursor: pointer;
+            transition: all 0.2s;
         }
+        .health-badge:hover { background: rgba(255,255,255,0.1); }
+
+        /* Stat boxes */
+        .stat-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 4px 12px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 8px;
+            min-width: 55px;
+        }
+        .stat-box.success { border-color: rgba(16,185,129,0.3); background: rgba(16,185,129,0.08); }
+        .stat-box.danger { border-color: rgba(239,68,68,0.2); background: rgba(239,68,68,0.05); }
+        .stat-value { font-size: 1rem; font-weight: 700; line-height: 1.1; }
+        .stat-box.success .stat-value { color: #34d399; }
+        .stat-box.danger .stat-value { color: #f87171; }
+        .stat-label { font-size: 0.55rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+
+        /* Type stats row */
+        .type-row {
+            display: flex;
+            justify-content: center;
+            gap: 6px;
+            padding-top: 6px;
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+        .type-item {
+            position: relative;
+            padding: 2px 8px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 4px;
+            font-size: 0.7rem;
+            cursor: default;
+            transition: all 0.2s;
+        }
+        .type-item:hover { background: rgba(255,255,255,0.08); }
+        .type-item span { font-weight: 600; }
+        .type-item::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: calc(100% + 6px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.6rem;
+            white-space: nowrap;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s;
+            pointer-events: none;
+            border: 1px solid rgba(255,255,255,0.1);
+            z-index: 100;
+        }
+        .type-item:hover::after { opacity: 1; visibility: visible; }
+
+        /* Sparkline chart */
+        .sparkline-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 4px 8px;
+            background: rgba(59,130,246,0.08);
+            border: 1px solid rgba(59,130,246,0.2);
+            border-radius: 8px;
+        }
+        .sparkline-label { font-size: 0.5rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+        #activity-sparkline { display: block; }
 
         /* Outlined buttons - compact */
         .btn {
@@ -128,12 +188,14 @@
         .tool-btn.yellow { border-color: #f59e0b; color: #f59e0b; }
         .tool-btn.purple { border-color: #8b5cf6; color: #8b5cf6; }
         .tool-btn.gray { border-color: #64748b; color: #94a3b8; }
+        .tool-btn.red { border-color: rgba(239,68,68,0.5); color: #f87171; }
 
         .tool-btn.blue:hover { background: rgba(59,130,246,0.2); color: #60a5fa; border-color: #60a5fa; }
         .tool-btn.green:hover { background: rgba(16,185,129,0.2); color: #34d399; border-color: #34d399; }
         .tool-btn.yellow:hover { background: rgba(245,158,11,0.2); color: #fbbf24; border-color: #fbbf24; }
         .tool-btn.purple:hover { background: rgba(139,92,246,0.2); color: #a78bfa; border-color: #a78bfa; }
         .tool-btn.gray:hover { background: rgba(100,116,139,0.2); color: #cbd5e1; border-color: #94a3b8; }
+        .tool-btn.red:hover { background: rgba(239,68,68,0.2); color: #ef4444; border-color: #ef4444; }
 
         .tool-btn:hover { transform: translateY(-2px); }
 
@@ -253,21 +315,15 @@
 
         /* Danger zone */
         .danger-zone {
-            background: rgba(239,68,68,0.05);
-            border: 1px solid rgba(239,68,68,0.15);
+            background: rgba(239,68,68,0.03);
+            border: 1px solid rgba(239,68,68,0.1);
             border-radius: 6px;
-            padding: 0.4rem 0.6rem;
+            padding: 0.3rem 0.5rem;
         }
-        .danger-zone .btn {
+        .danger-label {
             font-size: 0.6rem;
-            padding: 0.2rem 0.4rem;
-            opacity: 0.7;
-            border-color: rgba(239,68,68,0.3);
             color: #f87171;
-        }
-        .danger-zone .btn:hover {
-            opacity: 1;
-            background: rgba(239,68,68,0.15);
+            opacity: 0.6;
         }
 
         /* Health dot */
@@ -307,46 +363,129 @@
 
         /* Responsive adjustments */
         @media (max-width: 576px) {
-            .brand-text { font-size: 1rem; }
-            .stat-badge { font-size: 0.6rem; padding: 3px 6px; }
-            .type-stat { font-size: 0.55rem; padding: 2px 6px; }
+            .brand-text { font-size: 0.9rem; }
+            .stat-box { padding: 3px 8px; min-width: 45px; }
+            .stat-value { font-size: 0.85rem; }
+            .stat-label { font-size: 0.5rem; }
+            .sparkline-box { display: none; } /* Hide on mobile */
+            .type-row { gap: 4px; flex-wrap: wrap; }
+            .type-item { font-size: 0.6rem; padding: 2px 5px; }
             .btn { font-size: 0.7rem; padding: 0.35rem 0.6rem; }
+            .tool-btn { width: 28px; height: 28px; }
+            .tool-btn i { font-size: 0.8rem; }
             .pipeline-card { padding: 0.5rem; }
             .custom-card.p-3 { padding: 0.5rem !important; }
+            .custom-card.p-2 { padding: 0.4rem !important; }
+            .shortcuts-hint { display: none; } /* Hide on mobile */
+        }
+
+        /* Toast notifications */
+        .toast-container {
+            position: fixed;
+            top: 12px;
+            right: 12px;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-width: 320px;
+        }
+        .toast {
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            animation: slideIn 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .toast.success { background: rgba(16,185,129,0.95); color: white; }
+        .toast.error { background: rgba(239,68,68,0.95); color: white; }
+        .toast.warning { background: rgba(245,158,11,0.95); color: white; }
+        .toast.info { background: rgba(59,130,246,0.95); color: white; }
+        .toast i { font-size: 1rem; }
+        .toast-close {
+            margin-left: auto;
+            cursor: pointer;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+        .toast-close:hover { opacity: 1; }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+        .toast.hiding { animation: slideOut 0.3s ease forwards; }
+
+        /* Keyboard shortcuts hint */
+        .shortcuts-hint {
+            position: fixed;
+            bottom: 12px;
+            left: 12px;
+            background: rgba(30,41,59,0.95);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.65rem;
+            color: #94a3b8;
+            border: 1px solid rgba(255,255,255,0.1);
+            z-index: 100;
+        }
+        .shortcuts-hint kbd {
+            background: rgba(255,255,255,0.1);
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-family: monospace;
+            margin-right: 4px;
         }
     </style>
 </head>
 <body>
     <div class="main-container">
-        <!-- Header -->
-        <div class="custom-card p-3 mb-3">
-            <div class="row align-items-center g-2">
-                <div class="col-12 col-md-auto">
-                    <h1 class="brand-text h5 mb-0">E-Leiloes Backend</h1>
+        <!-- Header + Stats -->
+        <div class="custom-card p-2 mb-3">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <!-- Brand + Health -->
+                <div class="d-flex align-items-center gap-3">
+                    <h1 class="brand-text h6 mb-0">E-Leiloes</h1>
+                    <div class="health-badge" id="health-status" onclick="showHealthDetails()" title="Click para detalhes">
+                        <span id="health-dot" class="health-dot offline"></span>
+                        <span id="health-text">--</span>
+                    </div>
                 </div>
-                <div class="col-12 col-md">
-                    <div class="d-flex flex-wrap gap-2 justify-content-md-end">
-                        <div class="stat-badge" id="health-status" style="cursor: pointer;" onclick="showHealthDetails()" title="Click para detalhes">
-                            <span id="health-dot" class="health-dot offline me-1"></span>
-                            <span id="health-text">--</span>
-                        </div>
-                        <div class="stat-badge"><strong id="stat-total">-</strong> total</div>
-                        <div class="stat-badge success"><strong id="stat-ativos">-</strong> ativos</div>
-                        <div class="stat-badge danger"><strong id="stat-inativos">-</strong> inativos</div>
+                <!-- Main Stats + Sparkline -->
+                <div class="d-flex align-items-center gap-2">
+                    <div class="stat-box">
+                        <span class="stat-value" id="stat-total">-</span>
+                        <span class="stat-label">total</span>
+                    </div>
+                    <div class="stat-box success">
+                        <span class="stat-value" id="stat-ativos">-</span>
+                        <span class="stat-label">ativos</span>
+                    </div>
+                    <div class="stat-box danger">
+                        <span class="stat-value" id="stat-inativos">-</span>
+                        <span class="stat-label">terminados</span>
+                    </div>
+                    <div class="sparkline-box" title="Atividade (últimas 24h)">
+                        <canvas id="activity-sparkline" width="60" height="24"></canvas>
+                        <span class="sparkline-label">atividade</span>
                     </div>
                 </div>
             </div>
-        </div>
-
-        <!-- Stats por Tipo -->
-        <div class="custom-card p-2 mb-3">
-            <div class="type-stats">
-                <div class="type-stat">🏠 <strong id="stat-type-1">-</strong></div>
-                <div class="type-stat">🚗 <strong id="stat-type-2">-</strong></div>
-                <div class="type-stat">📦 <strong id="stat-type-3">-</strong></div>
-                <div class="type-stat">⚖️ <strong id="stat-type-4">-</strong></div>
-                <div class="type-stat">🏢 <strong id="stat-type-5">-</strong></div>
-                <div class="type-stat">📄 <strong id="stat-type-6">-</strong></div>
+            <!-- Type Stats Row -->
+            <div class="type-row mt-2">
+                <div class="type-item" data-tooltip="Imóveis">🏠 <span id="stat-type-1">-</span></div>
+                <div class="type-item" data-tooltip="Veículos">🚗 <span id="stat-type-2">-</span></div>
+                <div class="type-item" data-tooltip="Outros Bens">📦 <span id="stat-type-3">-</span></div>
+                <div class="type-item" data-tooltip="Direitos">⚖️ <span id="stat-type-4">-</span></div>
+                <div class="type-item" data-tooltip="Unidades Industriais">🏢 <span id="stat-type-5">-</span></div>
+                <div class="type-item" data-tooltip="Outros">📄 <span id="stat-type-6">-</span></div>
             </div>
         </div>
 
@@ -517,17 +656,25 @@
         <!-- Danger Zone -->
         <div class="danger-zone mt-2">
             <div class="d-flex align-items-center justify-content-between">
-                <span style="font-size: 0.6rem; color: #f87171; opacity: 0.7;">⚠️ Danger Zone</span>
-                <div class="d-flex gap-2">
-                    <button class="btn btn-sm" onclick="confirmClearDatabase()">
-                        <i class="bi bi-trash3"></i> Clear DB
+                <span class="danger-label">⚠️ Danger</span>
+                <div class="d-flex gap-1">
+                    <button class="tool-btn red" onclick="confirmClearDatabase()" data-tooltip="Clear DB - Apagar todos os eventos, histórico e configurações">
+                        <i class="bi bi-trash3"></i>
                     </button>
-                    <button class="btn btn-sm" onclick="confirmClearNotifications()">
-                        <i class="bi bi-bell-slash"></i> Clear Notifs
+                    <button class="tool-btn red" onclick="confirmClearNotifications()" data-tooltip="Clear Notifs - Apagar todas as regras de notificação">
+                        <i class="bi bi-bell-slash"></i>
                     </button>
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- Keyboard Shortcuts Hint -->
+    <div class="shortcuts-hint">
+        <kbd>R</kbd>Refresh <kbd>P</kbd>Pipeline <kbd>?</kbd>Help
     </div>
 
     <!-- Bootstrap JS -->
@@ -583,8 +730,139 @@
             return response;
         }
 
-        // No-op log function (console removed)
-        function addLog() {}
+        // ============== TOAST NOTIFICATIONS ==============
+        function showToast(message, type = 'info', duration = 4000) {
+            const container = document.getElementById('toast-container');
+            const icons = {
+                success: 'bi-check-circle-fill',
+                error: 'bi-x-circle-fill',
+                warning: 'bi-exclamation-triangle-fill',
+                info: 'bi-info-circle-fill'
+            };
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <i class="bi ${icons[type] || icons.info}"></i>
+                <span>${message}</span>
+                <span class="toast-close" onclick="this.parentElement.remove()">×</span>
+            `;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add('hiding');
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
+        }
+
+        // Log function now shows toasts for important messages
+        function addLog(message, type = 'info') {
+            // Map log types to toast types
+            const typeMap = { 'success': 'success', 'warning': 'warning', 'error': 'error' };
+            // Only show toasts for important events (success, warning, error)
+            if (typeMap[type]) {
+                showToast(message.replace(/[🔍📄💶🔧⌨️✅❌⚠️🗑️🔔🚀🛑🔄👁️🔴🟠🟡]/g, '').trim(), typeMap[type]);
+            }
+        }
+
+        // ============== KEYBOARD SHORTCUTS ==============
+        document.addEventListener('keydown', (e) => {
+            // Ignore if typing in input
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+            switch(e.key.toLowerCase()) {
+                case 'r':
+                    refreshStats();
+                    loadPipelinesStatus();
+                    showToast('Dados atualizados', 'info', 2000);
+                    break;
+                case 'p':
+                    document.getElementById('btn-pipeline').click();
+                    break;
+                case '?':
+                    showToast('R=Refresh P=Pipeline ?=Help', 'info', 3000);
+                    break;
+                case 'escape':
+                    // Close any open modals
+                    const modal = document.getElementById('confirm-modal');
+                    if (modal) modal.remove();
+                    break;
+            }
+        });
+
+        // ============== SPARKLINE CHART ==============
+        const activityData = new Array(12).fill(0); // 12 data points for activity
+
+        function drawSparkline(canvasId, data, color = '#3b82f6') {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width;
+            const h = canvas.height;
+
+            ctx.clearRect(0, 0, w, h);
+
+            if (!data || data.length === 0) return;
+
+            const max = Math.max(...data, 1);
+            const min = Math.min(...data, 0);
+            const range = max - min || 1;
+            const step = w / (data.length - 1 || 1);
+
+            // Draw gradient fill
+            const gradient = ctx.createLinearGradient(0, 0, 0, h);
+            gradient.addColorStop(0, color + '40');
+            gradient.addColorStop(1, color + '00');
+
+            ctx.beginPath();
+            ctx.moveTo(0, h);
+            data.forEach((val, i) => {
+                const x = i * step;
+                const y = h - ((val - min) / range) * (h - 4) - 2;
+                if (i === 0) ctx.lineTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+            ctx.lineTo(w, h);
+            ctx.fillStyle = gradient;
+            ctx.fill();
+
+            // Draw line
+            ctx.beginPath();
+            data.forEach((val, i) => {
+                const x = i * step;
+                const y = h - ((val - min) / range) * (h - 4) - 2;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            // Draw end dot
+            const lastX = (data.length - 1) * step;
+            const lastY = h - ((data[data.length - 1] - min) / range) * (h - 4) - 2;
+            ctx.beginPath();
+            ctx.arc(lastX, lastY, 2, 0, Math.PI * 2);
+            ctx.fillStyle = color;
+            ctx.fill();
+        }
+
+        function updateActivitySparkline() {
+            // Shift data and add new random activity (simulated)
+            activityData.shift();
+            activityData.push(Math.random() * 10 + (activityData[activityData.length - 1] || 5) * 0.3);
+            drawSparkline('activity-sparkline', activityData, '#3b82f6');
+        }
+
+        // Initialize sparkline
+        setTimeout(() => {
+            // Initial random data
+            for (let i = 0; i < activityData.length; i++) {
+                activityData[i] = Math.random() * 8 + 2;
+            }
+            drawSparkline('activity-sparkline', activityData, '#3b82f6');
+        }, 100);
+
+        // Update sparkline every 5 seconds
+        setInterval(updateActivitySparkline, 5000);
 
         // ============== STATS ==============
         async function refreshStats(silent = false) {
