@@ -981,6 +981,12 @@ async def notifications_count():
     return {"count": 0}
 
 
+@app.get("/api/notifications")
+async def notifications_list(limit: int = 50, offset: int = 0):
+    """Stub: Notifications not available on public API - returns empty list"""
+    return []
+
+
 @app.get("/api/notification-rules")
 async def notification_rules():
     """Stub: Notification rules not available on public API"""
