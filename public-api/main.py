@@ -761,8 +761,9 @@ async def dashboard_recent_bids(limit: int = 30, hours: int = 120):
             )
             events_map = {e.reference: e for e in events_result.scalars().all()}
 
-        # Build response
-        bids = []
+        # Build response - separate active and inactive bids
+        active_bids = []
+        inactive_bids = []
         for h, synthetic_event in unique_entries:
             if h is not None:
                 # Normal entry from price_history
@@ -773,7 +774,7 @@ async def dashboard_recent_bids(limit: int = 30, hours: int = 120):
                     ativo = not event.terminado and not event.cancelado
                     data_fim = event.data_fim.isoformat() if event.data_fim else None
 
-                bids.append({
+                bid = {
                     "reference": h.reference,
                     "preco_anterior": h.old_price,
                     "preco_atual": h.new_price,
@@ -781,11 +782,15 @@ async def dashboard_recent_bids(limit: int = 30, hours: int = 120):
                     "timestamp": h.recorded_at.isoformat() if h.recorded_at else None,
                     "ativo": ativo,
                     "data_fim": data_fim
-                })
+                }
+                if ativo:
+                    active_bids.append(bid)
+                else:
+                    inactive_bids.append(bid)
             else:
                 # Synthetic entry from terminated event (no price_history)
                 event = synthetic_event
-                bids.append({
+                inactive_bids.append({
                     "reference": event.reference,
                     "preco_anterior": event.valor_base or event.valor_abertura,
                     "preco_atual": event.lance_atual,
@@ -795,10 +800,17 @@ async def dashboard_recent_bids(limit: int = 30, hours: int = 120):
                     "data_fim": event.data_fim.isoformat() if event.data_fim else None
                 })
 
-        # Sort by timestamp descending (most recent first)
-        bids.sort(key=lambda x: x['timestamp'] or '', reverse=True)
+        # Sort each group by timestamp descending
+        active_bids.sort(key=lambda x: x['timestamp'] or '', reverse=True)
+        inactive_bids.sort(key=lambda x: x['timestamp'] or '', reverse=True)
 
-        return bids[:limit]
+        print(f"[DEBUG recent-bids] active_bids: {len(active_bids)}, inactive_bids: {len(inactive_bids)}", flush=True)
+
+        # Return active bids (limited) + ALL inactive bids (so they always show)
+        # This ensures terminated events are always visible
+        result = active_bids[:limit] + inactive_bids
+
+        return result
 
 
 @app.get("/api/dashboard/stats-by-distrito")
