@@ -993,6 +993,18 @@ async def notification_rules():
     return []
 
 
+@app.post("/api/notification-rules")
+async def create_notification_rule():
+    """Stub: Notification rules not available on public API - read only mode"""
+    return {"error": "Notification rules not available on public API", "id": None}
+
+
+@app.delete("/api/notification-rules/{rule_id}")
+async def delete_notification_rule(rule_id: int):
+    """Stub: Notification rules not available on public API - read only mode"""
+    return {"success": False, "message": "Notification rules not available on public API"}
+
+
 @app.get("/api/scrape/status")
 async def scrape_status():
     """Stub: Scraping not available on public API"""
