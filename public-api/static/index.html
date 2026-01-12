@@ -4204,10 +4204,17 @@
         // Inspection Modal Functions
         async function openInspectionModal(reference) {
             const type = document.querySelector('.page.active')?.id;
-            let event = allLoadedEvents[type]?.find(e => e.reference === reference);
 
-            // If not found in loaded events, fetch from API
-            if (!event) {
+            // Check cache based on page type
+            let event = null;
+            if (type === 'eventos') {
+                event = allEventsCached.find(e => e.reference === reference);
+            } else {
+                event = allLoadedEvents[type]?.find(e => e.reference === reference);
+            }
+
+            // If not found in loaded events, fetch from API (always fetch to get full fotos)
+            if (!event || !event.imagens || event.imagens.length === 0) {
                 try {
                     const response = await fetch(`${API_BASE}/api/events/${reference}`);
                     if (!response.ok) throw new Error('Event not found');
