@@ -4078,6 +4078,7 @@
 
             return {
                 reference: event.reference,
+                tipoId: event.tipo_id,
                 tipoEvento: tipoIdToEvento[event.tipo_id] || 'imoveis',
                 titulo: event.titulo,
                 capa: event.capa,
@@ -6292,7 +6293,7 @@
 
             const typePrefix = event.reference.substring(0, 2);
             const typePrefixClass = typePrefix === 'LO' ? 'lo' : 'np';
-            const eventType = event.tipoEvento === 'imovel' ? 'imovel' : 'movel';
+            const eventType = (event.tipoEvento === 'imoveis' || event.tipoId === 1) ? 'imovel' : 'movel';
 
             const formatDate = (dateStr) => {
                 if (!dateStr) return 'N/A';
@@ -6426,13 +6427,13 @@
                             <span class="detail-label">Subtipo:</span>
                             <span class="detail-value ${!event.detalhes.subtipo || event.detalhes.subtipo === 'N/A' ? 'empty' : ''}">${getValue(event.detalhes.subtipo)}</span>
                         </div>
-                        ${event.tipoEvento === 'imovel' ? `
+                        ${(event.tipoEvento === 'imoveis' || event.tipoId === 1) ? `
                             <div class="detail-row">
                                 <span class="detail-label">Tipologia:</span>
                                 <span class="detail-value ${!event.detalhes.tipologia ? 'empty' : ''}">${getValue(event.detalhes.tipologia)}</span>
                             </div>
                         ` : ''}
-                        ${event.tipoEvento === 'movel' ? `
+                        ${(event.tipoEvento === 'veiculos' || event.tipoId === 2) ? `
                             <div class="detail-row">
                                 <span class="detail-label">Matrícula:</span>
                                 <span class="detail-value ${!event.detalhes.matricula ? 'empty' : ''}">${getValue(event.detalhes.matricula)}</span>
@@ -6484,7 +6485,7 @@
                         </div>
                     </div>
 
-                    ${event.tipoEvento === 'imovel' ? `
+                    ${(event.tipoEvento === 'imoveis' || event.tipoId === 1) ? `
                         <!-- Localização -->
                         <div class="event-section">
                             <div class="section-title">
