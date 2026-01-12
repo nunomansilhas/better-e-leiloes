@@ -1431,6 +1431,7 @@ async def clear_database():
     Apaga TODOS os dados da base de dados (eventos, histórico, notificações, etc).
     ATENÇÃO: Esta operação é irreversível!
     """
+    from sqlalchemy import text
     deleted_counts = {}
 
     async with get_db() as db:
