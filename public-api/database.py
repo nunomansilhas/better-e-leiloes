@@ -70,7 +70,12 @@ class EventDB(Base):
     terminado: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # Area
+    area_privativa: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    area_dependente: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     area_total: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+
+    # Vehicle
+    matricula: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
 
     # Location
     morada: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -82,6 +87,11 @@ class EventDB(Base):
 
     # Description
     descricao: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Processo (legal case)
+    processo_numero: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    processo_tribunal: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    processo_comarca: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
 
     # Photos (JSON array)
     fotos: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
