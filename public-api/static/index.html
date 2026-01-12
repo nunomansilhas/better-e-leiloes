@@ -1606,7 +1606,58 @@
             display: flex;
         }
 
+        /* Modal Loading Overlay */
+        .modal-loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(15, 23, 42, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            border-radius: 16px;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+        }
+
+        .modal-loading-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(59, 130, 246, 0.2);
+            border-top-color: #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .modal-loading-text {
+            margin-top: 20px;
+            color: #e2e8f0;
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .modal-loading-subtext {
+            margin-top: 8px;
+            color: #94a3b8;
+            font-size: 13px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
         .inspection-content {
+            position: relative;
             display: flex;
             background: white;
             border-radius: 16px;
@@ -4747,7 +4798,8 @@
         // Reload event from modal (full refresh via queue)
         async function reloadEventFromModal(reference) {
             try {
-                showToast('⏳ Na fila...', 'Pedido de atualização enviado', 'info');
+                // Show loading overlay
+                showModalLoading('⏳ Na fila...', 'Pedido de atualização enviado');
 
                 // Step 1: Queue the refresh request (full type)
                 const queueResponse = await fetch(`${API_BASE}/api/refresh/${reference}?refresh_type=full`, { method: 'POST' });
@@ -4757,7 +4809,7 @@
                 if (!queueData.success) throw new Error(queueData.message || 'Queue failed');
 
                 const requestId = queueData.request_id;
-                showToast('🔄 A processar...', 'Backend a atualizar dados', 'info');
+                updateModalLoading('🔄 A processar...', 'Backend a recolher dados do e-leiloes.pt');
 
                 // Step 2: Poll for completion (max 30 seconds)
                 const maxAttempts = 30;
@@ -4769,7 +4821,14 @@
 
                     const status = await statusResponse.json();
 
+                    // Update loading text based on state
+                    if (status.state === 1) {
+                        updateModalLoading('🔄 A processar...', `A atualizar ${reference}...`);
+                    }
+
                     if (status.state === 2) {
+                        updateModalLoading('✅ Concluído!', 'A carregar dados atualizados...');
+
                         // Completed - reload the event data from DB and re-open modal
                         const response = await fetch(`${API_BASE}/api/events/${reference}?t=${Date.now()}`);
                         if (response.ok) {
@@ -4785,23 +4844,53 @@
                                 }
                             }
 
+                            // Hide overlay before re-opening modal
+                            hideModalLoading();
+
                             // Re-open modal with fresh data
                             await openInspectionModal(reference);
                         }
                         showToast('✅ Atualizado', status.result_message || 'Dados atualizados', 'success');
                         return;
                     } else if (status.state === 3) {
+                        hideModalLoading();
                         showToast('❌ Erro', status.result_message || 'Falha ao atualizar', 'error');
                         return;
                     }
                 }
 
                 // Timeout
+                hideModalLoading();
                 showToast('⏱️ Timeout', 'Demorou demasiado tempo', 'warning');
             } catch (error) {
                 console.error('Error reloading event:', error);
+                hideModalLoading();
                 showToast('Erro', 'Não foi possível atualizar', 'error');
             }
+        }
+
+        // Modal loading overlay helpers
+        function showModalLoading(text = 'A processar...', subtext = 'Aguarde enquanto atualizamos os dados') {
+            const overlay = document.getElementById('modal-loading-overlay');
+            const textEl = document.getElementById('modal-loading-text');
+            const subtextEl = document.getElementById('modal-loading-subtext');
+            if (overlay) {
+                if (textEl) textEl.textContent = text;
+                if (subtextEl) subtextEl.textContent = subtext;
+                overlay.classList.add('active');
+            }
+        }
+
+        function updateModalLoading(text, subtext) {
+            const textEl = document.getElementById('modal-loading-text');
+            const subtextEl = document.getElementById('modal-loading-subtext');
+            if (textEl) textEl.textContent = text;
+            if (subtextEl) subtextEl.textContent = subtext || '';
+        }
+
+        function hideModalLoading() {
+            const overlay = document.getElementById('modal-loading-overlay');
+            if (overlay) overlay.classList.remove('active');
         }
 
         // Refresh only the price (lance atual) for modal
@@ -9527,6 +9616,12 @@
             </svg>
         </button>
         <div class="inspection-content">
+            <!-- Loading Overlay -->
+            <div class="modal-loading-overlay" id="modal-loading-overlay">
+                <div class="modal-loading-spinner"></div>
+                <div class="modal-loading-text" id="modal-loading-text">A processar...</div>
+                <div class="modal-loading-subtext" id="modal-loading-subtext">Aguarde enquanto atualizamos os dados</div>
+            </div>
             <div class="inspection-carousel" id="inspection-carousel">
                 <div class="inspection-carousel-counter" id="inspection-counter">1 / 1</div>
                 <div class="inspection-carousel-images" id="inspection-images"></div>
