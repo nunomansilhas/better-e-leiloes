@@ -4720,110 +4720,39 @@
             });
         }
 
-        // ============== EVENT NOTIFICATIONS (localStorage) ==============
+        // ============== PRICE CHANGE CHECKER ==============
 
-        const EVENT_NOTIFICATIONS = {
-            storageKey: 'eleiloes_event_notifications',
+        // Check for price changes on watched events and create notifications
+        async function checkForPriceChanges() {
+            try {
+                // Call the backend to check for price changes and create notifications
+                const response = await fetch(`${API_BASE}/api/notifications/check-prices`, { method: 'POST' });
+                const result = await response.json();
 
-            getAll() {
-                try {
-                    return JSON.parse(localStorage.getItem(this.storageKey) || '[]');
-                } catch {
-                    return [];
-                }
-            },
+                if (result.notifications_created > 0) {
+                    // Fetch and show new notifications
+                    const notifsResponse = await fetch(`${API_BASE}/api/notifications?limit=10`);
+                    const notifications = await notifsResponse.json();
 
-            add(reference, eventData = {}) {
-                const notifications = this.getAll();
-                if (!notifications.some(n => n.reference === reference)) {
-                    notifications.push({
-                        reference,
-                        titulo: eventData.titulo || '',
-                        tipoEvento: eventData.tipoEvento || '',
-                        lance_atual: eventData.lance_atual,
-                        addedAt: new Date().toISOString()
+                    // Show toasts for unread notifications
+                    const unreadNotifs = notifications.filter(n => !n.read && n.notification_type === 'price_change');
+                    unreadNotifs.slice(0, 3).forEach(n => {
+                        const diff = n.preco_atual - n.preco_anterior;
+                        const diffStr = diff > 0 ? `+€${diff.toLocaleString('pt-PT')}` : `-€${Math.abs(diff).toLocaleString('pt-PT')}`;
+                        showToast(
+                            `💰 Preço alterado: ${n.event_reference}`,
+                            `Novo lance: €${n.preco_atual.toLocaleString('pt-PT')} (${diffStr})`,
+                            'warning',
+                            8000
+                        );
                     });
-                    localStorage.setItem(this.storageKey, JSON.stringify(notifications));
-                    showToast('Notificação ativada', `Será notificado sobre alterações em ${reference}`, 'success');
+
+                    // Update notification badge
+                    updateNotificationBadge();
                 }
-                return notifications;
-            },
-
-            remove(reference) {
-                const notifications = this.getAll().filter(n => n.reference !== reference);
-                localStorage.setItem(this.storageKey, JSON.stringify(notifications));
-                showToast('Notificação desativada', `Deixará de ser notificado sobre ${reference}`, 'info');
-                return notifications;
-            },
-
-            toggle(reference, eventData = {}) {
-                if (this.isWatching(reference)) {
-                    return this.remove(reference);
-                } else {
-                    return this.add(reference, eventData);
-                }
-            },
-
-            isWatching(reference) {
-                return this.getAll().some(n => n.reference === reference);
-            },
-
-            // Check for price changes (call periodically)
-            async checkForChanges() {
-                const watching = this.getAll();
-                if (watching.length === 0) return;
-
-                try {
-                    const response = await fetch(`${API_BASE}/api/events?limit=200&active_only=false`);
-                    const data = await response.json();
-                    if (!data.events) return;
-
-                    const eventsMap = {};
-                    data.events.forEach(e => eventsMap[e.reference] = e);
-
-                    watching.forEach(w => {
-                        const current = eventsMap[w.reference];
-                        if (current && w.lance_atual && current.lance_atual !== w.lance_atual) {
-                            // Price changed! Show notification
-                            const diff = current.lance_atual - w.lance_atual;
-                            const diffStr = diff > 0 ? `+€${diff.toLocaleString('pt-PT')}` : `-€${Math.abs(diff).toLocaleString('pt-PT')}`;
-                            showToast(
-                                `💰 Preço alterado: ${w.reference}`,
-                                `Novo lance: €${current.lance_atual.toLocaleString('pt-PT')} (${diffStr})`,
-                                'warning',
-                                8000
-                            );
-                            // Update stored price
-                            this.updatePrice(w.reference, current.lance_atual);
-                        }
-                    });
-                } catch (err) {
-                    console.error('Error checking for price changes:', err);
-                }
-            },
-
-            updatePrice(reference, newPrice) {
-                const notifications = this.getAll();
-                const idx = notifications.findIndex(n => n.reference === reference);
-                if (idx !== -1) {
-                    notifications[idx].lance_atual = newPrice;
-                    localStorage.setItem(this.storageKey, JSON.stringify(notifications));
-                }
-            },
-
-            getCount() {
-                return this.getAll().length;
+            } catch (err) {
+                console.error('Error checking for price changes:', err);
             }
-        };
-
-        // Update notification button states on page load
-        function updateNotificationButtons() {
-            EVENT_NOTIFICATIONS.getAll().forEach(n => {
-                const btn = document.getElementById(`notify-event-${n.reference}`);
-                if (btn) {
-                    btn.classList.add('active');
-                }
-            });
         }
 
         // ============== SECURITY: HMAC Authentication ==============
@@ -9844,8 +9773,8 @@
             FAVORITES.updateWidget();
 
             // Check for price changes on watched events every 2 minutes
-            EVENT_NOTIFICATIONS.checkForChanges();
-            setInterval(() => EVENT_NOTIFICATIONS.checkForChanges(), 2 * 60 * 1000);
+            checkForPriceChanges();
+            setInterval(() => checkForPriceChanges(), 2 * 60 * 1000);
         });
 
         // ============== End Security Key Management ==============
@@ -9877,48 +9806,73 @@
             runIndependentScraperWithIds(input);
         }
 
-        // Toggle event-specific notification (localStorage-based)
+        // Toggle event-specific notification (API-based with database persistence)
         async function toggleEventNotification(reference, titulo, tipoEvento) {
             const btn = document.getElementById(`notify-event-${reference}`);
-            const isWatching = EVENT_NOTIFICATIONS.isWatching(reference);
+            const isActive = btn && btn.classList.contains('active');
 
-            // Get current price for tracking
-            let lance_atual = null;
             try {
-                const response = await fetch(`${API_BASE}/api/events/${reference}`);
-                if (response.ok) {
-                    const event = await response.json();
-                    lance_atual = event.lance_atual;
-                }
-            } catch (e) {
-                console.log('Could not fetch current price');
-            }
+                // Check if rule exists for this event
+                const rulesResponse = await fetch(`${API_BASE}/api/notification-rules`);
+                const rules = await rulesResponse.json();
+                const existingRule = rules.find(r => r.event_reference === reference);
 
-            EVENT_NOTIFICATIONS.toggle(reference, { titulo, tipoEvento, lance_atual });
-
-            // Update button state
-            if (btn) {
-                const nowWatching = EVENT_NOTIFICATIONS.isWatching(reference);
-                if (nowWatching) {
-                    btn.classList.add('active');
-                } else {
+                if (isActive && existingRule) {
+                    // Delete the rule
+                    await fetch(`${API_BASE}/api/notification-rules/${existingRule.id}`, { method: 'DELETE' });
                     btn.classList.remove('active');
+                    showToast('Notificação desativada', `Deixará de ser notificado sobre: ${titulo.substring(0, 40)}...`, 'info');
+                } else if (!isActive) {
+                    // Create new rule for this event
+                    const ruleData = {
+                        name: `Evento: ${titulo.substring(0, 50)}`,
+                        rule_type: 'price_change',
+                        event_reference: reference,
+                        active: true
+                    };
+
+                    const createResponse = await fetch(`${API_BASE}/api/notification-rules`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(ruleData)
+                    });
+
+                    if (createResponse.ok) {
+                        if (btn) btn.classList.add('active');
+                        showToast('Notificação ativada', `Será notificado sobre alterações em: ${titulo.substring(0, 40)}...`, 'success');
+                    }
                 }
+
                 // Add animation
-                btn.classList.add('star-pop');
-                setTimeout(() => btn.classList.remove('star-pop'), 300);
+                if (btn) {
+                    btn.classList.add('star-pop');
+                    setTimeout(() => btn.classList.remove('star-pop'), 300);
+                }
+            } catch (error) {
+                console.error('Erro ao toggle notificação:', error);
+                showToast('Erro', 'Não foi possível alterar a notificação', 'error');
             }
         }
 
-        // Update notification button states based on localStorage
-        function updateNotifyButtonStates() {
-            const watching = EVENT_NOTIFICATIONS.getAll();
-            watching.forEach(n => {
-                const btn = document.getElementById(`notify-event-${n.reference}`);
-                if (btn) {
-                    btn.classList.add('active');
-                }
-            });
+        // Update notification button states based on API rules
+        async function updateNotifyButtonStates() {
+            try {
+                const rulesResponse = await fetch(`${API_BASE}/api/notification-rules`);
+                const rules = await rulesResponse.json();
+
+                // Get all event-specific rules
+                const eventRules = rules.filter(r => r.event_reference);
+
+                // Update button states
+                eventRules.forEach(rule => {
+                    const btn = document.getElementById(`notify-event-${rule.event_reference}`);
+                    if (btn && rule.active) {
+                        btn.classList.add('active');
+                    }
+                });
+            } catch (error) {
+                console.error('Erro ao carregar estados de notificação:', error);
+            }
         }
 
         // Update notification badge in sidebar
@@ -10053,8 +10007,8 @@
         // Toggle rule active state
         async function toggleRule(ruleId, active) {
             try {
-                const response = await fetch(`${API_BASE}/api/notification-rules/${ruleId}/toggle?active=${active}`, {
-                    method: 'POST'
+                const response = await fetch(`${API_BASE}/api/notification-rules/${ruleId}?active=${active}`, {
+                    method: 'PUT'
                 });
 
                 if (response.ok) {
@@ -10086,7 +10040,7 @@
         // Mark notification as read or unread
         async function markNotificationRead(notifId, read = true) {
             try {
-                await authFetch(`${API_BASE}/api/notifications/${notifId}/read?read=${read}`, { method: 'POST' });
+                await fetch(`${API_BASE}/api/notifications/${notifId}/read?read=${read}`, { method: 'PUT' });
                 loadNotifications();
                 updateNotificationBadge();
             } catch (error) {

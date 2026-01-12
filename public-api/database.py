@@ -153,6 +153,59 @@ class RefreshLogDB(Base):
     processed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)  # When backend processed it
 
 
+class NotificationRuleDB(Base):
+    """
+    Notification rules - define criteria for notifications
+    Types: 'new_event', 'price_change', 'ending_soon', 'event_specific'
+    """
+    __tablename__ = "notification_rules"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    rule_type: Mapped[str] = mapped_column(String(50), nullable=False)  # new_event, price_change, ending_soon, event_specific
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    # For event-specific rules
+    event_reference: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, index=True)
+
+    # Filters (JSON or comma-separated)
+    tipos: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)  # e.g., "1,2,3"
+    distritos: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)  # e.g., "Lisboa,Porto"
+    preco_min: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    preco_max: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+
+    # Tracking
+    last_price: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # For price change tracking
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+
+class NotificationDB(Base):
+    """
+    Notifications - generated when rules are triggered
+    """
+    __tablename__ = "notifications"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    rule_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # Link to rule that triggered it
+    notification_type: Mapped[str] = mapped_column(String(50), nullable=False)  # new_event, price_change, ending_soon
+
+    # Event info
+    event_reference: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    event_titulo: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    event_tipo: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    event_subtipo: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    event_distrito: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+
+    # Price info (for price_change notifications)
+    preco_anterior: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    preco_atual: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+
+    # State
+    read: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+
+
 @asynccontextmanager
 async def get_session():
     """Get async database session"""
@@ -164,7 +217,7 @@ async def get_session():
 
 
 async def init_db():
-    """Initialize database connection (tables already exist)"""
-    # Just verify connection works
+    """Initialize database connection and create notification tables if needed"""
     async with engine.begin() as conn:
-        pass
+        # Create notification tables if they don't exist
+        await conn.run_sync(Base.metadata.create_all)

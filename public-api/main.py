@@ -17,7 +17,7 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
-from database import get_session, EventDB, PriceHistoryDB, PipelineStateDB, RefreshLogDB, init_db
+from database import get_session, EventDB, PriceHistoryDB, PipelineStateDB, RefreshLogDB, NotificationRuleDB, NotificationDB, init_db
 from sqlalchemy import select, func, desc, and_, or_
 
 
@@ -87,6 +87,52 @@ class PricePoint(BaseModel):
     timestamp: Optional[datetime] = None
 
 
+class NotificationRuleCreate(BaseModel):
+    name: str
+    rule_type: str = "price_change"  # new_event, price_change, ending_soon, event_specific
+    event_reference: Optional[str] = None
+    tipos: Optional[List[int]] = None
+    distritos: Optional[List[str]] = None
+    preco_min: Optional[float] = None
+    preco_max: Optional[float] = None
+    active: bool = True
+
+
+class NotificationRuleResponse(BaseModel):
+    id: int
+    name: str
+    rule_type: str
+    event_reference: Optional[str] = None
+    tipos: Optional[List[int]] = None
+    distritos: Optional[List[str]] = None
+    preco_min: Optional[float] = None
+    preco_max: Optional[float] = None
+    active: bool
+    last_price: Optional[float] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class NotificationResponse(BaseModel):
+    id: int
+    rule_id: Optional[int] = None
+    notification_type: str
+    event_reference: str
+    event_titulo: Optional[str] = None
+    event_tipo: Optional[str] = None
+    event_subtipo: Optional[str] = None
+    event_distrito: Optional[str] = None
+    preco_anterior: Optional[float] = None
+    preco_atual: Optional[float] = None
+    read: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 # ============ App Setup ============
 
 @asynccontextmanager
@@ -108,7 +154,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=False,
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["*"],
 )
 
@@ -975,34 +1021,187 @@ async def auto_pipelines_status():
         }
 
 
+# ============ Notifications System ============
+
 @app.get("/api/notifications/count")
 async def notifications_count():
-    """Stub: Notifications not available on public API"""
-    return {"count": 0}
+    """Get count of unread notifications"""
+    async with get_session() as session:
+        total = await session.scalar(
+            select(func.count()).select_from(NotificationDB)
+        ) or 0
+        unread = await session.scalar(
+            select(func.count()).select_from(NotificationDB).where(NotificationDB.read == False)
+        ) or 0
+        return {"count": total, "unread": unread}
 
 
 @app.get("/api/notifications")
 async def notifications_list(limit: int = 50, offset: int = 0):
-    """Stub: Notifications not available on public API - returns empty list"""
-    return []
+    """Get list of notifications"""
+    async with get_session() as session:
+        query = select(NotificationDB).order_by(desc(NotificationDB.created_at)).limit(limit).offset(offset)
+        result = await session.execute(query)
+        notifications = result.scalars().all()
+
+        return [
+            {
+                "id": n.id,
+                "rule_id": n.rule_id,
+                "notification_type": n.notification_type,
+                "event_reference": n.event_reference,
+                "event_titulo": n.event_titulo,
+                "event_tipo": n.event_tipo,
+                "event_subtipo": n.event_subtipo,
+                "event_distrito": n.event_distrito,
+                "preco_anterior": n.preco_anterior,
+                "preco_atual": n.preco_atual,
+                "read": n.read,
+                "created_at": n.created_at.isoformat() if n.created_at else None
+            }
+            for n in notifications
+        ]
+
+
+@app.put("/api/notifications/{notification_id}/read")
+async def mark_notification_read(notification_id: int, read: bool = True):
+    """Mark notification as read/unread"""
+    async with get_session() as session:
+        notification = await session.get(NotificationDB, notification_id)
+        if not notification:
+            raise HTTPException(status_code=404, detail="Notification not found")
+        notification.read = read
+        await session.commit()
+        return {"success": True}
 
 
 @app.get("/api/notification-rules")
-async def notification_rules():
-    """Stub: Notification rules not available on public API"""
-    return []
+async def get_notification_rules():
+    """Get all notification rules"""
+    async with get_session() as session:
+        query = select(NotificationRuleDB).order_by(desc(NotificationRuleDB.created_at))
+        result = await session.execute(query)
+        rules = result.scalars().all()
+
+        return [
+            {
+                "id": r.id,
+                "name": r.name,
+                "rule_type": r.rule_type,
+                "event_reference": r.event_reference,
+                "tipos": [int(t) for t in r.tipos.split(",")] if r.tipos else None,
+                "distritos": r.distritos.split(",") if r.distritos else None,
+                "preco_min": r.preco_min,
+                "preco_max": r.preco_max,
+                "active": r.active,
+                "last_price": r.last_price,
+                "created_at": r.created_at.isoformat() if r.created_at else None
+            }
+            for r in rules
+        ]
 
 
 @app.post("/api/notification-rules")
-async def create_notification_rule():
-    """Stub: Notification rules not available on public API - read only mode"""
-    return {"error": "Notification rules not available on public API", "id": None}
+async def create_notification_rule(rule: NotificationRuleCreate):
+    """Create a new notification rule"""
+    async with get_session() as session:
+        # Get current price if event-specific rule
+        last_price = None
+        if rule.event_reference:
+            event = await session.get(EventDB, rule.event_reference)
+            if event:
+                last_price = event.lance_atual
+
+        db_rule = NotificationRuleDB(
+            name=rule.name,
+            rule_type=rule.rule_type,
+            event_reference=rule.event_reference,
+            tipos=",".join(str(t) for t in rule.tipos) if rule.tipos else None,
+            distritos=",".join(rule.distritos) if rule.distritos else None,
+            preco_min=rule.preco_min,
+            preco_max=rule.preco_max,
+            active=rule.active,
+            last_price=last_price
+        )
+        session.add(db_rule)
+        await session.commit()
+        await session.refresh(db_rule)
+
+        return {"id": db_rule.id, "success": True}
 
 
 @app.delete("/api/notification-rules/{rule_id}")
 async def delete_notification_rule(rule_id: int):
-    """Stub: Notification rules not available on public API - read only mode"""
-    return {"success": False, "message": "Notification rules not available on public API"}
+    """Delete a notification rule"""
+    async with get_session() as session:
+        rule = await session.get(NotificationRuleDB, rule_id)
+        if not rule:
+            raise HTTPException(status_code=404, detail="Rule not found")
+        await session.delete(rule)
+        await session.commit()
+        return {"success": True}
+
+
+@app.put("/api/notification-rules/{rule_id}")
+async def update_notification_rule(rule_id: int, active: bool):
+    """Enable/disable a notification rule"""
+    async with get_session() as session:
+        rule = await session.get(NotificationRuleDB, rule_id)
+        if not rule:
+            raise HTTPException(status_code=404, detail="Rule not found")
+        rule.active = active
+        rule.updated_at = datetime.utcnow()
+        await session.commit()
+        return {"success": True}
+
+
+@app.post("/api/notifications/check-prices")
+async def check_price_changes():
+    """Check for price changes on watched events and create notifications"""
+    notifications_created = 0
+    async with get_session() as session:
+        # Get all active event-specific rules
+        rules_query = select(NotificationRuleDB).where(
+            and_(
+                NotificationRuleDB.event_reference != None,
+                NotificationRuleDB.active == True
+            )
+        )
+        result = await session.execute(rules_query)
+        rules = result.scalars().all()
+
+        for rule in rules:
+            # Get current event data
+            event = await session.get(EventDB, rule.event_reference)
+            if not event:
+                continue
+
+            # Check if price changed
+            if rule.last_price is not None and event.lance_atual != rule.last_price:
+                # Create notification
+                notification = NotificationDB(
+                    rule_id=rule.id,
+                    notification_type="price_change",
+                    event_reference=event.reference,
+                    event_titulo=event.titulo,
+                    event_tipo=event.tipo,
+                    event_subtipo=event.subtipo,
+                    event_distrito=event.distrito,
+                    preco_anterior=rule.last_price,
+                    preco_atual=event.lance_atual,
+                    read=False
+                )
+                session.add(notification)
+
+                # Update last_price in rule
+                rule.last_price = event.lance_atual
+                rule.updated_at = datetime.utcnow()
+
+                notifications_created += 1
+
+        await session.commit()
+
+    return {"notifications_created": notifications_created}
 
 
 @app.get("/api/scrape/status")
