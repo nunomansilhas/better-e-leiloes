@@ -4744,40 +4744,60 @@
             counter.textContent = `${inspectionCurrentIndex + 1} / ${images.length}`;
         }
 
-        // Reload event from modal (refresh in-place)
+        // Reload event from modal (full refresh via queue)
         async function reloadEventFromModal(reference) {
             try {
-                showToast('A atualizar...', 'A recolher dados mais recentes', 'info');
+                showToast('⏳ Na fila...', 'Pedido de atualização enviado', 'info');
 
-                // Force fetch from API (bypass cache)
-                const response = await fetch(`${API_BASE}/api/events/${reference}?t=${Date.now()}`);
-                if (!response.ok) throw new Error('Failed to fetch');
-                const apiEvent = await response.json();
+                // Step 1: Queue the refresh request (full type)
+                const queueResponse = await fetch(`${API_BASE}/api/refresh/${reference}?refresh_type=full`, { method: 'POST' });
+                if (!queueResponse.ok) throw new Error('Failed to queue request');
 
-                // Also try to get volatile data (latest price)
-                try {
-                    const volatileRes = await fetch(`${API_BASE}/api/volatile/${reference}`);
-                    if (volatileRes.ok) {
-                        const volatileData = await volatileRes.json();
-                        if (volatileData.lanceAtual) apiEvent.lance_atual = volatileData.lanceAtual;
-                        if (volatileData.dataFim) apiEvent.data_fim = volatileData.dataFim;
-                    }
-                } catch (e) { /* ignore volatile errors */ }
+                const queueData = await queueResponse.json();
+                if (!queueData.success) throw new Error(queueData.message || 'Queue failed');
 
-                // Re-open modal with fresh data (will use API data since we clear cache entry)
-                const type = document.querySelector('.page.active')?.id;
-                if (allLoadedEvents[type]) {
-                    const idx = allLoadedEvents[type].findIndex(e => e.reference === reference);
-                    if (idx >= 0) {
-                        // Update cached entry with new lance_atual
-                        allLoadedEvents[type][idx].valores.lanceAtual = apiEvent.lance_atual;
-                        allLoadedEvents[type][idx].dataFim = apiEvent.data_fim;
+                const requestId = queueData.request_id;
+                showToast('🔄 A processar...', 'Backend a atualizar dados', 'info');
+
+                // Step 2: Poll for completion (max 30 seconds)
+                const maxAttempts = 30;
+                for (let i = 0; i < maxAttempts; i++) {
+                    await new Promise(r => setTimeout(r, 1000));
+
+                    const statusResponse = await fetch(`${API_BASE}/api/refresh/status/${requestId}`);
+                    if (!statusResponse.ok) continue;
+
+                    const status = await statusResponse.json();
+
+                    if (status.state === 2) {
+                        // Completed - reload the event data from DB and re-open modal
+                        const response = await fetch(`${API_BASE}/api/events/${reference}?t=${Date.now()}`);
+                        if (response.ok) {
+                            const apiEvent = await response.json();
+
+                            // Update cached entry
+                            const type = document.querySelector('.page.active')?.id;
+                            if (allLoadedEvents[type]) {
+                                const idx = allLoadedEvents[type].findIndex(e => e.reference === reference);
+                                if (idx >= 0) {
+                                    allLoadedEvents[type][idx].valores.lanceAtual = apiEvent.lance_atual;
+                                    allLoadedEvents[type][idx].dataFim = apiEvent.data_fim;
+                                }
+                            }
+
+                            // Re-open modal with fresh data
+                            await openInspectionModal(reference);
+                        }
+                        showToast('✅ Atualizado', status.result_message || 'Dados atualizados', 'success');
+                        return;
+                    } else if (status.state === 3) {
+                        showToast('❌ Erro', status.result_message || 'Falha ao atualizar', 'error');
+                        return;
                     }
                 }
 
-                // Re-open modal (will rebuild with fresh data)
-                await openInspectionModal(reference);
-                showToast('Atualizado', 'Dados atualizados com sucesso', 'success');
+                // Timeout
+                showToast('⏱️ Timeout', 'Demorou demasiado tempo', 'warning');
             } catch (error) {
                 console.error('Error reloading event:', error);
                 showToast('Erro', 'Não foi possível atualizar', 'error');
@@ -6924,9 +6944,8 @@
             return card;
         }
 
-        // Card Actions
+        // Card Actions - uses queue system for refresh
         async function reloadEvent(reference) {
-            // Find the card by reference using data attribute
             const oldCard = document.querySelector(`.event-card[data-reference="${reference}"]`);
 
             try {
@@ -6934,48 +6953,85 @@
                 if (oldCard) {
                     oldCard.style.opacity = '0.5';
                     oldCard.style.pointerEvents = 'none';
+                    const badge = oldCard.querySelector('.event-type-badge');
+                    if (badge) badge.textContent = '⏳ Na fila...';
                 }
 
-                // Fetch fresh data from official API (just get current values, no re-scrape)
-                const response = await fetch(`https://www.e-leiloes.pt/api/eventos/${reference}`);
-                const apiData = await response.json();
+                // Step 1: Queue the refresh request
+                const queueResponse = await fetch(`${API_BASE}/api/refresh/${reference}?refresh_type=full`, { method: 'POST' });
+                if (!queueResponse.ok) throw new Error('Failed to queue');
 
-                if (response.ok && apiData) {
-                    // Update the event in allLoadedEvents
-                    const activePage = document.querySelector('.page.active').id;
-                    if (allLoadedEvents[activePage]) {
-                        const idx = allLoadedEvents[activePage].findIndex(e => e.reference === reference);
-                        if (idx !== -1) {
-                            // Update volatile fields from API
-                            const event = allLoadedEvents[activePage][idx];
-                            event.valores.lanceAtual = apiData.lanceAtual || 0;
-                            event.dataFim = apiData.dataFim;
+                const queueData = await queueResponse.json();
+                if (!queueData.success) throw new Error(queueData.message || 'Queue failed');
 
-                            // Create new card with updated data
-                            const newCard = createEventCard(event);
-                            newCard.style.animation = 'none';
+                const requestId = queueData.request_id;
 
-                            // Replace old card with new card
-                            if (oldCard && oldCard.parentNode) {
-                                oldCard.parentNode.replaceChild(newCard, oldCard);
+                if (oldCard) {
+                    const badge = oldCard.querySelector('.event-type-badge');
+                    if (badge) badge.textContent = '🔄 A processar...';
+                }
+
+                // Step 2: Poll for completion (max 30 seconds)
+                const maxAttempts = 30;
+                for (let i = 0; i < maxAttempts; i++) {
+                    await new Promise(r => setTimeout(r, 1000));
+
+                    const statusResponse = await fetch(`${API_BASE}/api/refresh/status/${requestId}`);
+                    if (!statusResponse.ok) continue;
+
+                    const status = await statusResponse.json();
+
+                    if (status.state === 2) {
+                        // Completed - fetch updated data from our DB
+                        const response = await fetch(`${API_BASE}/api/events/${reference}?t=${Date.now()}`);
+                        if (response.ok) {
+                            const apiEvent = await response.json();
+
+                            // Update the event in allLoadedEvents
+                            const activePage = document.querySelector('.page.active')?.id;
+                            if (allLoadedEvents[activePage]) {
+                                const idx = allLoadedEvents[activePage].findIndex(e => e.reference === reference);
+                                if (idx !== -1) {
+                                    const event = allLoadedEvents[activePage][idx];
+                                    event.valores.lanceAtual = apiEvent.lance_atual || 0;
+                                    event.dataFim = apiEvent.data_fim;
+
+                                    // Create new card with updated data
+                                    const newCard = createEventCard(event);
+                                    newCard.style.animation = 'none';
+
+                                    if (oldCard && oldCard.parentNode) {
+                                        oldCard.parentNode.replaceChild(newCard, oldCard);
+                                    }
+
+                                    // Success highlight effect
+                                    newCard.style.boxShadow = '0 0 0 2px #10b981';
+                                    setTimeout(() => { newCard.style.boxShadow = ''; }, 1500);
+                                }
                             }
-
-                            // Brief highlight effect
-                            newCard.style.boxShadow = '0 0 0 2px #10b981';
-                            setTimeout(() => {
-                                newCard.style.boxShadow = '';
-                            }, 1500);
                         }
+                        return;
+                    } else if (status.state === 3) {
+                        throw new Error(status.result_message || 'Refresh failed');
                     }
-                } else {
-                    throw new Error('Falha ao obter dados da API');
                 }
+
+                throw new Error('Timeout - demorou demasiado');
             } catch (error) {
                 console.error('Erro ao recarregar evento:', error);
 
                 if (oldCard) {
                     oldCard.style.opacity = '1';
                     oldCard.style.pointerEvents = 'auto';
+                    // Restore badge
+                    const activePage = document.querySelector('.page.active')?.id;
+                    if (allLoadedEvents[activePage]) {
+                        const event = allLoadedEvents[activePage].find(e => e.reference === reference);
+                        if (event) {
+                            const badge = oldCard.querySelector('.event-type-badge');
+                            if (badge) badge.textContent = event.subtipo || event.tipo || 'Evento';
+                        }
+                    }
                 }
             }
         }
