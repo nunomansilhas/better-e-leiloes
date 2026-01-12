@@ -108,25 +108,22 @@
         }
         .btn i { font-size: 0.85rem; }
 
-        /* Pipeline cards - compact */
+        /* Pipeline cards - ultra compact */
         .pipeline-card {
-            border-radius: 6px;
-            padding: 0.35rem 0.5rem;
-            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 4px;
+            padding: 0.25rem 0.4rem;
+            border: 1px solid rgba(255,255,255,0.08);
             background: rgba(255,255,255,0.02);
-            transition: all 0.2s;
         }
-        .pipeline-card:hover {
-            background: rgba(255,255,255,0.04);
-        }
-        .pipeline-card.running {
-            box-shadow: 0 0 8px rgba(16, 185, 129, 0.15);
-        }
+        .pipeline-card .d-flex { margin-bottom: 0 !important; }
+        .pipeline-card .small { font-size: 0.7rem !important; }
+        .pipeline-card .text-muted { font-size: 0.6rem !important; }
 
         .pipeline-timer {
-            font-size: 0.85rem;
+            font-size: 0.75rem;
             font-weight: 600;
             font-family: monospace;
+            margin-top: 2px;
         }
         .pipeline-timer.red { color: #f87171; }
         .pipeline-timer.blue { color: #60a5fa; }
@@ -134,9 +131,9 @@
 
         /* Pipeline status badges */
         .pipeline-status {
-            font-size: 0.65rem;
-            padding: 2px 8px;
-            border-radius: 6px;
+            font-size: 0.55rem;
+            padding: 1px 5px;
+            border-radius: 4px;
             font-weight: 600;
         }
         .pipeline-status.running {
@@ -153,14 +150,14 @@
             50% { opacity: 0.5; }
         }
 
-        /* Toggle switch */
+        /* Toggle switch - smaller */
+        .pipeline-card .form-check-input {
+            width: 1.8rem;
+            height: 0.9rem;
+        }
         .form-check-input:checked {
             background-color: #10b981;
             border-color: #10b981;
-        }
-        .form-switch .form-check-input {
-            width: 2.5rem;
-            height: 1.25rem;
         }
 
         /* Stage dots */
