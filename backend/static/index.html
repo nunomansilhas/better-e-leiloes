@@ -313,17 +313,13 @@
             border-radius: 8px;
         }
 
-        /* Danger zone */
-        .danger-zone {
-            background: rgba(239,68,68,0.03);
-            border: 1px solid rgba(239,68,68,0.1);
-            border-radius: 6px;
-            padding: 0.3rem 0.5rem;
-        }
-        .danger-label {
-            font-size: 0.6rem;
-            color: #f87171;
-            opacity: 0.6;
+        /* Tool divider */
+        .tool-divider {
+            width: 1px;
+            height: 20px;
+            background: rgba(239,68,68,0.3);
+            margin: 0 4px;
+            align-self: center;
         }
 
         /* Health dot */
@@ -512,6 +508,13 @@
                     <button class="tool-btn gray" onclick="toggleManualIds()" data-tooltip="IDs Manual - Inserir referências específicas para processar">
                         <i class="bi bi-input-cursor-text"></i>
                     </button>
+                    <span class="tool-divider"></span>
+                    <button class="tool-btn red" onclick="confirmClearDatabase()" data-tooltip="Clear DB - Apagar todos os eventos, histórico e configurações">
+                        <i class="bi bi-trash3"></i>
+                    </button>
+                    <button class="tool-btn red" onclick="confirmClearNotifications()" data-tooltip="Clear Notifs - Apagar todas as regras de notificação">
+                        <i class="bi bi-bell-slash"></i>
+                    </button>
                 </div>
             </div>
 
@@ -653,20 +656,6 @@
             </div>
         </div>
 
-        <!-- Danger Zone -->
-        <div class="danger-zone mt-2">
-            <div class="d-flex align-items-center justify-content-between">
-                <span class="danger-label">⚠️ Danger</span>
-                <div class="d-flex gap-1">
-                    <button class="tool-btn red" onclick="confirmClearDatabase()" data-tooltip="Clear DB - Apagar todos os eventos, histórico e configurações">
-                        <i class="bi bi-trash3"></i>
-                    </button>
-                    <button class="tool-btn red" onclick="confirmClearNotifications()" data-tooltip="Clear Notifs - Apagar todas as regras de notificação">
-                        <i class="bi bi-bell-slash"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
     </div>
 
     <!-- Toast Container -->
