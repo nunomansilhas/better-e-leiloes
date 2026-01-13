@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from datetime import datetime, timedelta
-from typing import Optional, List
+from typing import Optional, List, Union, Any
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
 import os
@@ -91,11 +91,14 @@ class NotificationRuleCreate(BaseModel):
     name: str
     rule_type: str = "price_change"  # new_event, price_change, ending_soon, event_specific
     event_reference: Optional[str] = None
-    tipos: Optional[List[int]] = None
+    tipos: Optional[List[Union[int, str]]] = None  # Accept both int and str
     distritos: Optional[List[str]] = None
     preco_min: Optional[float] = None
     preco_max: Optional[float] = None
     active: bool = True
+
+    class Config:
+        extra = "ignore"  # Ignore extra fields
 
 
 class NotificationRuleResponse(BaseModel):
@@ -1104,6 +1107,7 @@ async def get_notification_rules():
 @app.post("/api/notification-rules")
 async def create_notification_rule(rule: NotificationRuleCreate):
     """Create a new notification rule"""
+    print(f"📝 Creating rule: {rule}")  # Debug log
     async with get_session() as session:
         # Get current price if event-specific rule
         last_price = None
