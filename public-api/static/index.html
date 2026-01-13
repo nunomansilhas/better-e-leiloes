@@ -6516,21 +6516,20 @@
 
             document.body.appendChild(modal);
 
-            // Load data
-            const cached = chartDataCache[ref];
-            if (cached) {
-                renderPriceChart(modal.querySelector('div > div'), cached.history, cached.vBase, cached.vAbertura, cached.vMinimo, cached.vAtual, true);
-            } else {
-                fetch(`${API_BASE}/api/dashboard/price-history/${ref}`)
-                    .then(r => r.json())
-                    .then(history => {
-                        chartDataCache[ref] = { history, vBase, vAbertura, vMinimo, vAtual };
-                        renderPriceChart(modal.querySelector('div > div'), history, vBase, vAbertura, vMinimo, vAtual, true);
-                    })
-                    .catch(() => {
-                        renderPriceChart(modal.querySelector('div > div'), [{preco: vAtual}], vBase, vAbertura, vMinimo, vAtual, true);
-                    });
-            }
+            // Always fetch fresh data for modal (ignore stale cache)
+            console.log(`[Chart Modal] Fetching fresh data for ${ref}...`);
+            fetch(`${API_BASE}/api/dashboard/price-history/${ref}`)
+                .then(r => r.json())
+                .then(history => {
+                    console.log(`[Chart Modal] API returned ${history.length} records for ${ref}`);
+                    // Update cache with fresh data
+                    chartDataCache[ref] = { history, vBase, vAbertura, vMinimo, vAtual };
+                    renderPriceChart(modal.querySelector('div > div'), history, vBase, vAbertura, vMinimo, vAtual, true);
+                })
+                .catch((err) => {
+                    console.error(`[Chart Modal] Fetch error:`, err);
+                    renderPriceChart(modal.querySelector('div > div'), [{preco: vAtual}], vBase, vAbertura, vMinimo, vAtual, true);
+                });
         }
 
         function renderPriceChart(tooltip, history, vBase, vAbertura, vMinimo, vAtual, isModal = false) {
