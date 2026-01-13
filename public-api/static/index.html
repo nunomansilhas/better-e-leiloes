@@ -6560,15 +6560,25 @@
                 });
             }
 
+            // Add current price as last point if different from last recorded
+            if (vAtual > 0) {
+                const lastRecorded = dataPoints.length > 0 ? dataPoints[dataPoints.length - 1].preco : null;
+                if (lastRecorded !== vAtual) {
+                    dataPoints.push({ preco: vAtual, timestamp: null, label: 'Atual' });
+                }
+            }
+
             // If still no points, add current price
             if (dataPoints.length === 0) {
-                dataPoints.push({ preco: vAtual, timestamp: null });
+                dataPoints.push({ preco: vAtual || vAbertura || vBase, timestamp: null });
             }
 
             // Ensure at least 2 points for line chart
             if (dataPoints.length === 1) {
                 dataPoints = [{ preco: dataPoints[0].preco * 0.98, timestamp: null }, dataPoints[0]];
             }
+
+            console.log(`[Chart ${isModal ? 'Modal' : 'Tooltip'}] Points:`, dataPoints.length, dataPoints.map(d => d.preco));
 
             const prices = dataPoints.map(d => d.preco);
             const firstPrice = prices[0];
