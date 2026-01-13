@@ -241,8 +241,13 @@ class NotificationEngine:
 
         # Check tipos filter
         if rule.get("tipos"):
-            event_tipo = self._normalize_tipo(event.tipo_id, event.tipo)
-            if event_tipo not in rule["tipos"]:
+            rule_tipos = rule["tipos"]
+            # Handle both numeric IDs (["1", "2"]) and string names (["imoveis", "veiculos"])
+            tipo_id_str = str(event.tipo_id) if event.tipo_id else None
+            tipo_name = self._normalize_tipo(event.tipo_id, event.tipo)
+
+            # Match if tipo_id (as string) OR tipo_name is in the rule
+            if tipo_id_str not in rule_tipos and tipo_name not in rule_tipos:
                 return False
 
         # Check subtipos filter
