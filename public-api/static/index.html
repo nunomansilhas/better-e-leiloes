@@ -5098,6 +5098,11 @@
                 return rules.some(r => r.event_reference === reference);
             },
 
+            // Synchronous check - uses cache only (for use in templates)
+            isFavoriteSync(reference) {
+                return this._cache.some(r => r.event_reference === reference);
+            },
+
             async updateWidget() {
                 const container = document.getElementById('favorites-widget-content');
                 if (!container) return;
@@ -6444,7 +6449,7 @@
             });
         }
 
-        function renderEndingSoonWidget() {
+        async function renderEndingSoonWidget() {
             const container = document.getElementById('dash-ending-soon');
             if (!container) return;
 
@@ -6452,6 +6457,9 @@
                 container.innerHTML = '<div style="text-align: center; padding: 20px; color: #94a3b8; font-size: 11px;">Nenhum evento encontrado</div>';
                 return;
             }
+
+            // Pre-load favorites cache for sync checks during render
+            await FAVORITES.getAll();
 
             // Separate active and terminated events
             const activeEvents = endingSoonEvents.filter(e => !e.terminado);
@@ -6504,7 +6512,7 @@
                         <div class="price-chart-btn" data-ref="${event.reference}" data-base="${vBase}" data-abertura="${vAbertura}" data-minimo="${vMinimo}" data-atual="${vAtual}" style="width: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 12px;" title="Ver gráfico de preço">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${labelColor}" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
                         </div>
-                        <button data-favorite-ref="${event.reference}" onclick="event.stopPropagation(); toggleFavorite('${event.reference}', {titulo: '${(event.titulo || '').replace(/'/g, "\\'")}', tipo_id: ${event.tipo_id || 'null'}, lance_atual: ${event.lance_atual || 'null'}, data_fim: '${event.data_fim || ''}'});" style="background: none; border: none; cursor: pointer; width: 24px; display: flex; align-items: center; justify-content: center; font-size: 14px; color: ${FAVORITES.isFavorite(event.reference) ? '#f59e0b' : '#cbd5e1'}; transition: color 0.2s;" title="${FAVORITES.isFavorite(event.reference) ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}">${FAVORITES.isFavorite(event.reference) ? '⭐' : '☆'}</button>
+                        <button data-favorite-ref="${event.reference}" onclick="event.stopPropagation(); toggleFavorite('${event.reference}', {titulo: '${(event.titulo || '').replace(/'/g, "\\'")}', tipo_id: ${event.tipo_id || 'null'}, lance_atual: ${event.lance_atual || 'null'}, data_fim: '${event.data_fim || ''}'});" style="background: none; border: none; cursor: pointer; width: 24px; display: flex; align-items: center; justify-content: center; font-size: 14px; color: ${FAVORITES.isFavoriteSync(event.reference) ? '#f59e0b' : '#cbd5e1'}; transition: color 0.2s;" title="${FAVORITES.isFavoriteSync(event.reference) ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}">${FAVORITES.isFavoriteSync(event.reference) ? '⭐' : '☆'}</button>
                         <a href="https://www.e-leiloes.pt/evento/${event.reference}" target="_blank" onclick="event.stopPropagation()" style="width: 24px; display: flex; align-items: center; justify-content: center; text-decoration: none; font-size: 12px;" title="Abrir no e-leilões">🔗</a>
                     </div>
                 `;
@@ -10964,7 +10972,33 @@
                     filtered.sort((a, b) => (b.last_known_price || 0) - (a.last_known_price || 0));
                 }
 
-                listEl.innerHTML = filtered.map(fav => renderFavoriteCard(fav)).join('');
+                // When showing all, separate ended events to the bottom
+                const now = new Date();
+                if (!statusFilter || statusFilter === 'all') {
+                    const active = filtered.filter(f => {
+                        const endDate = f.event?.data_fim ? new Date(f.event.data_fim) : null;
+                        return !f.event?.terminado && (!endDate || endDate > now);
+                    });
+                    const ended = filtered.filter(f => {
+                        const endDate = f.event?.data_fim ? new Date(f.event.data_fim) : null;
+                        return f.event?.terminado || (endDate && endDate <= now);
+                    });
+
+                    let html = active.map(fav => renderFavoriteCard(fav)).join('');
+                    if (ended.length > 0) {
+                        html += `
+                            <div style="display: flex; align-items: center; gap: 12px; padding: 16px 0; margin: 8px 0;">
+                                <div style="flex: 1; height: 1px; background: #e2e8f0;"></div>
+                                <span style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 500;">Terminados (${ended.length})</span>
+                                <div style="flex: 1; height: 1px; background: #e2e8f0;"></div>
+                            </div>
+                        `;
+                        html += ended.map(fav => renderFavoriteCard(fav)).join('');
+                    }
+                    listEl.innerHTML = html;
+                } else {
+                    listEl.innerHTML = filtered.map(fav => renderFavoriteCard(fav)).join('');
+                }
                 emptyEl.style.display = 'none';
 
             } catch (error) {
@@ -11015,7 +11049,7 @@
             }
 
             return `
-                <div class="favorite-card" style="background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; display: flex; gap: 16px; transition: all 0.2s; ${isEnded ? 'opacity: 0.7;' : ''}" onmouseover="this.style.borderColor='#3b82f6'" onmouseout="this.style.borderColor='#e2e8f0'">
+                <div class="favorite-card" style="background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; display: flex; gap: 16px; transition: all 0.2s; cursor: pointer; ${isEnded ? 'opacity: 0.7;' : ''}" onclick="openInspectionModal('${fav.event_reference}')" onmouseover="this.style.borderColor='#3b82f6';this.style.boxShadow='0 4px 12px rgba(59,130,246,0.15)'" onmouseout="this.style.borderColor='#e2e8f0';this.style.boxShadow='none'">
                     <!-- Event Image -->
                     <div style="width: 100px; height: 80px; border-radius: 8px; overflow: hidden; flex-shrink: 0; background: #f1f5f9;">
                         ${event.capa ? `<img src="${event.capa}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.parentElement.innerHTML='<div style=\\'width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:10px;\\'>Sem imagem</div>'">` : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:10px;">Sem imagem</div>'}
@@ -11028,14 +11062,14 @@
                                 ${statusBadge}
                                 <span style="font-size: 10px; color: #94a3b8;">${fav.event_reference}</span>
                             </div>
-                            <button onclick="removeFavorite('${fav.event_reference}')" style="padding: 4px 8px; background: none; border: none; cursor: pointer; color: #94a3b8; transition: color 0.2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#94a3b8'" title="Remover">
+                            <button onclick="event.stopPropagation(); removeFavorite('${fav.event_reference}')" style="padding: 4px 8px; background: none; border: none; cursor: pointer; color: #94a3b8; transition: color 0.2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#94a3b8'" title="Remover">
                                 <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="16" height="16">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
                                 </svg>
                             </button>
                         </div>
 
-                        <h4 style="font-size: 13px; font-weight: 600; color: #1e293b; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;" onclick="showEventModal('${fav.event_reference}')" title="${event.titulo || 'Sem título'}">
+                        <h4 style="font-size: 13px; font-weight: 600; color: #1e293b; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${event.titulo || 'Sem título'}">
                             ${event.titulo || fav.event_titulo || 'Evento não encontrado'}
                         </h4>
 
@@ -11058,7 +11092,7 @@
                             </div>
 
                             <!-- Notification Settings -->
-                            <div style="margin-left: auto; display: flex; gap: 4px;">
+                            <div style="margin-left: auto; display: flex; gap: 4px;" onclick="event.stopPropagation()">
                                 <button onclick="toggleFavoriteNotify('${fav.event_reference}', 'price', ${!fav.notify_price_change})"
                                     style="padding: 4px 8px; background: ${fav.notify_price_change ? '#dbeafe' : '#f1f5f9'}; border: none; border-radius: 6px; font-size: 10px; color: ${fav.notify_price_change ? '#1d4ed8' : '#64748b'}; cursor: pointer;"
                                     title="Alertar alterações de preço">
