@@ -882,9 +882,11 @@
         /* Stats Grid - 2x3 for types */
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(3, minmax(100px, 130px));
+            grid-template-columns: repeat(3, 1fr);
             grid-template-rows: repeat(2, 1fr);
             gap: 8px;
+            flex: 1;
+            min-width: 300px;
         }
 
         .stats-card {
@@ -1052,7 +1054,6 @@
             gap: 8px;
             min-width: 160px;
             max-width: 200px;
-            margin-left: auto;
         }
 
         .quick-card {
