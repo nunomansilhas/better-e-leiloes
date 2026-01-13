@@ -4596,7 +4596,8 @@
             // Cache of notification rules (event-specific only)
             _cache: [],
             _cacheTime: 0,
-            _cacheTTL: 5000, // 5 seconds
+            _cacheTTL: 60000, // 60 seconds (WebSocket handles real-time updates)
+            _allRulesCache: [], // Cache for all rules (used by updateNotificationIcons)
 
             async getAll() {
                 // Use cache if fresh
@@ -4606,14 +4607,24 @@
                 try {
                     const response = await fetch(`${API_BASE}/api/notification-rules`);
                     const rules = await response.json();
+                    this._allRulesCache = Array.isArray(rules) ? rules : [];
                     // Filter only event-specific rules (favorites)
-                    this._cache = Array.isArray(rules) ? rules.filter(r => r.event_reference && r.active) : [];
+                    this._cache = this._allRulesCache.filter(r => r.event_reference && r.active);
                     this._cacheTime = Date.now();
                     return this._cache;
                 } catch (err) {
                     console.error('Error fetching favorites:', err);
                     return [];
                 }
+            },
+
+            // Get all rules (including non-event-specific) from cache
+            async getAllRules() {
+                if (Date.now() - this._cacheTime < this._cacheTTL && this._allRulesCache.length > 0) {
+                    return this._allRulesCache;
+                }
+                await this.getAll(); // This populates _allRulesCache
+                return this._allRulesCache;
             },
 
             async add(reference, eventData = {}) {
@@ -10000,21 +10011,14 @@
             runIndependentScraperWithIds(input);
         }
 
-        // Update notification bell icons based on database rules
+        // Update notification bell icons based on database rules (uses FAVORITES cache)
         async function updateNotificationIcons() {
             try {
-                const response = await fetch(`${API_BASE}/api/notification-rules`);
-                if (!response.ok) return;
-
-                const rules = await response.json();
-                if (!Array.isArray(rules)) return;
+                // Use FAVORITES cache instead of fetching directly
+                const favorites = await FAVORITES.getAll();
 
                 // Get all event references that have active notification rules
-                const activeReferences = new Set(
-                    rules
-                        .filter(r => r.event_reference && r.active)
-                        .map(r => r.event_reference)
-                );
+                const activeReferences = new Set(favorites.map(r => r.event_reference));
 
                 // Update all bell buttons on the page
                 document.querySelectorAll('[id^="notify-event-"]').forEach(btn => {
@@ -10037,18 +10041,15 @@
             const btn = document.getElementById(`notify-event-${reference}`);
 
             try {
-                // ALWAYS check database first - don't trust button state
-                const rulesResponse = await fetch(`${API_BASE}/api/notification-rules`);
-                if (!rulesResponse.ok) {
-                    throw new Error('Failed to fetch rules');
-                }
-                const rules = await rulesResponse.json();
-                const existingRule = Array.isArray(rules) ? rules.find(r => r.event_reference === reference) : null;
+                // Check FAVORITES cache first (uses 60s cache)
+                const favorites = await FAVORITES.getAll();
+                const existingRule = favorites.find(r => r.event_reference === reference);
 
                 if (existingRule) {
                     // Rule EXISTS - DELETE it (toggle off)
                     const deleteResponse = await fetch(`${API_BASE}/api/notification-rules/${existingRule.id}`, { method: 'DELETE' });
                     if (deleteResponse.ok) {
+                        FAVORITES._cacheTime = 0; // Invalidate cache
                         if (btn) btn.classList.remove('active');
                         showToast('Notificação desativada', `Deixará de ser notificado sobre: ${titulo.substring(0, 40)}...`, 'info');
                     }
@@ -10068,6 +10069,7 @@
                     });
 
                     if (createResponse.ok) {
+                        FAVORITES._cacheTime = 0; // Invalidate cache
                         if (btn) btn.classList.add('active');
                         showToast('Notificação ativada', `Será notificado sobre alterações em: ${titulo.substring(0, 40)}...`, 'success');
                     } else {
