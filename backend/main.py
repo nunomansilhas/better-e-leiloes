@@ -19,7 +19,7 @@ if sys.platform == 'win32':
 from dotenv import load_dotenv
 load_dotenv()
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Query, Body
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Query, Body, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -384,6 +384,31 @@ async def root():
 async def health():
     """Health check simples"""
     return {"status": "ok"}
+
+
+# ============== WEBSOCKET FOR REAL-TIME NOTIFICATIONS ==============
+
+@app.websocket("/ws/notifications")
+async def websocket_notifications(websocket: WebSocket):
+    """
+    WebSocket endpoint for real-time notifications.
+    Clients connect here to receive instant notification updates.
+    """
+    from websocket_manager import notification_ws_manager
+
+    await notification_ws_manager.connect(websocket)
+    try:
+        while True:
+            # Keep connection alive, wait for messages (ping/pong)
+            data = await websocket.receive_text()
+            # Echo back for ping/pong
+            if data == "ping":
+                await websocket.send_text("pong")
+    except WebSocketDisconnect:
+        await notification_ws_manager.disconnect(websocket)
+    except Exception as e:
+        print(f"WebSocket error: {e}")
+        await notification_ws_manager.disconnect(websocket)
 
 
 @app.get("/api/health")

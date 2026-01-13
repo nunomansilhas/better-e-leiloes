@@ -9812,13 +9812,160 @@
             }
         }
 
+        // ============== WEBSOCKET FOR REAL-TIME NOTIFICATIONS ==============
+
+        let notificationWebSocket = null;
+        let wsReconnectAttempts = 0;
+        const WS_MAX_RECONNECT_ATTEMPTS = 10;
+        const WS_RECONNECT_DELAY = 3000;
+
+        function connectNotificationWebSocket() {
+            // Determine WebSocket URL based on current location
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            // Connect to backend WebSocket (port 8080 or from BACKEND_URL)
+            const backendHost = window.BACKEND_URL ? new URL(window.BACKEND_URL).host : window.location.hostname + ':8080';
+            const wsUrl = `${wsProtocol}//${backendHost}/ws/notifications`;
+
+            console.log(`🔌 Connecting to WebSocket: ${wsUrl}`);
+
+            try {
+                notificationWebSocket = new WebSocket(wsUrl);
+
+                notificationWebSocket.onopen = () => {
+                    console.log('✅ WebSocket connected for real-time notifications');
+                    wsReconnectAttempts = 0;
+                    // Send ping every 30 seconds to keep connection alive
+                    setInterval(() => {
+                        if (notificationWebSocket && notificationWebSocket.readyState === WebSocket.OPEN) {
+                            notificationWebSocket.send('ping');
+                        }
+                    }, 30000);
+                };
+
+                notificationWebSocket.onmessage = (event) => {
+                    try {
+                        const message = JSON.parse(event.data);
+                        if (message.type === 'notification') {
+                            handleRealtimeNotification(message.data);
+                        }
+                    } catch (e) {
+                        // Ignore pong responses
+                        if (event.data !== 'pong') {
+                            console.log('WebSocket message:', event.data);
+                        }
+                    }
+                };
+
+                notificationWebSocket.onclose = (event) => {
+                    console.log(`🔌 WebSocket disconnected (code: ${event.code})`);
+                    attemptReconnect();
+                };
+
+                notificationWebSocket.onerror = (error) => {
+                    console.error('❌ WebSocket error:', error);
+                };
+            } catch (e) {
+                console.error('Failed to create WebSocket:', e);
+                attemptReconnect();
+            }
+        }
+
+        function attemptReconnect() {
+            if (wsReconnectAttempts < WS_MAX_RECONNECT_ATTEMPTS) {
+                wsReconnectAttempts++;
+                console.log(`🔄 Reconnecting WebSocket (attempt ${wsReconnectAttempts}/${WS_MAX_RECONNECT_ATTEMPTS})...`);
+                setTimeout(connectNotificationWebSocket, WS_RECONNECT_DELAY);
+            } else {
+                console.log('❌ Max WebSocket reconnect attempts reached');
+            }
+        }
+
+        function handleRealtimeNotification(notification) {
+            console.log('🔔 Real-time notification received:', notification);
+
+            const type = notification.notification_type;
+            const ref = notification.event_reference;
+
+            if (type === 'price_change') {
+                const oldPrice = notification.preco_anterior;
+                const newPrice = notification.preco_atual;
+                const diff = newPrice - oldPrice;
+                const diffStr = diff > 0 ? `+€${diff.toLocaleString('pt-PT', {maximumFractionDigits: 2})}` : `-€${Math.abs(diff).toLocaleString('pt-PT', {maximumFractionDigits: 2})}`;
+                const diffColor = diff > 0 ? '#10b981' : '#ef4444';
+
+                showToast(
+                    `💰 Preço alterado: ${ref}`,
+                    `${notification.event_titulo ? notification.event_titulo.substring(0, 40) + '...' : ''}<br>
+                    <span style="color: ${diffColor}; font-weight: bold;">
+                        €${oldPrice.toLocaleString('pt-PT', {maximumFractionDigits: 2})} → €${newPrice.toLocaleString('pt-PT', {maximumFractionDigits: 2})}
+                    </span>
+                    <span style="color: ${diffColor};">(${diffStr})</span>`,
+                    diff > 0 ? 'success' : 'warning',
+                    8000  // Show for 8 seconds
+                );
+
+                // Update notification badge
+                updateNotificationBadge();
+
+                // Play sound (optional)
+                playNotificationSound();
+
+            } else if (type === 'new_event') {
+                showToast(
+                    `🆕 Novo evento: ${ref}`,
+                    notification.event_titulo || 'Novo evento adicionado',
+                    'info',
+                    6000
+                );
+                updateNotificationBadge();
+
+            } else if (type === 'ending_soon') {
+                showToast(
+                    `⏰ A terminar: ${ref}`,
+                    `${notification.event_titulo || ref} termina em ${notification.minutes_remaining} minutos`,
+                    'warning',
+                    10000
+                );
+                updateNotificationBadge();
+            }
+        }
+
+        function playNotificationSound() {
+            // Create a simple beep sound
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                oscillator.frequency.value = 800;
+                oscillator.type = 'sine';
+                gainNode.gain.value = 0.1;
+
+                oscillator.start();
+                setTimeout(() => {
+                    oscillator.stop();
+                    audioContext.close();
+                }, 200);
+            } catch (e) {
+                // Audio not supported or blocked
+            }
+        }
+
+        // ============== END WEBSOCKET ==============
+
         // Update auth status and theme on page load
         document.addEventListener('DOMContentLoaded', () => {
             initTheme();
             updateAuthStatus(!!API_AUTH.secretKey);
             FAVORITES.updateWidget();
 
-            // Check for price changes on watched events every 2 minutes
+            // Connect to WebSocket for real-time notifications
+            connectNotificationWebSocket();
+
+            // Check for price changes on watched events every 2 minutes (fallback if WebSocket fails)
             checkForPriceChanges();
             setInterval(() => checkForPriceChanges(), 2 * 60 * 1000);
         });

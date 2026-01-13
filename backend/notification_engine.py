@@ -164,6 +164,21 @@ class NotificationEngine:
                 await db_manager.increment_rule_triggers(rule["id"])
                 print(f"    🔔 Notificação criada ID={notification_id}: {event.reference} ({old_price} -> {new_price})")
 
+                # Broadcast via WebSocket for real-time updates
+                try:
+                    from websocket_manager import notification_ws_manager
+                    await notification_ws_manager.broadcast_price_change(
+                        event_reference=event.reference,
+                        event_titulo=event.titulo,
+                        old_price=old_price,
+                        new_price=new_price,
+                        event_tipo=event.tipo,
+                        event_distrito=event.distrito
+                    )
+                    print(f"    📡 WebSocket broadcast sent for {event.reference}")
+                except Exception as ws_err:
+                    print(f"    ⚠️ WebSocket broadcast failed: {ws_err}")
+
                 return notification_id
             except Exception as e:
                 print(f"    💥 ERRO ao processar regra {rule['name']}: {e}")
