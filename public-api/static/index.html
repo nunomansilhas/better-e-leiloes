@@ -6324,21 +6324,6 @@
                         <span style="font-size: 10px; font-weight: 600; color: ${valueColor}; width: 75px; text-align: right;">${valor}</span>
                         <div class="price-chart-btn" data-ref="${event.reference}" data-base="${vBase}" data-abertura="${vAbertura}" data-minimo="${vMinimo}" data-atual="${vAtual}" style="width: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 12px;" title="Ver gráfico de preço">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${labelColor}" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-                            <div class="price-chart-tooltip" style="display: none; position: fixed; background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); z-index: 9999; min-width: 280px;">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                                    <span style="font-size: 11px; font-weight: 600; color: #1e293b;">Evolucao de Preco</span>
-                                    <span class="chart-variation" style="font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px;"></span>
-                                </div>
-                                <div class="chart-container" style="height: 100px; position: relative; margin-bottom: 8px;">
-                                    <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #94a3b8;">
-                                        <svg class="spin" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4m0 12v4m-8-10h4m12 0h4m-5.66-5.66l-2.82 2.82m-5.04 5.04l-2.82 2.82m0-11.32l2.82 2.82m5.04 5.04l2.82 2.82"/></svg>
-                                    </div>
-                                </div>
-                                <div class="chart-legend" style="color: #64748b;"></div>
-                                <div style="text-align: center; margin-top: 8px; padding-top: 8px; border-top: 1px solid #f1f5f9;">
-                                    <span style="font-size: 9px; color: #94a3b8;">Clica para expandir</span>
-                                </div>
-                            </div>
                         </div>
                         <button data-favorite-ref="${event.reference}" onclick="event.stopPropagation(); toggleFavorite('${event.reference}', {titulo: '${(event.titulo || '').replace(/'/g, "\\'")}', tipo_id: ${event.tipo_id || 'null'}, lance_atual: ${event.lance_atual || 'null'}, data_fim: '${event.data_fim || ''}'});" style="background: none; border: none; cursor: pointer; width: 24px; display: flex; align-items: center; justify-content: center; font-size: 14px; color: ${FAVORITES.isFavorite(event.reference) ? '#f59e0b' : '#cbd5e1'}; transition: color 0.2s;" title="${FAVORITES.isFavorite(event.reference) ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}">${FAVORITES.isFavorite(event.reference) ? '⭐' : '☆'}</button>
                         <a href="https://www.e-leiloes.pt/evento/${event.reference}" target="_blank" onclick="event.stopPropagation()" style="width: 24px; display: flex; align-items: center; justify-content: center; text-decoration: none; font-size: 12px;" title="Abrir no e-leilões">🔗</a>
@@ -6378,71 +6363,116 @@
         // Store loaded chart data for modal reuse
         const chartDataCache = {};
 
+        // Global price chart tooltip (appended to body for correct positioning)
+        let globalChartTooltip = null;
+        let currentChartBtn = null;
+
+        function getOrCreateGlobalTooltip() {
+            if (!globalChartTooltip) {
+                globalChartTooltip = document.createElement('div');
+                globalChartTooltip.id = 'global-price-chart-tooltip';
+                globalChartTooltip.style.cssText = 'display: none; position: fixed; background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); z-index: 99999; min-width: 280px; pointer-events: none;';
+                globalChartTooltip.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <span style="font-size: 11px; font-weight: 600; color: #1e293b;">Evolucao de Preco</span>
+                        <span class="chart-variation" style="font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px;"></span>
+                    </div>
+                    <div class="chart-container" style="height: 100px; position: relative; margin-bottom: 8px;">
+                        <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #94a3b8;">
+                            <svg class="spin" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4m0 12v4m-8-10h4m12 0h4m-5.66-5.66l-2.82 2.82m-5.04 5.04l-2.82 2.82m0-11.32l2.82 2.82m5.04 5.04l2.82 2.82"/></svg>
+                        </div>
+                    </div>
+                    <div class="chart-legend" style="color: #64748b;"></div>
+                    <div style="text-align: center; margin-top: 8px; padding-top: 8px; border-top: 1px solid #f1f5f9;">
+                        <span style="font-size: 9px; color: #94a3b8;">Clica para expandir</span>
+                    </div>
+                `;
+                document.body.appendChild(globalChartTooltip);
+            }
+            return globalChartTooltip;
+        }
+
+        function positionTooltip(btn) {
+            const tooltip = getOrCreateGlobalTooltip();
+            const rect = btn.getBoundingClientRect();
+            const tooltipW = 280; // min-width
+            const tooltipH = 220; // approximate height
+
+            let top = rect.top - tooltipH - 8;
+            let left = rect.left - tooltipW + 30;
+
+            // If tooltip would go above viewport, show below
+            if (top < 10) {
+                top = rect.bottom + 8;
+            }
+            // Keep within viewport horizontally
+            if (left < 10) left = 10;
+            if (left + tooltipW > window.innerWidth - 10) {
+                left = window.innerWidth - tooltipW - 10;
+            }
+
+            tooltip.style.top = top + 'px';
+            tooltip.style.left = left + 'px';
+        }
+
         function setupChartTooltips() {
             document.querySelectorAll('.price-chart-btn').forEach(btn => {
-                const tooltip = btn.querySelector('.price-chart-tooltip');
-                if (!tooltip) return;
-
-                let loaded = false;
                 const ref = btn.dataset.ref;
 
                 btn.addEventListener('mouseenter', async (e) => {
-                    const rect = btn.getBoundingClientRect();
-                    // Show off-screen first to measure height
-                    tooltip.style.visibility = 'hidden';
+                    currentChartBtn = btn;
+                    const tooltip = getOrCreateGlobalTooltip();
+
+                    // Reset tooltip content to loading state
+                    tooltip.querySelector('.chart-container').innerHTML = `
+                        <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #94a3b8;">
+                            <svg class="spin" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4m0 12v4m-8-10h4m12 0h4m-5.66-5.66l-2.82 2.82m-5.04 5.04l-2.82 2.82m0-11.32l2.82 2.82m5.04 5.04l2.82 2.82"/></svg>
+                        </div>
+                    `;
+                    tooltip.querySelector('.chart-legend').innerHTML = '';
+
+                    // Position and show tooltip
+                    positionTooltip(btn);
                     tooltip.style.display = 'block';
-                    tooltip.style.top = '-9999px';
-                    tooltip.style.left = '-9999px';
 
-                    // Wait for render then position correctly
-                    requestAnimationFrame(() => {
-                        const tooltipH = tooltip.offsetHeight;
-                        const tooltipW = tooltip.offsetWidth;
+                    // Load data
+                    const vBase = parseFloat(btn.dataset.base) || 0;
+                    const vAbertura = parseFloat(btn.dataset.abertura) || 0;
+                    const vMinimo = parseFloat(btn.dataset.minimo) || 0;
+                    const vAtual = parseFloat(btn.dataset.atual) || 0;
 
-                        let top = rect.top - tooltipH - 8;
-                        let left = rect.left - tooltipW + 30;
-
-                        // If tooltip would go above viewport, show below
-                        if (top < 10) {
-                            top = rect.bottom + 8;
-                        }
-                        // Keep within viewport horizontally
-                        if (left < 10) left = 10;
-                        if (left + tooltipW > window.innerWidth - 10) {
-                            left = window.innerWidth - tooltipW - 10;
-                        }
-
-                        tooltip.style.top = top + 'px';
-                        tooltip.style.left = left + 'px';
-                        tooltip.style.visibility = 'visible';
-                    });
-
-                    if (!loaded) {
-                        loaded = true;
-                        const vBase = parseFloat(btn.dataset.base) || 0;
-                        const vAbertura = parseFloat(btn.dataset.abertura) || 0;
-                        const vMinimo = parseFloat(btn.dataset.minimo) || 0;
-                        const vAtual = parseFloat(btn.dataset.atual) || 0;
-
+                    // Check cache first
+                    if (chartDataCache[ref]) {
+                        const cached = chartDataCache[ref];
+                        renderPriceChart(tooltip, cached.history, cached.vBase, cached.vAbertura, cached.vMinimo, cached.vAtual);
+                    } else {
                         try {
                             const response = await fetch(`${API_BASE}/api/dashboard/price-history/${ref}`);
                             const history = await response.json();
                             chartDataCache[ref] = { history, vBase, vAbertura, vMinimo, vAtual };
-                            renderPriceChart(tooltip, history, vBase, vAbertura, vMinimo, vAtual);
+                            // Only render if still hovering this button
+                            if (currentChartBtn === btn) {
+                                renderPriceChart(tooltip, history, vBase, vAbertura, vMinimo, vAtual);
+                            }
                         } catch (err) {
                             chartDataCache[ref] = { history: [{preco: vAtual}], vBase, vAbertura, vMinimo, vAtual };
-                            renderPriceChart(tooltip, [{preco: vAtual}], vBase, vAbertura, vMinimo, vAtual);
+                            if (currentChartBtn === btn) {
+                                renderPriceChart(tooltip, [{preco: vAtual}], vBase, vAbertura, vMinimo, vAtual);
+                            }
                         }
                     }
                 });
 
                 btn.addEventListener('mouseleave', () => {
+                    currentChartBtn = null;
+                    const tooltip = getOrCreateGlobalTooltip();
                     tooltip.style.display = 'none';
                 });
 
                 // Click to open expanded modal
                 btn.addEventListener('click', (e) => {
                     e.stopPropagation();
+                    const tooltip = getOrCreateGlobalTooltip();
                     tooltip.style.display = 'none';
                     openPriceChartModal(ref, btn.dataset);
                 });
