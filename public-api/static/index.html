@@ -5051,7 +5051,11 @@
                         body: JSON.stringify(ruleData)
                     });
                     if (response.ok) {
-                        this._cacheTime = 0; // Invalidate cache
+                        // Optimistically add to cache immediately
+                        if (!this._cache.some(r => r.event_reference === reference)) {
+                            this._cache.push({ event_reference: reference, active: true });
+                        }
+                        this._cacheTime = 0; // Mark for refresh on next getAll
                         if (typeof invalidateRulesCountCache === 'function') invalidateRulesCountCache();
                         this.updateWidget();
                         updateNotificationIcons();
@@ -5072,7 +5076,9 @@
                             method: 'DELETE'
                         });
                         if (response.ok) {
-                            this._cacheTime = 0; // Invalidate cache
+                            // Optimistically remove from cache immediately
+                            this._cache = this._cache.filter(r => r.event_reference !== reference);
+                            this._cacheTime = 0; // Mark for refresh on next getAll
                             if (typeof invalidateRulesCountCache === 'function') invalidateRulesCountCache();
                             this.updateWidget();
                             updateNotificationIcons();
@@ -5185,8 +5191,7 @@
         async function toggleFavorite(reference, eventData = {}) {
             await FAVORITES.toggle(reference, eventData);
             // Icons are updated by updateNotificationIcons() called in FAVORITES.add/remove
-            // Also update the star buttons in "A Terminar em Breve" (after refreshing cache)
-            await FAVORITES.getAll(); // Refresh cache
+            // Also update the star buttons in "A Terminar em Breve" (cache is updated optimistically)
             updateEndingSoonFavoriteButtons();
         }
 
