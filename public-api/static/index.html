@@ -10973,7 +10973,6 @@
                 }
 
                 // When showing all, separate ended events to the bottom
-                const now = new Date();
                 if (!statusFilter || statusFilter === 'all') {
                     const active = filtered.filter(f => {
                         const endDate = f.event?.data_fim ? new Date(f.event.data_fim) : null;
