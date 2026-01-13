@@ -4631,6 +4631,7 @@
                     });
                     if (response.ok) {
                         this._cacheTime = 0; // Invalidate cache
+                        if (typeof invalidateRulesCountCache === 'function') invalidateRulesCountCache();
                         this.updateWidget();
                         updateNotificationIcons();
                         showToast('Favorito adicionado', `${reference} foi adicionado aos favoritos`, 'success');
@@ -4651,6 +4652,7 @@
                         });
                         if (response.ok) {
                             this._cacheTime = 0; // Invalidate cache
+                            if (typeof invalidateRulesCountCache === 'function') invalidateRulesCountCache();
                             this.updateWidget();
                             updateNotificationIcons();
                             showToast('Favorito removido', `${reference} foi removido dos favoritos`, 'info');
@@ -10093,9 +10095,16 @@
         }
 
         // Update notification badge in sidebar
+        let _rulesCountCache = { count: 0, timestamp: 0 };
+        const RULES_COUNT_CACHE_TTL = 60000; // 1 minute cache for rules count
+
+        function invalidateRulesCountCache() {
+            _rulesCountCache.timestamp = 0;
+        }
+
         async function updateNotificationBadge() {
             try {
-                // Fetch unread count
+                // Fetch unread count (this is fast, always do it)
                 const countResponse = await fetch(`${API_BASE}/api/notifications/count`);
                 const countData = await countResponse.json();
 
@@ -10116,14 +10125,17 @@
                     dashUnreadEl.textContent = countData.unread || 0;
                 }
 
-                // Fetch rules count for dashboard
-                const rulesResponse = await fetch(`${API_BASE}/api/notification-rules`);
-                const rules = await rulesResponse.json();
-                const activeRules = rules.filter(r => r.active).length;
-
+                // Only fetch rules count if cache expired AND dashboard is visible
                 const dashRulesEl = document.getElementById('dash-rules-count');
-                if (dashRulesEl) {
-                    dashRulesEl.textContent = activeRules;
+                if (dashRulesEl && dashRulesEl.offsetParent !== null) {
+                    const now = Date.now();
+                    if (now - _rulesCountCache.timestamp > RULES_COUNT_CACHE_TTL) {
+                        const rulesResponse = await fetch(`${API_BASE}/api/notification-rules`);
+                        const rules = await rulesResponse.json();
+                        _rulesCountCache.count = rules.filter(r => r.active).length;
+                        _rulesCountCache.timestamp = now;
+                    }
+                    dashRulesEl.textContent = _rulesCountCache.count;
                 }
             } catch (error) {
                 console.error('Erro ao atualizar badge:', error);
