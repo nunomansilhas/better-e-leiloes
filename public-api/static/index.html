@@ -6659,15 +6659,11 @@
             svg += `<path d="${areaD}" fill="url(#${uid}-grad)"/>`;
             svg += `<path d="${pathD}" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
 
-            // Interactive data points - small green dots, white on hover
+            // Interactive data points - hidden by default, appear only on hover
             dataPoints.forEach((d, i) => {
                 const x = getX(i), y = getY(d.preco);
-                const isLast = i === dataPoints.length - 1;
-                const showPoint = isModal || isLast;
-                const classes = isLast ? 'chart-point last-point' : (isModal ? 'chart-point modal-point' : 'chart-point');
-                const opacity = showPoint ? '1' : '0';
-                const radius = isLast ? 4 : 2;  // Smaller dots
-                svg += `<circle id="${uid}-pt-${i}" class="${classes}" cx="${x}" cy="${y}" r="${radius}" fill="#22c55e" stroke="#22c55e" stroke-width="1.5" style="opacity: ${opacity}; transition: all 0.15s;"/>`;
+                // All points hidden (opacity 0), shown on hover via JS
+                svg += `<circle id="${uid}-pt-${i}" class="chart-point" cx="${x}" cy="${y}" r="5" fill="white" stroke="#22c55e" stroke-width="2" style="opacity: 0; transition: opacity 0.15s;"/>`;
             });
 
             // Invisible hit areas for hover detection
@@ -6732,23 +6728,15 @@
                 chartPointTip.style.cssText = 'position: fixed; padding: 5px 8px; background: #1e293b; color: white; font-size: 10px; border-radius: 4px; pointer-events: none; z-index: 9999999; white-space: nowrap;';
                 document.body.appendChild(chartPointTip);
             }
-            // Reset previous hovered point
+            // Hide previous point
             if (activePointId) {
                 const prev = document.getElementById(activePointId);
-                if (prev) {
-                    prev.classList.remove('active');
-                    prev.setAttribute('fill', '#22c55e');
-                    prev.setAttribute('r', prev.classList.contains('last-point') ? '4' : '2');
-                }
+                if (prev) prev.style.opacity = '0';
             }
-            // Highlight current point - white fill, bigger
+            // Show current point
             activePointId = pointId;
             const pt = document.getElementById(pointId);
-            if (pt) {
-                pt.classList.add('active');
-                pt.setAttribute('fill', 'white');
-                pt.setAttribute('r', '5');
-            }
+            if (pt) pt.style.opacity = '1';
 
             const timeStr = time ? `<span style="color: #94a3b8; margin-left: 6px;">${time}</span>` : '';
             chartPointTip.innerHTML = `<strong style="color: #22c55e;">${price.toLocaleString('pt-PT', {minimumFractionDigits: 2, maximumFractionDigits: 2})}€</strong>${timeStr}`;
@@ -6760,11 +6748,7 @@
             if (chartPointTip) chartPointTip.style.display = 'none';
             if (activePointId) {
                 const pt = document.getElementById(activePointId);
-                if (pt) {
-                    pt.classList.remove('active');
-                    pt.setAttribute('fill', '#22c55e');
-                    pt.setAttribute('r', pt.classList.contains('last-point') ? '4' : '2');
-                }
+                if (pt) pt.style.opacity = '0';
                 activePointId = null;
             }
         }
