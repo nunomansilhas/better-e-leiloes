@@ -565,46 +565,53 @@
             background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
         }
 
-        /* Toast Notification */
+        /* Toast Notification - bottom-right, stacking upwards */
         .toast-container {
             position: fixed;
-            top: 24px;
+            bottom: 24px;
             right: 24px;
             z-index: 10000;
             display: flex;
-            flex-direction: column;
-            gap: 12px;
+            flex-direction: column-reverse;
+            gap: 8px;
         }
 
         .toast {
             background: white;
-            border-radius: 12px;
-            padding: 16px 20px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+            border-radius: 8px;
+            padding: 10px 14px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
             display: flex;
             align-items: center;
-            gap: 12px;
-            min-width: 300px;
-            animation: slideIn 0.3s ease;
-            border-left: 4px solid #3b82f6;
+            gap: 10px;
+            min-width: 240px;
+            max-width: 320px;
+            animation: slideInUp 0.3s ease;
+            border-left: 3px solid #3b82f6;
         }
 
         .toast.success { border-left-color: #10b981; }
         .toast.error { border-left-color: #ef4444; }
         .toast.warning { border-left-color: #f59e0b; }
 
-        .toast-icon { font-size: 20px; }
-        .toast-content { flex: 1; }
-        .toast-title { font-weight: 600; font-size: 14px; color: #1e293b; }
-        .toast-message { font-size: 13px; color: #64748b; margin-top: 2px; }
+        .toast-icon { font-size: 16px; }
+        .toast-content { flex: 1; min-width: 0; }
+        .toast-title { font-weight: 600; font-size: 12px; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .toast-message { font-size: 11px; color: #64748b; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
         .toast-close {
             background: none;
             border: none;
             color: #94a3b8;
             cursor: pointer;
-            padding: 4px;
-            font-size: 18px;
+            padding: 2px;
+            font-size: 14px;
+            line-height: 1;
+        }
+
+        @keyframes slideInUp {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
         }
 
         @keyframes slideIn {
@@ -892,13 +899,13 @@
         .stats-card {
             background: rgba(255, 255, 255, 0.9);
             backdrop-filter: blur(10px);
-            border-radius: 10px;
-            padding: 8px 10px;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+            border-radius: 8px;
+            padding: 6px 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
             border: 1px solid rgba(255, 255, 255, 0.5);
             display: flex;
             flex-direction: column;
-            gap: 3px;
+            gap: 2px;
             transition: all 0.2s ease;
             position: relative;
         }
@@ -910,11 +917,11 @@
 
         .stats-card-view-btn {
             position: absolute;
-            top: 8px;
-            right: 8px;
-            width: 24px;
-            height: 24px;
-            border-radius: 6px;
+            top: 5px;
+            right: 5px;
+            width: 18px;
+            height: 18px;
+            border-radius: 4px;
             background: rgba(100, 116, 139, 0.1);
             border: none;
             cursor: pointer;
@@ -931,8 +938,8 @@
         }
 
         .stats-card-view-btn svg {
-            width: 14px;
-            height: 14px;
+            width: 10px;
+            height: 10px;
             stroke: #64748b;
         }
 
@@ -943,17 +950,17 @@
         .stats-card-header {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
         }
 
         .stats-card-icon {
-            width: 28px;
-            height: 28px;
-            border-radius: 6px;
+            width: 22px;
+            height: 22px;
+            border-radius: 5px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 14px;
+            font-size: 11px;
         }
 
         .stats-card-icon.green { background: #f0fdf4; }
@@ -969,25 +976,25 @@
         }
 
         .stats-card-value {
-            font-size: 17px;
+            font-size: 14px;
             font-weight: 700;
             color: #0f172a;
             line-height: 1.1;
         }
 
         .stats-card-label {
-            font-size: 10px;
+            font-size: 9px;
             color: #64748b;
             text-transform: uppercase;
-            letter-spacing: 0.4px;
+            letter-spacing: 0.3px;
         }
 
         .stats-card-breakdown {
             display: flex;
-            gap: 8px;
-            font-size: 10px;
+            gap: 6px;
+            font-size: 9px;
             color: #64748b;
-            padding-top: 3px;
+            padding-top: 2px;
             border-top: 1px solid #f1f5f9;
         }
 
@@ -1051,16 +1058,16 @@
         .quick-access-section {
             display: flex;
             flex-direction: column;
-            gap: 8px;
-            min-width: 200px;
-            max-width: 260px;
+            gap: 10px;
+            min-width: 240px;
+            max-width: 300px;
         }
 
         .quick-card {
             background: rgba(255, 255, 255, 0.9);
             backdrop-filter: blur(10px);
-            border-radius: 10px;
-            padding: 10px 12px;
+            border-radius: 12px;
+            padding: 14px 16px;
             box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
             border: 1px solid rgba(255, 255, 255, 0.5);
             transition: all 0.2s ease;
@@ -1075,21 +1082,42 @@
             cursor: pointer;
         }
 
+        .mute-btn {
+            margin-left: auto;
+            background: rgba(100, 116, 139, 0.1);
+            border: none;
+            border-radius: 4px;
+            padding: 3px 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+            opacity: 0.7;
+        }
+
+        .mute-btn:hover {
+            background: rgba(100, 116, 139, 0.2);
+            opacity: 1;
+        }
+
+        .mute-btn.muted {
+            background: rgba(239, 68, 68, 0.15);
+        }
+
         .quick-card-header {
             display: flex;
             align-items: center;
-            gap: 8px;
-            margin-bottom: 6px;
+            gap: 10px;
+            margin-bottom: 10px;
         }
 
         .quick-card-icon {
-            width: 22px;
-            height: 22px;
-            border-radius: 6px;
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 11px;
+            font-size: 14px;
         }
 
         .quick-card-icon.blue { background: linear-gradient(135deg, #3b82f6, #2563eb); }
@@ -1098,19 +1126,19 @@
         .quick-card-title {
             font-weight: 600;
             color: #1e293b;
-            font-size: 11px;
+            font-size: 13px;
         }
 
         .quick-card-content {
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            gap: 8px;
         }
 
         .urgency-badges {
             display: flex;
-            gap: 6px;
-            font-size: 9px;
+            gap: 8px;
+            font-size: 11px;
         }
 
         .urgency-badge {
@@ -1121,30 +1149,30 @@
 
         .pipeline-timers {
             display: flex;
-            gap: 4px;
+            gap: 6px;
         }
 
         .pipeline-timer {
-            padding: 3px 6px;
+            padding: 5px 8px;
             background: #f8fafc;
-            border-radius: 4px;
+            border-radius: 6px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            min-width: 32px;
+            min-width: 42px;
         }
 
         .timer-label {
-            font-size: 8px;
+            font-size: 9px;
             color: #94a3b8;
             font-weight: 500;
         }
 
         .timer-value {
-            font-size: 9px;
+            font-size: 11px;
             font-weight: 600;
             font-variant-numeric: tabular-nums;
-            min-width: 38px;
+            min-width: 44px;
             text-align: center;
         }
 
@@ -1154,7 +1182,7 @@
 
         .quick-card-stats {
             display: flex;
-            gap: 12px;
+            gap: 16px;
         }
 
         .alert-stat {
@@ -1164,7 +1192,7 @@
         }
 
         .alert-value {
-            font-size: 16px;
+            font-size: 20px;
             font-weight: 700;
             color: #f59e0b;
             line-height: 1.1;
@@ -1172,11 +1200,11 @@
 
         .alert-value.muted {
             color: #64748b;
-            font-size: 14px;
+            font-size: 16px;
         }
 
         .alert-label {
-            font-size: 9px;
+            font-size: 10px;
             color: #94a3b8;
             text-transform: uppercase;
         }
@@ -3608,6 +3636,9 @@
                         <div class="quick-card-header">
                             <div class="quick-card-icon orange">🔔</div>
                             <span class="quick-card-title">Alertas</span>
+                            <button class="mute-btn" id="mute-notifications-btn" onclick="event.stopPropagation(); toggleNotificationsMute()" title="Silenciar notificações">
+                                <span id="mute-icon">🔊</span>
+                            </button>
                         </div>
                         <div class="quick-card-stats">
                             <div class="alert-stat">
@@ -10476,9 +10507,43 @@
         // SSE disabled - polling is used instead
         // connectToLiveUpdates();
 
+        // ============== NOTIFICATION MUTE SYSTEM ==============
+
+        let notificationsMuted = localStorage.getItem('notificationsMuted') === 'true';
+
+        function toggleNotificationsMute() {
+            notificationsMuted = !notificationsMuted;
+            localStorage.setItem('notificationsMuted', notificationsMuted);
+            updateMuteUI();
+        }
+
+        function updateMuteUI() {
+            const btn = document.getElementById('mute-notifications-btn');
+            const icon = document.getElementById('mute-icon');
+            if (btn && icon) {
+                if (notificationsMuted) {
+                    btn.classList.add('muted');
+                    icon.textContent = '🔇';
+                    btn.title = 'Ativar notificações';
+                } else {
+                    btn.classList.remove('muted');
+                    icon.textContent = '🔊';
+                    btn.title = 'Silenciar notificações';
+                }
+            }
+        }
+
+        // Initialize mute UI on load
+        document.addEventListener('DOMContentLoaded', updateMuteUI);
+
         // ============== TOAST NOTIFICATION SYSTEM ==============
 
         function showToast(title, message, type = 'info') {
+            // Skip notification toasts if muted (allow errors/warnings)
+            if (notificationsMuted && type === 'info') {
+                return;
+            }
+
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
             toast.className = `toast ${type}`;
@@ -10501,11 +10566,11 @@
 
             container.appendChild(toast);
 
-            // Auto remove after 5 seconds
+            // Auto remove after 4 seconds (shorter for compact toasts)
             setTimeout(() => {
                 toast.style.animation = 'slideOut 0.3s ease forwards';
                 setTimeout(() => toast.remove(), 300);
-            }, 5000);
+            }, 4000);
         }
 
         // ============== QUICK NOTIFICATION TOGGLE ==============
