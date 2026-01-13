@@ -3482,25 +3482,6 @@
 
             </div>
 
-            <!-- Favorites Widget -->
-            <div style="background: white; border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-top: 16px;">
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <span style="font-size: 16px;">⭐</span>
-                        <span style="font-weight: 600; color: #1e293b; font-size: 14px;">Meus Favoritos</span>
-                        <span id="favorites-count" style="background: #fef3c7; color: #d97706; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px;">0</span>
-                    </div>
-                    <button onclick="showPage('eventos'); document.getElementById('search-eventos').value = 'favoritos:true'; document.getElementById('search-eventos').dispatchEvent(new Event('input'));" style="padding: 4px 8px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer; font-size: 10px; color: #64748b; transition: all 0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#f8fafc'">Ver todos</button>
-                </div>
-                <div id="favorites-widget-content" style="display: flex; flex-direction: column; gap: 6px;">
-                    <div style="text-align: center; padding: 20px; color: #94a3b8;">
-                        <div style="font-size: 24px; margin-bottom: 8px;">⭐</div>
-                        <div style="font-size: 11px;">Sem favoritos</div>
-                        <div style="font-size: 10px; color: #cbd5e1; margin-top: 4px;">Clique no ⭐ nos eventos para adicionar</div>
-                    </div>
-                </div>
-            </div>
-
             <!-- Dashboard Grid: 2 columns -->
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;">
 
@@ -3596,6 +3577,25 @@
                     </div>
                     <div id="new-events-track" style="display: flex; gap: 10px; overflow-x: auto; scroll-behavior: smooth; padding: 4px 0; scrollbar-width: none; -ms-overflow-style: none;">
                         <div style="color: #94a3b8; font-size: 11px; padding: 20px; white-space: nowrap;">A carregar novos eventos...</div>
+                    </div>
+                </div>
+
+                <!-- Meus Favoritos / Eventos com Notificações -->
+                <div style="background: white; border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); grid-column: span 2;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 16px;">🔔</span>
+                            <span style="font-weight: 600; color: #1e293b; font-size: 14px;">Meus Favoritos</span>
+                            <span id="favorites-count" style="background: #dbeafe; color: #2563eb; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px;">0</span>
+                        </div>
+                        <button onclick="showPage('alertas')" style="padding: 4px 8px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer; font-size: 10px; color: #64748b; transition: all 0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#f8fafc'">Gerir Alertas</button>
+                    </div>
+                    <div id="favorites-widget-content" style="display: flex; gap: 10px; overflow-x: auto; scroll-behavior: smooth; padding: 4px 0; scrollbar-width: none; -ms-overflow-style: none;">
+                        <div style="text-align: center; padding: 20px; color: #94a3b8; width: 100%;">
+                            <div style="font-size: 24px; margin-bottom: 8px;">🔔</div>
+                            <div style="font-size: 11px;">Sem favoritos</div>
+                            <div style="font-size: 10px; color: #cbd5e1; margin-top: 4px;">Clique no 🔔 nos eventos para adicionar aos favoritos</div>
+                        </div>
                     </div>
                 </div>
 
@@ -4590,82 +4590,116 @@
             menuBtn.classList.remove('active');
         }
 
-        // ============== FAVORITES MANAGEMENT ==============
+        // ============== FAVORITES MANAGEMENT (uses notification rules from DB) ==============
 
         const FAVORITES = {
-            storageKey: 'eleiloes_favorites',
+            // Cache of notification rules (event-specific only)
+            _cache: [],
+            _cacheTime: 0,
+            _cacheTTL: 5000, // 5 seconds
 
-            getAll() {
+            async getAll() {
+                // Use cache if fresh
+                if (Date.now() - this._cacheTime < this._cacheTTL && this._cache.length > 0) {
+                    return this._cache;
+                }
                 try {
-                    return JSON.parse(localStorage.getItem(this.storageKey) || '[]');
-                } catch {
+                    const response = await fetch(`${API_BASE}/api/notification-rules`);
+                    const rules = await response.json();
+                    // Filter only event-specific rules (favorites)
+                    this._cache = Array.isArray(rules) ? rules.filter(r => r.event_reference && r.active) : [];
+                    this._cacheTime = Date.now();
+                    return this._cache;
+                } catch (err) {
+                    console.error('Error fetching favorites:', err);
                     return [];
                 }
             },
 
-            add(reference, eventData = {}) {
-                const favorites = this.getAll();
-                if (!favorites.some(f => f.reference === reference)) {
-                    favorites.push({
-                        reference,
-                        titulo: eventData.titulo || '',
-                        tipo_id: eventData.tipo_id,
-                        lance_atual: eventData.lance_atual,
-                        data_fim: eventData.data_fim,
-                        addedAt: new Date().toISOString()
+            async add(reference, eventData = {}) {
+                try {
+                    const ruleData = {
+                        name: eventData.titulo ? `Evento: ${eventData.titulo.substring(0, 50)}` : `Evento: ${reference}`,
+                        rule_type: 'price_change',
+                        event_reference: reference,
+                        active: true
+                    };
+                    const response = await fetch(`${API_BASE}/api/notification-rules`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(ruleData)
                     });
-                    localStorage.setItem(this.storageKey, JSON.stringify(favorites));
-                    this.updateWidget();
-                    showToast('Favorito adicionado', `${reference} foi adicionado aos favoritos`, 'success');
+                    if (response.ok) {
+                        this._cacheTime = 0; // Invalidate cache
+                        this.updateWidget();
+                        updateNotificationIcons();
+                        showToast('Favorito adicionado', `${reference} foi adicionado aos favoritos`, 'success');
+                    }
+                } catch (err) {
+                    console.error('Error adding favorite:', err);
+                    showToast('Erro', 'Não foi possível adicionar aos favoritos', 'error');
                 }
-                return favorites;
             },
 
-            remove(reference) {
-                const favorites = this.getAll().filter(f => f.reference !== reference);
-                localStorage.setItem(this.storageKey, JSON.stringify(favorites));
-                this.updateWidget();
-                showToast('Favorito removido', `${reference} foi removido dos favoritos`, 'info');
-                return favorites;
+            async remove(reference) {
+                try {
+                    const rules = await this.getAll();
+                    const rule = rules.find(r => r.event_reference === reference);
+                    if (rule) {
+                        const response = await fetch(`${API_BASE}/api/notification-rules/${rule.id}`, {
+                            method: 'DELETE'
+                        });
+                        if (response.ok) {
+                            this._cacheTime = 0; // Invalidate cache
+                            this.updateWidget();
+                            updateNotificationIcons();
+                            showToast('Favorito removido', `${reference} foi removido dos favoritos`, 'info');
+                        }
+                    }
+                } catch (err) {
+                    console.error('Error removing favorite:', err);
+                    showToast('Erro', 'Não foi possível remover dos favoritos', 'error');
+                }
             },
 
-            toggle(reference, eventData = {}) {
-                if (this.isFavorite(reference)) {
+            async toggle(reference, eventData = {}) {
+                if (await this.isFavorite(reference)) {
                     return this.remove(reference);
                 } else {
                     return this.add(reference, eventData);
                 }
             },
 
-            isFavorite(reference) {
-                return this.getAll().some(f => f.reference === reference);
+            async isFavorite(reference) {
+                const rules = await this.getAll();
+                return rules.some(r => r.event_reference === reference);
             },
 
             async updateWidget() {
                 const container = document.getElementById('favorites-widget-content');
                 if (!container) return;
 
-                const favorites = this.getAll();
+                const favorites = await this.getAll();
                 const count = document.getElementById('favorites-count');
                 if (count) count.textContent = favorites.length;
 
                 if (favorites.length === 0) {
                     container.innerHTML = `
-                        <div style="text-align: center; padding: 20px; color: #94a3b8;">
-                            <div style="font-size: 24px; margin-bottom: 8px;">⭐</div>
+                        <div style="text-align: center; padding: 20px; color: #94a3b8; width: 100%;">
+                            <div style="font-size: 24px; margin-bottom: 8px;">🔔</div>
                             <div style="font-size: 11px;">Sem favoritos</div>
-                            <div style="font-size: 10px; color: #cbd5e1; margin-top: 4px;">Clique no ⭐ nos eventos para adicionar</div>
+                            <div style="font-size: 10px; color: #cbd5e1; margin-top: 4px;">Clique no 🔔 nos eventos para adicionar aos favoritos</div>
                         </div>
                     `;
                     return;
                 }
 
-                // Get updated data for favorites
-                const refs = favorites.map(f => f.reference);
+                // Get event references from favorites (notification rules)
+                const refs = favorites.map(f => f.event_reference);
                 let eventsData = {};
 
                 try {
-                    const response = await fetch(`${API_BASE}/api/events?limit=100&active_only=false`);
+                    const response = await fetch(`${API_BASE}/api/events?limit=500&active_only=false`);
                     const data = await response.json();
                     if (data.events) {
                         data.events.forEach(e => {
@@ -4678,46 +4712,51 @@
                     console.error('Error fetching favorites data:', err);
                 }
 
-                container.innerHTML = favorites.slice(0, 5).map(fav => {
-                    const event = eventsData[fav.reference] || fav;
+                // Build carousel cards similar to "Novos Eventos"
+                container.innerHTML = favorites.map(fav => {
+                    const event = eventsData[fav.event_reference];
+                    if (!event) {
+                        // Event not found in DB, show minimal card
+                        return `
+                            <div style="min-width: 180px; max-width: 180px; background: #f8fafc; border-radius: 8px; padding: 12px; border: 1px solid #e2e8f0;">
+                                <div style="font-size: 11px; font-weight: 600; color: #1e293b;">${fav.event_reference}</div>
+                                <div style="font-size: 10px; color: #94a3b8; margin-top: 4px;">Dados não disponíveis</div>
+                                <button onclick="event.stopPropagation(); FAVORITES.remove('${fav.event_reference}');" style="margin-top: 8px; background: #fee2e2; border: none; border-radius: 4px; padding: 4px 8px; font-size: 10px; color: #dc2626; cursor: pointer;">Remover</button>
+                            </div>
+                        `;
+                    }
+
                     const tipoEmoji = {1: '🏠', 2: '🚗', 3: '🔧', 4: '🪑', 5: '⚙️', 6: '📜'}[event.tipo_id] || '📦';
                     const lance = event.lance_atual ? `€${Number(event.lance_atual).toLocaleString('pt-PT')}` : '-';
                     const dataFim = event.data_fim ? getTimeLeftShort(new Date(event.data_fim)) : '-';
                     const isActive = event.ativo !== false && !event.terminado;
+                    const capa = event.capa || '';
+                    const titulo = event.titulo || event.reference;
 
                     return `
-                        <div style="display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 6px; background: ${isActive ? '#f8fafc' : '#fef2f2'}; transition: all 0.2s; cursor: pointer;" onclick="openEventModal('${fav.reference}')" onmouseover="this.style.background='${isActive ? '#f1f5f9' : '#fee2e2'}'" onmouseout="this.style.background='${isActive ? '#f8fafc' : '#fef2f2'}'">
-                            <span style="font-size: 14px;">${tipoEmoji}</span>
-                            <div style="flex: 1; min-width: 0;">
-                                <div style="font-size: 11px; font-weight: 600; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${fav.reference}</div>
-                                <div style="font-size: 10px; color: #64748b;">${lance}</div>
+                        <div style="min-width: 200px; max-width: 200px; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid ${isActive ? '#e2e8f0' : '#fecaca'}; cursor: pointer; transition: all 0.2s;" onclick="openEventModal('${event.reference}')" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)'" onmouseout="this.style.transform='none'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.1)'">
+                            <div style="height: 100px; background: ${capa ? `url('${capa}') center/cover` : 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)'}; position: relative;">
+                                <div style="position: absolute; top: 6px; left: 6px; background: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; display: flex; align-items: center; gap: 4px;">
+                                    ${tipoEmoji} ${event.reference}
+                                </div>
+                                <div style="position: absolute; top: 6px; right: 6px; background: ${isActive ? '#3b82f6' : '#ef4444'}; color: white; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 600;">
+                                    ${isActive ? dataFim : 'Terminado'}
+                                </div>
+                                <button onclick="event.stopPropagation(); FAVORITES.remove('${event.reference}');" style="position: absolute; bottom: 6px; right: 6px; background: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.2);" title="Remover dos favoritos">🔔</button>
                             </div>
-                            <div style="text-align: right;">
-                                <div style="font-size: 10px; font-weight: 500; color: ${isActive ? '#3b82f6' : '#ef4444'};">${isActive ? dataFim : 'Terminado'}</div>
+                            <div style="padding: 8px;">
+                                <div style="font-size: 10px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${titulo.substring(0, 40)}${titulo.length > 40 ? '...' : ''}</div>
+                                <div style="font-size: 13px; font-weight: 700; color: #1e293b; margin-top: 4px;">${lance}</div>
                             </div>
-                            <button onclick="event.stopPropagation(); FAVORITES.remove('${fav.reference}'); this.closest('div').remove();" style="background: none; border: none; cursor: pointer; color: #f59e0b; font-size: 14px; padding: 2px;" title="Remover dos favoritos">⭐</button>
                         </div>
                     `;
                 }).join('');
-
-                if (favorites.length > 5) {
-                    container.innerHTML += `<div style="text-align: center; font-size: 10px; color: #64748b; margin-top: 4px;">+${favorites.length - 5} mais</div>`;
-                }
             }
         };
 
-        function toggleFavorite(reference, eventData = {}) {
-            FAVORITES.toggle(reference, eventData);
-            // Update star icons with animation
-            document.querySelectorAll(`[data-favorite-ref="${reference}"]`).forEach(el => {
-                const isFav = FAVORITES.isFavorite(reference);
-                el.textContent = isFav ? '⭐' : '☆';
-                el.style.color = isFav ? '#f59e0b' : '#cbd5e1';
-                el.title = isFav ? 'Remover dos favoritos' : 'Adicionar aos favoritos';
-                // Add pop animation
-                el.classList.add('star-pop');
-                setTimeout(() => el.classList.remove('star-pop'), 300);
-            });
+        async function toggleFavorite(reference, eventData = {}) {
+            await FAVORITES.toggle(reference, eventData);
+            // Icons are updated by updateNotificationIcons() called in FAVORITES.add/remove
         }
 
         // ============== PRICE CHANGE CHECKER ==============
@@ -5911,7 +5950,8 @@
                 loadEndingSoonWidget(),
                 loadRecentBidsWidget(),
                 loadDistrictBreakdownWidget(),
-                loadNewEventsBanner()
+                loadNewEventsBanner(),
+                FAVORITES.updateWidget()
             ]);
         }
 
