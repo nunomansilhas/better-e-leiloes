@@ -4598,24 +4598,38 @@
             _cacheTime: 0,
             _cacheTTL: 60000, // 60 seconds (WebSocket handles real-time updates)
             _allRulesCache: [], // Cache for all rules (used by updateNotificationIcons)
+            _pendingRequest: null, // Prevent duplicate simultaneous requests
 
             async getAll() {
                 // Use cache if fresh
                 if (Date.now() - this._cacheTime < this._cacheTTL && this._cache.length > 0) {
                     return this._cache;
                 }
-                try {
-                    const response = await fetch(`${API_BASE}/api/notification-rules`);
-                    const rules = await response.json();
-                    this._allRulesCache = Array.isArray(rules) ? rules : [];
-                    // Filter only event-specific rules (favorites)
-                    this._cache = this._allRulesCache.filter(r => r.event_reference && r.active);
-                    this._cacheTime = Date.now();
+
+                // If request already in-flight, wait for it
+                if (this._pendingRequest) {
+                    await this._pendingRequest;
                     return this._cache;
-                } catch (err) {
-                    console.error('Error fetching favorites:', err);
-                    return [];
                 }
+
+                // Make request and store promise
+                this._pendingRequest = (async () => {
+                    try {
+                        const response = await fetch(`${API_BASE}/api/notification-rules`);
+                        const rules = await response.json();
+                        this._allRulesCache = Array.isArray(rules) ? rules : [];
+                        // Filter only event-specific rules (favorites)
+                        this._cache = this._allRulesCache.filter(r => r.event_reference && r.active);
+                        this._cacheTime = Date.now();
+                    } catch (err) {
+                        console.error('Error fetching favorites:', err);
+                    } finally {
+                        this._pendingRequest = null;
+                    }
+                })();
+
+                await this._pendingRequest;
+                return this._cache;
             },
 
             // Get all rules (including non-event-specific) from cache
@@ -9595,8 +9609,10 @@
             if (!tbody) return;
 
             try {
-                const response = await fetch(`${API_BASE}/api/notification-rules`);
-                const rules = await response.json();
+                // Force refresh for Alertas page (user explicitly navigated here)
+                FAVORITES._cacheTime = 0;
+                await FAVORITES.getAll();
+                const rules = FAVORITES._allRulesCache;
 
                 // Update count
                 const activeRules = rules.filter(r => r.active).length;
@@ -10126,17 +10142,11 @@
                     dashUnreadEl.textContent = countData.unread || 0;
                 }
 
-                // Only fetch rules count if cache expired AND dashboard is visible
+                // Only update rules count if dashboard is visible (use FAVORITES cache)
                 const dashRulesEl = document.getElementById('dash-rules-count');
                 if (dashRulesEl && dashRulesEl.offsetParent !== null) {
-                    const now = Date.now();
-                    if (now - _rulesCountCache.timestamp > RULES_COUNT_CACHE_TTL) {
-                        const rulesResponse = await fetch(`${API_BASE}/api/notification-rules`);
-                        const rules = await rulesResponse.json();
-                        _rulesCountCache.count = rules.filter(r => r.active).length;
-                        _rulesCountCache.timestamp = now;
-                    }
-                    dashRulesEl.textContent = _rulesCountCache.count;
+                    const rules = await FAVORITES.getAllRules();
+                    dashRulesEl.textContent = rules.filter(r => r.active).length;
                 }
             } catch (error) {
                 console.error('Erro ao atualizar badge:', error);
@@ -10373,12 +10383,8 @@
 
         async function loadQuickNotificationStates() {
             try {
-                const response = await fetch(`${API_BASE}/api/notification-rules`);
-                if (!response.ok) {
-                    console.error('Failed to load notification rules:', response.status);
-                    return;
-                }
-                const rules = await response.json();
+                // Use FAVORITES cache to avoid duplicate requests
+                const rules = await FAVORITES.getAllRules();
                 console.log('Loaded notification rules:', rules);
 
                 // Find the single "Quick Notifications" rule
