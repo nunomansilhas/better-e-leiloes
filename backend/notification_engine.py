@@ -19,8 +19,8 @@ class NotificationEngine:
     Motor de notificações que avalia eventos contra regras configuradas
     """
 
-    # Cache TTL in seconds (5 minutes)
-    CACHE_TTL = 300
+    # Cache TTL in seconds (30 seconds - reduced for faster rule updates)
+    CACHE_TTL = 30
 
     def __init__(self):
         self._rules_cache: Dict[str, List[dict]] = {}
