@@ -9824,9 +9824,8 @@
         function connectNotificationWebSocket() {
             // Determine WebSocket URL based on current location
             const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            // Connect to backend WebSocket (port 8080 or from BACKEND_URL)
-            const backendHost = window.BACKEND_URL ? new URL(window.BACKEND_URL).host : window.location.hostname + ':8080';
-            const wsUrl = `${wsProtocol}//${backendHost}/ws/notifications`;
+            // Connect to same origin WebSocket (public-api serves both HTTP and WebSocket)
+            const wsUrl = `${wsProtocol}//${window.location.host}/ws/notifications`;
 
             console.log(`🔌 Connecting to WebSocket: ${wsUrl}`);
 

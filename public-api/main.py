@@ -5,7 +5,8 @@ Connects to remote MySQL database
 """
 
 import json
-from fastapi import FastAPI, Query, HTTPException
+import asyncio
+from fastapi import FastAPI, Query, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -20,6 +21,62 @@ load_dotenv()
 
 from database import get_session, EventDB, PriceHistoryDB, PipelineStateDB, RefreshLogDB, NotificationRuleDB, NotificationDB, init_db
 from sqlalchemy import select, func, desc, and_, or_
+
+
+# ============ WebSocket Manager ============
+
+class NotificationWebSocketManager:
+    """Manages WebSocket connections for real-time notifications"""
+
+    def __init__(self):
+        self.active_connections: List[WebSocket] = []
+        self._lock = asyncio.Lock()
+        self._last_notification_id = 0
+
+    async def connect(self, websocket: WebSocket):
+        """Accept and register a new WebSocket connection"""
+        await websocket.accept()
+        async with self._lock:
+            self.active_connections.append(websocket)
+        print(f"🔌 WebSocket connected. Total connections: {len(self.active_connections)}")
+
+    async def disconnect(self, websocket: WebSocket):
+        """Remove a WebSocket connection"""
+        async with self._lock:
+            if websocket in self.active_connections:
+                self.active_connections.remove(websocket)
+        print(f"🔌 WebSocket disconnected. Total connections: {len(self.active_connections)}")
+
+    async def broadcast(self, message: dict):
+        """Broadcast a message to all connected clients"""
+        if not self.active_connections:
+            return
+
+        message_json = json.dumps(message)
+        dead_connections = []
+
+        async with self._lock:
+            for connection in self.active_connections:
+                try:
+                    await connection.send_text(message_json)
+                except Exception as e:
+                    print(f"❌ WebSocket send error: {e}")
+                    dead_connections.append(connection)
+
+            for dead in dead_connections:
+                if dead in self.active_connections:
+                    self.active_connections.remove(dead)
+
+        if dead_connections:
+            print(f"🧹 Cleaned {len(dead_connections)} dead WebSocket connections")
+
+    @property
+    def connection_count(self) -> int:
+        return len(self.active_connections)
+
+
+# Global WebSocket manager instance
+ws_manager = NotificationWebSocketManager()
 
 
 # ============ Pydantic Models ============
@@ -139,11 +196,89 @@ class NotificationResponse(BaseModel):
 
 # ============ App Setup ============
 
+async def poll_notifications():
+    """Background task to poll for new notifications and broadcast via WebSocket"""
+    global ws_manager
+    last_id = 0
+
+    # Get initial last notification ID
+    try:
+        async with get_session() as session:
+            result = await session.scalar(
+                select(func.max(NotificationDB.id))
+            )
+            last_id = result or 0
+            ws_manager._last_notification_id = last_id
+    except Exception as e:
+        print(f"⚠️ Error getting initial notification ID: {e}")
+
+    while True:
+        try:
+            await asyncio.sleep(2)  # Poll every 2 seconds
+
+            if ws_manager.connection_count == 0:
+                continue  # No clients connected, skip polling
+
+            async with get_session() as session:
+                # Get new notifications since last check
+                result = await session.execute(
+                    select(NotificationDB)
+                    .where(NotificationDB.id > ws_manager._last_notification_id)
+                    .order_by(NotificationDB.id)
+                    .limit(10)
+                )
+                new_notifications = result.scalars().all()
+
+                for n in new_notifications:
+                    # Broadcast each new notification
+                    await ws_manager.broadcast({
+                        "type": "notification",
+                        "data": {
+                            "id": n.id,
+                            "notification_type": n.notification_type,
+                            "event_reference": n.event_reference,
+                            "event_titulo": n.event_titulo,
+                            "event_tipo": n.event_tipo,
+                            "event_distrito": n.event_distrito,
+                            "preco_anterior": n.preco_anterior,
+                            "preco_atual": n.preco_atual,
+                            "preco_variacao": (n.preco_atual - n.preco_anterior) if n.preco_atual and n.preco_anterior else None
+                        },
+                        "timestamp": datetime.utcnow().isoformat()
+                    })
+                    ws_manager._last_notification_id = n.id
+                    print(f"📢 Broadcasted notification {n.id} to {ws_manager.connection_count} clients")
+
+        except asyncio.CancelledError:
+            print("🛑 Notification polling task cancelled")
+            break
+        except Exception as e:
+            print(f"⚠️ Notification polling error: {e}")
+            await asyncio.sleep(5)  # Wait longer on error
+
+
+_poll_task = None
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    global _poll_task
     await init_db()
     print("✅ Connected to database")
+
+    # Start notification polling background task
+    _poll_task = asyncio.create_task(poll_notifications())
+    print("🔔 Started notification polling task")
+
     yield
+
+    # Stop polling task on shutdown
+    if _poll_task:
+        _poll_task.cancel()
+        try:
+            await _poll_task
+        except asyncio.CancelledError:
+            pass
+    print("🛑 Stopped notification polling task")
 
 
 app = FastAPI(
@@ -1023,6 +1158,24 @@ async def auto_pipelines_status():
             "pipelines": {},
             "xmonitor_stats": {"total": 0, "critical": 0, "urgent": 0, "soon": 0}
         }
+
+
+# ============ WebSocket Endpoint ============
+
+@app.websocket("/ws/notifications")
+async def websocket_notifications(websocket: WebSocket):
+    """WebSocket endpoint for real-time notifications"""
+    await ws_manager.connect(websocket)
+    try:
+        while True:
+            data = await websocket.receive_text()
+            if data == "ping":
+                await websocket.send_text("pong")
+    except WebSocketDisconnect:
+        await ws_manager.disconnect(websocket)
+    except Exception as e:
+        print(f"⚠️ WebSocket error: {e}")
+        await ws_manager.disconnect(websocket)
 
 
 # ============ Notifications System ============
