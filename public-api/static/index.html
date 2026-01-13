@@ -907,6 +907,11 @@
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
         }
 
+        .quick-access-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+        }
+
         .stats-card-view-btn {
             position: absolute;
             top: 8px;
@@ -3425,65 +3430,55 @@
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Quick Access Cards -->
-            <div id="dashboard-content" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 16px;">
-                <!-- Scraping & Sync Quick Access -->
-                <div style="background: white; border-radius: 10px; padding: 12px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); display: flex; align-items: center; justify-content: space-between;">
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <div style="width: 36px; height: 36px; background: linear-gradient(135deg, #3b82f6, #2563eb); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
-                            <span style="font-size: 18px;">🔄</span>
+                <!-- Scraping & Sync - Compact -->
+                <div class="quick-access-card" style="background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); border-radius: 10px; padding: 8px 12px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06); border: 1px solid rgba(255, 255, 255, 0.5); display: flex; flex-direction: column; gap: 6px; min-width: 180px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div style="width: 24px; height: 24px; background: linear-gradient(135deg, #3b82f6, #2563eb); border-radius: 6px; display: flex; align-items: center; justify-content: center;">
+                            <span style="font-size: 12px;">🔄</span>
                         </div>
-                        <div>
-                            <div style="font-weight: 600; color: #1e293b; font-size: 13px;">Scraping & Sync</div>
-                            <div style="font-size: 11px; color: #64748b;">Pipelines automáticas</div>
-                        </div>
+                        <div style="font-weight: 600; color: #1e293b; font-size: 11px;">Scraping & Sync</div>
                     </div>
-                    <div style="display: flex; gap: 6px; align-items: center;">
-                        <div style="display: flex; gap: 4px; font-size: 9px; margin-right: 4px;">
-                            <span title="Crítico < 5min">🔴 <span id="x-critical">0</span></span>
-                            <span title="Urgente < 1h">🟠 <span id="x-urgent">0</span></span>
-                            <span title="Em breve < 24h">🟡 <span id="x-soon">0</span></span>
+                    <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
+                        <div style="display: flex; gap: 3px; font-size: 8px;">
+                            <span title="Crítico < 5min">🔴<span id="x-critical">0</span></span>
+                            <span title="Urgente < 1h">🟠<span id="x-urgent">0</span></span>
+                            <span title="Em breve < 24h">🟡<span id="x-soon">0</span></span>
                         </div>
-                        <div id="card-xmonitor" style="padding: 4px 8px; background: #f8fafc; border-radius: 4px; text-align: center;">
-                            <div style="font-size: 9px; color: #64748b;">X-Mon</div>
-                            <div id="timer-xmonitor" style="font-size: 10px; font-weight: 600; color: #dc2626;">--:--</div>
-                        </div>
-                        <div id="card-ysync" style="padding: 4px 8px; background: #f8fafc; border-radius: 4px; text-align: center;">
-                            <div style="font-size: 9px; color: #64748b;">Y-Sync</div>
-                            <div id="timer-ysync" style="font-size: 10px; font-weight: 600; color: #1e40af;">--:--</div>
-                        </div>
-                        <div id="card-zwatch" style="padding: 4px 8px; background: #f8fafc; border-radius: 4px; text-align: center;">
-                            <div style="font-size: 9px; color: #64748b;">Z-Watch</div>
-                            <div id="timer-zwatch" style="font-size: 10px; font-weight: 600; color: #059669;">--:--</div>
+                        <div style="display: flex; gap: 3px;">
+                            <div id="card-xmonitor" style="padding: 2px 4px; background: #f8fafc; border-radius: 3px; text-align: center;">
+                                <div style="font-size: 7px; color: #64748b;">X</div>
+                                <div id="timer-xmonitor" style="font-size: 8px; font-weight: 600; color: #dc2626;">--:--</div>
+                            </div>
+                            <div id="card-ysync" style="padding: 2px 4px; background: #f8fafc; border-radius: 3px; text-align: center;">
+                                <div style="font-size: 7px; color: #64748b;">Y</div>
+                                <div id="timer-ysync" style="font-size: 8px; font-weight: 600; color: #1e40af;">--:--</div>
+                            </div>
+                            <div id="card-zwatch" style="padding: 2px 4px; background: #f8fafc; border-radius: 3px; text-align: center;">
+                                <div style="font-size: 7px; color: #64748b;">Z</div>
+                                <div id="timer-zwatch" style="font-size: 8px; font-weight: 600; color: #059669;">--:--</div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Notificações Quick Access -->
-                <div style="background: white; border-radius: 10px; padding: 12px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); display: flex; align-items: center; justify-content: space-between;">
-                    <div style="display: flex; align-items: center; gap: 10px; flex: 1;">
-                        <div style="width: 36px; height: 36px; background: linear-gradient(135deg, #f59e0b, #d97706); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
-                            <span style="font-size: 18px;">🔔</span>
+                <!-- Notificações - Compact -->
+                <div class="quick-access-card" onclick="showPage('alertas')" style="background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); border-radius: 10px; padding: 8px 12px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06); border: 1px solid rgba(255, 255, 255, 0.5); display: flex; flex-direction: column; gap: 4px; min-width: 120px; cursor: pointer; transition: all 0.2s;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div style="width: 24px; height: 24px; background: linear-gradient(135deg, #f59e0b, #d97706); border-radius: 6px; display: flex; align-items: center; justify-content: center;">
+                            <span style="font-size: 12px;">🔔</span>
                         </div>
-                        <div>
-                            <div style="font-weight: 600; color: #1e293b; font-size: 13px;">Notificações</div>
-                            <div style="font-size: 11px; color: #64748b;"><span id="dash-unread-count" style="font-weight: 600; color: #f59e0b;">0</span> por ler · <span id="dash-rules-count" style="color: #64748b;">0</span> regras</div>
-                        </div>
+                        <div style="font-weight: 600; color: #1e293b; font-size: 11px;">Alertas</div>
                     </div>
-                    <button onclick="showPage('alertas')" style="padding: 6px 8px; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer; color: #64748b; transition: all 0.2s;" onmouseover="this.style.background='#fef3c7'" onmouseout="this.style.background='#f1f5f9'" title="Ver notificações">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="16" height="16">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                        </svg>
-                    </button>
+                    <div style="display: flex; gap: 8px; font-size: 10px; color: #64748b;">
+                        <span><span id="dash-unread-count" style="font-weight: 600; color: #f59e0b;">0</span> novas</span>
+                        <span><span id="dash-rules-count">0</span> regras</span>
+                    </div>
                 </div>
-
             </div>
 
             <!-- Dashboard Grid: 2 columns -->
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 12px;">
 
                 <!-- Leilões a Terminar em Breve -->
                 <div style="background: white; border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
