@@ -214,6 +214,47 @@ class NotificationDB(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
 
 
+class FavoriteDB(Base):
+    """
+    Favorites - user's watched events with notification preferences
+    """
+    __tablename__ = "favorites"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    event_reference: Mapped[str] = mapped_column(String(50), nullable=False, unique=True, index=True)
+
+    # Cached event info (for quick display without joins)
+    event_titulo: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    event_tipo: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    event_subtipo: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    event_distrito: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    event_data_fim: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+    # Price tracking
+    price_when_added: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    last_known_price: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    price_min_seen: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    price_max_seen: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+
+    # Notification preferences for this favorite
+    notify_price_change: Mapped[bool] = mapped_column(Boolean, default=True)
+    notify_ending_soon: Mapped[bool] = mapped_column(Boolean, default=True)
+    notify_ending_minutes: Mapped[int] = mapped_column(Integer, default=30)  # Alert X minutes before end
+    notify_price_threshold: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # Only alert if change > X%
+
+    # Stats
+    price_changes_count: Mapped[int] = mapped_column(Integer, default=0)
+    notifications_sent: Mapped[int] = mapped_column(Integer, default=0)
+
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    last_notified_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+    # Notes (user can add notes about why they're watching this)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+
 @asynccontextmanager
 async def get_session():
     """Get async database session"""

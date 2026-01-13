@@ -2717,15 +2717,25 @@
             height: 14px;
         }
 
-        .card-notify-btn.active {
-            background: #3b82f6;
-            border-color: #3b82f6;
-            color: white;
+        .card-favorite-btn {
+            transition: all 0.2s;
         }
 
-        .card-notify-btn.active:hover {
-            background: #2563eb;
-            border-color: #2563eb;
+        .card-favorite-btn:hover {
+            background: #fef3c7 !important;
+            border-color: #f59e0b !important;
+            color: #f59e0b !important;
+        }
+
+        .card-favorite-btn.is-favorite {
+            background: #fef3c7;
+            border-color: #f59e0b;
+            color: #f59e0b;
+        }
+
+        .card-favorite-btn.is-favorite:hover {
+            background: #fde68a !important;
+            border-color: #d97706 !important;
         }
 
         .event-section:last-child {
@@ -3402,6 +3412,13 @@
                     <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
                 </svg>
                 <span>Eventos</span>
+            </div>
+            <div class="nav-item" onclick="showPage('favoritos')" data-page="favoritos">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/>
+                </svg>
+                <span>Favoritos</span>
+                <span class="nav-badge" id="nav-favorites-badge" style="display: none;">0</span>
             </div>
 
             <div class="nav-divider"></div>
@@ -4408,6 +4425,82 @@
                         </tbody>
                     </table>
                 </div>
+            </div>
+        </div>
+
+        <!-- ========== FAVORITOS PAGE ========== -->
+        <div id="favoritos" class="page">
+            <div class="page-header" style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div>
+                    <h2>Favoritos</h2>
+                    <p>Eventos que está a acompanhar</p>
+                </div>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <span style="font-size: 13px; color: #64748b;" id="favoritos-total-count">0</span>
+                    <span style="font-size: 12px; color: #94a3b8;">eventos</span>
+                </div>
+            </div>
+
+            <!-- Stats Cards -->
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px;">
+                <div class="stats-card">
+                    <div class="stats-card-value" id="fav-stat-total">0</div>
+                    <div class="stats-card-label">Total Favoritos</div>
+                </div>
+                <div class="stats-card">
+                    <div class="stats-card-value" id="fav-stat-active">0</div>
+                    <div class="stats-card-label">Leilões Ativos</div>
+                </div>
+                <div class="stats-card">
+                    <div class="stats-card-value" id="fav-stat-ending">0</div>
+                    <div class="stats-card-label">A Terminar Hoje</div>
+                </div>
+                <div class="stats-card">
+                    <div class="stats-card-value" id="fav-stat-changes">0</div>
+                    <div class="stats-card-label">Alterações Preço</div>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <div style="display: flex; gap: 8px;">
+                    <select id="fav-filter-status" onchange="loadFavoritosPage()" style="padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 12px; background: white;">
+                        <option value="">Todos os estados</option>
+                        <option value="active">Ativos</option>
+                        <option value="ending">A terminar</option>
+                        <option value="ended">Terminados</option>
+                    </select>
+                    <select id="fav-filter-sort" onchange="loadFavoritosPage()" style="padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 12px; background: white;">
+                        <option value="created_desc">Mais recentes</option>
+                        <option value="created_asc">Mais antigos</option>
+                        <option value="ending_soon">A terminar primeiro</option>
+                        <option value="price_asc">Preço: menor</option>
+                        <option value="price_desc">Preço: maior</option>
+                    </select>
+                </div>
+                <button onclick="checkFavoritesPrices()" style="padding: 8px 16px; background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; font-size: 12px; color: #166534; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="14" height="14">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    </svg>
+                    Atualizar Preços
+                </button>
+            </div>
+
+            <!-- Favorites List -->
+            <div id="favoritos-list" style="display: flex; flex-direction: column; gap: 12px;">
+                <div class="loading"><div class="loading-spinner"></div><div class="loading-text">A carregar favoritos...</div></div>
+            </div>
+
+            <!-- Empty State -->
+            <div id="favoritos-empty" style="display: none; text-align: center; padding: 60px 20px;">
+                <svg fill="none" stroke="#94a3b8" stroke-width="1.5" viewBox="0 0 24 24" width="64" height="64" style="margin: 0 auto 16px;">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/>
+                </svg>
+                <h3 style="color: #64748b; font-weight: 500; margin-bottom: 8px;">Sem favoritos</h3>
+                <p style="color: #94a3b8; font-size: 13px; margin-bottom: 16px;">Adicione eventos aos favoritos clicando na estrela</p>
+                <button onclick="showPage('eventos')" class="btn-primary" style="padding: 10px 20px; font-size: 13px;">
+                    Explorar Eventos
+                </button>
             </div>
         </div>
 
@@ -7753,8 +7846,8 @@
 
                 updatePagination(type);
 
-                // Update notification button states
-                updateNotifyButtonStates();
+                // Update favorite star button states
+                updateFavoriteStars();
 
             } catch (error) {
                 console.error('Erro ao carregar eventos:', error);
@@ -7989,9 +8082,9 @@
                             <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
                         </svg>
                     </button>
-                    <button class="card-action-btn card-notify-btn" id="notify-event-${event.reference}" onclick="toggleEventNotification('${event.reference}', '${(event.titulo || '').replace(/'/g, "\\'")}', '${event.tipoEvento}')" title="Notificar alterações">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                    <button class="card-action-btn card-favorite-btn" id="fav-event-${event.reference}" onclick="toggleFavoriteFromCard('${event.reference}', this)" title="Adicionar aos favoritos" data-event='${JSON.stringify({titulo: event.titulo, tipo: event.detalhes?.tipo, subtipo: event.detalhes?.subtipo, distrito: event.localizacao?.distrito, data_fim: event.dataFim, lance_atual: event.valores?.lanceAtual, valor_base: event.valores?.valorBase}).replace(/'/g, "&apos;")}'>
+                        <svg class="star-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/>
                         </svg>
                     </button>
                 </div>
@@ -10525,12 +10618,463 @@
             }
         }
 
-        // Load alertas when page changes to 'alertas'
+        // ============ FAVORITOS FUNCTIONS ============
+
+        // Cache for favorites
+        const FAVORITES_CACHE = {
+            data: [],
+            cacheTime: 0,
+            cacheDuration: 30000 // 30 seconds
+        };
+
+        // Load favorites page
+        async function loadFavoritosPage() {
+            const listEl = document.getElementById('favoritos-list');
+            const emptyEl = document.getElementById('favoritos-empty');
+
+            if (!listEl) return;
+
+            listEl.innerHTML = '<div class="loading"><div class="loading-spinner"></div><div class="loading-text">A carregar favoritos...</div></div>';
+            emptyEl.style.display = 'none';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/favorites`);
+                const favorites = await response.json();
+
+                FAVORITES_CACHE.data = favorites;
+                FAVORITES_CACHE.cacheTime = Date.now();
+
+                // Update stats
+                updateFavoritosStats(favorites);
+
+                // Update badge
+                updateFavoritesBadge(favorites.length);
+
+                if (favorites.length === 0) {
+                    listEl.innerHTML = '';
+                    emptyEl.style.display = 'block';
+                    return;
+                }
+
+                // Apply filters and sort
+                let filtered = [...favorites];
+                const statusFilter = document.getElementById('fav-filter-status')?.value;
+                const sortFilter = document.getElementById('fav-filter-sort')?.value || 'created_desc';
+
+                const now = new Date();
+                if (statusFilter === 'active') {
+                    filtered = filtered.filter(f => f.event && f.event.data_fim && new Date(f.event.data_fim) > now && !f.event.terminado);
+                } else if (statusFilter === 'ending') {
+                    const todayEnd = new Date(now);
+                    todayEnd.setHours(23, 59, 59, 999);
+                    filtered = filtered.filter(f => f.event && f.event.data_fim && new Date(f.event.data_fim) <= todayEnd && new Date(f.event.data_fim) > now);
+                } else if (statusFilter === 'ended') {
+                    filtered = filtered.filter(f => !f.event || f.event.terminado || (f.event.data_fim && new Date(f.event.data_fim) <= now));
+                }
+
+                // Sort
+                if (sortFilter === 'created_desc') {
+                    filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                } else if (sortFilter === 'created_asc') {
+                    filtered.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+                } else if (sortFilter === 'ending_soon') {
+                    filtered.sort((a, b) => {
+                        const aEnd = a.event?.data_fim ? new Date(a.event.data_fim) : new Date('2999-12-31');
+                        const bEnd = b.event?.data_fim ? new Date(b.event.data_fim) : new Date('2999-12-31');
+                        return aEnd - bEnd;
+                    });
+                } else if (sortFilter === 'price_asc') {
+                    filtered.sort((a, b) => (a.last_known_price || 0) - (b.last_known_price || 0));
+                } else if (sortFilter === 'price_desc') {
+                    filtered.sort((a, b) => (b.last_known_price || 0) - (a.last_known_price || 0));
+                }
+
+                listEl.innerHTML = filtered.map(fav => renderFavoriteCard(fav)).join('');
+                emptyEl.style.display = 'none';
+
+            } catch (error) {
+                console.error('Erro ao carregar favoritos:', error);
+                listEl.innerHTML = '<div style="text-align: center; padding: 40px; color: #ef4444;">Erro ao carregar favoritos</div>';
+            }
+        }
+
+        // Render a single favorite card
+        function renderFavoriteCard(fav) {
+            const event = fav.event || {};
+            const now = new Date();
+            const endDate = event.data_fim ? new Date(event.data_fim) : null;
+            const isEnded = event.terminado || (endDate && endDate <= now);
+            const isEndingSoon = endDate && !isEnded && (endDate - now) < 24 * 60 * 60 * 1000;
+
+            // Price change calculation
+            const priceAdded = fav.price_when_added || 0;
+            const priceCurrent = fav.last_known_price || event.lance_atual || 0;
+            const priceChange = priceCurrent - priceAdded;
+            const priceChangePercent = priceAdded > 0 ? ((priceChange / priceAdded) * 100) : 0;
+            const hasChange = Math.abs(priceChange) > 0.01;
+
+            // Status badge
+            let statusBadge = '';
+            if (isEnded) {
+                statusBadge = '<span style="padding: 3px 8px; background: #f1f5f9; color: #64748b; border-radius: 6px; font-size: 10px; font-weight: 500;">Terminado</span>';
+            } else if (isEndingSoon) {
+                statusBadge = '<span style="padding: 3px 8px; background: #fef3c7; color: #92400e; border-radius: 6px; font-size: 10px; font-weight: 500;">A terminar</span>';
+            } else {
+                statusBadge = '<span style="padding: 3px 8px; background: #dcfce7; color: #166534; border-radius: 6px; font-size: 10px; font-weight: 500;">Ativo</span>';
+            }
+
+            // Time remaining
+            let timeRemaining = '';
+            if (endDate && !isEnded) {
+                const diff = endDate - now;
+                const days = Math.floor(diff / (24 * 60 * 60 * 1000));
+                const hours = Math.floor((diff % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+                const mins = Math.floor((diff % (60 * 60 * 1000)) / (60 * 1000));
+                if (days > 0) {
+                    timeRemaining = `${days}d ${hours}h`;
+                } else if (hours > 0) {
+                    timeRemaining = `${hours}h ${mins}m`;
+                } else {
+                    timeRemaining = `${mins}m`;
+                }
+            }
+
+            return `
+                <div class="favorite-card" style="background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; display: flex; gap: 16px; transition: all 0.2s; ${isEnded ? 'opacity: 0.7;' : ''}" onmouseover="this.style.borderColor='#3b82f6'" onmouseout="this.style.borderColor='#e2e8f0'">
+                    <!-- Event Image -->
+                    <div style="width: 100px; height: 80px; border-radius: 8px; overflow: hidden; flex-shrink: 0; background: #f1f5f9;">
+                        ${event.capa ? `<img src="${event.capa}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.parentElement.innerHTML='<div style=\\'width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:10px;\\'>Sem imagem</div>'">` : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:10px;">Sem imagem</div>'}
+                    </div>
+
+                    <!-- Event Info -->
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                ${statusBadge}
+                                <span style="font-size: 10px; color: #94a3b8;">${fav.event_reference}</span>
+                            </div>
+                            <button onclick="removeFavorite('${fav.event_reference}')" style="padding: 4px 8px; background: none; border: none; cursor: pointer; color: #94a3b8; transition: color 0.2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#94a3b8'" title="Remover">
+                                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="16" height="16">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                                </svg>
+                            </button>
+                        </div>
+
+                        <h4 style="font-size: 13px; font-weight: 600; color: #1e293b; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;" onclick="showEventModal('${fav.event_reference}')" title="${event.titulo || 'Sem título'}">
+                            ${event.titulo || fav.event_titulo || 'Evento não encontrado'}
+                        </h4>
+
+                        <div style="display: flex; gap: 12px; font-size: 11px; color: #64748b; margin-bottom: 8px;">
+                            <span>${event.tipo || fav.event_tipo || '—'}</span>
+                            <span>·</span>
+                            <span>${event.distrito || fav.event_distrito || '—'}</span>
+                            ${timeRemaining ? `<span>·</span><span style="color: ${isEndingSoon ? '#f59e0b' : '#64748b'};">${timeRemaining}</span>` : ''}
+                        </div>
+
+                        <!-- Price Section -->
+                        <div style="display: flex; align-items: center; gap: 16px;">
+                            <div>
+                                <div style="font-size: 16px; font-weight: 700; color: #1e293b;">€${priceCurrent.toLocaleString('pt-PT', {minimumFractionDigits: 2})}</div>
+                                ${hasChange ? `
+                                    <div style="font-size: 10px; color: ${priceChange > 0 ? '#ef4444' : '#22c55e'};">
+                                        ${priceChange > 0 ? '+' : ''}€${priceChange.toLocaleString('pt-PT', {minimumFractionDigits: 2})} (${priceChangePercent > 0 ? '+' : ''}${priceChangePercent.toFixed(1)}%)
+                                    </div>
+                                ` : '<div style="font-size: 10px; color: #94a3b8;">Sem alteração</div>'}
+                            </div>
+
+                            <!-- Notification Settings -->
+                            <div style="margin-left: auto; display: flex; gap: 4px;">
+                                <button onclick="toggleFavoriteNotify('${fav.event_reference}', 'price', ${!fav.notify_price_change})"
+                                    style="padding: 4px 8px; background: ${fav.notify_price_change ? '#dbeafe' : '#f1f5f9'}; border: none; border-radius: 6px; font-size: 10px; color: ${fav.notify_price_change ? '#1d4ed8' : '#64748b'}; cursor: pointer;"
+                                    title="Alertar alterações de preço">
+                                    €
+                                </button>
+                                <button onclick="toggleFavoriteNotify('${fav.event_reference}', 'ending', ${!fav.notify_ending_soon})"
+                                    style="padding: 4px 8px; background: ${fav.notify_ending_soon ? '#fef3c7' : '#f1f5f9'}; border: none; border-radius: 6px; font-size: 10px; color: ${fav.notify_ending_soon ? '#92400e' : '#64748b'}; cursor: pointer;"
+                                    title="Alertar quando terminar">
+                                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="12" height="12">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                </button>
+                                <button onclick="showPriceChart('${fav.event_reference}')"
+                                    style="padding: 4px 8px; background: #f1f5f9; border: none; border-radius: 6px; font-size: 10px; color: #64748b; cursor: pointer;"
+                                    title="Ver evolução do preço">
+                                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="12" height="12">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Update favorites stats
+        function updateFavoritosStats(favorites) {
+            const now = new Date();
+            const todayEnd = new Date(now);
+            todayEnd.setHours(23, 59, 59, 999);
+
+            let active = 0, ending = 0, totalChanges = 0;
+
+            favorites.forEach(fav => {
+                const event = fav.event || {};
+                const endDate = event.data_fim ? new Date(event.data_fim) : null;
+                const isEnded = event.terminado || (endDate && endDate <= now);
+
+                if (!isEnded) active++;
+                if (endDate && endDate <= todayEnd && endDate > now) ending++;
+                totalChanges += fav.price_changes_count || 0;
+            });
+
+            document.getElementById('fav-stat-total').textContent = favorites.length;
+            document.getElementById('fav-stat-active').textContent = active;
+            document.getElementById('fav-stat-ending').textContent = ending;
+            document.getElementById('fav-stat-changes').textContent = totalChanges;
+            document.getElementById('favoritos-total-count').textContent = favorites.length;
+        }
+
+        // Update favorites badge in sidebar
+        function updateFavoritesBadge(count) {
+            const badge = document.getElementById('nav-favorites-badge');
+            if (badge) {
+                badge.textContent = count;
+                badge.style.display = count > 0 ? 'inline' : 'none';
+            }
+        }
+
+        // Add event to favorites
+        async function addToFavorites(reference, eventData = {}) {
+            try {
+                const response = await authFetch(`${API_BASE}/api/favorites`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        event_reference: reference,
+                        event_titulo: eventData.titulo,
+                        event_tipo: eventData.tipo,
+                        event_subtipo: eventData.subtipo,
+                        event_distrito: eventData.distrito,
+                        event_data_fim: eventData.data_fim,
+                        price_when_added: eventData.lance_atual || eventData.valor_base
+                    })
+                });
+
+                if (response.ok) {
+                    addLog(`Evento ${reference} adicionado aos favoritos`, 'success');
+                    // Update badge
+                    const countResp = await fetch(`${API_BASE}/api/favorites/count`);
+                    const countData = await countResp.json();
+                    updateFavoritesBadge(countData.count);
+                    return true;
+                }
+            } catch (error) {
+                console.error('Erro ao adicionar favorito:', error);
+                addLog('Erro ao adicionar aos favoritos', 'error');
+            }
+            return false;
+        }
+
+        // Remove from favorites
+        async function removeFavorite(reference) {
+            if (!confirm('Remover este evento dos favoritos?')) return;
+
+            try {
+                const response = await authFetch(`${API_BASE}/api/favorites/${reference}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    addLog(`Evento ${reference} removido dos favoritos`, 'info');
+                    loadFavoritosPage();
+                }
+            } catch (error) {
+                console.error('Erro ao remover favorito:', error);
+            }
+        }
+
+        // Toggle favorite notification setting
+        async function toggleFavoriteNotify(reference, type, value) {
+            try {
+                const body = {};
+                if (type === 'price') body.notify_price_change = value;
+                if (type === 'ending') body.notify_ending_soon = value;
+
+                await authFetch(`${API_BASE}/api/favorites/${reference}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+
+                loadFavoritosPage();
+            } catch (error) {
+                console.error('Erro ao atualizar preferências:', error);
+            }
+        }
+
+        // Check if event is favorited
+        async function isFavorited(reference) {
+            try {
+                const response = await fetch(`${API_BASE}/api/favorites/${reference}`);
+                const data = await response.json();
+                return data.is_favorite;
+            } catch (error) {
+                return false;
+            }
+        }
+
+        // Toggle favorite (for star button)
+        async function toggleFavorite(reference, eventData = {}) {
+            const isFav = await isFavorited(reference);
+            if (isFav) {
+                await removeFavoriteQuiet(reference);
+            } else {
+                await addToFavorites(reference, eventData);
+            }
+            // Update UI
+            updateFavoriteStars();
+        }
+
+        // Remove without confirm (for toggle)
+        async function removeFavoriteQuiet(reference) {
+            try {
+                await authFetch(`${API_BASE}/api/favorites/${reference}`, { method: 'DELETE' });
+                addLog(`Evento ${reference} removido dos favoritos`, 'info');
+                const countResp = await fetch(`${API_BASE}/api/favorites/count`);
+                const countData = await countResp.json();
+                updateFavoritesBadge(countData.count);
+            } catch (error) {
+                console.error('Erro ao remover favorito:', error);
+            }
+        }
+
+        // Update favorite star icons across the UI
+        async function updateFavoriteStars() {
+            try {
+                const response = await fetch(`${API_BASE}/api/favorites`);
+                const favorites = await response.json();
+                const favReferences = new Set(favorites.map(f => f.event_reference));
+
+                // Update all star buttons
+                document.querySelectorAll('.card-favorite-btn').forEach(btn => {
+                    const ref = btn.id.replace('fav-event-', '');
+                    const isFav = favReferences.has(ref);
+                    const svg = btn.querySelector('.star-icon');
+                    if (isFav) {
+                        btn.classList.add('is-favorite');
+                        svg.setAttribute('fill', '#f59e0b');
+                        svg.setAttribute('stroke', '#f59e0b');
+                        btn.title = 'Remover dos favoritos';
+                    } else {
+                        btn.classList.remove('is-favorite');
+                        svg.setAttribute('fill', 'none');
+                        svg.setAttribute('stroke', 'currentColor');
+                        btn.title = 'Adicionar aos favoritos';
+                    }
+                });
+            } catch (error) {
+                console.error('Error updating stars:', error);
+            }
+        }
+
+        // Toggle favorite from event card star button
+        async function toggleFavoriteFromCard(reference, btn) {
+            const svg = btn.querySelector('.star-icon');
+            const isFav = btn.classList.contains('is-favorite');
+
+            // Optimistic UI update
+            if (isFav) {
+                btn.classList.remove('is-favorite');
+                svg.setAttribute('fill', 'none');
+                svg.setAttribute('stroke', 'currentColor');
+                btn.title = 'Adicionar aos favoritos';
+            } else {
+                btn.classList.add('is-favorite');
+                svg.setAttribute('fill', '#f59e0b');
+                svg.setAttribute('stroke', '#f59e0b');
+                btn.title = 'Remover dos favoritos';
+            }
+
+            try {
+                if (isFav) {
+                    await removeFavoriteQuiet(reference);
+                } else {
+                    // Get event data from data attribute
+                    let eventData = {};
+                    try {
+                        const dataAttr = btn.getAttribute('data-event');
+                        if (dataAttr) {
+                            eventData = JSON.parse(dataAttr.replace(/&apos;/g, "'"));
+                        }
+                    } catch (e) {}
+                    await addToFavorites(reference, eventData);
+                }
+            } catch (error) {
+                // Revert on error
+                if (isFav) {
+                    btn.classList.add('is-favorite');
+                    svg.setAttribute('fill', '#f59e0b');
+                    svg.setAttribute('stroke', '#f59e0b');
+                } else {
+                    btn.classList.remove('is-favorite');
+                    svg.setAttribute('fill', 'none');
+                    svg.setAttribute('stroke', 'currentColor');
+                }
+            }
+        }
+
+        // Check prices for all favorites
+        async function checkFavoritesPrices() {
+            const btn = event?.target?.closest('button');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<div class="loading-spinner" style="width: 14px; height: 14px;"></div> A verificar...';
+            }
+
+            try {
+                const response = await authFetch(`${API_BASE}/api/favorites/check-prices`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+
+                if (data.updated > 0) {
+                    addLog(`${data.updated} favoritos atualizados`, 'success');
+                } else {
+                    addLog('Todos os preços estão atualizados', 'info');
+                }
+
+                loadFavoritosPage();
+            } catch (error) {
+                console.error('Erro ao verificar preços:', error);
+                addLog('Erro ao verificar preços', 'error');
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = `<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="14" height="14">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    </svg> Atualizar Preços`;
+                }
+            }
+        }
+
+        // Initial favorites badge load
+        (async function() {
+            try {
+                const response = await fetch(`${API_BASE}/api/favorites/count`);
+                const data = await response.json();
+                updateFavoritesBadge(data.count);
+            } catch (e) {}
+        })();
+
+        // Load alertas/favoritos when page changes
         const originalShowPage = showPage;
         showPage = function(pageId) {
             originalShowPage(pageId);
             if (pageId === 'alertas') {
                 loadAlertasPage();
+            } else if (pageId === 'favoritos') {
+                loadFavoritosPage();
             }
         };
 

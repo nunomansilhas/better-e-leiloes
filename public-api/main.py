@@ -19,7 +19,7 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
-from database import get_session, EventDB, PriceHistoryDB, PipelineStateDB, RefreshLogDB, NotificationRuleDB, NotificationDB, init_db
+from database import get_session, EventDB, PriceHistoryDB, PipelineStateDB, RefreshLogDB, NotificationRuleDB, NotificationDB, FavoriteDB, init_db
 from sqlalchemy import select, func, desc, and_, or_
 
 
@@ -1469,6 +1469,243 @@ async def check_price_changes():
                 # Update last_price in rule
                 rule.last_price = event.lance_atual
                 rule.updated_at = datetime.utcnow()
+
+                notifications_created += 1
+
+        await session.commit()
+
+    return {"notifications_created": notifications_created}
+
+
+# ============ FAVORITES ENDPOINTS ============
+
+@app.get("/api/favorites")
+async def get_favorites():
+    """Get all favorites with current event data"""
+    async with get_session() as session:
+        result = await session.execute(
+            select(FavoriteDB).order_by(desc(FavoriteDB.created_at))
+        )
+        favorites = result.scalars().all()
+
+        # Enrich with current event data
+        enriched = []
+        for fav in favorites:
+            # Get current event info
+            event = await session.scalar(
+                select(EventDB).where(EventDB.reference == fav.event_reference)
+            )
+
+            fav_data = {
+                "id": fav.id,
+                "event_reference": fav.event_reference,
+                "event_titulo": fav.event_titulo,
+                "event_tipo": fav.event_tipo,
+                "event_subtipo": fav.event_subtipo,
+                "event_distrito": fav.event_distrito,
+                "event_data_fim": fav.event_data_fim.isoformat() if fav.event_data_fim else None,
+                "price_when_added": fav.price_when_added,
+                "last_known_price": fav.last_known_price,
+                "price_min_seen": fav.price_min_seen,
+                "price_max_seen": fav.price_max_seen,
+                "notify_price_change": fav.notify_price_change,
+                "notify_ending_soon": fav.notify_ending_soon,
+                "notify_ending_minutes": fav.notify_ending_minutes,
+                "notify_price_threshold": fav.notify_price_threshold,
+                "price_changes_count": fav.price_changes_count,
+                "notifications_sent": fav.notifications_sent,
+                "created_at": fav.created_at.isoformat() if fav.created_at else None,
+                "notes": fav.notes,
+                # Current event info
+                "current_price": event.lance_atual if event else None,
+                "event_terminado": event.terminado if event else None,
+                "event_cancelado": event.cancelado if event else None,
+            }
+
+            # Calculate price change since added
+            if fav.price_when_added and event and event.lance_atual:
+                change = event.lance_atual - fav.price_when_added
+                change_pct = (change / fav.price_when_added) * 100 if fav.price_when_added > 0 else 0
+                fav_data["price_change_amount"] = change
+                fav_data["price_change_percent"] = round(change_pct, 2)
+
+            enriched.append(fav_data)
+
+        return enriched
+
+
+@app.get("/api/favorites/count")
+async def get_favorites_count():
+    """Get count of favorites"""
+    async with get_session() as session:
+        total = await session.scalar(select(func.count()).select_from(FavoriteDB)) or 0
+        return {"count": total}
+
+
+@app.get("/api/favorites/{reference}")
+async def get_favorite(reference: str):
+    """Check if event is favorited and get its data"""
+    async with get_session() as session:
+        fav = await session.scalar(
+            select(FavoriteDB).where(FavoriteDB.event_reference == reference)
+        )
+        if not fav:
+            return {"is_favorite": False}
+
+        return {
+            "is_favorite": True,
+            "id": fav.id,
+            "notify_price_change": fav.notify_price_change,
+            "notify_ending_soon": fav.notify_ending_soon,
+            "price_when_added": fav.price_when_added,
+            "last_known_price": fav.last_known_price,
+            "created_at": fav.created_at.isoformat() if fav.created_at else None,
+        }
+
+
+@app.post("/api/favorites")
+async def add_favorite(data: dict):
+    """Add event to favorites"""
+    reference = data.get("reference")
+    if not reference:
+        raise HTTPException(status_code=400, detail="reference is required")
+
+    async with get_session() as session:
+        # Check if already favorited
+        existing = await session.scalar(
+            select(FavoriteDB).where(FavoriteDB.event_reference == reference)
+        )
+        if existing:
+            return {"id": existing.id, "message": "Already favorited"}
+
+        # Get event data
+        event = await session.scalar(
+            select(EventDB).where(EventDB.reference == reference)
+        )
+        if not event:
+            raise HTTPException(status_code=404, detail="Event not found")
+
+        # Create favorite
+        favorite = FavoriteDB(
+            event_reference=reference,
+            event_titulo=event.titulo,
+            event_tipo=event.tipo,
+            event_subtipo=event.subtipo,
+            event_distrito=event.distrito,
+            event_data_fim=event.data_fim,
+            price_when_added=event.lance_atual,
+            last_known_price=event.lance_atual,
+            price_min_seen=event.lance_atual,
+            price_max_seen=event.lance_atual,
+            notify_price_change=data.get("notify_price_change", True),
+            notify_ending_soon=data.get("notify_ending_soon", True),
+            notify_ending_minutes=data.get("notify_ending_minutes", 30),
+            notes=data.get("notes"),
+        )
+
+        session.add(favorite)
+        await session.commit()
+        await session.refresh(favorite)
+
+        return {"id": favorite.id, "message": "Favorite added"}
+
+
+@app.delete("/api/favorites/{reference}")
+async def remove_favorite(reference: str):
+    """Remove event from favorites"""
+    async with get_session() as session:
+        fav = await session.scalar(
+            select(FavoriteDB).where(FavoriteDB.event_reference == reference)
+        )
+        if not fav:
+            raise HTTPException(status_code=404, detail="Favorite not found")
+
+        await session.delete(fav)
+        await session.commit()
+
+        return {"message": "Favorite removed"}
+
+
+@app.put("/api/favorites/{reference}")
+async def update_favorite(reference: str, data: dict):
+    """Update favorite notification preferences"""
+    async with get_session() as session:
+        fav = await session.scalar(
+            select(FavoriteDB).where(FavoriteDB.event_reference == reference)
+        )
+        if not fav:
+            raise HTTPException(status_code=404, detail="Favorite not found")
+
+        # Update notification preferences
+        if "notify_price_change" in data:
+            fav.notify_price_change = data["notify_price_change"]
+        if "notify_ending_soon" in data:
+            fav.notify_ending_soon = data["notify_ending_soon"]
+        if "notify_ending_minutes" in data:
+            fav.notify_ending_minutes = data["notify_ending_minutes"]
+        if "notify_price_threshold" in data:
+            fav.notify_price_threshold = data["notify_price_threshold"]
+        if "notes" in data:
+            fav.notes = data["notes"]
+
+        fav.updated_at = datetime.utcnow()
+        await session.commit()
+
+        return {"message": "Favorite updated"}
+
+
+@app.post("/api/favorites/check-prices")
+async def check_favorites_prices():
+    """Check for price changes on favorited events and create notifications"""
+    notifications_created = 0
+
+    async with get_session() as session:
+        favorites = await session.execute(
+            select(FavoriteDB).where(FavoriteDB.notify_price_change == True)
+        )
+        favorites = favorites.scalars().all()
+
+        for fav in favorites:
+            event = await session.scalar(
+                select(EventDB).where(EventDB.reference == fav.event_reference)
+            )
+            if not event or event.terminado or event.cancelado:
+                continue
+
+            current_price = event.lance_atual
+            last_price = fav.last_known_price or fav.price_when_added
+
+            if current_price and last_price and current_price != last_price:
+                # Check threshold if set
+                if fav.notify_price_threshold:
+                    change_pct = abs((current_price - last_price) / last_price) * 100
+                    if change_pct < fav.notify_price_threshold:
+                        continue
+
+                # Create notification
+                notification = NotificationDB(
+                    notification_type="favorite_price_change",
+                    event_reference=fav.event_reference,
+                    event_titulo=fav.event_titulo,
+                    event_tipo=fav.event_tipo,
+                    event_subtipo=fav.event_subtipo,
+                    event_distrito=fav.event_distrito,
+                    preco_anterior=last_price,
+                    preco_atual=current_price,
+                )
+                session.add(notification)
+
+                # Update favorite
+                fav.last_known_price = current_price
+                fav.price_changes_count += 1
+                fav.notifications_sent += 1
+                fav.last_notified_at = datetime.utcnow()
+
+                # Update min/max seen
+                if fav.price_min_seen is None or current_price < fav.price_min_seen:
+                    fav.price_min_seen = current_price
+                if fav.price_max_seen is None or current_price > fav.price_max_seen:
+                    fav.price_max_seen = current_price
 
                 notifications_created += 1
 
