@@ -1566,9 +1566,9 @@ async def get_favorite(reference: str):
 @app.post("/api/favorites")
 async def add_favorite(data: dict):
     """Add event to favorites"""
-    reference = data.get("reference")
+    reference = data.get("event_reference") or data.get("reference")
     if not reference:
-        raise HTTPException(status_code=400, detail="reference is required")
+        raise HTTPException(status_code=400, detail="event_reference is required")
 
     async with get_session() as session:
         # Check if already favorited
