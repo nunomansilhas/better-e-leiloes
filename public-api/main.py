@@ -588,6 +588,14 @@ async def get_price_history(reference: str, limit: int = Query(500, le=1000)):
     """Get price history for an event - returns all bids"""
     try:
         async with get_session() as session:
+            # Debug: count total records first
+            from sqlalchemy import func
+            count_result = await session.execute(
+                select(func.count()).select_from(PriceHistoryDB).where(PriceHistoryDB.reference == reference)
+            )
+            total_count = count_result.scalar()
+            print(f"[DEBUG] price_history for {reference}: {total_count} records in DB", flush=True)
+
             result = await session.execute(
                 select(PriceHistoryDB)
                 .where(PriceHistoryDB.reference == reference)
@@ -595,10 +603,15 @@ async def get_price_history(reference: str, limit: int = Query(500, le=1000)):
                 .limit(limit)
             )
             history = result.scalars().all()
+            print(f"[DEBUG] price_history for {reference}: fetched {len(history)} records", flush=True)
 
-            return [{"preco": h.new_price or 0, "timestamp": h.recorded_at.isoformat() if h.recorded_at else None} for h in history if h.new_price is not None]
+            data = [{"preco": h.new_price or 0, "timestamp": h.recorded_at.isoformat() if h.recorded_at else None} for h in history if h.new_price is not None]
+            print(f"[DEBUG] price_history for {reference}: returning {len(data)} records", flush=True)
+            return data
     except Exception as e:
         print(f"[ERROR] get_price_history({reference}): {e}", flush=True)
+        import traceback
+        traceback.print_exc()
         return []
 
 
