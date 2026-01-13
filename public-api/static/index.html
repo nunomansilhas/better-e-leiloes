@@ -6540,17 +6540,17 @@
             // Prepare data with timestamps - include abertura as first point
             let dataPoints = [];
 
+            console.log(`[Chart] Received history:`, history.length, 'records', history.slice(0, 3));
+
             // Add abertura (opening price) as first point if available
             if (vAbertura > 0) {
                 dataPoints.push({ preco: vAbertura, timestamp: null, label: 'Abertura' });
             }
 
-            // Add all history points
-            if (history.length > 0) {
-                history.forEach(h => {
-                    // Only add if price is different from last point (avoid duplicates)
-                    const lastPrice = dataPoints.length > 0 ? dataPoints[dataPoints.length - 1].preco : null;
-                    if (h.preco !== lastPrice) {
+            // Add all history points (ALL of them - each bid is a point)
+            if (history && history.length > 0) {
+                history.forEach((h, idx) => {
+                    if (h.preco != null) {
                         dataPoints.push({
                             preco: h.preco,
                             timestamp: h.timestamp || null
