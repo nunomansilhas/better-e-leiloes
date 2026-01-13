@@ -4,6 +4,7 @@ Lightweight API for public frontend consumption
 Connects to remote MySQL database
 """
 
+import json
 from fastapi import FastAPI, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -1078,6 +1079,17 @@ async def mark_notification_read(notification_id: int, read: bool = True):
         return {"success": True}
 
 
+def parse_json_field(value):
+    """Parse JSON field with fallback for comma-separated values"""
+    if not value:
+        return None
+    try:
+        return json.loads(value)
+    except json.JSONDecodeError:
+        # Fallback: assume comma-separated string
+        return [v.strip() for v in value.split(",") if v.strip()]
+
+
 @app.get("/api/notification-rules")
 async def get_notification_rules():
     """Get all notification rules"""
@@ -1092,8 +1104,8 @@ async def get_notification_rules():
                 "name": r.name,
                 "rule_type": r.rule_type,
                 "event_reference": r.event_reference,
-                "tipos": [int(t) for t in r.tipos.split(",")] if r.tipos else None,
-                "distritos": r.distritos.split(",") if r.distritos else None,
+                "tipos": parse_json_field(r.tipos),
+                "distritos": parse_json_field(r.distritos),
                 "preco_min": r.preco_min,
                 "preco_max": r.preco_max,
                 "active": r.active,
@@ -1120,8 +1132,8 @@ async def create_notification_rule(rule: NotificationRuleCreate):
             name=rule.name,
             rule_type=rule.rule_type,
             event_reference=rule.event_reference,
-            tipos=",".join(str(t) for t in rule.tipos) if rule.tipos else None,
-            distritos=",".join(rule.distritos) if rule.distritos else None,
+            tipos=json.dumps([str(t) for t in rule.tipos]) if rule.tipos else None,
+            distritos=json.dumps(rule.distritos) if rule.distritos else None,
             preco_min=rule.preco_min,
             preco_max=rule.preco_max,
             active=rule.active,
