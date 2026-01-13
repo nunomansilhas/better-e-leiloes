@@ -748,7 +748,7 @@ async def dashboard_ending_soon(hours: int = 24, limit: int = 1000, include_term
 @app.get("/api/dashboard/price-history/{reference}")
 async def dashboard_price_history(reference: str):
     """Alias for price-history endpoint"""
-    return await get_price_history(reference)
+    return await get_price_history(reference, limit=500)
 
 
 @app.get("/api/dashboard/recent-bids")
