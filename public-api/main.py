@@ -365,6 +365,73 @@ async def get_stats():
         )
 
 
+@app.get("/api/dashboard/quick-stats")
+async def get_dashboard_quick_stats():
+    """Get optimized stats for dashboard - fast SQL queries instead of loading all events"""
+    async with get_session() as session:
+        # Map tipo_id to tipo_evento name
+        tipo_map = {
+            1: 'imoveis', 2: 'veiculos', 3: 'direitos',
+            4: 'equipamentos', 5: 'mobiliario', 6: 'maquinas'
+        }
+
+        # Active events condition
+        active_cond = and_(EventDB.terminado == 0, EventDB.cancelado == 0)
+
+        # Total active events
+        total_active = await session.scalar(
+            select(func.count()).select_from(EventDB).where(active_cond)
+        ) or 0
+
+        # Total inactive/terminated
+        total_inactive = await session.scalar(
+            select(func.count()).select_from(EventDB).where(
+                or_(EventDB.terminado == 1, EventDB.cancelado == 1)
+            )
+        ) or 0
+
+        # Count LO/NP for active events
+        total_lo = await session.scalar(
+            select(func.count()).select_from(EventDB).where(
+                and_(active_cond, EventDB.reference.like('LO%'))
+            )
+        ) or 0
+        total_np = await session.scalar(
+            select(func.count()).select_from(EventDB).where(
+                and_(active_cond, EventDB.reference.like('NP%'))
+            )
+        ) or 0
+
+        # Stats by tipo_id with LO/NP breakdown
+        by_type = {}
+        for tipo_id, tipo_name in tipo_map.items():
+            tipo_cond = and_(active_cond, EventDB.tipo_id == tipo_id)
+
+            count = await session.scalar(
+                select(func.count()).select_from(EventDB).where(tipo_cond)
+            ) or 0
+            lo = await session.scalar(
+                select(func.count()).select_from(EventDB).where(
+                    and_(tipo_cond, EventDB.reference.like('LO%'))
+                )
+            ) or 0
+            np = await session.scalar(
+                select(func.count()).select_from(EventDB).where(
+                    and_(tipo_cond, EventDB.reference.like('NP%'))
+                )
+            ) or 0
+
+            by_type[tipo_name] = {'total': count, 'lo': lo, 'np': np}
+
+        return {
+            'total': total_active,
+            'total_lo': total_lo,
+            'total_np': total_np,
+            'total_inactive': total_inactive,
+            'by_type': by_type
+        }
+
+
 @app.get("/api/events")
 async def list_events(
     limit: int = Query(100, le=100000),

@@ -6060,31 +6060,9 @@
 
         async function updateDashboardStats() {
             try {
-                // Load ALL events (including terminated) to calculate accurate totals
-                const eventsResponse = await fetch(`${API_BASE}/api/events?limit=100000&active_only=false`);
-                const eventsData = await eventsResponse.json();
-
-                // Normalize events to handle new API format
-                const allEvents = normalizeEvents(eventsData.events);
-
-                // Separate active and inactive events
-                const activeEvents = allEvents.filter(e => e.ativo === true);
-                const inactiveEvents = allEvents.filter(e => e.ativo === false);
-
-                // Filter by type (using only ACTIVE events)
-                const imoveisEvents = activeEvents.filter(e => e.tipoEvento === 'imoveis');
-                const veiculosEvents = activeEvents.filter(e => e.tipoEvento === 'veiculos');
-                const direitosEvents = activeEvents.filter(e => e.tipoEvento === 'direitos');
-                const equipamentosEvents = activeEvents.filter(e => e.tipoEvento === 'equipamentos');
-                const mobiliarioEvents = activeEvents.filter(e => e.tipoEvento === 'mobiliario');
-                const maquinasEvents = activeEvents.filter(e => e.tipoEvento === 'maquinas');
-
-                // Helper function to count LO/NP
-                const countLO = (arr) => arr.filter(e => e.reference.startsWith('LO')).length;
-                const countNP = (arr) => arr.filter(e => e.reference.startsWith('NP')).length;
-
-                // Count inactive/terminated events
-                const inactiveCount = inactiveEvents.length;
+                // Use optimized quick-stats endpoint (SQL COUNT queries, much faster!)
+                const response = await fetch(`${API_BASE}/api/dashboard/quick-stats`);
+                const stats = await response.json();
 
                 // Helper to update stat with animation on change
                 const updateStat = (id, value) => {
@@ -6103,41 +6081,20 @@
                     }
                 };
 
-                // Total (active events only)
-                updateStat('stat-total', activeEvents.length);
-                updateStat('stat-total-lo', countLO(activeEvents));
-                updateStat('stat-total-np', countNP(activeEvents));
-                updateStat('stat-total-inactive', inactiveCount);
+                // Total
+                updateStat('stat-total', stats.total);
+                updateStat('stat-total-lo', stats.total_lo);
+                updateStat('stat-total-np', stats.total_np);
+                updateStat('stat-total-inactive', stats.total_inactive);
 
-                // Imóveis
-                updateStat('stat-imoveis', imoveisEvents.length);
-                updateStat('stat-imoveis-lo', countLO(imoveisEvents));
-                updateStat('stat-imoveis-np', countNP(imoveisEvents));
-
-                // Veículos
-                updateStat('stat-veiculos', veiculosEvents.length);
-                updateStat('stat-veiculos-lo', countLO(veiculosEvents));
-                updateStat('stat-veiculos-np', countNP(veiculosEvents));
-
-                // Direitos
-                updateStat('stat-direitos', direitosEvents.length);
-                updateStat('stat-direitos-lo', countLO(direitosEvents));
-                updateStat('stat-direitos-np', countNP(direitosEvents));
-
-                // Equipamentos
-                updateStat('stat-equipamentos', equipamentosEvents.length);
-                updateStat('stat-equipamentos-lo', countLO(equipamentosEvents));
-                updateStat('stat-equipamentos-np', countNP(equipamentosEvents));
-
-                // Mobiliário
-                updateStat('stat-mobiliario', mobiliarioEvents.length);
-                updateStat('stat-mobiliario-lo', countLO(mobiliarioEvents));
-                updateStat('stat-mobiliario-np', countNP(mobiliarioEvents));
-
-                // Máquinas
-                updateStat('stat-maquinas', maquinasEvents.length);
-                updateStat('stat-maquinas-lo', countLO(maquinasEvents));
-                updateStat('stat-maquinas-np', countNP(maquinasEvents));
+                // By type
+                const types = ['imoveis', 'veiculos', 'direitos', 'equipamentos', 'mobiliario', 'maquinas'];
+                types.forEach(type => {
+                    const data = stats.by_type[type] || { total: 0, lo: 0, np: 0 };
+                    updateStat(`stat-${type}`, data.total);
+                    updateStat(`stat-${type}-lo`, data.lo);
+                    updateStat(`stat-${type}-np`, data.np);
+                });
 
             } catch (error) {
                 console.error('Erro ao atualizar stats:', error);
