@@ -1516,10 +1516,20 @@ async def get_favorites():
                 "notifications_sent": fav.notifications_sent,
                 "created_at": fav.created_at.isoformat() if fav.created_at else None,
                 "notes": fav.notes,
-                # Current event info
-                "current_price": event.lance_atual if event else None,
-                "event_terminado": event.terminado if event else None,
-                "event_cancelado": event.cancelado if event else None,
+                # Full event object for display
+                "event": {
+                    "titulo": event.titulo,
+                    "capa": event.capa,
+                    "tipo": event.tipo,
+                    "subtipo": event.subtipo,
+                    "distrito": event.distrito,
+                    "concelho": event.concelho,
+                    "data_fim": event.data_fim.isoformat() if event.data_fim else None,
+                    "lance_atual": event.lance_atual,
+                    "valor_base": event.valor_base,
+                    "terminado": event.terminado,
+                    "cancelado": event.cancelado,
+                } if event else None,
             }
 
             # Calculate price change since added

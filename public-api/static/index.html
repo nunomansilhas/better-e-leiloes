@@ -6529,6 +6529,30 @@
             });
         }
 
+        // Show price chart for a reference (wrapper for favorites page)
+        async function showPriceChart(ref) {
+            // Fetch event data to get price values
+            try {
+                const response = await fetch(`${API_BASE}/api/event/${ref}`);
+                if (response.ok) {
+                    const event = await response.json();
+                    const dataset = {
+                        base: event.valor_base || 0,
+                        abertura: event.valor_abertura || 0,
+                        minimo: event.valor_minimo || 0,
+                        atual: event.lance_atual || 0
+                    };
+                    openPriceChartModal(ref, dataset);
+                } else {
+                    // Fallback - open modal without preset values
+                    openPriceChartModal(ref, { base: 0, abertura: 0, minimo: 0, atual: 0 });
+                }
+            } catch (error) {
+                console.error('Error fetching event for price chart:', error);
+                openPriceChartModal(ref, { base: 0, abertura: 0, minimo: 0, atual: 0 });
+            }
+        }
+
         // Expanded price chart modal
         function openPriceChartModal(ref, dataset) {
             const vBase = parseFloat(dataset.base) || 0;
