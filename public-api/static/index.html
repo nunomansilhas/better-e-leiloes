@@ -6538,14 +6538,36 @@
             const legend = tooltip.querySelector('.chart-legend');
             const variationEl = tooltip.querySelector('.chart-variation');
 
-            // Prepare data with timestamps
-            let dataPoints = history.length > 0 ? history.map(h => ({
-                preco: h.preco,
-                timestamp: h.timestamp || null
-            })) : [{ preco: vAtual, timestamp: null }];
+            // Prepare data with timestamps - include abertura as first point
+            let dataPoints = [];
 
+            // Add abertura (opening price) as first point if available
+            if (vAbertura > 0) {
+                dataPoints.push({ preco: vAbertura, timestamp: null, label: 'Abertura' });
+            }
+
+            // Add all history points
+            if (history.length > 0) {
+                history.forEach(h => {
+                    // Only add if price is different from last point (avoid duplicates)
+                    const lastPrice = dataPoints.length > 0 ? dataPoints[dataPoints.length - 1].preco : null;
+                    if (h.preco !== lastPrice) {
+                        dataPoints.push({
+                            preco: h.preco,
+                            timestamp: h.timestamp || null
+                        });
+                    }
+                });
+            }
+
+            // If still no points, add current price
+            if (dataPoints.length === 0) {
+                dataPoints.push({ preco: vAtual, timestamp: null });
+            }
+
+            // Ensure at least 2 points for line chart
             if (dataPoints.length === 1) {
-                dataPoints = [{ preco: dataPoints[0].preco * 0.95, timestamp: null }, dataPoints[0]];
+                dataPoints = [{ preco: dataPoints[0].preco * 0.98, timestamp: null }, dataPoints[0]];
             }
 
             const prices = dataPoints.map(d => d.preco);
