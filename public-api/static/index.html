@@ -9968,7 +9968,7 @@
                 return;
             }
 
-            const tipos = Array.from(document.querySelectorAll('.rule-tipo:checked')).map(cb => cb.value);
+            const tipos = Array.from(document.querySelectorAll('.rule-tipo:checked')).map(cb => parseInt(cb.value));
             const distritosStr = document.getElementById('rule-distritos').value.trim();
             const distritos = distritosStr ? distritosStr.split(',').map(d => d.trim()).filter(d => d) : null;
             const precoMin = document.getElementById('rule-preco-min').value;
