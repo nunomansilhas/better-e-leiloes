@@ -1154,17 +1154,18 @@
         .pipeline-timers {
             display: flex;
             gap: 4px;
+            width: 100%;
         }
 
         .pipeline-timer {
-            padding: 4px 6px;
+            padding: 4px 4px;
             background: #f8fafc;
             border-radius: 6px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            width: 44px;
-            flex-shrink: 0;
+            flex: 1;
+            min-width: 0;
             overflow: hidden;
         }
 
@@ -1182,7 +1183,7 @@
             text-align: center;
             white-space: nowrap;
             overflow: hidden;
-            text-overflow: clip;
+            text-overflow: ellipsis;
         }
 
         .timer-value.red { color: #dc2626; }
@@ -9433,7 +9434,7 @@
         let pipelineCountdownInterval = null;
 
         function formatCountdown(seconds) {
-            if (seconds <= 0) return '🔄 A executar...';
+            if (seconds <= 0) return '🔄';
 
             const hours = Math.floor(seconds / 3600);
             const mins = Math.floor((seconds % 3600) / 60);
@@ -9473,11 +9474,11 @@
                 const isRunning = pipelineIsRunning[type] || false;
 
                 if (!isEnabled) {
-                    displayText = 'OFF';
+                    displayText = '⏸️';
                     displayColor = '#94a3b8';
                 } else if (isRunning) {
                     // Use is_running from API, not just next_run time
-                    displayText = 'A executar';
+                    displayText = '🔄';
                     displayColor = '#f59e0b';
                 } else if (!nextRunStr) {
                     displayText = '...';
@@ -9488,7 +9489,7 @@
 
                     if (diffSeconds <= 0) {
                         // Timer expired but not running - waiting or just finished
-                        displayText = 'A aguardar';
+                        displayText = '⏳';
                         displayColor = '#64748b';
                     } else {
                         // Full format for scraping page
@@ -9511,9 +9512,15 @@
                     }
                 }
 
-                // Update scraping page timer
-                if (timerEl && (displayText === 'OFF' || displayText === '...' || displayText === 'A executar')) {
-                    timerEl.textContent = displayText === 'OFF' ? '⏸️ Desativada' : (displayText === '...' ? '⏱️ A aguardar...' : '🔄 A executar...');
+                // Update scraping page timer (with longer text)
+                if (timerEl && (displayText === '⏸️' || displayText === '...' || displayText === '🔄' || displayText === '⏳')) {
+                    const longText = {
+                        '⏸️': '⏸️ Desativada',
+                        '...': '⏱️ A aguardar...',
+                        '🔄': '🔄 A executar...',
+                        '⏳': '⏳ A aguardar...'
+                    };
+                    timerEl.textContent = longText[displayText] || displayText;
                     timerEl.style.color = displayColor;
                 }
 
