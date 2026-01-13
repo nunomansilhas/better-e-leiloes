@@ -165,19 +165,27 @@ class NotificationRuleDB(Base):
     rule_type: Mapped[str] = mapped_column(String(50), nullable=False)  # new_event, price_change, ending_soon, event_specific
     active: Mapped[bool] = mapped_column(Boolean, default=True)
 
-    # For event-specific rules
-    event_reference: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, index=True)
-
     # Filters (JSON or comma-separated)
     tipos: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)  # e.g., "1,2,3"
+    subtipos: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # ["Apartamento", "Moradia"]
     distritos: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)  # e.g., "Lisboa,Porto"
+    concelhos: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # ["Lisboa", "Sintra"]
     preco_min: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     preco_max: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    variacao_min: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # Variação mínima (€)
+
+    # For ending_soon rules
+    minutos_restantes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # Ex: 10 min
+
+    # For event-specific rules
+    event_reference: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, index=True)
 
     # Tracking
     last_price: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # For price change tracking
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    triggers_count: Mapped[int] = mapped_column(Integer, default=0)  # Quantas vezes disparou
+    last_triggered: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
 
 class NotificationDB(Base):
