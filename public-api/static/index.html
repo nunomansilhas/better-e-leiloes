@@ -2560,10 +2560,14 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
             border: 1px solid #e2e8f0;
             overflow: hidden;
-            transition: all 0.2s;
+            transition: transform 0.2s, box-shadow 0.2s;
             display: flex;
             flex-direction: column;
             height: 580px;
+            /* Performance: CSS containment */
+            contain: layout style paint;
+            content-visibility: auto;
+            contain-intrinsic-size: 280px 580px;
         }
 
         .event-card:hover {
@@ -3432,17 +3436,15 @@
             }
         }
 
-        .event-card {
-            animation: fadeInUp 0.4s cubic-bezier(0.4, 0, 0.2, 1) backwards;
+        /* Removed staggered animations for performance */
+        .events-grid {
+            animation: fadeIn 0.15s ease-out;
         }
 
-        /* Staggered animation delay for cards */
-        .event-card:nth-child(1) { animation-delay: 0.05s; }
-        .event-card:nth-child(2) { animation-delay: 0.1s; }
-        .event-card:nth-child(3) { animation-delay: 0.15s; }
-        .event-card:nth-child(4) { animation-delay: 0.2s; }
-        .event-card:nth-child(5) { animation-delay: 0.25s; }
-        .event-card:nth-child(6) { animation-delay: 0.3s; }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
 
         /* Loading skeleton shimmer */
         @keyframes loadingSkeleton {
@@ -6124,7 +6126,7 @@
             mobiliario: [],
             maquinas: []
         }; // Store filtered events
-        const ITEMS_PER_PAGE = 50;
+        const ITEMS_PER_PAGE = 24; // Reduced for faster rendering
 
         // Global variables for console and modals
         let consolePollingInterval = null;
@@ -7649,7 +7651,7 @@
 
             // Show skeleton loading on first load
             if (allEventsCached.length === 0) {
-                content.innerHTML = createSkeletonGrid(12);
+                content.innerHTML = createSkeletonGrid(8);
             }
 
             try {
@@ -7716,10 +7718,9 @@
                 }
 
                 // Pagination
-                const perPage = 50;
-                const totalPages = Math.ceil(events.length / perPage);
-                const startIndex = (page - 1) * perPage;
-                const pageEvents = events.slice(startIndex, startIndex + perPage);
+                const totalPages = Math.ceil(events.length / ITEMS_PER_PAGE);
+                const startIndex = (page - 1) * ITEMS_PER_PAGE;
+                const pageEvents = events.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
                 // Render using batch innerHTML
                 if (pageEvents.length === 0) {
@@ -7813,7 +7814,7 @@
 
             // Show skeleton loading on first load
             if (allLoadedEvents[type].length === 0) {
-                content.innerHTML = createSkeletonGrid(12);
+                content.innerHTML = createSkeletonGrid(8);
             }
 
             try {
@@ -10573,6 +10574,9 @@
             initTheme();
             updateAuthStatus(!!API_AUTH.secretKey);
             FAVORITES.updateWidget();
+
+            // Pre-load favorites cache immediately (non-blocking)
+            getFavoritesFromCache();
 
             // Connect to WebSocket for real-time notifications
             connectNotificationWebSocket();
