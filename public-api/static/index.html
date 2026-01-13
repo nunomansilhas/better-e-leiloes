@@ -6388,13 +6388,34 @@
 
                 btn.addEventListener('mouseenter', async (e) => {
                     const rect = btn.getBoundingClientRect();
+                    // Show off-screen first to measure height
+                    tooltip.style.visibility = 'hidden';
                     tooltip.style.display = 'block';
-                    tooltip.style.top = (rect.top - tooltip.offsetHeight - 5) + 'px';
-                    tooltip.style.left = (rect.right - tooltip.offsetWidth) + 'px';
+                    tooltip.style.top = '-9999px';
+                    tooltip.style.left = '-9999px';
 
-                    if (rect.top - tooltip.offsetHeight - 5 < 10) {
-                        tooltip.style.top = (rect.bottom + 5) + 'px';
-                    }
+                    // Wait for render then position correctly
+                    requestAnimationFrame(() => {
+                        const tooltipH = tooltip.offsetHeight;
+                        const tooltipW = tooltip.offsetWidth;
+
+                        let top = rect.top - tooltipH - 8;
+                        let left = rect.left - tooltipW + 30;
+
+                        // If tooltip would go above viewport, show below
+                        if (top < 10) {
+                            top = rect.bottom + 8;
+                        }
+                        // Keep within viewport horizontally
+                        if (left < 10) left = 10;
+                        if (left + tooltipW > window.innerWidth - 10) {
+                            left = window.innerWidth - tooltipW - 10;
+                        }
+
+                        tooltip.style.top = top + 'px';
+                        tooltip.style.left = left + 'px';
+                        tooltip.style.visibility = 'visible';
+                    });
 
                     if (!loaded) {
                         loaded = true;
@@ -6573,12 +6594,17 @@
             svg += `<path d="${areaD}" fill="url(#${uid}-grad)"/>`;
             svg += `<path d="${pathD}" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
 
-            // Interactive data points (hidden by default, show only hovered one)
+            // Interactive data points - in modal show all, in tooltip only show last
             dataPoints.forEach((d, i) => {
                 const x = getX(i), y = getY(d.preco);
                 const isLast = i === dataPoints.length - 1;
-                const classes = isLast ? 'chart-point last-point' : 'chart-point';
-                svg += `<circle id="${uid}-pt-${i}" class="${classes}" cx="${x}" cy="${y}" r="${isLast ? 5 : 4}" fill="${isLast ? '#22c55e' : 'white'}" stroke="${isLast ? 'white' : '#22c55e'}" stroke-width="2"/>`;
+                const showPoint = isModal || isLast;
+                const classes = isLast ? 'chart-point last-point' : (isModal ? 'chart-point modal-point' : 'chart-point');
+                const opacity = showPoint ? '1' : '0';
+                const radius = isLast ? 5 : 4;
+                const fill = isLast ? '#22c55e' : 'white';
+                const stroke = isLast ? 'white' : '#22c55e';
+                svg += `<circle id="${uid}-pt-${i}" class="${classes}" cx="${x}" cy="${y}" r="${radius}" fill="${fill}" stroke="${stroke}" stroke-width="2" style="opacity: ${opacity};"/>`;
             });
 
             // Invisible hit areas for hover detection
