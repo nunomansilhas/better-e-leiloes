@@ -9809,21 +9809,25 @@
         // Toggle event-specific notification (API-based with database persistence)
         async function toggleEventNotification(reference, titulo, tipoEvento) {
             const btn = document.getElementById(`notify-event-${reference}`);
-            const isActive = btn && btn.classList.contains('active');
 
             try {
-                // Check if rule exists for this event
+                // ALWAYS check database first - don't trust button state
                 const rulesResponse = await fetch(`${API_BASE}/api/notification-rules`);
+                if (!rulesResponse.ok) {
+                    throw new Error('Failed to fetch rules');
+                }
                 const rules = await rulesResponse.json();
-                const existingRule = rules.find(r => r.event_reference === reference);
+                const existingRule = Array.isArray(rules) ? rules.find(r => r.event_reference === reference) : null;
 
-                if (isActive && existingRule) {
-                    // Delete the rule
-                    await fetch(`${API_BASE}/api/notification-rules/${existingRule.id}`, { method: 'DELETE' });
-                    btn.classList.remove('active');
-                    showToast('Notificação desativada', `Deixará de ser notificado sobre: ${titulo.substring(0, 40)}...`, 'info');
-                } else if (!isActive) {
-                    // Create new rule for this event
+                if (existingRule) {
+                    // Rule EXISTS - DELETE it (toggle off)
+                    const deleteResponse = await fetch(`${API_BASE}/api/notification-rules/${existingRule.id}`, { method: 'DELETE' });
+                    if (deleteResponse.ok) {
+                        if (btn) btn.classList.remove('active');
+                        showToast('Notificação desativada', `Deixará de ser notificado sobre: ${titulo.substring(0, 40)}...`, 'info');
+                    }
+                } else {
+                    // Rule DOESN'T EXIST - CREATE it (toggle on)
                     const ruleData = {
                         name: `Evento: ${titulo.substring(0, 50)}`,
                         rule_type: 'price_change',
@@ -9840,6 +9844,10 @@
                     if (createResponse.ok) {
                         if (btn) btn.classList.add('active');
                         showToast('Notificação ativada', `Será notificado sobre alterações em: ${titulo.substring(0, 40)}...`, 'success');
+                    } else {
+                        const error = await createResponse.json();
+                        console.error('Failed to create rule:', error);
+                        showToast('Erro', 'Não foi possível criar a notificação', 'error');
                     }
                 }
 
@@ -9980,8 +9988,11 @@
                 tipos: tipos.length > 0 ? tipos : null,
                 distritos: distritos,
                 preco_min: precoMin ? parseFloat(precoMin) : null,
-                preco_max: precoMax ? parseFloat(precoMax) : null
+                preco_max: precoMax ? parseFloat(precoMax) : null,
+                active: true
             };
+
+            console.log('📝 Creating rule:', JSON.stringify(rule, null, 2));
 
             try {
                 const response = await fetch(`${API_BASE}/api/notification-rules`, {
@@ -9996,7 +10007,8 @@
                     showToast('Regra criada', `"${name}" foi adicionada com sucesso`, 'success');
                 } else {
                     const error = await response.json();
-                    alert('Erro: ' + (error.detail || 'Erro desconhecido'));
+                    console.error('❌ Create rule error:', error);
+                    alert('Erro: ' + JSON.stringify(error.detail || error));
                 }
             } catch (error) {
                 console.error('Erro ao criar regra:', error);
