@@ -5185,6 +5185,20 @@
         async function toggleFavorite(reference, eventData = {}) {
             await FAVORITES.toggle(reference, eventData);
             // Icons are updated by updateNotificationIcons() called in FAVORITES.add/remove
+            // Also update the star buttons in "A Terminar em Breve" (after refreshing cache)
+            await FAVORITES.getAll(); // Refresh cache
+            updateEndingSoonFavoriteButtons();
+        }
+
+        // Update favorite star buttons in the "A Terminar em Breve" section
+        function updateEndingSoonFavoriteButtons() {
+            document.querySelectorAll('button[data-favorite-ref]').forEach(btn => {
+                const ref = btn.dataset.favoriteRef;
+                const isFav = FAVORITES.isFavoriteSync(ref);
+                btn.innerHTML = isFav ? '⭐' : '☆';
+                btn.style.color = isFav ? '#f59e0b' : '#cbd5e1';
+                btn.title = isFav ? 'Remover dos favoritos' : 'Adicionar aos favoritos';
+            });
         }
 
         // ============== PRICE CHANGE CHECKER ==============
