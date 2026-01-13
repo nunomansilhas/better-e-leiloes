@@ -128,43 +128,55 @@ class NotificationEngine:
         variacao = new_price - old_price
 
         async def check_and_create(rule):
-            # Check if variation meets minimum threshold
-            variacao_min = rule.get("variacao_min")
-            if variacao_min is not None:
-                if variacao_min < 0 and variacao > variacao_min:
-                    print(f"    ❌ Rule {rule['name']}: variation {variacao} > min {variacao_min}")
-                    return None
-                elif variacao_min > 0 and variacao < variacao_min:
-                    print(f"    ❌ Rule {rule['name']}: variation {variacao} < min {variacao_min}")
+            try:
+                print(f"    📋 Checking rule: {rule['name']} (tipos={rule.get('tipos')})")
+
+                # Check if variation meets minimum threshold
+                variacao_min = rule.get("variacao_min")
+                if variacao_min is not None:
+                    if variacao_min < 0 and variacao > variacao_min:
+                        print(f"    ❌ Rule {rule['name']}: variation {variacao} > min {variacao_min}")
+                        return None
+                    elif variacao_min > 0 and variacao < variacao_min:
+                        print(f"    ❌ Rule {rule['name']}: variation {variacao} < min {variacao_min}")
+                        return None
+
+                if not self._event_matches_rule(event, rule):
+                    print(f"    ❌ Rule {rule['name']}: event doesn't match filters")
                     return None
 
-            if not self._event_matches_rule(event, rule):
-                print(f"    ❌ Rule {rule['name']}: event doesn't match filters")
+                print(f"    ✅ Rule {rule['name']}: event MATCHES! Creating notification...")
+
+                # Instant notification - no cooldown for price changes
+                notification_id = await db_manager.create_notification({
+                    "rule_id": rule["id"],
+                    "notification_type": "price_change",
+                    "event_reference": event.reference,
+                    "event_titulo": event.titulo,
+                    "event_tipo": event.tipo,
+                    "event_subtipo": event.subtipo,
+                    "event_distrito": event.distrito,
+                    "preco_anterior": old_price,
+                    "preco_atual": new_price,
+                    "preco_variacao": variacao
+                })
+
+                await db_manager.increment_rule_triggers(rule["id"])
+                print(f"    🔔 Notificação criada ID={notification_id}: {event.reference} ({old_price} -> {new_price})")
+
+                return notification_id
+            except Exception as e:
+                print(f"    💥 ERRO ao processar regra {rule['name']}: {e}")
+                import traceback
+                traceback.print_exc()
                 return None
-
-            # Instant notification - no cooldown for price changes
-            notification_id = await db_manager.create_notification({
-                "rule_id": rule["id"],
-                "notification_type": "price_change",
-                "event_reference": event.reference,
-                "event_titulo": event.titulo,
-                "event_tipo": event.tipo,
-                "event_subtipo": event.subtipo,
-                "event_distrito": event.distrito,
-                "preco_anterior": old_price,
-                "preco_atual": new_price,
-                "preco_variacao": variacao
-            })
-
-            await db_manager.increment_rule_triggers(rule["id"])
-            print(f"  🔔 Notificação preço: {event.reference} ({old_price} -> {new_price})")
-
-            return notification_id
 
         results = await asyncio.gather(*[check_and_create(r) for r in rules], return_exceptions=True)
 
         for result in results:
-            if result is not None and not isinstance(result, Exception):
+            if isinstance(result, Exception):
+                print(f"    💥 Exception in gather: {result}")
+            elif result is not None:
                 notifications_created.append(result)
 
         return notifications_created
