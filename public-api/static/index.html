@@ -1073,6 +1073,8 @@
             box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
             border: 1px solid rgba(255, 255, 255, 0.5);
             transition: all 0.2s ease;
+            width: 180px;
+            flex-shrink: 0;
         }
 
         .quick-card:hover {
@@ -1151,17 +1153,19 @@
 
         .pipeline-timers {
             display: flex;
-            gap: 6px;
+            gap: 4px;
         }
 
         .pipeline-timer {
-            padding: 5px 8px;
+            padding: 4px 6px;
             background: #f8fafc;
             border-radius: 6px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            min-width: 42px;
+            width: 44px;
+            flex-shrink: 0;
+            overflow: hidden;
         }
 
         .timer-label {
@@ -1171,11 +1175,14 @@
         }
 
         .timer-value {
-            font-size: 10px;
+            font-size: 9px;
             font-weight: 600;
             font-variant-numeric: tabular-nums;
-            min-width: 38px;
+            width: 100%;
             text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: clip;
         }
 
         .timer-value.red { color: #dc2626; }
@@ -1184,13 +1191,43 @@
 
         .quick-card-stats {
             display: flex;
-            gap: 16px;
+            gap: 0;
         }
 
         .alert-stat {
+            flex: 1;
             display: flex;
             flex-direction: column;
             align-items: center;
+            padding: 6px 8px;
+            background: #f8fafc;
+            border-radius: 6px;
+        }
+
+        .alert-stat:first-child {
+            border-radius: 6px 0 0 6px;
+            border-right: 1px solid #e2e8f0;
+        }
+
+        .alert-stat:last-child {
+            border-radius: 0 6px 6px 0;
+        }
+
+        .alert-stat .alert-value {
+            font-size: 16px;
+            font-weight: 700;
+            color: #1e293b;
+        }
+
+        .alert-stat .alert-value.muted {
+            color: #64748b;
+        }
+
+        .alert-stat .alert-label {
+            font-size: 9px;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
         }
 
         .alert-value {
@@ -3660,13 +3697,13 @@
                             </button>
                         </div>
                         <div class="quick-card-stats">
-                            <div class="alert-stat">
+                            <div class="alert-stat" title="Notificações não lidas">
                                 <span class="alert-value" id="dash-unread-count">0</span>
-                                <span class="alert-label">novas</span>
+                                <span class="alert-label">Novas</span>
                             </div>
-                            <div class="alert-stat">
+                            <div class="alert-stat" title="Regras ativas">
                                 <span class="alert-value muted" id="dash-rules-count">0</span>
-                                <span class="alert-label">regras</span>
+                                <span class="alert-label">Regras</span>
                             </div>
                         </div>
                     </div>
