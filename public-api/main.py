@@ -1232,6 +1232,30 @@ async def mark_notification_read(notification_id: int, read: bool = True):
         return {"success": True}
 
 
+@app.post("/api/notifications/read-all")
+async def mark_all_notifications_read():
+    """Mark all notifications as read"""
+    async with get_session() as session:
+        from sqlalchemy import update
+        await session.execute(
+            update(NotificationDB).where(NotificationDB.read == False).values(read=True)
+        )
+        await session.commit()
+        return {"success": True}
+
+
+@app.delete("/api/notifications/delete-all")
+async def delete_all_notifications():
+    """Delete all notifications"""
+    async with get_session() as session:
+        from sqlalchemy import delete
+        await session.execute(delete(NotificationDB))
+        await session.commit()
+        # Reset the WebSocket manager's last notification ID
+        ws_manager._last_notification_id = 0
+        return {"success": True}
+
+
 def parse_json_field(value):
     """Parse JSON field with fallback for comma-separated values"""
     if not value:
