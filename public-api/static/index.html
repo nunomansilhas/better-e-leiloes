@@ -6517,11 +6517,15 @@
             document.body.appendChild(modal);
 
             // Always fetch fresh data for modal (ignore stale cache)
-            console.log(`[Chart Modal] Fetching fresh data for ${ref}...`);
-            fetch(`${API_BASE}/api/dashboard/price-history/${ref}`)
-                .then(r => r.json())
+            const fetchUrl = `${API_BASE}/api/dashboard/price-history/${ref}`;
+            console.log(`[Chart Modal] Fetching from: ${fetchUrl}`);
+            fetch(fetchUrl)
+                .then(r => {
+                    console.log(`[Chart Modal] Response status: ${r.status}`);
+                    return r.json();
+                })
                 .then(history => {
-                    console.log(`[Chart Modal] API returned ${history.length} records for ${ref}`);
+                    console.log(`[Chart Modal] API returned ${history.length} records for ${ref}`, history.slice(0, 2));
                     // Update cache with fresh data
                     chartDataCache[ref] = { history, vBase, vAbertura, vMinimo, vAtual };
                     renderPriceChart(modal.querySelector('div > div'), history, vBase, vAbertura, vMinimo, vAtual, true);
