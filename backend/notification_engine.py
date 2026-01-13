@@ -117,15 +117,67 @@ class NotificationEngine:
     ) -> List[int]:
         """
         Processa uma alteração de preço e cria notificações se match com regras.
+        Also checks favorites with price notifications enabled.
         """
         print(f"  📊 Processing price change: {event.reference} ({old_price} -> {new_price})")
+        notifications_created = []
+        variacao = new_price - old_price
+
+        # === Check favorites first (quick lookup by reference) ===
+        try:
+            favorite = await db_manager.get_favorite_for_event(event.reference)
+            if favorite and favorite.get("notify_price_change"):
+                # Check threshold if set
+                threshold = favorite.get("notify_price_threshold")
+                should_notify = True
+                if threshold:
+                    variacao_pct = abs(variacao / old_price * 100) if old_price > 0 else 0
+                    should_notify = variacao_pct >= threshold
+
+                if should_notify:
+                    # Create notification for favorite
+                    notification_id = await db_manager.create_notification({
+                        "rule_id": None,  # No rule, it's a favorite
+                        "notification_type": "favorite_price_change",
+                        "event_reference": event.reference,
+                        "event_titulo": event.titulo,
+                        "event_tipo": event.tipo,
+                        "event_subtipo": event.subtipo,
+                        "event_distrito": event.distrito,
+                        "preco_anterior": old_price,
+                        "preco_atual": new_price,
+                    })
+                    notifications_created.append(notification_id)
+
+                    # Update favorite stats
+                    await db_manager.update_favorite_price(event.reference, new_price)
+                    await db_manager.increment_favorite_notifications(event.reference)
+                    print(f"  ⭐ Favorite notification: {event.reference} ({old_price} -> {new_price})")
+
+                    # Broadcast via WebSocket
+                    try:
+                        from websocket_manager import notification_ws_manager
+                        await notification_ws_manager.broadcast_price_change(
+                            event_reference=event.reference,
+                            event_titulo=event.titulo,
+                            old_price=old_price,
+                            new_price=new_price,
+                            event_tipo=event.tipo,
+                            event_distrito=event.distrito
+                        )
+                    except Exception as ws_err:
+                        print(f"  ⚠️ WebSocket broadcast failed: {ws_err}")
+                else:
+                    # Update price without notification (below threshold)
+                    await db_manager.update_favorite_price(event.reference, new_price, increment_changes=False)
+        except Exception as fav_err:
+            print(f"  ⚠️ Error processing favorite: {fav_err}")
+
+        # === Check rules ===
         rules = await self._get_rules_cached("price_change", db_manager)
         print(f"  📊 Found {len(rules)} price_change rules")
         if not rules:
-            return []
-
-        notifications_created = []
-        variacao = new_price - old_price
+            return notifications_created
 
         async def check_and_create(rule):
             try:
@@ -206,12 +258,47 @@ class NotificationEngine:
         Processa eventos que estão prestes a terminar.
         Cria notificações para regras 'ending_soon' se os minutos restantes
         são menores ou iguais ao configurado na regra.
+        Also checks favorites with ending_soon notifications enabled.
         """
+        notifications_created = []
+
+        # === Check favorites first ===
+        try:
+            favorite = await db_manager.get_favorite_for_event(event.reference)
+            if favorite and favorite.get("notify_ending_soon"):
+                notify_minutes = favorite.get("notify_ending_minutes", 30)
+                if minutes_remaining <= notify_minutes:
+                    # Check if we already notified recently (within the window)
+                    last_notified = favorite.get("last_notified_at")
+                    should_notify = True
+                    if last_notified:
+                        from datetime import timedelta
+                        # Don't notify again within the same window
+                        time_since = datetime.now() - last_notified
+                        if time_since < timedelta(minutes=notify_minutes):
+                            should_notify = False
+
+                    if should_notify:
+                        notification_id = await db_manager.create_notification({
+                            "rule_id": None,
+                            "notification_type": "favorite_ending_soon",
+                            "event_reference": event.reference,
+                            "event_titulo": event.titulo,
+                            "event_tipo": event.tipo,
+                            "event_subtipo": event.subtipo,
+                            "event_distrito": event.distrito,
+                            "preco_atual": event.lance_atual or event.valor_base,
+                        })
+                        notifications_created.append(notification_id)
+                        await db_manager.increment_favorite_notifications(event.reference)
+                        print(f"  ⭐⏰ Favorite ending soon: {event.reference} ({minutes_remaining}min)")
+        except Exception as fav_err:
+            print(f"  ⚠️ Error processing favorite ending: {fav_err}")
+
+        # === Check rules ===
         rules = await self._get_rules_cached("ending_soon", db_manager)
         if not rules:
-            return []
-
-        notifications_created = []
+            return notifications_created
 
         async def check_and_create(rule):
             # Check if event is within the notification window

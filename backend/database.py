@@ -450,6 +450,46 @@ class RefreshLogDB(Base):
     processed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)  # When backend processed it
 
 
+class FavoriteDB(Base):
+    """
+    Favorites - user's watched events with notification preferences
+    """
+    __tablename__ = "favorites"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    event_reference: Mapped[str] = mapped_column(String(50), nullable=False, unique=True, index=True)
+
+    # Cached event info
+    event_titulo: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    event_tipo: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    event_subtipo: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    event_distrito: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    event_data_fim: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+    # Price tracking
+    price_when_added: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True)
+    last_known_price: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True)
+    price_min_seen: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True)
+    price_max_seen: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True)
+
+    # Notification preferences
+    notify_price_change: Mapped[bool] = mapped_column(Boolean, default=True)
+    notify_ending_soon: Mapped[bool] = mapped_column(Boolean, default=True)
+    notify_ending_minutes: Mapped[int] = mapped_column(Integer, default=30)
+    notify_price_threshold: Mapped[Optional[float]] = mapped_column(Numeric(5, 2), nullable=True)
+
+    # Stats
+    price_changes_count: Mapped[int] = mapped_column(Integer, default=0)
+    notifications_sent: Mapped[int] = mapped_column(Integer, default=0)
+
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    last_notified_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+
 async def init_db():
     """Cria tabelas se não existirem"""
     async with engine.begin() as conn:
@@ -1988,6 +2028,87 @@ class DatabaseManager:
                     description=config["description"]
                 )
                 print(f"✨ Created default pipeline state: {name}")
+
+    # ============ FAVORITES METHODS ============
+
+    async def get_favorite_for_event(self, event_reference: str) -> Optional[dict]:
+        """Get favorite if it exists for an event reference"""
+        result = await self.session.execute(
+            select(FavoriteDB).where(FavoriteDB.event_reference == event_reference)
+        )
+        fav = result.scalar_one_or_none()
+        if not fav:
+            return None
+        return {
+            "id": fav.id,
+            "event_reference": fav.event_reference,
+            "event_titulo": fav.event_titulo,
+            "event_tipo": fav.event_tipo,
+            "event_distrito": fav.event_distrito,
+            "notify_price_change": fav.notify_price_change,
+            "notify_ending_soon": fav.notify_ending_soon,
+            "notify_ending_minutes": fav.notify_ending_minutes,
+            "notify_price_threshold": float(fav.notify_price_threshold) if fav.notify_price_threshold else None,
+            "last_known_price": float(fav.last_known_price) if fav.last_known_price else None,
+            "last_notified_at": fav.last_notified_at,
+        }
+
+    async def get_favorites_with_price_notifications(self) -> List[dict]:
+        """Get all favorites that have price change notifications enabled"""
+        result = await self.session.execute(
+            select(FavoriteDB).where(FavoriteDB.notify_price_change == True)
+        )
+        favorites = result.scalars().all()
+        return [{
+            "id": f.id,
+            "event_reference": f.event_reference,
+            "event_titulo": f.event_titulo,
+            "last_known_price": float(f.last_known_price) if f.last_known_price else None,
+            "notify_price_threshold": float(f.notify_price_threshold) if f.notify_price_threshold else None,
+        } for f in favorites]
+
+    async def update_favorite_price(
+        self,
+        event_reference: str,
+        new_price: float,
+        increment_changes: bool = True
+    ) -> bool:
+        """Update favorite's last_known_price and optionally increment price_changes_count"""
+        result = await self.session.execute(
+            select(FavoriteDB).where(FavoriteDB.event_reference == event_reference)
+        )
+        fav = result.scalar_one_or_none()
+        if not fav:
+            return False
+
+        fav.last_known_price = new_price
+        fav.updated_at = datetime.utcnow()
+
+        # Update min/max
+        if fav.price_min_seen is None or new_price < float(fav.price_min_seen):
+            fav.price_min_seen = new_price
+        if fav.price_max_seen is None or new_price > float(fav.price_max_seen):
+            fav.price_max_seen = new_price
+
+        if increment_changes:
+            fav.price_changes_count = (fav.price_changes_count or 0) + 1
+
+        await self.session.commit()
+        return True
+
+    async def increment_favorite_notifications(self, event_reference: str) -> bool:
+        """Increment notifications_sent counter and update last_notified_at"""
+        result = await self.session.execute(
+            select(FavoriteDB).where(FavoriteDB.event_reference == event_reference)
+        )
+        fav = result.scalar_one_or_none()
+        if not fav:
+            return False
+
+        fav.notifications_sent = (fav.notifications_sent or 0) + 1
+        fav.last_notified_at = datetime.utcnow()
+        await self.session.commit()
+        return True
 
 
 @asynccontextmanager
