@@ -6927,6 +6927,9 @@
 
                 // Update count
                 if (countBadge) countBadge.textContent = events.length;
+
+                // Update notification icons for carousel cards
+                updateNotificationIcons();
             } catch (error) {
                 console.error('Erro ao carregar novos eventos:', error);
                 track.innerHTML = '<div style="color: #94a3b8; font-size: 11px; padding: 20px; white-space: nowrap;">Erro ao carregar</div>';
@@ -7236,6 +7239,9 @@
 
                 // Add filter listeners if first time
                 setupEventosFilters();
+
+                // Update notification icons after events are loaded
+                updateNotificationIcons();
 
             } catch (error) {
                 console.error('Erro ao carregar eventos:', error);
@@ -9806,6 +9812,38 @@
             runIndependentScraperWithIds(input);
         }
 
+        // Update notification bell icons based on database rules
+        async function updateNotificationIcons() {
+            try {
+                const response = await fetch(`${API_BASE}/api/notification-rules`);
+                if (!response.ok) return;
+
+                const rules = await response.json();
+                if (!Array.isArray(rules)) return;
+
+                // Get all event references that have active notification rules
+                const activeReferences = new Set(
+                    rules
+                        .filter(r => r.event_reference && r.active)
+                        .map(r => r.event_reference)
+                );
+
+                // Update all bell buttons on the page
+                document.querySelectorAll('[id^="notify-event-"]').forEach(btn => {
+                    const reference = btn.id.replace('notify-event-', '');
+                    if (activeReferences.has(reference)) {
+                        btn.classList.add('active');
+                    } else {
+                        btn.classList.remove('active');
+                    }
+                });
+
+                console.log(`🔔 Updated ${activeReferences.size} notification icons`);
+            } catch (error) {
+                console.error('Error updating notification icons:', error);
+            }
+        }
+
         // Toggle event-specific notification (API-based with database persistence)
         async function toggleEventNotification(reference, titulo, tipoEvento) {
             const btn = document.getElementById(`notify-event-${reference}`);
@@ -9862,25 +9900,9 @@
             }
         }
 
-        // Update notification button states based on API rules
+        // Update notification button states based on API rules (alias for updateNotificationIcons)
         async function updateNotifyButtonStates() {
-            try {
-                const rulesResponse = await fetch(`${API_BASE}/api/notification-rules`);
-                const rules = await rulesResponse.json();
-
-                // Get all event-specific rules
-                const eventRules = rules.filter(r => r.event_reference);
-
-                // Update button states
-                eventRules.forEach(rule => {
-                    const btn = document.getElementById(`notify-event-${rule.event_reference}`);
-                    if (btn && rule.active) {
-                        btn.classList.add('active');
-                    }
-                });
-            } catch (error) {
-                console.error('Erro ao carregar estados de notificação:', error);
-            }
+            await updateNotificationIcons();
         }
 
         // Update notification badge in sidebar
