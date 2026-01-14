@@ -13,14 +13,9 @@ sys.path.insert(0, 'backend')
 
 from services.vehicle_lookup import (
     decode_portuguese_plate,
-    extract_vehicle_from_title,
-    search_standvirtual,
-    search_autouncle,
-    get_market_prices,
-    lookup_plate_infomatricula,
     lookup_plate_infomatricula_api,
-    check_insurance_asf,
-    get_full_vehicle_info
+    check_insurance_api,
+    get_market_prices,
 )
 
 
@@ -41,27 +36,12 @@ async def main():
     print(f"   Ano estimado: {info.year_min} - {info.year_max}")
     print(f"   Notas: {info.notes}")
 
-    # 2. Test title extraction
-    print("\n📝 2. EXTRAÇÃO DE TÍTULO")
-    print("-" * 40)
-
-    test_titles = [
-        "BMW 320d de 2015",
-        "VOLKSWAGEN GOLF 1.6 TDI 2018",
-        "RENAULT MEGANE 1.5 DCI",
-        "MERCEDES-BENZ CLASSE C 220d",
-    ]
-
-    for title in test_titles:
-        result = extract_vehicle_from_title(title)
-        print(f"   '{title}'")
-        print(f"   -> Marca: {result['marca']}, Modelo: {result['modelo']}, Ano: {result['ano']}")
-
-    # 3. Lookup from InfoMatricula.pt (API version - no Playwright needed!)
-    print("\n🔍 3. LOOKUP INFOMATRICULA.PT (API)")
+    # 2. Lookup from InfoMatricula.pt API
+    print("\n🔍 2. LOOKUP INFOMATRICULA.PT (API)")
     print("-" * 40)
     print(f"   A pesquisar {plate} via API...")
 
+    vehicle_info = None
     try:
         info_result = await lookup_plate_infomatricula_api(plate, debug=True)
         if 'error' in info_result:
@@ -73,38 +53,59 @@ async def main():
             for key, value in info_result.items():
                 if value and key != 'source':
                     print(f"      {key}: {value}")
+            vehicle_info = info_result
     except Exception as e:
         print(f"   ❌ Erro: {e}")
 
-    # 4. Check insurance from ASF
-    print("\n🛡️  4. VERIFICAR SEGURO (ASF)")
+    # 3. Check insurance via API
+    print("\n🛡️  3. VERIFICAR SEGURO (API)")
     print("-" * 40)
-    print(f"   A verificar {plate}...")
+    print(f"   A verificar {plate} via API...")
 
     try:
-        insurance = await check_insurance_asf(plate, debug=True)
+        insurance = await check_insurance_api(plate, debug=True)
         if 'error' in insurance:
             print(f"   ⚠️  Erro: {insurance['error']}")
+        elif 'raw_data' in insurance:
+            print(f"   📋 Dados brutos da API:")
+            print(f"      {insurance['raw_data']}")
         else:
             if insurance.get('tem_seguro') is True:
                 print(f"   ✅ Veículo TEM seguro válido")
                 if insurance.get('seguradora'):
                     print(f"      Seguradora: {insurance['seguradora']}")
+                if insurance.get('apolice'):
+                    print(f"      Apólice: {insurance['apolice']}")
+                if insurance.get('data_fim'):
+                    print(f"      Válido até: {insurance['data_fim']}")
             elif insurance.get('tem_seguro') is False:
                 print(f"   ❌ Veículo NÃO tem seguro!")
             else:
-                print(f"   ⚠️  Não foi possível determinar (ver debug_asf.html)")
+                print(f"   ⚠️  Não foi possível determinar")
+                print(f"      Dados: {insurance}")
     except Exception as e:
         print(f"   ❌ Erro: {e}")
 
-    # 5. Search market prices (StandVirtual + AutoUncle)
-    print("\n💰 5. PREÇOS DE MERCADO")
+    # 4. Search market prices using vehicle info
+    print("\n💰 4. PREÇOS DE MERCADO")
     print("-" * 40)
-    print("   A pesquisar BMW 320d 2020-2024...")
+
+    # Use vehicle info from API if available
+    if vehicle_info:
+        marca = vehicle_info.get('marca', 'POLESTAR')
+        modelo = vehicle_info.get('modelo', 'POLESTAR 2')
+        ano = vehicle_info.get('ano', 2023)
+        combustivel = vehicle_info.get('combustivel', 'ELÉTRICO')
+        print(f"   A pesquisar {marca} {modelo} {ano} ({combustivel})...")
+    else:
+        marca = "POLESTAR"
+        modelo = "POLESTAR 2"
+        ano = 2023
+        combustivel = "ELÉTRICO"
+        print(f"   A pesquisar {marca} {modelo} {ano}...")
 
     try:
-        # Try combined search (StandVirtual first, then AutoUncle)
-        market_data = await get_market_prices("BMW", "320d", 2022, debug=True)
+        market_data = await get_market_prices(marca, modelo, ano, debug=True)
 
         if market_data:
             print(f"\n   ✅ Encontrados {market_data.num_resultados} resultados!")
@@ -116,10 +117,9 @@ async def main():
 
             print("\n   📋 Alguns anúncios:")
             for listing in market_data.listings[:5]:
-                print(f"      - {listing['titulo'][:40]}: {listing['preco']:,} EUR")
+                print(f"      - {listing['titulo'][:50]}: {listing['preco']:,} EUR")
         else:
             print("   ⚠️  Nenhum resultado encontrado")
-            print("   (ver debug_standvirtual.html e debug_autouncle.html)")
 
     except Exception as e:
         print(f"   ❌ Erro: {e}")

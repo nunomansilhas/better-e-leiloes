@@ -539,6 +539,114 @@ async def lookup_plate_infomatricula_api(plate: str, debug: bool = False) -> Dic
     return result
 
 
+async def check_insurance_api(plate: str, debug: bool = False) -> Dict[str, Any]:
+    """
+    Check vehicle insurance status from InfoMatricula API.
+    Uses the same Firebase authentication as vehicle lookup.
+
+    Returns: tem_seguro, seguradora, data_inicio, data_fim, etc.
+    """
+    result = {}
+    clean_plate = plate.replace("-", "").replace(" ", "").upper()
+
+    # Format with hyphens (XX-XX-XX)
+    if len(clean_plate) == 6:
+        formatted_plate = f"{clean_plate[:2]}-{clean_plate[2:4]}-{clean_plate[4:6]}"
+    else:
+        formatted_plate = plate
+
+    try:
+        # Firebase API key (same as vehicle lookup)
+        firebase_api_key = "AIzaSyC0ToM3KDiIgN_cvvRQNmS_0v9a3_oZM9Q"
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            if debug:
+                print("  [DEBUG] Obtendo token Firebase...")
+
+            # Anonymous sign-in to Firebase
+            firebase_url = f"https://identitytoolkit.googleapis.com/v1/accounts:signUp?key={firebase_api_key}"
+            firebase_response = await client.post(
+                firebase_url,
+                json={"returnSecureToken": True}
+            )
+
+            if firebase_response.status_code != 200:
+                if debug:
+                    print(f"  [DEBUG] Erro Firebase: {firebase_response.status_code}")
+                return {"error": f"Firebase auth failed: {firebase_response.status_code}"}
+
+            firebase_data = firebase_response.json()
+            id_token = firebase_data.get("idToken")
+
+            if not id_token:
+                return {"error": "No Firebase token received"}
+
+            if debug:
+                print("  [DEBUG] Token obtido, consultando API de seguro...")
+
+            # Call Insurance API
+            api_url = f"https://api.infomatricula.pt/seguro/fetch?plate={formatted_plate}"
+            headers = {
+                "Authorization": f"Bearer {id_token}",
+                "Accept": "application/json",
+                "Origin": "https://infomatricula.pt",
+                "Referer": "https://infomatricula.pt/",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            }
+
+            api_response = await client.get(api_url, headers=headers)
+
+            if debug:
+                print(f"  [DEBUG] API response status: {api_response.status_code}")
+
+            if api_response.status_code == 200:
+                data = api_response.json()
+
+                if debug:
+                    print(f"  [DEBUG] API data: {data}")
+
+                if data:
+                    # Map API response
+                    # Check for insurance status
+                    has_insurance = data.get('hasInsurance') or data.get('temSeguro') or data.get('insured')
+                    if has_insurance is not None:
+                        result['tem_seguro'] = bool(has_insurance)
+                    elif 'status' in data:
+                        result['tem_seguro'] = data['status'].lower() in ['valid', 'active', 'válido', 'ativo']
+
+                    # Insurer name
+                    result['seguradora'] = data.get('insurerName') or data.get('seguradora') or data.get('company')
+
+                    # Policy number
+                    result['apolice'] = data.get('policyNumber') or data.get('apolice') or data.get('policy')
+
+                    # Dates
+                    result['data_inicio'] = data.get('startDate') or data.get('dataInicio')
+                    result['data_fim'] = data.get('endDate') or data.get('dataFim')
+
+                    # Clean None values
+                    result = {k: v for k, v in result.items() if v is not None}
+
+                    if result:
+                        result['source'] = 'infomatricula.pt (API)'
+                    else:
+                        # If we got data but couldn't parse it, include raw
+                        result['raw_data'] = data
+                        result['source'] = 'infomatricula.pt (API)'
+                else:
+                    result['error'] = 'Resposta vazia da API'
+
+            elif api_response.status_code == 404:
+                result['error'] = 'Seguro não encontrado'
+            else:
+                result['error'] = f'API error: {api_response.status_code}'
+
+    except Exception as e:
+        result['error'] = str(e)
+
+    return result
+
+
 async def _accept_cookies(page, timeout: int = 2000):
     """Try to accept cookie consent dialogs on Portuguese sites."""
     cookie_selectors = [
