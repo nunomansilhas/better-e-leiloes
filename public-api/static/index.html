@@ -11050,30 +11050,65 @@
             }
         }
 
+        // Shared AudioContext for notifications (avoids browser autoplay policy issues)
+        let sharedAudioContext = null;
+        let audioContextUnlocked = false;
+
+        // Unlock audio on first user interaction
+        function unlockAudioContext() {
+            if (audioContextUnlocked) return;
+
+            try {
+                sharedAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+                // Resume if suspended (browser autoplay policy)
+                if (sharedAudioContext.state === 'suspended') {
+                    sharedAudioContext.resume();
+                }
+                audioContextUnlocked = true;
+                console.log('🔊 Audio context unlocked');
+            } catch (e) {
+                console.warn('Audio context not supported');
+            }
+        }
+
+        // Unlock audio on various user interactions
+        ['click', 'touchstart', 'keydown'].forEach(event => {
+            document.addEventListener(event, unlockAudioContext, { once: true });
+        });
+
         function playNotificationSound() {
             // Skip sound if muted
             if (notificationsMuted) return;
 
+            // Ensure audio context is ready
+            if (!sharedAudioContext || sharedAudioContext.state === 'closed') {
+                unlockAudioContext();
+            }
+
+            if (!sharedAudioContext) return;
+
+            // Resume if suspended
+            if (sharedAudioContext.state === 'suspended') {
+                sharedAudioContext.resume();
+            }
+
             // Create a simple beep sound
             try {
-                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                const oscillator = audioContext.createOscillator();
-                const gainNode = audioContext.createGain();
+                const oscillator = sharedAudioContext.createOscillator();
+                const gainNode = sharedAudioContext.createGain();
 
                 oscillator.connect(gainNode);
-                gainNode.connect(audioContext.destination);
+                gainNode.connect(sharedAudioContext.destination);
 
                 oscillator.frequency.value = 800;
                 oscillator.type = 'sine';
-                gainNode.gain.value = 0.1;
+                gainNode.gain.setValueAtTime(0.15, sharedAudioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, sharedAudioContext.currentTime + 0.3);
 
-                oscillator.start();
-                setTimeout(() => {
-                    oscillator.stop();
-                    audioContext.close();
-                }, 200);
+                oscillator.start(sharedAudioContext.currentTime);
+                oscillator.stop(sharedAudioContext.currentTime + 0.3);
             } catch (e) {
-                // Audio not supported or blocked
+                console.warn('Could not play notification sound:', e);
             }
         }
 
