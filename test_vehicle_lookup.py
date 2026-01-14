@@ -1,8 +1,9 @@
+# -*- coding: utf-8 -*-
 """
 Test script for vehicle lookup - Run this locally on Windows!
 
 Usage:
-    cd C:\Users\mansi\Downloads\e-leiloes-aux
+    cd C:/Users/mansi/Downloads/e-leiloes-aux
     python test_vehicle_lookup.py
 """
 

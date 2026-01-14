@@ -1,9 +1,10 @@
+# -*- coding: utf-8 -*-
 """
 Test Enhanced AI Analysis Service
 Run this locally on Windows to test the full analysis pipeline.
 
 Usage:
-    cd C:\Users\mansi\Downloads\e-leiloes-aux
+    cd C:/Users/mansi/Downloads/e-leiloes-aux
     python test_enhanced_ai.py
 """
 
