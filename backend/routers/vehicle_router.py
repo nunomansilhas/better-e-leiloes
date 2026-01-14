@@ -10,7 +10,7 @@ Features:
 - Search market prices (StandVirtual/AutoUncle)
 """
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, BackgroundTasks
 from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime
@@ -396,3 +396,298 @@ async def get_full_vehicle_info(
         errors=errors,
         lookup_time_ms=lookup_time_ms
     )
+
+
+# ============== EVENT VEHICLE DATA ENDPOINTS ==============
+
+class EventVehicleDataResponse(BaseModel):
+    """Vehicle data for an auction event"""
+    reference: str
+    matricula: Optional[str] = None
+    event_titulo: Optional[str] = None
+    event_valor_base: Optional[float] = None
+    event_lance_atual: Optional[float] = None
+
+    # Vehicle info
+    marca: Optional[str] = None
+    modelo: Optional[str] = None
+    versao: Optional[str] = None
+    ano: Optional[int] = None
+    combustivel: Optional[str] = None
+    potencia_cv: Optional[int] = None
+    cor: Optional[str] = None
+    vin: Optional[str] = None
+
+    # Insurance
+    tem_seguro: Optional[bool] = None
+    seguradora: Optional[str] = None
+    seguro_data_fim: Optional[str] = None
+
+    # Market comparison
+    market_num_resultados: Optional[int] = None
+    market_preco_min: Optional[float] = None
+    market_preco_max: Optional[float] = None
+    market_preco_medio: Optional[float] = None
+    market_preco_mediana: Optional[float] = None
+    market_fonte: Optional[str] = None
+    market_listings: Optional[List[MarketListingResponse]] = None
+
+    # Analysis
+    poupanca_estimada: Optional[float] = None
+    desconto_percentagem: Optional[float] = None
+
+    # Status
+    status: str
+    error_message: Optional[str] = None
+    processed_at: Optional[datetime] = None
+
+
+class VehiclePipelineStatus(BaseModel):
+    """Pipeline status"""
+    is_running: bool
+    current_reference: Optional[str] = None
+    current_event_titulo: Optional[str] = None
+    total_processed: int
+    total_failed: int
+    total_pending: int
+
+
+@router.get("/event/{reference}", response_model=EventVehicleDataResponse)
+async def get_event_vehicle_data(reference: str):
+    """
+    Get cached vehicle data for a specific auction event.
+
+    Returns vehicle info, insurance status, and market comparison
+    if already processed. Returns status='pending' if not yet processed.
+    """
+    from database import get_db, EventVehicleDataDB
+    from sqlalchemy import select
+    import json
+
+    async with get_db() as db:
+        result = await db.session.execute(
+            select(EventVehicleDataDB).where(EventVehicleDataDB.reference == reference)
+        )
+        vehicle_data = result.scalar_one_or_none()
+
+        if not vehicle_data:
+            return EventVehicleDataResponse(
+                reference=reference,
+                status='not_found'
+            )
+
+        # Parse market listings if available
+        listings = None
+        if vehicle_data.market_listings:
+            try:
+                listings_raw = json.loads(vehicle_data.market_listings)
+                listings = [
+                    MarketListingResponse(
+                        titulo=l.get('titulo', ''),
+                        preco=l.get('preco', 0),
+                        params=l.get('params')
+                    )
+                    for l in listings_raw
+                ]
+            except:
+                pass
+
+        return EventVehicleDataResponse(
+            reference=vehicle_data.reference,
+            matricula=vehicle_data.matricula,
+            event_titulo=vehicle_data.event_titulo,
+            event_valor_base=float(vehicle_data.event_valor_base) if vehicle_data.event_valor_base else None,
+            event_lance_atual=float(vehicle_data.event_lance_atual) if vehicle_data.event_lance_atual else None,
+            marca=vehicle_data.marca,
+            modelo=vehicle_data.modelo,
+            versao=vehicle_data.versao,
+            ano=vehicle_data.ano,
+            combustivel=vehicle_data.combustivel,
+            potencia_cv=vehicle_data.potencia_cv,
+            cor=vehicle_data.cor,
+            vin=vehicle_data.vin,
+            tem_seguro=vehicle_data.tem_seguro,
+            seguradora=vehicle_data.seguradora,
+            seguro_data_fim=vehicle_data.seguro_data_fim,
+            market_num_resultados=vehicle_data.market_num_resultados,
+            market_preco_min=float(vehicle_data.market_preco_min) if vehicle_data.market_preco_min else None,
+            market_preco_max=float(vehicle_data.market_preco_max) if vehicle_data.market_preco_max else None,
+            market_preco_medio=float(vehicle_data.market_preco_medio) if vehicle_data.market_preco_medio else None,
+            market_preco_mediana=float(vehicle_data.market_preco_mediana) if vehicle_data.market_preco_mediana else None,
+            market_fonte=vehicle_data.market_fonte,
+            market_listings=listings,
+            poupanca_estimada=float(vehicle_data.poupanca_estimada) if vehicle_data.poupanca_estimada else None,
+            desconto_percentagem=vehicle_data.desconto_percentagem,
+            status=vehicle_data.status,
+            error_message=vehicle_data.error_message,
+            processed_at=vehicle_data.processed_at
+        )
+
+
+@router.post("/event/{reference}/process")
+async def process_event_vehicle(reference: str, background_tasks: BackgroundTasks):
+    """
+    Trigger vehicle data processing for a specific event.
+    Runs in background and returns immediately.
+    """
+    from vehicle_pipeline import get_vehicle_pipeline_manager
+
+    pipeline = get_vehicle_pipeline_manager()
+
+    # Run in background
+    background_tasks.add_task(pipeline.process_single, reference)
+
+    return {
+        "status": "queued",
+        "message": f"Vehicle data processing queued for {reference}",
+        "reference": reference
+    }
+
+
+@router.get("/pipeline/status", response_model=VehiclePipelineStatus)
+async def get_vehicle_pipeline_status():
+    """Get vehicle pipeline processing status"""
+    from database import get_db, EventVehicleDataDB, EventDB
+    from sqlalchemy import select, func, and_
+    from vehicle_pipeline import get_vehicle_pipeline_manager
+
+    pipeline = get_vehicle_pipeline_manager()
+
+    # Count pending events (vehicles with matricula not yet processed)
+    async with get_db() as db:
+        subquery = select(EventVehicleDataDB.reference).where(
+            EventVehicleDataDB.status.in_(['completed', 'processing'])
+        )
+
+        pending_result = await db.session.execute(
+            select(func.count(EventDB.reference)).where(
+                and_(
+                    EventDB.tipo_id == 2,
+                    EventDB.matricula.isnot(None),
+                    EventDB.matricula != '',
+                    EventDB.terminado == False,
+                    EventDB.cancelado == False,
+                    EventDB.reference.notin_(subquery)
+                )
+            )
+        )
+        pending_count = pending_result.scalar() or 0
+
+    return VehiclePipelineStatus(
+        is_running=pipeline.is_running,
+        current_reference=pipeline.current_reference,
+        current_event_titulo=pipeline.current_event_titulo,
+        total_processed=pipeline.total_processed,
+        total_failed=pipeline.total_failed,
+        total_pending=pending_count
+    )
+
+
+@router.post("/pipeline/start")
+async def start_vehicle_pipeline(background_tasks: BackgroundTasks):
+    """Start the vehicle data pipeline"""
+    from vehicle_pipeline import get_vehicle_pipeline_manager
+
+    pipeline = get_vehicle_pipeline_manager()
+
+    if pipeline.is_running:
+        return {"status": "already_running", "message": "Vehicle pipeline is already running"}
+
+    background_tasks.add_task(pipeline.start)
+
+    return {"status": "starting", "message": "Vehicle pipeline is starting"}
+
+
+@router.post("/pipeline/stop")
+async def stop_vehicle_pipeline():
+    """Stop the vehicle data pipeline"""
+    from vehicle_pipeline import get_vehicle_pipeline_manager
+
+    pipeline = get_vehicle_pipeline_manager()
+    await pipeline.stop()
+
+    return {"status": "stopped", "message": "Vehicle pipeline stopped"}
+
+
+@router.get("/events/list")
+async def list_vehicle_events(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    status: Optional[str] = Query(None, description="Filter by status: pending, completed, failed"),
+):
+    """
+    List vehicle events with their processing status.
+    Shows events that have matricula and their market comparison status.
+    """
+    from database import get_db, EventDB, EventVehicleDataDB
+    from sqlalchemy import select, func, outerjoin
+
+    async with get_db() as db:
+        # Get vehicle events with their processing status
+        query = (
+            select(
+                EventDB.reference,
+                EventDB.titulo,
+                EventDB.matricula,
+                EventDB.valor_base,
+                EventDB.lance_atual,
+                EventDB.data_fim,
+                EventVehicleDataDB.status,
+                EventVehicleDataDB.marca,
+                EventVehicleDataDB.modelo,
+                EventVehicleDataDB.market_preco_medio,
+                EventVehicleDataDB.poupanca_estimada,
+            )
+            .outerjoin(EventVehicleDataDB, EventDB.reference == EventVehicleDataDB.reference)
+            .where(
+                and_(
+                    EventDB.tipo_id == 2,
+                    EventDB.matricula.isnot(None),
+                    EventDB.matricula != '',
+                    EventDB.terminado == False,
+                    EventDB.cancelado == False,
+                )
+            )
+        )
+
+        # Filter by status
+        if status:
+            if status == 'pending':
+                query = query.where(EventVehicleDataDB.status.is_(None))
+            else:
+                query = query.where(EventVehicleDataDB.status == status)
+
+        # Count total
+        count_query = select(func.count()).select_from(query.subquery())
+        total_result = await db.session.execute(count_query)
+        total = total_result.scalar() or 0
+
+        # Apply pagination
+        offset = (page - 1) * page_size
+        query = query.order_by(EventDB.data_fim.asc()).offset(offset).limit(page_size)
+
+        result = await db.session.execute(query)
+        events = result.all()
+
+        return {
+            "events": [
+                {
+                    "reference": e.reference,
+                    "titulo": e.titulo,
+                    "matricula": e.matricula,
+                    "valor_base": float(e.valor_base) if e.valor_base else None,
+                    "lance_atual": float(e.lance_atual) if e.lance_atual else None,
+                    "data_fim": e.data_fim.isoformat() if e.data_fim else None,
+                    "status": e.status or "pending",
+                    "marca": e.marca,
+                    "modelo": e.modelo,
+                    "market_preco_medio": float(e.market_preco_medio) if e.market_preco_medio else None,
+                    "poupanca_estimada": float(e.poupanca_estimada) if e.poupanca_estimada else None,
+                }
+                for e in events
+            ],
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "has_more": offset + len(events) < total
+        }

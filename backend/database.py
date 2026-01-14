@@ -535,6 +535,70 @@ class EventAiTipDB(Base):
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
 
+class EventVehicleDataDB(Base):
+    """
+    Vehicle market data and lookup information for auction events.
+    Caches vehicle info from InfoMatricula API and market prices.
+    """
+    __tablename__ = "event_vehicle_data"
+    __table_args__ = (
+        Index('idx_vehicle_data_reference', 'reference'),
+        Index('idx_vehicle_data_matricula', 'matricula'),
+        Index('idx_vehicle_data_status', 'status'),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    reference: Mapped[str] = mapped_column(String(50), nullable=False, unique=True, index=True)
+    matricula: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+
+    # Event info snapshot
+    event_titulo: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    event_valor_base: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True)
+    event_lance_atual: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True)
+
+    # Vehicle info from InfoMatricula API
+    marca: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    modelo: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    versao: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    ano: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    combustivel: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    potencia_cv: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    potencia_kw: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    cor: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    categoria: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    vin: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    tipo_proprietario: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    origem: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+
+    # Insurance info
+    tem_seguro: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
+    seguradora: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    seguro_apolice: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    seguro_data_fim: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+
+    # Market prices summary
+    market_num_resultados: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    market_preco_min: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True)
+    market_preco_max: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True)
+    market_preco_medio: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True)
+    market_preco_mediana: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True)
+    market_fonte: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    market_listings: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON array
+
+    # Comparison analysis
+    poupanca_estimada: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True)
+    desconto_percentagem: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+
+    # Processing status
+    status: Mapped[str] = mapped_column(String(20), default='pending')  # pending, processing, completed, failed
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    processed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+
 class AiPipelineStateDB(Base):
     """
     State tracking for the AI processing pipeline.
