@@ -4,6 +4,7 @@ Web Scraper para E-Leiloes.pt usando Playwright
 
 import sys
 import asyncio
+import concurrent.futures
 from typing import List, Optional, Callable, Awaitable
 from datetime import datetime
 import re
@@ -23,6 +24,73 @@ except ImportError:
     pass
 
 
+# Thread pool para executar operações Playwright no Windows
+_playwright_executor = None
+
+def get_playwright_executor():
+    """Get or create a thread pool executor for Playwright operations."""
+    global _playwright_executor
+    if _playwright_executor is None:
+        _playwright_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix="playwright")
+    return _playwright_executor
+
+
+def run_sync_in_thread(func, *args, **kwargs):
+    """Run a synchronous function in the Playwright thread pool."""
+    executor = get_playwright_executor()
+    future = executor.submit(func, *args, **kwargs)
+    return future.result()
+
+
+async def run_in_playwright_thread(func, *args, **kwargs):
+    """Run a synchronous function in the Playwright thread pool (async wrapper)."""
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(
+        get_playwright_executor(),
+        lambda: func(*args, **kwargs)
+    )
+
+
+def run_async_in_proactor(coro_func, *args, **kwargs):
+    """
+    Run an async function in a new thread with ProactorEventLoop.
+    This is needed on Windows when the main event loop is SelectorEventLoop.
+    """
+    def thread_target():
+        # Create ProactorEventLoop for this thread
+        loop = asyncio.ProactorEventLoop()
+        asyncio.set_event_loop(loop)
+        try:
+            coro = coro_func(*args, **kwargs)
+            return loop.run_until_complete(coro)
+        finally:
+            loop.close()
+
+    executor = get_playwright_executor()
+    future = executor.submit(thread_target)
+    return future.result()
+
+
+async def run_async_in_proactor_async(coro_func, *args, **kwargs):
+    """
+    Async wrapper: Run an async function in a new thread with ProactorEventLoop.
+    Returns result to the calling async context.
+    """
+    loop = asyncio.get_event_loop()
+
+    def thread_target():
+        # Create ProactorEventLoop for this thread
+        new_loop = asyncio.ProactorEventLoop()
+        asyncio.set_event_loop(new_loop)
+        try:
+            coro = coro_func(*args, **kwargs)
+            return new_loop.run_until_complete(coro)
+        finally:
+            new_loop.close()
+
+    return await loop.run_in_executor(get_playwright_executor(), thread_target)
+
+
 
 from models import (
     EventData, ScraperStatus,
@@ -35,7 +103,7 @@ from models import (
 
 class EventScraper:
     """Scraper assíncrono para e-leiloes.pt"""
-    
+
     def __init__(self):
         self.browser: Optional[Browser] = None
         self.playwright = None
@@ -53,7 +121,7 @@ class EventScraper:
         self.delay = float(os.getenv("SCRAPE_DELAY", 0.8))
         self.concurrent = int(os.getenv("CONCURRENT_REQUESTS", 4))
         self.user_agent = os.getenv("USER_AGENT", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
-    
+
     async def init_browser(self):
         """Inicializa browser Playwright"""
         if not self.browser:
@@ -62,7 +130,7 @@ class EventScraper:
                 headless=True,
                 args=['--disable-blink-features=AutomationControlled']
             )
-    
+
     async def close(self):
         """Fecha browser"""
         if self.browser:

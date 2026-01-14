@@ -6,11 +6,50 @@ Manages scheduled automatic scrapers with persistent configuration
 import sys
 import json
 import asyncio
+import concurrent.futures
 from datetime import datetime, timedelta
 
-# Fix para Windows - asyncio com Playwright/subprocessos
-if sys.platform == 'win32':
-    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+
+# Thread pool para executar Playwright operations no Windows
+_proactor_executor = None
+
+
+def get_proactor_executor():
+    """Get or create a thread pool executor for Playwright operations."""
+    global _proactor_executor
+    if _proactor_executor is None:
+        _proactor_executor = concurrent.futures.ThreadPoolExecutor(
+            max_workers=1,
+            thread_name_prefix="proactor"
+        )
+    return _proactor_executor
+
+
+async def run_in_proactor(coro_func, *args, **kwargs):
+    """
+    Windows fix: Run an async function in a thread with ProactorEventLoop.
+    This allows Playwright to work even when the main loop is SelectorEventLoop.
+    On Linux/Mac, just runs the coroutine directly.
+    """
+    if sys.platform != 'win32':
+        # Linux/Mac: run directly
+        return await coro_func(*args, **kwargs)
+
+    # Windows: run in thread with ProactorEventLoop
+    main_loop = asyncio.get_event_loop()
+
+    def thread_target():
+        # Create ProactorEventLoop for this thread
+        loop = asyncio.ProactorEventLoop()
+        asyncio.set_event_loop(loop)
+        try:
+            coro = coro_func(*args, **kwargs)
+            return loop.run_until_complete(coro)
+        finally:
+            loop.close()
+
+    return await main_loop.run_in_executor(get_proactor_executor(), thread_target)
+
 
 # nest_asyncio para nested event loops (APScheduler + Playwright)
 try:
@@ -1373,7 +1412,8 @@ class AutoPipelinesManager:
 
                 # Stage 1: Discover ALL IDs (full scan, no page limit)
                 print(f"  🔍 Stage 1: A descobrir TODOS os IDs...")
-                ids = await scraper.scrape_ids_only(tipo=None, max_pages=None)
+                # Use run_in_proactor for Windows compatibility (SelectorEventLoop doesn't support subprocesses)
+                ids = await run_in_proactor(scraper.scrape_ids_only, tipo=None, max_pages=None)
                 print(f"  📊 {len(ids)} IDs encontrados no site")
 
                 # Find only NEW ids
@@ -1387,7 +1427,7 @@ class AutoPipelinesManager:
                 if new_ids:
                     print(f"  🆕 {len(new_ids)} novos IDs, a obter dados via API...")
                     new_refs = [item['reference'] for item in new_ids]
-                    events = await scraper.scrape_details_via_api(new_refs)
+                    events = await run_in_proactor(scraper.scrape_details_via_api, new_refs)
 
                     # Process notifications for new events
                     from notification_engine import process_new_events_batch
@@ -1444,7 +1484,7 @@ class AutoPipelinesManager:
 
                         # OPTIMIZED: Batch API call instead of one-by-one
                         refs = [e.reference for e in candidates]
-                        api_results = await scraper.scrape_volatile_via_api(refs)
+                        api_results = await run_in_proactor(scraper.scrape_volatile_via_api, refs)
 
                         # Create lookup map for quick access
                         api_map = {r['reference']: r for r in api_results}
@@ -1568,7 +1608,7 @@ class AutoPipelinesManager:
                 # Close resources safely (don't let errors here block the rest)
                 try:
                     if scraper:
-                        await scraper.close()
+                        await run_in_proactor(scraper.close)
                 except:
                     pass
                 try:
@@ -1696,8 +1736,8 @@ class AutoPipelinesManager:
 
                     print(f"  🆕 {len(new_refs)} eventos novos encontrados!")
 
-                    # Scrape details for new events
-                    events = await scraper.scrape_details_via_api(new_refs)
+                    # Scrape details for new events (use run_in_proactor for Windows)
+                    events = await run_in_proactor(scraper.scrape_details_via_api, new_refs)
 
                     # Process notifications for new events
                     from notification_engine import process_new_events_batch
@@ -1743,7 +1783,7 @@ class AutoPipelinesManager:
                 # Close resources safely (don't let errors here block the rest)
                 try:
                     if scraper:
-                        await scraper.close()
+                        await run_in_proactor(scraper.close)
                 except:
                     pass
                 try:
