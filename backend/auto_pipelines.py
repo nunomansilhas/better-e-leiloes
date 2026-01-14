@@ -3,9 +3,21 @@ Automatic Pipelines Management System
 Manages scheduled automatic scrapers with persistent configuration
 """
 
+import sys
 import json
 import asyncio
 from datetime import datetime, timedelta
+
+# Fix para Windows - asyncio com Playwright/subprocessos
+if sys.platform == 'win32':
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+
+# nest_asyncio para nested event loops (APScheduler + Playwright)
+try:
+    import nest_asyncio
+    nest_asyncio.apply()
+except ImportError:
+    pass
 from pathlib import Path
 from typing import Dict, Any, Optional, Callable
 from dataclasses import dataclass, asdict

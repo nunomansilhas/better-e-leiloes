@@ -11,6 +11,17 @@ from playwright.async_api import async_playwright, Page, Browser
 import os
 import httpx
 
+# Fix para Windows - asyncio com Playwright/subprocessos
+if sys.platform == 'win32':
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+
+# nest_asyncio para nested event loops (APScheduler + Playwright)
+try:
+    import nest_asyncio
+    nest_asyncio.apply()
+except ImportError:
+    pass
+
 from models import (
     EventData, ScraperStatus,
     TIPO_EVENTO_MAP, TIPO_EVENTO_NAMES, TIPO_TO_WEBSITE,
