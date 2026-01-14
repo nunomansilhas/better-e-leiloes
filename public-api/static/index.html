@@ -11349,13 +11349,17 @@
             try {
                 const favorites = await getFavoritesFromCache();
                 const favReferences = new Set(favorites.map(f => f.event_reference));
+                console.log('[updateFavoriteStars] Favorites:', favorites.length, 'refs:', [...favReferences]);
 
                 // Update all star buttons
-                document.querySelectorAll('.card-favorite-btn').forEach(btn => {
+                const buttons = document.querySelectorAll('.card-favorite-btn');
+                console.log('[updateFavoriteStars] Found buttons:', buttons.length);
+                buttons.forEach(btn => {
                     const ref = btn.id.replace('fav-event-', '');
                     const isFav = favReferences.has(ref);
                     const svg = btn.querySelector('.star-icon');
                     if (isFav) {
+                        console.log('[updateFavoriteStars] Setting favorite:', ref);
                         btn.classList.add('is-favorite');
                         svg.setAttribute('fill', '#f59e0b');
                         svg.setAttribute('stroke', '#f59e0b');
