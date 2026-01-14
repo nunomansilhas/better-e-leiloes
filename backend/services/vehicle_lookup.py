@@ -118,18 +118,19 @@ def extract_vehicle_from_title(title: str) -> Dict[str, Optional[str]]:
     - "BMW 320d de 2015" -> {"marca": "BMW", "modelo": "320d", "ano": 2015}
     - "VOLKSWAGEN GOLF 1.6 TDI" -> {"marca": "VOLKSWAGEN", "modelo": "GOLF 1.6 TDI", "ano": None}
     """
-    # Common car brands in Portugal
+    # Common car brands in Portugal (longer names first to match correctly)
     brands = [
-        "ABARTH", "ALFA ROMEO", "AUDI", "BMW", "CHEVROLET", "CHRYSLER", "CITROEN",
+        "MERCEDES-BENZ", "ALFA ROMEO", "LAND ROVER",  # Multi-word brands first
+        "ABARTH", "AUDI", "BMW", "CHEVROLET", "CHRYSLER", "CITROEN",
         "DACIA", "FIAT", "FORD", "HONDA", "HYUNDAI", "JAGUAR", "JEEP", "KIA",
-        "LAND ROVER", "LEXUS", "MAZDA", "MERCEDES", "MERCEDES-BENZ", "MINI",
-        "MITSUBISHI", "NISSAN", "OPEL", "PEUGEOT", "PORSCHE", "RENAULT", "SEAT",
-        "SKODA", "SMART", "SUZUKI", "TESLA", "TOYOTA", "VOLKSWAGEN", "VOLVO"
+        "LEXUS", "MAZDA", "MERCEDES", "MINI", "MITSUBISHI", "NISSAN", "OPEL",
+        "PEUGEOT", "PORSCHE", "RENAULT", "SEAT", "SKODA", "SMART", "SUZUKI",
+        "TESLA", "TOYOTA", "VOLKSWAGEN", "VOLVO"
     ]
 
     title_upper = title.upper()
 
-    # Find brand
+    # Find brand (check longer names first)
     found_brand = None
     for brand in brands:
         if brand in title_upper:
@@ -159,7 +160,7 @@ def extract_vehicle_from_title(title: str) -> Dict[str, Optional[str]]:
     }
 
 
-async def search_standvirtual(marca: str, modelo: str, ano: int = None) -> Optional[VehicleMarketData]:
+async def search_standvirtual(marca: str, modelo: str = None, ano: int = None, debug: bool = False) -> Optional[VehicleMarketData]:
     """
     Search Standvirtual for similar vehicles.
 
@@ -177,7 +178,7 @@ async def search_standvirtual(marca: str, modelo: str, ano: int = None) -> Optio
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
         context = await browser.new_context(
-            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             viewport={'width': 1920, 'height': 1080},
             locale='pt-PT'
         )
@@ -185,52 +186,147 @@ async def search_standvirtual(marca: str, modelo: str, ano: int = None) -> Optio
 
         try:
             # Build search URL
-            marca_slug = marca.lower().replace(" ", "-")
+            marca_slug = marca.lower().replace(" ", "-").replace("_", "-")
             url = f"https://www.standvirtual.com/carros/{marca_slug}"
 
             if modelo:
-                modelo_slug = modelo.lower().replace(" ", "-").replace(".", "-")
-                url = f"{url}/{modelo_slug}"
+                # Clean modelo slug
+                modelo_slug = modelo.lower()
+                modelo_slug = re.sub(r'[^\w\s-]', '', modelo_slug)  # Remove special chars except -
+                modelo_slug = modelo_slug.replace(" ", "-").replace(".", "-")
+                # Take only the first part for common model names
+                modelo_first = modelo_slug.split('-')[0] if '-' in modelo_slug else modelo_slug
+                url = f"{url}?search[filter_enum_model]={modelo_first}"
 
             # Add year filter
-            params = []
             if ano:
-                params.append(f"search[filter_float_year:from]={ano-1}")
-                params.append(f"search[filter_float_year:to]={ano+1}")
+                separator = '&' if '?' in url else '?'
+                url = f"{url}{separator}search[filter_float_year:from]={ano-2}&search[filter_float_year:to]={ano+2}"
 
-            if params:
-                url = f"{url}?{'&'.join(params)}"
-
-            print(f"Searching: {url}")
+            if debug:
+                print(f"  [DEBUG] URL: {url}")
 
             await page.goto(url, timeout=30000)
             await page.wait_for_timeout(3000)
 
-            # Extract listings
-            listings = await page.query_selector_all('article[data-testid="listing-ad"]')
+            # Accept cookies
+            await _accept_cookies(page)
+            await page.wait_for_timeout(1000)
+
+            # Get page content for debugging
+            content = await page.content()
+
+            if debug:
+                with open('debug_standvirtual.html', 'w', encoding='utf-8') as f:
+                    f.write(content)
+                print("  [DEBUG] HTML guardado em debug_standvirtual.html")
+
+            # Try multiple listing selectors (site structure changes frequently)
+            listing_selectors = [
+                'article[data-testid="listing-ad"]',
+                'article[data-id]',
+                '[data-testid="search-results"] article',
+                '.ooa-1t80gpj',  # StandVirtual class pattern
+                'main article',
+                '.listing-item',
+                '[class*="offer"]',
+            ]
+
+            listings = []
+            for selector in listing_selectors:
+                listings = await page.query_selector_all(selector)
+                if listings:
+                    if debug:
+                        print(f"  [DEBUG] Encontrados {len(listings)} listings com: {selector}")
+                    break
+
+            if not listings:
+                # Try to find any article with price
+                all_articles = await page.query_selector_all('article')
+                if debug:
+                    print(f"  [DEBUG] Total de articles na página: {len(all_articles)}")
+
+                # Also check for "no results" message
+                no_results_indicators = [
+                    'não encontrámos',
+                    'sem resultados',
+                    'nenhum resultado',
+                    '0 anúncios',
+                ]
+                content_lower = content.lower()
+                for indicator in no_results_indicators:
+                    if indicator in content_lower:
+                        if debug:
+                            print(f"  [DEBUG] Página indica: {indicator}")
+                        return None
 
             for listing in listings[:20]:  # Max 20 results
                 try:
-                    # Price
-                    price_el = await listing.query_selector('[data-testid="ad-price"]')
-                    price_text = await price_el.inner_text() if price_el else "0"
-                    price = int(re.sub(r'[^\d]', '', price_text) or 0)
+                    # Try multiple price selectors
+                    price_selectors = [
+                        '[data-testid="ad-price"]',
+                        '.ooa-1bmnxg7',  # Price class
+                        '[class*="price"]',
+                        'span:has-text("EUR")',
+                        'h3',
+                    ]
 
-                    # Title
-                    title_el = await listing.query_selector('h2')
-                    title = await title_el.inner_text() if title_el else ""
+                    price = 0
+                    for ps in price_selectors:
+                        price_el = await listing.query_selector(ps)
+                        if price_el:
+                            price_text = await price_el.inner_text()
+                            # Extract number from price (remove EUR, spaces, etc)
+                            price_match = re.search(r'[\d\s]+', price_text.replace(' ', ''))
+                            if price_match:
+                                price_clean = price_match.group().replace(' ', '')
+                                if price_clean.isdigit():
+                                    price = int(price_clean)
+                                    if price > 0:
+                                        break
 
-                    # Year/Km
-                    params_el = await listing.query_selector('[data-testid="ad-parameters"]')
-                    params_text = await params_el.inner_text() if params_el else ""
+                    # Try multiple title selectors
+                    title_selectors = [
+                        'h2',
+                        'h1',
+                        '[data-testid="ad-title"]',
+                        'a[href*="/anuncio/"]',
+                        '[class*="title"]',
+                    ]
 
-                    if price > 0:
+                    title = ""
+                    for ts in title_selectors:
+                        title_el = await listing.query_selector(ts)
+                        if title_el:
+                            title = await title_el.inner_text()
+                            if title and len(title) > 3:
+                                break
+
+                    # Get params (year, km, fuel)
+                    params_text = ""
+                    params_selectors = [
+                        '[data-testid="ad-parameters"]',
+                        'ul li',
+                        '[class*="parameter"]',
+                    ]
+                    for psel in params_selectors:
+                        params_el = await listing.query_selector(psel)
+                        if params_el:
+                            params_text = await params_el.inner_text()
+                            break
+
+                    if price > 500:  # Minimum reasonable price
                         results.append({
-                            "titulo": title.strip(),
+                            "titulo": title.strip()[:100],
                             "preco": price,
-                            "params": params_text.strip()
+                            "params": params_text.strip()[:100] if params_text else ""
                         })
-                except:
+                        if debug:
+                            print(f"  [DEBUG] Anúncio: {title[:40]}... - {price} EUR")
+
+                except Exception as e:
+                    if debug:
+                        print(f"  [DEBUG] Erro ao processar listing: {e}")
                     continue
 
         except Exception as e:
@@ -286,7 +382,39 @@ class VehicleFullInfo:
     errors: List[str] = field(default_factory=list)
 
 
-async def lookup_plate_infomatricula(plate: str) -> Dict[str, Any]:
+async def _accept_cookies(page, timeout: int = 2000):
+    """Try to accept cookie consent dialogs on Portuguese sites."""
+    cookie_selectors = [
+        # Common cookie button selectors
+        'button:has-text("Aceitar")',
+        'button:has-text("Aceito")',
+        'button:has-text("Concordo")',
+        'button:has-text("Accept")',
+        'button:has-text("OK")',
+        '[id*="cookie"] button',
+        '[class*="cookie"] button',
+        '[id*="consent"] button',
+        '[class*="consent"] button',
+        '.accept-cookies',
+        '#accept-cookies',
+        'a:has-text("Aceitar")',
+        '[data-testid="cookie-accept"]',
+    ]
+
+    for selector in cookie_selectors:
+        try:
+            btn = await page.query_selector(selector)
+            if btn:
+                await btn.click()
+                await page.wait_for_timeout(500)
+                return True
+        except:
+            continue
+
+    return False
+
+
+async def lookup_plate_infomatricula(plate: str, debug: bool = False) -> Dict[str, Any]:
     """
     Lookup vehicle info from InfoMatricula.pt
     Requires Playwright - run locally on Windows!
@@ -301,10 +429,16 @@ async def lookup_plate_infomatricula(plate: str) -> Dict[str, Any]:
     result = {}
     clean_plate = plate.replace("-", "").replace(" ", "").upper()
 
+    # Format with hyphens
+    if len(clean_plate) == 6:
+        formatted_plate = f"{clean_plate[:2]}-{clean_plate[2:4]}-{clean_plate[4:6]}"
+    else:
+        formatted_plate = plate
+
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
         context = await browser.new_context(
-            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             viewport={'width': 1920, 'height': 1080},
             locale='pt-PT'
         )
@@ -312,51 +446,134 @@ async def lookup_plate_infomatricula(plate: str) -> Dict[str, Any]:
 
         try:
             # Go to InfoMatricula
+            if debug:
+                print("  [DEBUG] Navegando para infomatricula.pt...")
             await page.goto('https://infomatricula.pt/', timeout=30000)
             await page.wait_for_timeout(2000)
 
-            # Find and fill the search input
-            search_input = await page.query_selector('input[type="text"]')
+            # Accept cookies if present
+            await _accept_cookies(page)
+
+            # Try different search input selectors
+            search_selectors = [
+                'input[name="matricula"]',
+                'input[placeholder*="matrícula"]',
+                'input[placeholder*="matricula"]',
+                'input#matricula',
+                'input.matricula',
+                'input[type="text"]',
+            ]
+
+            search_input = None
+            for selector in search_selectors:
+                search_input = await page.query_selector(selector)
+                if search_input:
+                    if debug:
+                        print(f"  [DEBUG] Input encontrado: {selector}")
+                    break
+
             if search_input:
-                await search_input.fill(clean_plate)
+                await search_input.fill(formatted_plate)
                 await page.wait_for_timeout(500)
 
-                # Click search button
-                search_btn = await page.query_selector('button[type="submit"]')
-                if search_btn:
-                    await search_btn.click()
-                    await page.wait_for_timeout(3000)
+                # Try different button selectors
+                btn_selectors = [
+                    'button[type="submit"]',
+                    'button:has-text("Pesquisar")',
+                    'button:has-text("Consultar")',
+                    'input[type="submit"]',
+                    'form button',
+                    '.search-btn',
+                    '#search-btn',
+                ]
 
-                    # Extract vehicle info from results
-                    content = await page.content()
+                for selector in btn_selectors:
+                    search_btn = await page.query_selector(selector)
+                    if search_btn:
+                        if debug:
+                            print(f"  [DEBUG] Botão encontrado: {selector}")
+                        await search_btn.click()
+                        break
 
-                    # Look for common patterns in the result
-                    # Marca
-                    marca_match = re.search(r'[Mm]arca[:\s]*([A-Z][A-Za-z\s]+)', content)
-                    if marca_match:
-                        result['marca'] = marca_match.group(1).strip()
+                await page.wait_for_timeout(4000)
 
-                    # Modelo
-                    modelo_match = re.search(r'[Mm]odelo[:\s]*([A-Za-z0-9\s\.]+)', content)
-                    if modelo_match:
-                        result['modelo'] = modelo_match.group(1).strip()
+                # Get page content
+                content = await page.content()
 
-                    # Ano
-                    ano_match = re.search(r'[Aa]no[:\s]*(19\d{2}|20\d{2})', content)
-                    if ano_match:
-                        result['ano'] = int(ano_match.group(1))
+                if debug:
+                    # Save HTML for debugging
+                    with open('debug_infomatricula.html', 'w', encoding='utf-8') as f:
+                        f.write(content)
+                    print("  [DEBUG] HTML guardado em debug_infomatricula.html")
 
-                    # Combustivel
-                    if 'diesel' in content.lower():
+                # Try to extract data from table rows or definition lists
+                # Look for structured data patterns
+
+                # Pattern 1: Table with "Marca", "Modelo", etc.
+                rows = await page.query_selector_all('tr, .row, .info-row')
+                for row in rows:
+                    text = await row.inner_text()
+                    text_lower = text.lower()
+
+                    if 'marca' in text_lower:
+                        parts = text.split('\n') if '\n' in text else text.split(':')
+                        if len(parts) >= 2:
+                            result['marca'] = parts[-1].strip()
+                    elif 'modelo' in text_lower:
+                        parts = text.split('\n') if '\n' in text else text.split(':')
+                        if len(parts) >= 2:
+                            result['modelo'] = parts[-1].strip()
+                    elif 'ano' in text_lower and 'fabricação' not in text_lower:
+                        year_match = re.search(r'(19\d{2}|20\d{2})', text)
+                        if year_match:
+                            result['ano'] = int(year_match.group(1))
+                    elif 'combustível' in text_lower or 'combustivel' in text_lower:
+                        if 'diesel' in text_lower:
+                            result['combustivel'] = 'Diesel'
+                        elif 'gasolina' in text_lower:
+                            result['combustivel'] = 'Gasolina'
+
+                # Pattern 2: Regex fallback on full content
+                if 'marca' not in result:
+                    marca_patterns = [
+                        r'[Mm]arca[:\s]+([A-Z][A-Z\s\-]+?)(?:\s*[<\n]|\s+[Mm]odelo)',
+                        r'<td[^>]*>[Mm]arca</td>\s*<td[^>]*>([^<]+)</td>',
+                        r'"marca"[:\s]*"([^"]+)"',
+                    ]
+                    for pattern in marca_patterns:
+                        match = re.search(pattern, content)
+                        if match:
+                            result['marca'] = match.group(1).strip()
+                            break
+
+                if 'modelo' not in result:
+                    modelo_patterns = [
+                        r'[Mm]odelo[:\s]+([A-Za-z0-9\s\.\-]+?)(?:\s*[<\n])',
+                        r'<td[^>]*>[Mm]odelo</td>\s*<td[^>]*>([^<]+)</td>',
+                        r'"modelo"[:\s]*"([^"]+)"',
+                    ]
+                    for pattern in modelo_patterns:
+                        match = re.search(pattern, content)
+                        if match:
+                            result['modelo'] = match.group(1).strip()
+                            break
+
+                # Check for fuel type from content
+                if 'combustivel' not in result:
+                    content_lower = content.lower()
+                    if 'diesel' in content_lower:
                         result['combustivel'] = 'Diesel'
-                    elif 'gasolina' in content.lower():
+                    elif 'gasolina' in content_lower:
                         result['combustivel'] = 'Gasolina'
-                    elif 'elétrico' in content.lower() or 'eletrico' in content.lower():
+                    elif 'elétrico' in content_lower or 'eletrico' in content_lower:
                         result['combustivel'] = 'Elétrico'
-                    elif 'híbrido' in content.lower() or 'hibrido' in content.lower():
+                    elif 'híbrido' in content_lower or 'hibrido' in content_lower:
                         result['combustivel'] = 'Híbrido'
 
+                if result:
                     result['source'] = 'infomatricula.pt'
+            else:
+                result['error'] = 'Não foi possível encontrar o campo de pesquisa'
 
         except Exception as e:
             result['error'] = str(e)
@@ -366,10 +583,10 @@ async def lookup_plate_infomatricula(plate: str) -> Dict[str, Any]:
     return result
 
 
-async def check_insurance_asf(plate: str) -> Dict[str, Any]:
+async def check_insurance_asf(plate: str, debug: bool = False) -> Dict[str, Any]:
     """
     Check vehicle insurance status from ASF (Autoridade de Supervisão de Seguros)
-    Free service: https://www.fga.asf.com.pt/
+    Free service: https://www.asf.com.pt/isp/pesquisaseguroauto
 
     Returns: tem_seguro, seguradora, data_inicio, data_fim
     """
@@ -390,50 +607,133 @@ async def check_insurance_asf(plate: str) -> Dict[str, Any]:
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
         context = await browser.new_context(
-            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             viewport={'width': 1920, 'height': 1080},
             locale='pt-PT'
         )
         page = await context.new_page()
 
         try:
-            # Go to ASF FGA portal
-            await page.goto('https://www.fga.asf.com.pt/pt/verificar-matricula', timeout=30000)
-            await page.wait_for_timeout(2000)
+            # Try multiple URLs (ASF has changed URLs over time)
+            asf_urls = [
+                'https://www.asf.com.pt/isp/pesquisaseguroauto',
+                'https://www.asf.com.pt/NR/exeres/B15BFCD1-5298-4B4E-9C99-4DB8D1960A71.htm',
+            ]
 
-            # Find plate input
-            plate_input = await page.query_selector('input[name="matricula"]')
-            if not plate_input:
-                plate_input = await page.query_selector('input[type="text"]')
+            page_loaded = False
+            for url in asf_urls:
+                try:
+                    if debug:
+                        print(f"  [DEBUG] Tentando URL: {url}")
+                    await page.goto(url, timeout=30000)
+                    await page.wait_for_timeout(2000)
+                    page_loaded = True
+                    break
+                except:
+                    continue
+
+            if not page_loaded:
+                result['error'] = 'Não foi possível aceder ao portal ASF'
+                return result
+
+            # Accept cookies if present
+            await _accept_cookies(page)
+
+            # Find plate input - try various selectors
+            input_selectors = [
+                'input[name="matricula"]',
+                'input[name="Matricula"]',
+                'input[id*="matricula"]',
+                'input[id*="Matricula"]',
+                'input[placeholder*="matrícula"]',
+                'input[type="text"]',
+            ]
+
+            plate_input = None
+            for selector in input_selectors:
+                plate_input = await page.query_selector(selector)
+                if plate_input:
+                    if debug:
+                        print(f"  [DEBUG] Input encontrado: {selector}")
+                    break
 
             if plate_input:
                 await plate_input.fill(formatted_plate)
                 await page.wait_for_timeout(500)
 
                 # Find and click search/submit button
-                submit_btn = await page.query_selector('button[type="submit"]')
-                if not submit_btn:
-                    submit_btn = await page.query_selector('input[type="submit"]')
+                btn_selectors = [
+                    'button[type="submit"]',
+                    'input[type="submit"]',
+                    'button:has-text("Pesquisar")',
+                    'button:has-text("Consultar")',
+                    'input[value="Pesquisar"]',
+                    '.btn-primary',
+                    'form button',
+                ]
 
-                if submit_btn:
-                    await submit_btn.click()
-                    await page.wait_for_timeout(3000)
+                for selector in btn_selectors:
+                    submit_btn = await page.query_selector(selector)
+                    if submit_btn:
+                        if debug:
+                            print(f"  [DEBUG] Botão encontrado: {selector}")
+                        await submit_btn.click()
+                        break
 
-                    # Check results
-                    content = await page.content()
+                await page.wait_for_timeout(4000)
 
-                    # Check if vehicle has insurance
-                    if 'seguro válido' in content.lower() or 'apólice' in content.lower():
-                        result['tem_seguro'] = True
+                # Check results
+                content = await page.content()
+                content_lower = content.lower()
 
-                        # Try to extract insurer name
-                        seguradora_match = re.search(r'[Ss]eguradora[:\s]*([A-Za-z\s]+)', content)
-                        if seguradora_match:
-                            result['seguradora'] = seguradora_match.group(1).strip()
-                    elif 'sem seguro' in content.lower() or 'não tem' in content.lower():
-                        result['tem_seguro'] = False
+                if debug:
+                    with open('debug_asf.html', 'w', encoding='utf-8') as f:
+                        f.write(content)
+                    print("  [DEBUG] HTML guardado em debug_asf.html")
 
-                    result['source'] = 'asf.fga.com.pt'
+                # Check for positive insurance indicators
+                positive_indicators = [
+                    'seguro válido',
+                    'apólice',
+                    'contrato de seguro',
+                    'seguro em vigor',
+                    'tem seguro',
+                    'cobertura válida',
+                ]
+
+                negative_indicators = [
+                    'sem seguro',
+                    'não tem seguro',
+                    'não possui seguro',
+                    'sem cobertura',
+                    'não foi encontrad',
+                ]
+
+                has_positive = any(ind in content_lower for ind in positive_indicators)
+                has_negative = any(ind in content_lower for ind in negative_indicators)
+
+                if has_positive and not has_negative:
+                    result['tem_seguro'] = True
+
+                    # Try to extract insurer name
+                    seguradora_patterns = [
+                        r'[Ss]eguradora[:\s]*([A-Za-z\s\-]+?)(?:\s*[<\n])',
+                        r'[Cc]ompanhia[:\s]*([A-Za-z\s\-]+?)(?:\s*[<\n])',
+                        r'<td[^>]*>[Ss]eguradora</td>\s*<td[^>]*>([^<]+)</td>',
+                    ]
+                    for pattern in seguradora_patterns:
+                        match = re.search(pattern, content)
+                        if match:
+                            result['seguradora'] = match.group(1).strip()
+                            break
+
+                elif has_negative:
+                    result['tem_seguro'] = False
+
+                result['source'] = 'asf.com.pt'
+
+            else:
+                result['error'] = 'Não foi possível encontrar o campo de matrícula'
 
         except Exception as e:
             result['error'] = str(e)
@@ -491,18 +791,156 @@ async def get_full_vehicle_info(plate: str, include_market: bool = True) -> Vehi
     # 4. Get market prices (if we have marca/modelo)
     if include_market and result.marca:
         try:
-            market = await search_standvirtual(
+            market = await get_market_prices(
                 result.marca,
                 result.modelo,
                 result.ano or plate_info.year_min
             )
             if market:
                 result.market_data = market
-                result.sources.append('standvirtual.com')
+                result.sources.append(market.fonte)
         except Exception as e:
-            result.errors.append(f"Standvirtual: {str(e)}")
+            result.errors.append(f"Market prices: {str(e)}")
 
     return result
+
+
+async def search_autouncle(marca: str, modelo: str = None, ano: int = None, debug: bool = False) -> Optional[VehicleMarketData]:
+    """
+    Search AutoUncle.pt for vehicle market prices.
+    Alternative to Standvirtual that may be more reliable.
+    """
+    try:
+        from playwright.async_api import async_playwright
+    except ImportError:
+        print("Playwright not installed")
+        return None
+
+    results = []
+
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True)
+        context = await browser.new_context(
+            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            viewport={'width': 1920, 'height': 1080},
+            locale='pt-PT'
+        )
+        page = await context.new_page()
+
+        try:
+            # Build search URL
+            marca_slug = marca.lower().replace(" ", "-").replace("_", "-")
+
+            # AutoUncle URL format
+            url = f"https://www.autouncle.pt/pt/carros-usados/{marca_slug}"
+
+            if modelo:
+                modelo_slug = modelo.lower().replace(" ", "-").split('-')[0]
+                url = f"{url}/{modelo_slug}"
+
+            if ano:
+                url = f"{url}?year_from={ano-2}&year_to={ano+2}"
+
+            if debug:
+                print(f"  [DEBUG] AutoUncle URL: {url}")
+
+            await page.goto(url, timeout=30000)
+            await page.wait_for_timeout(3000)
+
+            # Accept cookies
+            await _accept_cookies(page)
+
+            content = await page.content()
+
+            if debug:
+                with open('debug_autouncle.html', 'w', encoding='utf-8') as f:
+                    f.write(content)
+
+            # Find listings
+            listing_selectors = [
+                '.car-card',
+                '[class*="listing"]',
+                'article',
+                '.result-item',
+            ]
+
+            listings = []
+            for selector in listing_selectors:
+                listings = await page.query_selector_all(selector)
+                if listings and len(listings) > 2:
+                    if debug:
+                        print(f"  [DEBUG] AutoUncle: {len(listings)} listings com {selector}")
+                    break
+
+            for listing in listings[:20]:
+                try:
+                    # Get all text and look for prices
+                    text = await listing.inner_text()
+
+                    # Find price pattern (XX.XXX € or XX XXX EUR)
+                    price_match = re.search(r'(\d{1,3}[\.\s]?\d{3})\s*(?:€|EUR)', text)
+                    if price_match:
+                        price = int(price_match.group(1).replace('.', '').replace(' ', ''))
+
+                        # Get title (first line usually)
+                        title = text.split('\n')[0].strip()[:80]
+
+                        if price > 500 and title:
+                            results.append({
+                                "titulo": title,
+                                "preco": price,
+                                "params": ""
+                            })
+                            if debug:
+                                print(f"  [DEBUG] AutoUncle: {title[:30]}... - {price} EUR")
+
+                except:
+                    continue
+
+        except Exception as e:
+            if debug:
+                print(f"  [DEBUG] AutoUncle error: {e}")
+        finally:
+            await browser.close()
+
+    if not results:
+        return None
+
+    prices = [r["preco"] for r in results]
+
+    return VehicleMarketData(
+        marca=marca,
+        modelo=modelo or "?",
+        ano=ano or 0,
+        num_resultados=len(results),
+        preco_min=min(prices),
+        preco_max=max(prices),
+        preco_medio=sum(prices) / len(prices),
+        preco_mediana=sorted(prices)[len(prices) // 2],
+        fonte="autouncle",
+        data_consulta=datetime.now().isoformat(),
+        listings=results
+    )
+
+
+async def get_market_prices(marca: str, modelo: str = None, ano: int = None, debug: bool = False) -> Optional[VehicleMarketData]:
+    """
+    Get market prices from multiple sources. Tries StandVirtual first, then AutoUncle.
+    """
+    # Try StandVirtual first
+    result = await search_standvirtual(marca, modelo, ano, debug)
+    if result and result.num_resultados > 0:
+        return result
+
+    # Fallback to AutoUncle
+    if debug:
+        print("  [DEBUG] StandVirtual sem resultados, tentando AutoUncle...")
+
+    result = await search_autouncle(marca, modelo, ano, debug)
+    if result and result.num_resultados > 0:
+        return result
+
+    return None
 
 
 # Quick test function

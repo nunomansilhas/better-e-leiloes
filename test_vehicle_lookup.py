@@ -15,6 +15,8 @@ from services.vehicle_lookup import (
     decode_portuguese_plate,
     extract_vehicle_from_title,
     search_standvirtual,
+    search_autouncle,
+    get_market_prices,
     lookup_plate_infomatricula,
     check_insurance_asf,
     get_full_vehicle_info
@@ -60,9 +62,11 @@ async def main():
     print(f"   A pesquisar {plate}...")
 
     try:
-        info_result = await lookup_plate_infomatricula(plate)
+        info_result = await lookup_plate_infomatricula(plate, debug=True)
         if 'error' in info_result:
             print(f"   ⚠️  Erro: {info_result['error']}")
+        elif not any(k for k in info_result if k != 'source'):
+            print(f"   ⚠️  Sem dados encontrados (ver debug_infomatricula.html)")
         else:
             print(f"   ✅ Resultado:")
             for key, value in info_result.items():
@@ -77,7 +81,7 @@ async def main():
     print(f"   A verificar {plate}...")
 
     try:
-        insurance = await check_insurance_asf(plate)
+        insurance = await check_insurance_asf(plate, debug=True)
         if 'error' in insurance:
             print(f"   ⚠️  Erro: {insurance['error']}")
         else:
@@ -88,20 +92,22 @@ async def main():
             elif insurance.get('tem_seguro') is False:
                 print(f"   ❌ Veículo NÃO tem seguro!")
             else:
-                print(f"   ⚠️  Não foi possível determinar")
+                print(f"   ⚠️  Não foi possível determinar (ver debug_asf.html)")
     except Exception as e:
         print(f"   ❌ Erro: {e}")
 
-    # 5. Search Standvirtual for market prices
-    print("\n💰 5. PREÇOS DE MERCADO (STANDVIRTUAL)")
+    # 5. Search market prices (StandVirtual + AutoUncle)
+    print("\n💰 5. PREÇOS DE MERCADO")
     print("-" * 40)
     print("   A pesquisar BMW 320d 2020-2024...")
 
     try:
-        market_data = await search_standvirtual("BMW", "320d", 2022)
+        # Try combined search (StandVirtual first, then AutoUncle)
+        market_data = await get_market_prices("BMW", "320d", 2022, debug=True)
 
         if market_data:
             print(f"\n   ✅ Encontrados {market_data.num_resultados} resultados!")
+            print(f"   Fonte: {market_data.fonte}")
             print(f"   Preço mínimo:  {market_data.preco_min:>10,.0f} EUR")
             print(f"   Preço máximo:  {market_data.preco_max:>10,.0f} EUR")
             print(f"   Preço médio:   {market_data.preco_medio:>10,.0f} EUR")
@@ -112,6 +118,7 @@ async def main():
                 print(f"      - {listing['titulo'][:40]}: {listing['preco']:,} EUR")
         else:
             print("   ⚠️  Nenhum resultado encontrado")
+            print("   (ver debug_standvirtual.html e debug_autouncle.html)")
 
     except Exception as e:
         print(f"   ❌ Erro: {e}")
