@@ -5205,21 +5205,22 @@
                     const isActive = event.ativo !== false && !event.terminado;
                     const capa = event.capa || '';
                     const titulo = event.titulo || event.reference;
+                    const greyFilter = isActive ? '' : 'filter: grayscale(100%); opacity: 0.7;';
 
                     return `
-                        <div style="min-width: 200px; max-width: 200px; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid ${isActive ? '#e2e8f0' : '#fecaca'}; cursor: pointer; transition: all 0.2s;" onclick="openEventModal('${event.reference}')" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)'" onmouseout="this.style.transform='none'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.1)'">
+                        <div style="min-width: 200px; max-width: 200px; background: ${isActive ? 'white' : '#f8fafc'}; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid ${isActive ? '#e2e8f0' : '#d1d5db'}; cursor: pointer; transition: all 0.2s; ${greyFilter}" onclick="openInspectionModal('${event.reference}')" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)'" onmouseout="this.style.transform='none'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.1)'">
                             <div style="height: 100px; background: ${capa ? `url('${capa}') center/cover` : 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)'}; position: relative;">
                                 <div style="position: absolute; top: 6px; left: 6px; background: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; display: flex; align-items: center; gap: 4px;">
                                     ${tipoEmoji} ${event.reference}
                                 </div>
-                                <div style="position: absolute; top: 6px; right: 6px; background: ${isActive ? '#3b82f6' : '#ef4444'}; color: white; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 600;">
+                                <div style="position: absolute; top: 6px; right: 6px; background: ${isActive ? '#3b82f6' : '#6b7280'}; color: white; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 600;">
                                     ${isActive ? dataFim : 'Terminado'}
                                 </div>
                                 <button onclick="event.stopPropagation(); FAVORITES.remove('${event.reference}');" style="position: absolute; bottom: 6px; right: 6px; background: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.2);" title="Remover dos favoritos">🔔</button>
                             </div>
                             <div style="padding: 8px;">
-                                <div style="font-size: 10px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${titulo.substring(0, 40)}${titulo.length > 40 ? '...' : ''}</div>
-                                <div style="font-size: 13px; font-weight: 700; color: #1e293b; margin-top: 4px;">${lance}</div>
+                                <div style="font-size: 10px; color: ${isActive ? '#64748b' : '#9ca3af'}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${titulo.substring(0, 40)}${titulo.length > 40 ? '...' : ''}</div>
+                                <div style="font-size: 13px; font-weight: 700; color: ${isActive ? '#1e293b' : '#6b7280'}; margin-top: 4px;">${lance}</div>
                             </div>
                         </div>
                     `;
