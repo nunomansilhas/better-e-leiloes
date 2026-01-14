@@ -3641,6 +3641,12 @@
                 <span>Notificações</span>
                 <span class="nav-badge" id="nav-alerts-badge" style="display: none;">0</span>
             </div>
+            <div class="nav-item" onclick="showPage('ai-assistant')" data-page="ai-assistant">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                </svg>
+                <span>AI Assistant</span>
+            </div>
             <!-- Scraping & Sync removed for public API -->
         </nav>
 
@@ -4658,6 +4664,91 @@
                         </tbody>
                     </table>
                 </div>
+            </div>
+        </div>
+
+        <!-- ========== AI ASSISTANT PAGE ========== -->
+        <div id="ai-assistant" class="page">
+            <div class="page-header" style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div>
+                    <h2>AI Assistant</h2>
+                    <p>Analises e recomendacoes automaticas para imoveis e veiculos</p>
+                </div>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <span class="ai-status-indicator" id="ai-status-indicator" style="width: 8px; height: 8px; border-radius: 50%; background: #94a3b8;"></span>
+                    <span style="font-size: 12px; color: #94a3b8;" id="ai-status-text">Offline</span>
+                </div>
+            </div>
+
+            <!-- AI Stats Cards -->
+            <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 24px;">
+                <div class="stats-card">
+                    <div class="stats-card-value" id="ai-stat-total">0</div>
+                    <div class="stats-card-label">Total Analisados</div>
+                </div>
+                <div class="stats-card">
+                    <div class="stats-card-value" id="ai-stat-pending">0</div>
+                    <div class="stats-card-label">Pendentes</div>
+                </div>
+                <div class="stats-card">
+                    <div class="stats-card-value" id="ai-stat-buy">0</div>
+                    <div class="stats-card-label" style="color: #10b981;">Recomenda Compra</div>
+                </div>
+                <div class="stats-card">
+                    <div class="stats-card-value" id="ai-stat-watch">0</div>
+                    <div class="stats-card-label" style="color: #f59e0b;">Acompanhar</div>
+                </div>
+                <div class="stats-card">
+                    <div class="stats-card-value" id="ai-stat-skip">0</div>
+                    <div class="stats-card-label" style="color: #ef4444;">Evitar</div>
+                </div>
+            </div>
+
+            <!-- Current Processing Status -->
+            <div id="ai-processing-status" style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border: 1px solid #bae6fd; border-radius: 12px; padding: 20px; margin-bottom: 24px; display: none;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div class="loading-spinner" style="width: 20px; height: 20px;"></div>
+                    <div>
+                        <div style="font-weight: 600; color: #0369a1;">A processar evento...</div>
+                        <div style="font-size: 13px; color: #0284c7; margin-top: 4px;" id="ai-current-event">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Search and Filters -->
+            <div style="display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 250px;">
+                    <input type="text" id="ai-search-input" placeholder="Pesquisar por referencia ou titulo..."
+                        style="width: 100%; padding: 10px 16px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px;"
+                        oninput="debounceAiSearch()">
+                </div>
+                <select id="ai-filter-status" onchange="loadAiTips()" style="padding: 10px 16px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; background: white; min-width: 150px;">
+                    <option value="">Todos os estados</option>
+                    <option value="completed">Concluido</option>
+                    <option value="pending">Pendente</option>
+                    <option value="processing">A processar</option>
+                    <option value="failed">Falhado</option>
+                </select>
+                <select id="ai-filter-tipo" onchange="loadAiTips()" style="padding: 10px 16px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; background: white; min-width: 150px;">
+                    <option value="">Todos os tipos</option>
+                    <option value="imoveis">Imoveis</option>
+                    <option value="veiculos">Veiculos</option>
+                </select>
+                <select id="ai-filter-recommendation" onchange="loadAiTips()" style="padding: 10px 16px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; background: white; min-width: 150px;">
+                    <option value="">Todas recomendacoes</option>
+                    <option value="buy">Comprar</option>
+                    <option value="watch">Acompanhar</option>
+                    <option value="skip">Evitar</option>
+                </select>
+            </div>
+
+            <!-- AI Tips List -->
+            <div id="ai-tips-list" style="display: flex; flex-direction: column; gap: 16px;">
+                <div class="loading"><div class="loading-spinner"></div></div>
+            </div>
+
+            <!-- Pagination -->
+            <div id="ai-pagination" style="display: flex; justify-content: center; gap: 8px; margin-top: 24px;">
             </div>
         </div>
 
@@ -6535,6 +6626,8 @@
                 loadAllEvents();
             } else if (['imoveis', 'veiculos', 'direitos', 'equipamentos', 'mobiliario', 'maquinas'].includes(pageId)) {
                 loadEvents(pageId);
+            } else if (pageId === 'ai-assistant') {
+                loadAiAssistantPage();
             }
 
             // Reset type filter when changing page
@@ -12512,6 +12605,243 @@
 
         // Initialize mute UI on load
         document.addEventListener('DOMContentLoaded', updateMuteUI);
+
+        // ============== AI ASSISTANT FUNCTIONS ==============
+
+        let aiCurrentPage = 1;
+        let aiSearchTimeout = null;
+
+        async function loadAiAssistantPage() {
+            await Promise.all([
+                loadAiStats(),
+                loadAiPipelineStatus(),
+                loadAiTips()
+            ]);
+        }
+
+        async function loadAiStats() {
+            try {
+                const response = await fetch('/api/ai/stats');
+                if (!response.ok) throw new Error('Failed to load AI stats');
+                const data = await response.json();
+
+                document.getElementById('ai-stat-total').textContent = data.total || 0;
+                document.getElementById('ai-stat-pending').textContent = data.by_status?.pending || 0;
+                document.getElementById('ai-stat-buy').textContent = data.by_recommendation?.buy || 0;
+                document.getElementById('ai-stat-watch').textContent = data.by_recommendation?.watch || 0;
+                document.getElementById('ai-stat-skip').textContent = data.by_recommendation?.skip || 0;
+            } catch (error) {
+                console.error('Error loading AI stats:', error);
+            }
+        }
+
+        async function loadAiPipelineStatus() {
+            try {
+                const response = await fetch('/api/ai/pipeline/status');
+                if (!response.ok) throw new Error('Failed to load pipeline status');
+                const data = await response.json();
+
+                const statusIndicator = document.getElementById('ai-status-indicator');
+                const statusText = document.getElementById('ai-status-text');
+                const processingStatus = document.getElementById('ai-processing-status');
+                const currentEvent = document.getElementById('ai-current-event');
+
+                if (data.is_running) {
+                    statusIndicator.style.background = '#10b981';
+                    statusText.textContent = 'A processar';
+                    statusText.style.color = '#10b981';
+                    processingStatus.style.display = 'block';
+                    currentEvent.textContent = data.current_event_titulo || data.current_reference || '-';
+                } else {
+                    statusIndicator.style.background = '#94a3b8';
+                    statusText.textContent = 'Parado';
+                    statusText.style.color = '#94a3b8';
+                    processingStatus.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Error loading AI pipeline status:', error);
+            }
+        }
+
+        async function loadAiTips(page = 1) {
+            aiCurrentPage = page;
+            const list = document.getElementById('ai-tips-list');
+            list.innerHTML = '<div class="loading"><div class="loading-spinner"></div></div>';
+
+            try {
+                const search = document.getElementById('ai-search-input')?.value || '';
+                const status = document.getElementById('ai-filter-status')?.value || '';
+                const tipo = document.getElementById('ai-filter-tipo')?.value || '';
+
+                const params = new URLSearchParams({
+                    page: page,
+                    page_size: 10
+                });
+                if (search) params.append('search', search);
+                if (status) params.append('status', status);
+                if (tipo) params.append('tipo', tipo);
+
+                const response = await fetch(`/api/ai/tips?${params}`);
+                if (!response.ok) throw new Error('Failed to load AI tips');
+                const data = await response.json();
+
+                if (data.tips.length === 0) {
+                    list.innerHTML = `
+                        <div style="text-align: center; padding: 60px 20px; color: #94a3b8;">
+                            <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" width="48" height="48" style="margin: 0 auto 16px; opacity: 0.5;">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                            </svg>
+                            <p style="font-size: 15px; margin-bottom: 8px;">Nenhuma analise encontrada</p>
+                            <p style="font-size: 13px;">As analises de AI aparecerao aqui quando o pipeline estiver ativo</p>
+                        </div>
+                    `;
+                    document.getElementById('ai-pagination').innerHTML = '';
+                    return;
+                }
+
+                list.innerHTML = data.tips.map(tip => renderAiTipCard(tip)).join('');
+                renderAiPagination(data.page, data.total, data.page_size);
+            } catch (error) {
+                console.error('Error loading AI tips:', error);
+                list.innerHTML = '<div style="text-align: center; padding: 40px; color: #ef4444;">Erro ao carregar analises</div>';
+            }
+        }
+
+        function renderAiTipCard(tip) {
+            const recommendationColors = {
+                'buy': { bg: '#dcfce7', border: '#86efac', text: '#15803d', label: 'Comprar' },
+                'watch': { bg: '#fef3c7', border: '#fcd34d', text: '#b45309', label: 'Acompanhar' },
+                'skip': { bg: '#fee2e2', border: '#fca5a5', text: '#dc2626', label: 'Evitar' }
+            };
+
+            const statusColors = {
+                'completed': { bg: '#dcfce7', text: '#15803d', label: 'Concluido' },
+                'pending': { bg: '#e0f2fe', text: '#0369a1', label: 'Pendente' },
+                'processing': { bg: '#fef3c7', text: '#b45309', label: 'A processar' },
+                'failed': { bg: '#fee2e2', text: '#dc2626', label: 'Falhado' }
+            };
+
+            const rec = recommendationColors[tip.tip_recommendation] || { bg: '#f1f5f9', border: '#e2e8f0', text: '#64748b', label: '-' };
+            const stat = statusColors[tip.status] || statusColors['pending'];
+
+            const confidence = tip.tip_confidence ? Math.round(tip.tip_confidence * 100) : null;
+            const valorBase = tip.event_valor_base ? tip.event_valor_base.toLocaleString('pt-PT') + ' EUR' : '-';
+
+            let prosConsHtml = '';
+            if (tip.status === 'completed' && (tip.tip_pros?.length || tip.tip_cons?.length)) {
+                prosConsHtml = `
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;">
+                        <div>
+                            <div style="font-weight: 600; color: #10b981; margin-bottom: 8px; font-size: 12px;">VANTAGENS</div>
+                            <ul style="margin: 0; padding-left: 16px; font-size: 13px; color: #374151;">
+                                ${(tip.tip_pros || []).map(p => `<li style="margin-bottom: 4px;">${p}</li>`).join('')}
+                            </ul>
+                        </div>
+                        <div>
+                            <div style="font-weight: 600; color: #ef4444; margin-bottom: 8px; font-size: 12px;">DESVANTAGENS</div>
+                            <ul style="margin: 0; padding-left: 16px; font-size: 13px; color: #374151;">
+                                ${(tip.tip_cons || []).map(c => `<li style="margin-bottom: 4px;">${c}</li>`).join('')}
+                            </ul>
+                        </div>
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="ai-tip-card" style="background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; transition: all 0.2s;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                        <div>
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                <span style="font-size: 12px; font-weight: 600; color: #64748b; font-family: monospace;">${tip.reference}</span>
+                                <span style="background: ${stat.bg}; color: ${stat.text}; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500;">${stat.label}</span>
+                            </div>
+                            <h3 style="font-size: 16px; font-weight: 600; color: #1e293b; margin: 0; line-height: 1.4;">${tip.event_titulo || 'Sem titulo'}</h3>
+                        </div>
+                        ${tip.status === 'completed' ? `
+                            <div style="background: ${rec.bg}; border: 1px solid ${rec.border}; border-radius: 8px; padding: 8px 16px; text-align: center;">
+                                <div style="font-size: 14px; font-weight: 700; color: ${rec.text};">${rec.label}</div>
+                                ${confidence ? `<div style="font-size: 11px; color: ${rec.text}; opacity: 0.8;">${confidence}% conf.</div>` : ''}
+                            </div>
+                        ` : ''}
+                    </div>
+
+                    <div style="display: flex; gap: 16px; font-size: 13px; color: #64748b; margin-bottom: 12px;">
+                        <span>${tip.event_tipo || '-'} / ${tip.event_subtipo || '-'}</span>
+                        <span>${tip.event_distrito || '-'}</span>
+                        <span style="font-weight: 600; color: #1e293b;">${valorBase}</span>
+                    </div>
+
+                    ${tip.status === 'completed' && tip.tip_summary ? `
+                        <div style="background: #f8fafc; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
+                            <p style="margin: 0; font-size: 14px; color: #374151; line-height: 1.6;">${tip.tip_summary}</p>
+                        </div>
+                    ` : ''}
+
+                    ${tip.status === 'failed' && tip.error_message ? `
+                        <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 12px;">
+                            <p style="margin: 0; font-size: 13px; color: #dc2626;">${tip.error_message}</p>
+                        </div>
+                    ` : ''}
+
+                    ${prosConsHtml}
+
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; padding-top: 12px; border-top: 1px solid #f1f5f9;">
+                        <div style="font-size: 12px; color: #94a3b8;">
+                            ${tip.processed_at ? `Analisado: ${new Date(tip.processed_at).toLocaleString('pt-PT')}` : `Criado: ${new Date(tip.created_at).toLocaleString('pt-PT')}`}
+                            ${tip.model_used ? ` | ${tip.model_used}` : ''}
+                        </div>
+                        <button onclick="viewEventDetails('${tip.reference}')" style="background: #3b82f6; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer;">
+                            Ver Evento
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderAiPagination(currentPage, total, pageSize) {
+            const totalPages = Math.ceil(total / pageSize);
+            const pagination = document.getElementById('ai-pagination');
+
+            if (totalPages <= 1) {
+                pagination.innerHTML = '';
+                return;
+            }
+
+            let html = '';
+
+            // Previous button
+            if (currentPage > 1) {
+                html += `<button onclick="loadAiTips(${currentPage - 1})" style="padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px; background: white; cursor: pointer;">Anterior</button>`;
+            }
+
+            // Page numbers
+            const startPage = Math.max(1, currentPage - 2);
+            const endPage = Math.min(totalPages, currentPage + 2);
+
+            for (let i = startPage; i <= endPage; i++) {
+                const isActive = i === currentPage;
+                html += `<button onclick="loadAiTips(${i})" style="padding: 8px 12px; border: 1px solid ${isActive ? '#3b82f6' : '#e2e8f0'}; border-radius: 6px; background: ${isActive ? '#3b82f6' : 'white'}; color: ${isActive ? 'white' : '#374151'}; cursor: pointer;">${i}</button>`;
+            }
+
+            // Next button
+            if (currentPage < totalPages) {
+                html += `<button onclick="loadAiTips(${currentPage + 1})" style="padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px; background: white; cursor: pointer;">Seguinte</button>`;
+            }
+
+            pagination.innerHTML = html;
+        }
+
+        function debounceAiSearch() {
+            clearTimeout(aiSearchTimeout);
+            aiSearchTimeout = setTimeout(() => {
+                loadAiTips(1);
+            }, 300);
+        }
+
+        function viewEventDetails(reference) {
+            // Open event in e-leiloes
+            window.open(`https://e-leiloes.pt/evento/${reference}`, '_blank');
+        }
 
         // ============== TOAST NOTIFICATION SYSTEM ==============
 
