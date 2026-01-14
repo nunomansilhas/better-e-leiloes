@@ -3986,8 +3986,14 @@
                             <option value="valorBase_desc">Valor base (alto)</option>
                             <option value="lanceAtual_desc">Lance atual (alto)</option>
                         </select>
-                        <select class="filter-select" id="distrito-eventos" title="Distrito">
+                        <select class="filter-select" id="distrito-eventos" title="Distrito" onchange="onDistritoChange('eventos')">
                             <option value="">Todos os distritos</option>
+                        </select>
+                        <select class="filter-select" id="concelho-eventos" title="Concelho" onchange="onConcelhoChange('eventos')" disabled>
+                            <option value="">Todos os concelhos</option>
+                        </select>
+                        <select class="filter-select" id="freguesia-eventos" title="Freguesia" disabled>
+                            <option value="">Todas as freguesias</option>
                         </select>
                     </div>
                     <div class="filters-buttons">
@@ -5287,6 +5293,18 @@
             // Icons are updated by updateNotificationIcons() called in FAVORITES.add/remove
             // Also update the star buttons in "A Terminar em Breve" (cache is updated optimistically)
             updateEndingSoonFavoriteButtons();
+
+            // Force refresh "Meus Favoritos" widget on dashboard
+            FAVORITES.updateWidget();
+
+            // Update badge count with animation
+            try {
+                const countResp = await fetch(`${API_BASE}/api/favorites/count`);
+                const countData = await countResp.json();
+                updateFavoritesBadge(countData.count, true);
+            } catch (e) {
+                console.error('Error updating favorites count:', e);
+            }
         }
 
         // Update favorite star buttons in the "A Terminar em Breve" section
@@ -7816,6 +7834,8 @@
                 const tipoId = document.getElementById('tipo-eventos')?.value || '';
                 const sortBy = document.getElementById('sort-eventos')?.value || '';
                 const distrito = document.getElementById('distrito-eventos')?.value || '';
+                const concelho = document.getElementById('concelho-eventos')?.value || '';
+                const freguesia = document.getElementById('freguesia-eventos')?.value || '';
 
                 // Apply filters
                 let events = [...allEventsCached];
@@ -7826,7 +7846,9 @@
                         e.reference.toLowerCase().includes(searchLower) ||
                         (e.detalhes?.tipo && e.detalhes.tipo.toLowerCase().includes(searchLower)) ||
                         (e.detalhes?.subtipo && e.detalhes.subtipo.toLowerCase().includes(searchLower)) ||
-                        (e.detalhes?.distrito && e.detalhes.distrito.toLowerCase().includes(searchLower))
+                        (e.detalhes?.distrito && e.detalhes.distrito.toLowerCase().includes(searchLower)) ||
+                        (e.detalhes?.concelho && e.detalhes.concelho.toLowerCase().includes(searchLower)) ||
+                        (e.detalhes?.freguesia && e.detalhes.freguesia.toLowerCase().includes(searchLower))
                     );
                 }
                 if (tipoId) {
@@ -7837,6 +7859,12 @@
                 }
                 if (distrito) {
                     events = events.filter(e => e.detalhes?.distrito === distrito);
+                }
+                if (concelho) {
+                    events = events.filter(e => e.detalhes?.concelho === concelho);
+                }
+                if (freguesia) {
+                    events = events.filter(e => e.detalhes?.freguesia === freguesia);
                 }
 
                 // Sort
@@ -7933,7 +7961,7 @@
 
             const debouncedSearch = debounce(() => loadAllEvents(1), 300);
 
-            ['search-eventos', 'tipo-eventos', 'sort-eventos', 'distrito-eventos'].forEach(id => {
+            ['search-eventos', 'tipo-eventos', 'sort-eventos', 'freguesia-eventos'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) {
                     el.addEventListener('change', () => loadAllEvents(1));
@@ -7942,6 +7970,7 @@
                     }
                 }
             });
+            // Note: distrito-eventos and concelho-eventos have onchange handlers in HTML
         }
 
         function clearFiltersEventos() {
@@ -7949,6 +7978,96 @@
             document.getElementById('tipo-eventos').value = '';
             document.getElementById('sort-eventos').value = '';
             document.getElementById('distrito-eventos').value = '';
+
+            // Clear and disable cascading filters
+            const concelhoSelect = document.getElementById('concelho-eventos');
+            const freguesiaSelect = document.getElementById('freguesia-eventos');
+            if (concelhoSelect) {
+                concelhoSelect.value = '';
+                concelhoSelect.innerHTML = '<option value="">Todos os concelhos</option>';
+                concelhoSelect.disabled = true;
+            }
+            if (freguesiaSelect) {
+                freguesiaSelect.value = '';
+                freguesiaSelect.innerHTML = '<option value="">Todas as freguesias</option>';
+                freguesiaSelect.disabled = true;
+            }
+
+            // Reset type badges
+            document.querySelectorAll('#eventos .type-badge').forEach(b => b.classList.remove('active'));
+            activeTypeFilter = null;
+
+            loadAllEvents(1);
+        }
+
+        // Cascading filter: when distrito changes, load concelhos
+        function onDistritoChange(page) {
+            const distritoSelect = document.getElementById(`distrito-${page}`);
+            const concelhoSelect = document.getElementById(`concelho-${page}`);
+            const freguesiaSelect = document.getElementById(`freguesia-${page}`);
+
+            if (!concelhoSelect) return;
+
+            const distrito = distritoSelect?.value || '';
+
+            // Reset concelho and freguesia
+            concelhoSelect.innerHTML = '<option value="">Todos os concelhos</option>';
+            freguesiaSelect.innerHTML = '<option value="">Todas as freguesias</option>';
+            freguesiaSelect.disabled = true;
+
+            if (!distrito) {
+                concelhoSelect.disabled = true;
+                loadAllEvents(1);
+                return;
+            }
+
+            // Get unique concelhos for this distrito from cached events
+            const concelhos = [...new Set(
+                allEventsCached
+                    .filter(e => e.detalhes?.distrito === distrito && e.detalhes?.concelho)
+                    .map(e => e.detalhes.concelho)
+            )].sort();
+
+            concelhoSelect.innerHTML = '<option value="">Todos os concelhos</option>' +
+                concelhos.map(c => `<option value="${c}">${c}</option>`).join('');
+            concelhoSelect.disabled = concelhos.length === 0;
+
+            loadAllEvents(1);
+        }
+
+        // Cascading filter: when concelho changes, load freguesias
+        function onConcelhoChange(page) {
+            const distritoSelect = document.getElementById(`distrito-${page}`);
+            const concelhoSelect = document.getElementById(`concelho-${page}`);
+            const freguesiaSelect = document.getElementById(`freguesia-${page}`);
+
+            if (!freguesiaSelect) return;
+
+            const distrito = distritoSelect?.value || '';
+            const concelho = concelhoSelect?.value || '';
+
+            // Reset freguesia
+            freguesiaSelect.innerHTML = '<option value="">Todas as freguesias</option>';
+
+            if (!concelho) {
+                freguesiaSelect.disabled = true;
+                loadAllEvents(1);
+                return;
+            }
+
+            // Get unique freguesias for this concelho from cached events
+            const freguesias = [...new Set(
+                allEventsCached
+                    .filter(e => e.detalhes?.distrito === distrito &&
+                                 e.detalhes?.concelho === concelho &&
+                                 e.detalhes?.freguesia)
+                    .map(e => e.detalhes.freguesia)
+            )].sort();
+
+            freguesiaSelect.innerHTML = '<option value="">Todas as freguesias</option>' +
+                freguesias.map(f => `<option value="${f}">${f}</option>`).join('');
+            freguesiaSelect.disabled = freguesias.length === 0;
+
             loadAllEvents(1);
         }
 
@@ -11651,13 +11770,49 @@
             document.getElementById('favoritos-total-count').textContent = favorites.length;
         }
 
-        // Update favorites badge in sidebar
-        function updateFavoritesBadge(count) {
+        // Update favorites badge in sidebar with animation
+        function updateFavoritesBadge(count, animate = true) {
             const badge = document.getElementById('nav-favorites-badge');
+            const dashboardCount = document.getElementById('favorites-count');
+
+            // Update sidebar badge
             if (badge) {
+                const oldCount = parseInt(badge.textContent) || 0;
                 badge.textContent = count;
                 badge.style.display = count > 0 ? 'inline' : 'none';
+
+                // Animate if count increased
+                if (animate && count > oldCount) {
+                    animateBadge(badge);
+                }
             }
+
+            // Update dashboard count
+            if (dashboardCount) {
+                const oldCount = parseInt(dashboardCount.textContent) || 0;
+                dashboardCount.textContent = count;
+
+                // Animate if count changed
+                if (animate && count !== oldCount) {
+                    animateBadge(dashboardCount);
+                }
+            }
+        }
+
+        // Animate badge with pulse effect
+        function animateBadge(element) {
+            element.style.transition = 'transform 0.2s ease, background-color 0.2s ease';
+            element.style.transform = 'scale(1.3)';
+            element.style.backgroundColor = '#22c55e';
+
+            setTimeout(() => {
+                element.style.transform = 'scale(1)';
+                element.style.backgroundColor = '';
+            }, 200);
+
+            setTimeout(() => {
+                element.style.transition = '';
+            }, 400);
         }
 
         // Add event to favorites
@@ -11754,18 +11909,8 @@
             }
         }
 
-        // Toggle favorite (for star button)
-        async function toggleFavorite(reference, eventData = {}) {
-            const isFav = await isFavorited(reference);
-            if (isFav) {
-                await removeFavoriteQuiet(reference);
-            } else {
-                await addToFavorites(reference, eventData);
-            }
-            // Update UI
-            updateFavoriteStars();
-            updateEndingSoonFavoriteButtons();
-        }
+        // NOTE: toggleFavorite is defined earlier (line ~5291) - uses FAVORITES.toggle()
+        // This duplicate was removed to avoid overwriting the more complete version
 
         // Remove without confirm (for toggle)
         async function removeFavoriteQuiet(reference) {
