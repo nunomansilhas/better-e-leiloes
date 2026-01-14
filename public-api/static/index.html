@@ -11734,7 +11734,7 @@
             }
 
             return `
-                <div class="favorite-card" style="background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; display: flex; gap: 16px; transition: all 0.2s; cursor: pointer; ${isEnded ? 'opacity: 0.7;' : ''}" onclick="openInspectionModal('${fav.event_reference}')" onmouseover="this.style.borderColor='#3b82f6';this.style.boxShadow='0 4px 12px rgba(59,130,246,0.15)'" onmouseout="this.style.borderColor='#e2e8f0';this.style.boxShadow='none'">
+                <div class="favorite-card" data-reference="${fav.event_reference}" style="background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; display: flex; gap: 16px; transition: all 0.2s; cursor: pointer; ${isEnded ? 'opacity: 0.7;' : ''}" onclick="openInspectionModal('${fav.event_reference}')" onmouseover="this.style.borderColor='#3b82f6';this.style.boxShadow='0 4px 12px rgba(59,130,246,0.15)'" onmouseout="this.style.borderColor='#e2e8f0';this.style.boxShadow='none'">
                     <!-- Event Image -->
                     <div style="width: 100px; height: 80px; border-radius: 8px; overflow: hidden; flex-shrink: 0; background: #f1f5f9;">
                         ${event.capa ? `<img src="${event.capa}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.parentElement.innerHTML='<div style=\\'width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:10px;\\'>Sem imagem</div>'">` : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:10px;">Sem imagem</div>'}
@@ -11914,28 +11914,69 @@
             return false;
         }
 
-        // Remove from favorites (no confirmation)
+        // Remove from favorites (no confirmation, smooth animation)
         async function removeFavorite(reference) {
-            try {
-                const response = await authFetch(`${API_BASE}/api/favorites/${reference}`, {
-                    method: 'DELETE'
-                });
+            // Find the card element
+            const card = document.querySelector(`.favorite-card[data-reference="${reference}"]`);
 
-                if (response.ok) {
-                    // Update caches
-                    FAVORITES._cache = FAVORITES._cache.filter(r => r.event_reference !== reference);
-                    if (favoritesCache) {
-                        favoritesCache = favoritesCache.filter(f => f.event_reference !== reference);
-                    }
-                    loadFavoritosPage();
-                    updateEndingSoonFavoriteButtons();
-                    FAVORITES.updateWidget();
-                    updateFavoritesBadge(favoritesCache?.length || 0, true);
-                    showToast('Removido', `${reference} removido dos favoritos`, 'info');
-                }
+            // Animate removal immediately (optimistic)
+            if (card) {
+                card.style.transform = 'translateX(100%)';
+                card.style.opacity = '0';
+                card.style.maxHeight = card.offsetHeight + 'px';
+
+                setTimeout(() => {
+                    card.style.maxHeight = '0';
+                    card.style.padding = '0';
+                    card.style.margin = '0';
+                    card.style.border = 'none';
+                }, 200);
+
+                setTimeout(() => {
+                    card.remove();
+                    // Update stats after removal
+                    updateFavoritosStatsAfterRemoval();
+                }, 400);
+            }
+
+            // Update caches immediately
+            FAVORITES._cache = FAVORITES._cache.filter(r => r.event_reference !== reference);
+            if (favoritesCache) {
+                favoritesCache = favoritesCache.filter(f => f.event_reference !== reference);
+            }
+
+            // Update other UI elements
+            updateEndingSoonFavoriteButtons();
+            FAVORITES.updateWidget();
+            updateFavoritesBadge(favoritesCache?.length || 0, true);
+
+            // API call in background
+            try {
+                await authFetch(`${API_BASE}/api/favorites/${reference}`, { method: 'DELETE' });
             } catch (error) {
                 console.error('Erro ao remover favorito:', error);
-                showToast('Erro', 'Não foi possível remover', 'error');
+                showToast('Erro', 'Não foi possível remover do servidor', 'error');
+                // Reload to restore state on error
+                loadFavoritosPage();
+            }
+        }
+
+        // Update stats after card removal without full reload
+        function updateFavoritosStatsAfterRemoval() {
+            const totalEl = document.getElementById('fav-stat-total');
+            const countEl = document.getElementById('favoritos-total-count');
+            const cards = document.querySelectorAll('.favorite-card');
+            const count = cards.length;
+
+            if (totalEl) totalEl.textContent = count;
+            if (countEl) countEl.textContent = count;
+
+            // Show empty state if no cards left
+            if (count === 0) {
+                const emptyEl = document.getElementById('favoritos-empty');
+                const listEl = document.getElementById('favoritos-list');
+                if (emptyEl) emptyEl.style.display = 'block';
+                if (listEl) listEl.innerHTML = '';
             }
         }
 
