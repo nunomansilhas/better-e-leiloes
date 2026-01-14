@@ -809,7 +809,8 @@ async def complete_vehicle_analysis(
         lookup_plate_infomatricula_api,
         check_insurance_api,
         get_market_prices as search_market_prices,
-        decode_portuguese_plate
+        decode_portuguese_plate,
+        extract_vehicle_from_title
     )
     from services.ai_analysis_service import get_enhanced_ai_service
     from sqlalchemy import select
@@ -893,6 +894,39 @@ async def complete_vehicle_analysis(
             errors.append(f"Vehicle info: {vehicle_info.get('error')}")
     except Exception as e:
         errors.append(f"Vehicle info: {str(e)}")
+
+    # 2b. Fallback: Extract vehicle info from title if API failed
+    if not vehicle_info.get('marca'):
+        titulo = event_dict.get('titulo', '')
+        extracted = extract_vehicle_from_title(titulo)
+        if extracted.get('marca'):
+            vehicle_info['marca'] = extracted.get('marca')
+            vehicle_info['modelo'] = extracted.get('modelo') or titulo
+            # Try to get year from plate
+            plate_info = decode_portuguese_plate(normalized_plate)
+            vehicle_info['ano'] = extracted.get('ano') or plate_info.year_min
+            # Extract fuel from title
+            titulo_lower = titulo.lower()
+            if 'diesel' in titulo_lower or 'gasoleo' in titulo_lower or 'gasóleo' in titulo_lower:
+                vehicle_info['combustivel'] = 'Diesel'
+            elif 'gasolina' in titulo_lower:
+                vehicle_info['combustivel'] = 'Gasolina'
+            elif 'elétrico' in titulo_lower or 'eletrico' in titulo_lower or 'electric' in titulo_lower:
+                vehicle_info['combustivel'] = 'Elétrico'
+            elif 'híbrido' in titulo_lower or 'hibrido' in titulo_lower:
+                vehicle_info['combustivel'] = 'Híbrido'
+
+            # Save extracted info to DB
+            async with get_db() as db:
+                result = await db.session.execute(
+                    select(EventVehicleDataDB).where(EventVehicleDataDB.reference == reference)
+                )
+                vd = result.scalar_one()
+                vd.marca = vehicle_info.get('marca')
+                vd.modelo = vehicle_info.get('modelo')
+                vd.ano = vehicle_info.get('ano')
+                vd.combustivel = vehicle_info.get('combustivel')
+                await db.session.commit()
 
     # 3. Check insurance
     insurance_info = {}
