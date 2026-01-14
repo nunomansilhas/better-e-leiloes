@@ -6960,13 +6960,9 @@
                 }
             }
 
-            // Valor mínimo line (always show if valid)
+            // Valor mínimo line (always show if valid) - price shown in legend only
             if (vMinimo > 0 && vMinimoY >= padT - 5 && vMinimoY <= padT + chartH + 5) {
                 svg += `<line x1="${padL}" y1="${vMinimoY}" x2="${width - padR}" y2="${vMinimoY}" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="5,3" opacity="0.8"/>`;
-                if (isModal) {
-                    const minLabel = vMinimo >= 1000 ? Math.round(vMinimo / 1000) + 'k' : Math.round(vMinimo);
-                    svg += `<text x="${padL - 8}" y="${vMinimoY + 3}" font-size="9" fill="#f59e0b" text-anchor="end" font-weight="500">${minLabel}€</text>`;
-                }
             }
 
             svg += `<path d="${areaD}" fill="url(#${uid}-grad)"/>`;
