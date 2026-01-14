@@ -11066,29 +11066,18 @@
         }
 
         // ============== IMPROVEMENTS: Lazy Loading for Images ==============
+        // Note: imageObserver already exists for carousel images (data-bg)
+        // This function is for regular <img> tags with data-src attribute
 
-        // Intersection Observer for lazy loading
-        const imageObserver = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    const img = entry.target;
-                    if (img.dataset.src) {
-                        img.src = img.dataset.src;
-                        img.removeAttribute('data-src');
-                        img.classList.remove('lazy');
-                        imageObserver.unobserve(img);
-                    }
-                }
-            });
-        }, {
-            rootMargin: '100px',
-            threshold: 0.1
-        });
-
-        // Function to setup lazy loading on images
+        // Function to setup lazy loading on images (uses existing imageObserver if available)
         function setupLazyImages(container = document) {
             container.querySelectorAll('img[data-src]').forEach(img => {
-                imageObserver.observe(img);
+                // Use native lazy loading as fallback
+                if ('loading' in HTMLImageElement.prototype) {
+                    img.src = img.dataset.src;
+                    img.loading = 'lazy';
+                    img.removeAttribute('data-src');
+                }
             });
         }
 
