@@ -401,7 +401,7 @@ async def lookup_plate_infomatricula_api(plate: str, debug: bool = False) -> Dic
     try:
         # Step 1: Get Firebase anonymous token
         # Firebase API key for infomatricula-login project (public, embedded in their site)
-        firebase_api_key = "AIzaSyCgaSyJ1LMFDwMvKOiDf12RmsNydLLfkdM"
+        firebase_api_key = "AIzaSyC0ToM3KDiIgN_cvvRQNmS_0v9a3_oZM9Q"
 
         async with httpx.AsyncClient(timeout=30.0) as client:
             if debug:
