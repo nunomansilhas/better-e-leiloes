@@ -5191,6 +5191,32 @@
                     console.error('Error fetching favorites data:', err);
                 }
 
+                // Sort favorites by data_fim (soonest ending first, ended ones at the end)
+                favorites.sort((a, b) => {
+                    const eventA = eventsData[a.event_reference];
+                    const eventB = eventsData[b.event_reference];
+                    const now = new Date();
+                    const dateA = eventA?.data_fim ? new Date(eventA.data_fim) : null;
+                    const dateB = eventB?.data_fim ? new Date(eventB.data_fim) : null;
+
+                    // Events without dates go to the end
+                    if (!dateA && !dateB) return 0;
+                    if (!dateA) return 1;
+                    if (!dateB) return -1;
+
+                    // Ended events go after active ones
+                    const endedA = dateA < now;
+                    const endedB = dateB < now;
+                    if (endedA && !endedB) return 1;
+                    if (!endedA && endedB) return -1;
+
+                    // Both active or both ended: sort by date (soonest first for active, most recent first for ended)
+                    if (endedA && endedB) {
+                        return dateB - dateA; // Most recently ended first
+                    }
+                    return dateA - dateB; // Soonest ending first
+                });
+
                 // Build carousel cards similar to "Novos Eventos"
                 container.innerHTML = favorites.map(fav => {
                     const event = eventsData[fav.event_reference];
