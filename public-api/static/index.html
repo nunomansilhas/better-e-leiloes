@@ -5289,10 +5289,23 @@
         };
 
         async function toggleFavorite(reference, eventData = {}) {
-            await FAVORITES.toggle(reference, eventData);
-            // Icons are updated by updateNotificationIcons() called in FAVORITES.add/remove
-            // Also update the star buttons in "A Terminar em Breve" (cache is updated optimistically)
+            // Check if already favorited using the /api/favorites endpoint
+            const favorites = await getFavoritesFromCache(true); // force refresh
+            const isFav = favorites.some(f => f.event_reference === reference);
+
+            if (isFav) {
+                // Remove from favorites
+                await removeFavoriteQuiet(reference);
+                showToast('Favorito removido', `${reference} foi removido dos favoritos`, 'info');
+            } else {
+                // Add to favorites
+                await addToFavorites(reference, eventData);
+                showToast('Favorito adicionado', `${reference} foi adicionado aos favoritos`, 'success');
+            }
+
+            // Update all UI elements
             updateEndingSoonFavoriteButtons();
+            updateFavoriteStars();
 
             // Force refresh "Meus Favoritos" widget on dashboard
             FAVORITES.updateWidget();
