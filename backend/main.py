@@ -7,9 +7,22 @@ import sys
 import asyncio
 
 # Fix para Windows - asyncio com Playwright/subprocessos
+# IMPORTANTE: O modo --reload do uvicorn força SelectorEventLoop que não suporta subprocessos!
+# Para usar Playwright no Windows, correr sem --reload ou usar esta correção
 if sys.platform == 'win32':
     # Python 3.8+ no Windows: usar ProactorEventLoop para suportar subprocessos
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+
+    # Forçar ProactorEventLoop se ainda não existe um event loop
+    try:
+        loop = asyncio.get_running_loop()
+        if not isinstance(loop, asyncio.ProactorEventLoop):
+            print("⚠️ AVISO: Event loop não é ProactorEventLoop - Playwright pode falhar!")
+            print("   Sugestão: Correr sem --reload ou usar 'python -m uvicorn main:app'")
+    except RuntimeError:
+        # Nenhum loop a correr ainda - criar ProactorEventLoop
+        loop = asyncio.ProactorEventLoop()
+        asyncio.set_event_loop(loop)
 
 # nest_asyncio permite nested event loops (necessário para Playwright + uvicorn)
 try:

@@ -22,6 +22,8 @@ try:
 except ImportError:
     pass
 
+
+
 from models import (
     EventData, ScraperStatus,
     TIPO_EVENTO_MAP, TIPO_EVENTO_NAMES, TIPO_TO_WEBSITE,
@@ -37,7 +39,7 @@ class EventScraper:
     def __init__(self):
         self.browser: Optional[Browser] = None
         self.playwright = None
-        
+
         # Status tracking
         self.is_running = False
         self.stop_requested = False
@@ -46,7 +48,7 @@ class EventScraper:
         self.current_page = None
         self.started_at = None
         self.last_update = None
-        
+
         # Config
         self.delay = float(os.getenv("SCRAPE_DELAY", 0.8))
         self.concurrent = int(os.getenv("CONCURRENT_REQUESTS", 4))
