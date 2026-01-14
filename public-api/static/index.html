@@ -11207,8 +11207,10 @@
                     if (!FAVORITES._cache.some(r => r.event_reference === reference)) {
                         FAVORITES._cache.push({ event_reference: reference, active: true });
                     }
-                    // Invalidate favoritesCache so updateFavoriteStars gets fresh data
-                    favoritesCache = null;
+                    // Update favoritesCache (don't invalidate - keep optimistic update)
+                    if (favoritesCache && !favoritesCache.some(f => f.event_reference === reference)) {
+                        favoritesCache.push({ event_reference: reference });
+                    }
                     // Update badge
                     const countResp = await fetch(`${API_BASE}/api/favorites/count`);
                     const countData = await countResp.json();
@@ -11233,9 +11235,11 @@
 
                 if (response.ok) {
                     addLog(`Evento ${reference} removido dos favoritos`, 'info');
-                    // Invalidate caches
+                    // Update caches
                     FAVORITES._cache = FAVORITES._cache.filter(r => r.event_reference !== reference);
-                    favoritesCache = null;
+                    if (favoritesCache) {
+                        favoritesCache = favoritesCache.filter(f => f.event_reference !== reference);
+                    }
                     loadFavoritosPage();
                     updateEndingSoonFavoriteButtons();
                 }
@@ -11294,8 +11298,10 @@
                 addLog(`Evento ${reference} removido dos favoritos`, 'info');
                 // Update FAVORITES cache for sync checks
                 FAVORITES._cache = FAVORITES._cache.filter(r => r.event_reference !== reference);
-                // Invalidate favoritesCache so updateFavoriteStars gets fresh data
-                favoritesCache = null;
+                // Update favoritesCache (don't invalidate - keep optimistic update)
+                if (favoritesCache) {
+                    favoritesCache = favoritesCache.filter(f => f.event_reference !== reference);
+                }
                 const countResp = await fetch(`${API_BASE}/api/favorites/count`);
                 const countData = await countResp.json();
                 updateFavoritesBadge(countData.count);
