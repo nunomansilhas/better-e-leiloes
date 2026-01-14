@@ -6,14 +6,17 @@ Recolhe e serve dados dos leilões do e-leiloes.pt
 import sys
 import asyncio
 
-# Fix para Windows - asyncio com Playwright
-# Python 3.13+ no Windows precisa de ProactorEventLoop para subprocessos
+# Fix para Windows - asyncio com Playwright/subprocessos
 if sys.platform == 'win32':
-    # ProactorEventLoop suporta subprocessos no Windows
+    # Python 3.8+ no Windows: usar ProactorEventLoop para suportar subprocessos
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
-    # Criar e definir um event loop explicitamente
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
+
+# nest_asyncio permite nested event loops (necessário para Playwright + uvicorn)
+try:
+    import nest_asyncio
+    nest_asyncio.apply()
+except ImportError:
+    pass  # nest_asyncio não instalado, tentar sem
 
 # CRITICAL: Load .env BEFORE importing database!
 from dotenv import load_dotenv
