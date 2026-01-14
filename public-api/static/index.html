@@ -3908,7 +3908,7 @@
                             <span style="font-weight: 600; color: #1e293b; font-size: 14px;">Meus Favoritos</span>
                             <span id="favorites-count" style="background: #dbeafe; color: #2563eb; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px;">0</span>
                         </div>
-                        <button onclick="showPage('alertas')" style="padding: 4px 8px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer; font-size: 10px; color: #64748b; transition: all 0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#f8fafc'">Gerir Alertas</button>
+                        <button onclick="showPage('favoritos')" style="padding: 4px 8px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer; font-size: 10px; color: #64748b; transition: all 0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#f8fafc'">Ver todos</button>
                     </div>
                     <div id="favorites-widget-content" style="display: flex; gap: 10px; overflow-x: auto; scroll-behavior: smooth; padding: 4px 0; scrollbar-width: none; -ms-overflow-style: none;">
                         <div style="text-align: center; padding: 20px; color: #94a3b8; width: 100%;">
@@ -5117,7 +5117,8 @@
                 const container = document.getElementById('favorites-widget-content');
                 if (!container) return;
 
-                const favorites = await this.getAll();
+                // Use /api/favorites endpoint (not notification-rules)
+                const favorites = await getFavoritesFromCache();
                 const count = document.getElementById('favorites-count');
                 if (count) count.textContent = favorites.length;
 
@@ -8019,8 +8020,8 @@
 
                 updatePagination(type);
 
-                // Update favorite star button states
-                updateFavoriteStars();
+                // Update favorite star button states (await to ensure cache is loaded)
+                await updateFavoriteStars();
 
             } catch (error) {
                 console.error('Erro ao carregar eventos:', error);
@@ -10610,13 +10611,13 @@
         // ============== END WEBSOCKET ==============
 
         // Update auth status and theme on page load
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
             initTheme();
             updateAuthStatus(!!API_AUTH.secretKey);
-            FAVORITES.updateWidget();
 
-            // Pre-load favorites cache immediately (non-blocking)
-            getFavoritesFromCache();
+            // Pre-load favorites cache first, then update widget
+            await getFavoritesFromCache();
+            FAVORITES.updateWidget();
 
             // Connect to WebSocket for real-time notifications
             connectNotificationWebSocket();
