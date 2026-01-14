@@ -5289,34 +5289,66 @@
         };
 
         async function toggleFavorite(reference, eventData = {}) {
-            // Check if already favorited using the /api/favorites endpoint
-            const favorites = await getFavoritesFromCache(true); // force refresh
+            // Get the button that was clicked for optimistic UI
+            const btn = document.querySelector(`button[data-favorite-ref="${reference}"]`);
+
+            // Check current state from cache (no API call - instant)
+            const favorites = await getFavoritesFromCache(false);
             const isFav = favorites.some(f => f.event_reference === reference);
 
-            if (isFav) {
-                // Remove from favorites
-                await removeFavoriteQuiet(reference);
-                showToast('Favorito removido', `${reference} foi removido dos favoritos`, 'info');
-            } else {
-                // Add to favorites
-                await addToFavorites(reference, eventData);
-                showToast('Favorito adicionado', `${reference} foi adicionado aos favoritos`, 'success');
+            // OPTIMISTIC UI: Update button immediately
+            if (btn) {
+                btn.innerHTML = isFav ? '☆' : '⭐';
+                btn.style.color = isFav ? '#cbd5e1' : '#f59e0b';
+                btn.title = isFav ? 'Adicionar aos favoritos' : 'Remover dos favoritos';
             }
 
-            // Update all UI elements
-            updateEndingSoonFavoriteButtons();
-            updateFavoriteStars();
+            // Update cache optimistically
+            if (isFav) {
+                // Remove from cache
+                if (favoritesCache) {
+                    favoritesCache = favoritesCache.filter(f => f.event_reference !== reference);
+                }
+            } else {
+                // Add to cache
+                if (favoritesCache && !favoritesCache.some(f => f.event_reference === reference)) {
+                    favoritesCache.push({ event_reference: reference });
+                }
+            }
 
-            // Force refresh "Meus Favoritos" widget on dashboard
-            FAVORITES.updateWidget();
+            // Update badge immediately with new count
+            const newCount = favoritesCache ? favoritesCache.length : 0;
+            updateFavoritesBadge(newCount, true);
 
-            // Update badge count with animation
+            // Now make the actual API call (in background)
             try {
-                const countResp = await fetch(`${API_BASE}/api/favorites/count`);
-                const countData = await countResp.json();
-                updateFavoritesBadge(countData.count, true);
-            } catch (e) {
-                console.error('Error updating favorites count:', e);
+                if (isFav) {
+                    await removeFavoriteQuiet(reference);
+                    showToast('Favorito removido', `${reference} removido`, 'info');
+                } else {
+                    await addToFavorites(reference, eventData);
+                    showToast('Favorito adicionado', `${reference} adicionado`, 'success');
+                }
+
+                // Refresh widget after API success
+                FAVORITES.updateWidget();
+
+            } catch (error) {
+                // REVERT on error
+                console.error('Error toggling favorite:', error);
+                showToast('Erro', 'Não foi possível atualizar favorito', 'error');
+
+                // Revert button state
+                if (btn) {
+                    btn.innerHTML = isFav ? '⭐' : '☆';
+                    btn.style.color = isFav ? '#f59e0b' : '#cbd5e1';
+                    btn.title = isFav ? 'Remover dos favoritos' : 'Adicionar aos favoritos';
+                }
+
+                // Revert cache
+                favoritesCache = null; // Force refresh on next access
+                await getFavoritesFromCache(true);
+                updateFavoritesBadge(favoritesCache?.length || 0, false);
             }
         }
 
