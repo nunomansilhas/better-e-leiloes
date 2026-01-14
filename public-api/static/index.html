@@ -4986,6 +4986,40 @@
             menuBtn.classList.remove('active');
         }
 
+        // ============== FAVORITES CACHE (from /api/favorites) ==============
+        // Must be declared before FAVORITES object which uses getFavoritesFromCache
+        let favoritesCache = null;
+        let favoritesCacheTime = 0;
+        const FAVORITES_CACHE_TTL = 60000; // 1 minute cache
+
+        async function getFavoritesFromCache(forceRefresh = false) {
+            const now = Date.now();
+            if (!forceRefresh && favoritesCache && (now - favoritesCacheTime) < FAVORITES_CACHE_TTL) {
+                return favoritesCache;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/favorites`);
+                favoritesCache = await response.json();
+                favoritesCacheTime = now;
+                return favoritesCache;
+            } catch (error) {
+                console.error('Error fetching favorites:', error);
+                return favoritesCache || [];
+            }
+        }
+
+        function updateFavoritesCacheEntry(reference, add) {
+            if (!favoritesCache) return;
+            if (add) {
+                if (!favoritesCache.some(f => f.event_reference === reference)) {
+                    favoritesCache.push({ event_reference: reference });
+                }
+            } else {
+                favoritesCache = favoritesCache.filter(f => f.event_reference !== reference);
+            }
+        }
+
         // ============== FAVORITES MANAGEMENT (uses notification rules from DB) ==============
 
         const FAVORITES = {
@@ -11308,39 +11342,6 @@
                 updateFavoritesBadge(countData.count);
             } catch (error) {
                 console.error('Erro ao remover favorito:', error);
-            }
-        }
-
-        // Favorites cache to avoid repeated API calls
-        let favoritesCache = null;
-        let favoritesCacheTime = 0;
-        const FAVORITES_CACHE_TTL = 60000; // 1 minute cache
-
-        async function getFavoritesFromCache(forceRefresh = false) {
-            const now = Date.now();
-            if (!forceRefresh && favoritesCache && (now - favoritesCacheTime) < FAVORITES_CACHE_TTL) {
-                return favoritesCache;
-            }
-
-            try {
-                const response = await fetch(`${API_BASE}/api/favorites`);
-                favoritesCache = await response.json();
-                favoritesCacheTime = now;
-                return favoritesCache;
-            } catch (error) {
-                console.error('Error fetching favorites:', error);
-                return favoritesCache || [];
-            }
-        }
-
-        function updateFavoritesCacheEntry(reference, add) {
-            if (!favoritesCache) return;
-            if (add) {
-                if (!favoritesCache.some(f => f.event_reference === reference)) {
-                    favoritesCache.push({ event_reference: reference });
-                }
-            } else {
-                favoritesCache = favoritesCache.filter(f => f.event_reference !== reference);
             }
         }
 
