@@ -5200,11 +5200,15 @@
         }
 
         // Update favorite star buttons in the "A Terminar em Breve" section
-        function updateEndingSoonFavoriteButtons() {
+        async function updateEndingSoonFavoriteButtons() {
             const buttons = document.querySelectorAll('button[data-favorite-ref]');
+            // Use favoritesCache (from /api/favorites) - same as updateFavoriteStars
+            const favorites = await getFavoritesFromCache();
+            const favReferences = new Set(favorites.map(f => f.event_reference));
+
             buttons.forEach(btn => {
                 const ref = btn.dataset.favoriteRef;
-                const isFav = FAVORITES.isFavoriteSync(ref);
+                const isFav = favReferences.has(ref);
                 btn.innerHTML = isFav ? '⭐' : '☆';
                 btn.style.color = isFav ? '#f59e0b' : '#cbd5e1';
                 btn.title = isFav ? 'Remover dos favoritos' : 'Adicionar aos favoritos';
@@ -6484,6 +6488,7 @@
 
             // Pre-load favorites cache for sync checks during render
             await FAVORITES.getAll();
+            await getFavoritesFromCache(); // Also load favoritesCache for star buttons
 
             // Separate active and terminated events
             const activeEvents = endingSoonEvents.filter(e => !e.terminado);
@@ -6563,6 +6568,9 @@
 
             // Initial timer update
             updateEndingSoonTimers();
+
+            // Update favorite star buttons with correct state from favoritesCache
+            await updateEndingSoonFavoriteButtons();
 
             // Setup chart tooltip positioning
             setupChartTooltips();
