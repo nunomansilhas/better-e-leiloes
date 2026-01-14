@@ -450,45 +450,73 @@ async def lookup_plate_infomatricula_api(plate: str, debug: bool = False) -> Dic
                     print(f"  [DEBUG] API data: {data}")
 
                 # Map API response to our format
+                # API uses English field names: make, model, version, plateDate, etc.
                 if data:
-                    # The API returns data like: {"marca": "...", "modelo": "...", etc}
-                    result['marca'] = data.get('marca') or data.get('Marca')
-                    result['modelo'] = data.get('modelo') or data.get('Modelo')
-                    result['versao'] = data.get('versao') or data.get('Versao')
+                    # Brand/Make
+                    result['marca'] = data.get('make') or data.get('marca') or data.get('Marca')
 
-                    # Year might be in different fields
-                    ano = data.get('ano') or data.get('Ano') or data.get('anoMatricula') or data.get('ano_matricula')
-                    if ano:
+                    # Model
+                    result['modelo'] = data.get('model') or data.get('modelo') or data.get('Modelo')
+
+                    # Version
+                    result['versao'] = data.get('version') or data.get('versao') or data.get('Versao')
+
+                    # Year - parse from plateDate (format: "3/2023" or "03/2023")
+                    plate_date = data.get('plateDate') or data.get('anoMatricula')
+                    if plate_date:
                         try:
-                            result['ano'] = int(ano)
+                            # Extract year from "3/2023" or "2023"
+                            if '/' in str(plate_date):
+                                result['ano'] = int(str(plate_date).split('/')[-1])
+                            else:
+                                result['ano'] = int(plate_date)
                         except:
                             pass
+
+                    # Also check markFrom for manufacturing year
+                    if 'ano' not in result:
+                        mark_from = data.get('markFrom')
+                        if mark_from:
+                            try:
+                                result['ano_fabrico'] = int(mark_from)
+                            except:
+                                pass
 
                     # Fuel type
-                    combustivel = data.get('combustivel') or data.get('Combustivel') or data.get('tipoCombustivel')
-                    if combustivel:
-                        result['combustivel'] = combustivel
+                    result['combustivel'] = data.get('fuelType') or data.get('combustivel') or data.get('tipoCombustivel')
 
-                    # Engine specs
-                    cilindrada = data.get('cilindrada') or data.get('Cilindrada')
-                    if cilindrada:
+                    # Power (CV and kW)
+                    powercv = data.get('powercv') or data.get('potencia')
+                    if powercv:
                         try:
-                            result['cilindrada'] = int(str(cilindrada).replace('cc', '').strip())
+                            result['potencia_cv'] = int(str(powercv).replace('cv', '').replace('CV', '').strip())
                         except:
                             pass
 
-                    potencia = data.get('potencia') or data.get('Potencia')
-                    if potencia:
+                    powerkw = data.get('powerkw')
+                    if powerkw:
                         try:
-                            result['potencia'] = int(str(potencia).replace('cv', '').replace('CV', '').strip())
+                            result['potencia_kw'] = int(str(powerkw).replace('kw', '').replace('kW', '').strip())
                         except:
                             pass
 
                     # Color
-                    result['cor'] = data.get('cor') or data.get('Cor')
+                    result['cor'] = data.get('color') or data.get('cor') or data.get('Cor')
 
-                    # Category
-                    result['categoria'] = data.get('categoria') or data.get('tipoVeiculo')
+                    # Category/Body type
+                    result['categoria'] = data.get('categoryType') or data.get('bodyType') or data.get('tipoVeiculo')
+
+                    # VIN (chassis number)
+                    if data.get('vin'):
+                        result['vin'] = data.get('vin')
+
+                    # Owner info
+                    if data.get('ownerCategory'):
+                        result['tipo_proprietario'] = data.get('ownerCategory')
+
+                    # Import status
+                    if data.get('isImported'):
+                        result['origem'] = data.get('isImported')
 
                     # Clean None values
                     result = {k: v for k, v in result.items() if v is not None}
