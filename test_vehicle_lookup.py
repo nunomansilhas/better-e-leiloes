@@ -18,6 +18,7 @@ from services.vehicle_lookup import (
     search_autouncle,
     get_market_prices,
     lookup_plate_infomatricula,
+    lookup_plate_infomatricula_api,
     check_insurance_asf,
     get_full_vehicle_info
 )
@@ -56,19 +57,19 @@ async def main():
         print(f"   '{title}'")
         print(f"   -> Marca: {result['marca']}, Modelo: {result['modelo']}, Ano: {result['ano']}")
 
-    # 3. Lookup from InfoMatricula.pt
-    print("\n🔍 3. LOOKUP INFOMATRICULA.PT")
+    # 3. Lookup from InfoMatricula.pt (API version - no Playwright needed!)
+    print("\n🔍 3. LOOKUP INFOMATRICULA.PT (API)")
     print("-" * 40)
-    print(f"   A pesquisar {plate}...")
+    print(f"   A pesquisar {plate} via API...")
 
     try:
-        info_result = await lookup_plate_infomatricula(plate, debug=True)
+        info_result = await lookup_plate_infomatricula_api(plate, debug=True)
         if 'error' in info_result:
             print(f"   ⚠️  Erro: {info_result['error']}")
         elif not any(k for k in info_result if k != 'source'):
-            print(f"   ⚠️  Sem dados encontrados (ver debug_infomatricula.html)")
+            print(f"   ⚠️  Sem dados encontrados")
         else:
-            print(f"   ✅ Resultado:")
+            print(f"   ✅ Resultado (fonte: {info_result.get('source', 'API')}):")
             for key, value in info_result.items():
                 if value and key != 'source':
                     print(f"      {key}: {value}")

@@ -382,6 +382,135 @@ class VehicleFullInfo:
     errors: List[str] = field(default_factory=list)
 
 
+async def lookup_plate_infomatricula_api(plate: str, debug: bool = False) -> Dict[str, Any]:
+    """
+    Lookup vehicle info from InfoMatricula.pt using their API directly.
+    Uses Firebase anonymous authentication.
+
+    This is more reliable than scraping!
+    """
+    result = {}
+    clean_plate = plate.replace("-", "").replace(" ", "").upper()
+
+    # Format with hyphens (XX-XX-XX)
+    if len(clean_plate) == 6:
+        formatted_plate = f"{clean_plate[:2]}-{clean_plate[2:4]}-{clean_plate[4:6]}"
+    else:
+        formatted_plate = plate
+
+    try:
+        # Step 1: Get Firebase anonymous token
+        # Firebase API key for infomatricula-login project (public, embedded in their site)
+        firebase_api_key = "AIzaSyCgaSyJ1LMFDwMvKOiDf12RmsNydLLfkdM"
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            if debug:
+                print("  [DEBUG] Obtendo token Firebase...")
+
+            # Anonymous sign-in to Firebase
+            firebase_url = f"https://identitytoolkit.googleapis.com/v1/accounts:signUp?key={firebase_api_key}"
+            firebase_response = await client.post(
+                firebase_url,
+                json={"returnSecureToken": True}
+            )
+
+            if firebase_response.status_code != 200:
+                if debug:
+                    print(f"  [DEBUG] Erro Firebase: {firebase_response.status_code}")
+                return {"error": f"Firebase auth failed: {firebase_response.status_code}"}
+
+            firebase_data = firebase_response.json()
+            id_token = firebase_data.get("idToken")
+
+            if not id_token:
+                return {"error": "No Firebase token received"}
+
+            if debug:
+                print("  [DEBUG] Token obtido, consultando API...")
+
+            # Step 2: Call InfoMatricula API
+            api_url = f"https://api.infomatricula.pt/informacao/fetch?plate={formatted_plate}"
+            headers = {
+                "Authorization": f"Bearer {id_token}",
+                "Accept": "application/json",
+                "Origin": "https://infomatricula.pt",
+                "Referer": "https://infomatricula.pt/",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            }
+
+            api_response = await client.get(api_url, headers=headers)
+
+            if debug:
+                print(f"  [DEBUG] API response status: {api_response.status_code}")
+
+            if api_response.status_code == 200:
+                data = api_response.json()
+
+                if debug:
+                    print(f"  [DEBUG] API data: {data}")
+
+                # Map API response to our format
+                if data:
+                    # The API returns data like: {"marca": "...", "modelo": "...", etc}
+                    result['marca'] = data.get('marca') or data.get('Marca')
+                    result['modelo'] = data.get('modelo') or data.get('Modelo')
+                    result['versao'] = data.get('versao') or data.get('Versao')
+
+                    # Year might be in different fields
+                    ano = data.get('ano') or data.get('Ano') or data.get('anoMatricula') or data.get('ano_matricula')
+                    if ano:
+                        try:
+                            result['ano'] = int(ano)
+                        except:
+                            pass
+
+                    # Fuel type
+                    combustivel = data.get('combustivel') or data.get('Combustivel') or data.get('tipoCombustivel')
+                    if combustivel:
+                        result['combustivel'] = combustivel
+
+                    # Engine specs
+                    cilindrada = data.get('cilindrada') or data.get('Cilindrada')
+                    if cilindrada:
+                        try:
+                            result['cilindrada'] = int(str(cilindrada).replace('cc', '').strip())
+                        except:
+                            pass
+
+                    potencia = data.get('potencia') or data.get('Potencia')
+                    if potencia:
+                        try:
+                            result['potencia'] = int(str(potencia).replace('cv', '').replace('CV', '').strip())
+                        except:
+                            pass
+
+                    # Color
+                    result['cor'] = data.get('cor') or data.get('Cor')
+
+                    # Category
+                    result['categoria'] = data.get('categoria') or data.get('tipoVeiculo')
+
+                    # Clean None values
+                    result = {k: v for k, v in result.items() if v is not None}
+
+                    if result:
+                        result['source'] = 'infomatricula.pt (API)'
+                    else:
+                        result['error'] = 'Matrícula não encontrada'
+                else:
+                    result['error'] = 'Resposta vazia da API'
+
+            elif api_response.status_code == 404:
+                result['error'] = 'Matrícula não encontrada'
+            else:
+                result['error'] = f'API error: {api_response.status_code}'
+
+    except Exception as e:
+        result['error'] = str(e)
+
+    return result
+
+
 async def _accept_cookies(page, timeout: int = 2000):
     """Try to accept cookie consent dialogs on Portuguese sites."""
     cookie_selectors = [
@@ -762,17 +891,30 @@ async def get_full_vehicle_info(plate: str, include_market: bool = True) -> Vehi
         sources=['plate_decoder']
     )
 
-    # 2. Try InfoMatricula
+    # 2. Try InfoMatricula API first (no Playwright needed!)
     try:
-        info = await lookup_plate_infomatricula(plate)
-        if 'error' not in info:
+        info = await lookup_plate_infomatricula_api(plate)
+        if 'error' not in info and info:
             result.marca = info.get('marca')
             result.modelo = info.get('modelo')
+            result.versao = info.get('versao')
             result.ano = info.get('ano')
             result.combustivel = info.get('combustivel')
-            result.sources.append('infomatricula.pt')
+            result.cilindrada = info.get('cilindrada')
+            result.potencia = info.get('potencia')
+            result.cor = info.get('cor')
+            result.sources.append('infomatricula.pt (API)')
         else:
-            result.errors.append(f"InfoMatricula: {info['error']}")
+            # Fallback to scraping if API fails
+            info = await lookup_plate_infomatricula(plate)
+            if 'error' not in info:
+                result.marca = info.get('marca')
+                result.modelo = info.get('modelo')
+                result.ano = info.get('ano')
+                result.combustivel = info.get('combustivel')
+                result.sources.append('infomatricula.pt')
+            else:
+                result.errors.append(f"InfoMatricula: {info.get('error', 'unknown')}")
     except Exception as e:
         result.errors.append(f"InfoMatricula: {str(e)}")
 
