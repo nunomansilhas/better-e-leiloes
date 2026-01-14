@@ -5201,8 +5201,10 @@
 
                     const tipoEmoji = {1: '🏠', 2: '🚗', 3: '🔧', 4: '🪑', 5: '⚙️', 6: '📜'}[event.tipo_id] || '📦';
                     const lance = event.lance_atual ? `€${Number(event.lance_atual).toLocaleString('pt-PT')}` : '-';
-                    const dataFim = event.data_fim ? getTimeLeftShort(new Date(event.data_fim)) : '-';
-                    const isActive = event.ativo !== false && !event.terminado;
+                    const endDate = event.data_fim ? new Date(event.data_fim) : null;
+                    const hasEnded = endDate && endDate < new Date();
+                    const dataFim = endDate ? getTimeLeftShort(endDate) : '-';
+                    const isActive = event.ativo !== false && !event.terminado && !hasEnded;
                     const capa = event.capa || '';
                     const titulo = event.titulo || event.reference;
                     const greyFilter = isActive ? '' : 'filter: grayscale(100%); opacity: 0.7;';
