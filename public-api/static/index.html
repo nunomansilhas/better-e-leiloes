@@ -5055,6 +5055,8 @@
                         if (!this._cache.some(r => r.event_reference === reference)) {
                             this._cache.push({ event_reference: reference, active: true });
                         }
+                        // Update buttons IMMEDIATELY after cache update (sync)
+                        updateEndingSoonFavoriteButtons();
                         this._cacheTime = 0; // Mark for refresh on next getAll
                         if (typeof invalidateRulesCountCache === 'function') invalidateRulesCountCache();
                         this.updateWidget();
@@ -5078,6 +5080,8 @@
                         if (response.ok) {
                             // Optimistically remove from cache immediately
                             this._cache = this._cache.filter(r => r.event_reference !== reference);
+                            // Update buttons IMMEDIATELY after cache update (sync)
+                            updateEndingSoonFavoriteButtons();
                             this._cacheTime = 0; // Mark for refresh on next getAll
                             if (typeof invalidateRulesCountCache === 'function') invalidateRulesCountCache();
                             this.updateWidget();
@@ -5198,11 +5202,9 @@
         // Update favorite star buttons in the "A Terminar em Breve" section
         function updateEndingSoonFavoriteButtons() {
             const buttons = document.querySelectorAll('button[data-favorite-ref]');
-            console.log('[FAV] Updating buttons:', buttons.length, 'Cache:', FAVORITES._cache.map(r => r.event_reference));
             buttons.forEach(btn => {
                 const ref = btn.dataset.favoriteRef;
                 const isFav = FAVORITES.isFavoriteSync(ref);
-                console.log('[FAV] Button ref:', ref, 'isFav:', isFav);
                 btn.innerHTML = isFav ? '⭐' : '☆';
                 btn.style.color = isFav ? '#f59e0b' : '#cbd5e1';
                 btn.title = isFav ? 'Remover dos favoritos' : 'Adicionar aos favoritos';
