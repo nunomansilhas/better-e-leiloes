@@ -589,6 +589,18 @@ class EventVehicleDataDB(Base):
     poupanca_estimada: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True)
     desconto_percentagem: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
 
+    # AI Analysis
+    ai_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # 1-10
+    ai_recommendation: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)  # comprar/acompanhar/evitar
+    ai_summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    ai_pros: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON array
+    ai_cons: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON array
+    ai_questions_results: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON array
+    ai_image_analyses: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON array
+    ai_model_used: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    ai_tokens_used: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    ai_processing_time_ms: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+
     # Processing status
     status: Mapped[str] = mapped_column(String(20), default='pending')  # pending, processing, completed, failed
     error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
