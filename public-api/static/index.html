@@ -61,6 +61,86 @@
             transition: background 0.3s ease, color 0.3s ease;
         }
 
+        /* ============ ENTRANCE ANIMATIONS ============ */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes fadeInScale {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .animate-fade-in-up {
+            animation: fadeInUp 0.4s ease-out forwards;
+        }
+
+        .animate-fade-in-left {
+            animation: fadeInLeft 0.3s ease-out forwards;
+        }
+
+        .animate-fade-in-scale {
+            animation: fadeInScale 0.3s ease-out forwards;
+        }
+
+        .animate-slide-in-right {
+            animation: slideInRight 0.3s ease-out forwards;
+        }
+
+        .animate-pulse {
+            animation: pulse 0.3s ease-in-out;
+        }
+
+        /* Staggered animation delays for lists */
+        .stagger-1 { animation-delay: 0.05s; }
+        .stagger-2 { animation-delay: 0.1s; }
+        .stagger-3 { animation-delay: 0.15s; }
+        .stagger-4 { animation-delay: 0.2s; }
+        .stagger-5 { animation-delay: 0.25s; }
+        .stagger-6 { animation-delay: 0.3s; }
+        .stagger-7 { animation-delay: 0.35s; }
+        .stagger-8 { animation-delay: 0.4s; }
+
         /* ============ DARK MODE OVERRIDES ============ */
         [data-theme="dark"] .main-content {
             background: var(--bg-primary);
@@ -5299,6 +5379,20 @@
                         </div>
                     `;
                 }).join('');
+
+                // Animate favorites cards with stagger
+                requestAnimationFrame(() => {
+                    const cards = container.children;
+                    Array.from(cards).forEach((card, i) => {
+                        card.style.opacity = '0';
+                        card.style.transform = 'translateY(15px)';
+                        setTimeout(() => {
+                            card.style.transition = 'opacity 0.35s ease-out, transform 0.35s ease-out';
+                            card.style.opacity = '1';
+                            card.style.transform = 'translateY(0)';
+                        }, i * 60);
+                    });
+                });
             }
         };
 
@@ -7227,6 +7321,7 @@
         let recentBidsInterval = null;
         let recentBidsData = [];
         let recentBidsSort = { column: 'timestamp', direction: 'desc' };
+        let previousBidRefs = new Set(); // Track previous bids for animation
 
         async function loadRecentBidsWidget() {
             const container = document.getElementById('dash-recent-bids');
@@ -7378,7 +7473,30 @@
                 html += inactiveBids.map(renderBid).join('');
             }
 
+            // Track which bids are new
+            const currentRefs = new Set(recentBidsData.map(b => b.reference));
+            const newRefs = [...currentRefs].filter(ref => !previousBidRefs.has(ref));
+
             container.innerHTML = html;
+
+            // Animate new bids with slide-in effect
+            if (newRefs.length > 0 && previousBidRefs.size > 0) {
+                newRefs.forEach((ref, i) => {
+                    const row = container.querySelector(`[data-ref="${ref}"]`);
+                    if (row) {
+                        row.style.opacity = '0';
+                        row.style.transform = 'translateX(-20px)';
+                        setTimeout(() => {
+                            row.style.transition = 'opacity 0.4s ease-out, transform 0.4s ease-out';
+                            row.style.opacity = '1';
+                            row.style.transform = 'translateX(0)';
+                        }, i * 80);
+                    }
+                });
+            }
+
+            // Update previous refs
+            previousBidRefs = currentRefs;
 
             // Setup linked hover between tables
             setupLinkedHover();
@@ -7667,10 +7785,19 @@
 
                 // Already sorted by scraped_at DESC from API
 
-                // Add cards (without animation for initial load)
-                events.forEach(e => {
+                // Add cards with staggered entrance animation
+                events.forEach((e, i) => {
                     const card = createNewEventCard(e, false);
+                    card.style.opacity = '0';
+                    card.style.transform = 'translateX(20px)';
                     track.appendChild(card);
+
+                    // Stagger the animation
+                    setTimeout(() => {
+                        card.style.transition = 'opacity 0.35s ease-out, transform 0.35s ease-out';
+                        card.style.opacity = '1';
+                        card.style.transform = 'translateX(0)';
+                    }, i * 50);
                 });
 
                 // Update count
@@ -7954,9 +8081,10 @@
                 if (pageEvents.length === 0) {
                     content.innerHTML = '<div style="text-align: center; padding: 40px; color: #94a3b8;">Nenhum evento encontrado</div>';
                 } else {
-                    const cardsHTML = pageEvents.map(e => createEventCardHTML(e)).join('');
+                    const cardsHTML = pageEvents.map((e, i) => createEventCardHTML(e, i)).join('');
                     content.innerHTML = `<div class="events-grid">${cardsHTML}</div>`;
                     setupCarouselDelegation(content, pageEvents);
+                    animateCards(content);
                 }
 
                 // Update pagination
@@ -8294,11 +8422,12 @@
                 }
 
                 // Batch render all cards using innerHTML for performance
-                const cardsHTML = pageEvents.map(event => createEventCardHTML(event)).join('');
+                const cardsHTML = pageEvents.map((event, i) => createEventCardHTML(event, i)).join('');
                 content.innerHTML = `<div class="events-grid">${cardsHTML}</div>`;
 
                 // Setup event delegation for carousels after DOM is ready
                 setupCarouselDelegation(content, pageEvents);
+                animateCards(content);
 
                 updatePagination(type);
 
@@ -8398,6 +8527,20 @@
                 maximumFractionDigits: 2
             }).format(price);
         };
+
+        // Animate cards with staggered entrance
+        function animateCards(container, selector = '.event-card') {
+            const cards = container.querySelectorAll(selector);
+            cards.forEach((card, i) => {
+                card.style.opacity = '0';
+                card.style.transform = 'translateY(20px)';
+                setTimeout(() => {
+                    card.style.transition = 'opacity 0.4s ease-out, transform 0.4s ease-out';
+                    card.style.opacity = '1';
+                    card.style.transform = 'translateY(0)';
+                }, i * 50); // 50ms delay between each card
+            });
+        }
 
         const cardTipoInfo = {
             1: { name: 'Imóvel', class: 'imovel', icon: '<path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>' },
