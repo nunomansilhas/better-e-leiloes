@@ -3935,6 +3935,18 @@
                     <h2>Todos os Eventos</h2>
                     <p>Todos os eventos disponíveis em leilão</p>
                 </div>
+                <div class="keyboard-hints" style="display: flex; gap: 8px; align-items: center; background: #f1f5f9; padding: 6px 12px; border-radius: 8px; font-size: 11px; color: #64748b;">
+                    <span style="font-weight: 500;">Atalhos:</span>
+                    <kbd style="background: white; padding: 2px 6px; border-radius: 4px; border: 1px solid #e2e8f0; font-family: monospace;">J</kbd>
+                    <kbd style="background: white; padding: 2px 6px; border-radius: 4px; border: 1px solid #e2e8f0; font-family: monospace;">K</kbd>
+                    <span>navegar</span>
+                    <kbd style="background: white; padding: 2px 6px; border-radius: 4px; border: 1px solid #e2e8f0; font-family: monospace;">Enter</kbd>
+                    <span>abrir</span>
+                    <kbd style="background: white; padding: 2px 6px; border-radius: 4px; border: 1px solid #e2e8f0; font-family: monospace;">F</kbd>
+                    <span>favorito</span>
+                    <kbd style="background: white; padding: 2px 6px; border-radius: 4px; border: 1px solid #e2e8f0; font-family: monospace;">Esc</kbd>
+                    <span>fechar</span>
+                </div>
             </div>
 
             <div class="type-badges">
@@ -5091,9 +5103,12 @@
                         body: JSON.stringify(ruleData)
                     });
                     if (response.ok) {
-                        // Optimistically add to cache immediately
+                        // Optimistically add to ALL caches immediately
                         if (!this._cache.some(r => r.event_reference === reference)) {
                             this._cache.push({ event_reference: reference, active: true });
+                        }
+                        if (favoritesCache && !favoritesCache.some(f => f.event_reference === reference)) {
+                            favoritesCache.push({ event_reference: reference });
                         }
                         // Update buttons IMMEDIATELY after cache update (sync)
                         updateEndingSoonFavoriteButtons();
@@ -5101,6 +5116,7 @@
                         if (typeof invalidateRulesCountCache === 'function') invalidateRulesCountCache();
                         this.updateWidget();
                         updateNotificationIcons();
+                        debouncedUpdateFavoriteStars();
                         showToast('Favorito adicionado', `${reference} foi adicionado aos favoritos`, 'success');
                     }
                 } catch (err) {
@@ -5118,14 +5134,18 @@
                             method: 'DELETE'
                         });
                         if (response.ok) {
-                            // Optimistically remove from cache immediately
+                            // Optimistically remove from ALL caches immediately
                             this._cache = this._cache.filter(r => r.event_reference !== reference);
+                            if (favoritesCache) {
+                                favoritesCache = favoritesCache.filter(f => f.event_reference !== reference);
+                            }
                             // Update buttons IMMEDIATELY after cache update (sync)
                             updateEndingSoonFavoriteButtons();
                             this._cacheTime = 0; // Mark for refresh on next getAll
                             if (typeof invalidateRulesCountCache === 'function') invalidateRulesCountCache();
                             this.updateWidget();
                             updateNotificationIcons();
+                            debouncedUpdateFavoriteStars();
                             showToast('Favorito removido', `${reference} foi removido dos favoritos`, 'info');
                         }
                     }
@@ -5975,6 +5995,11 @@
 
             modal.classList.add('active');
             document.body.style.overflow = 'hidden';
+
+            // Add focus trap and ARIA attributes for accessibility
+            modal.setAttribute('role', 'dialog');
+            modal.setAttribute('aria-modal', 'true');
+            setTimeout(() => trapFocusInModal(modal), 100);
         }
 
         function closeInspectionModal() {
@@ -5982,6 +6007,9 @@
             modal.classList.remove('active');
             document.body.style.overflow = '';
             inspectionCurrentEvent = null;
+
+            // Restore focus to previous element
+            restoreFocus();
         }
 
         function inspectionCarouselPrev() {
@@ -10703,7 +10731,387 @@
             // Check for price changes on watched events every 2 minutes (fallback if WebSocket fails)
             checkForPriceChanges();
             setInterval(() => checkForPriceChanges(), 2 * 60 * 1000);
+
+            // Initialize keyboard navigation
+            initKeyboardNavigation();
         });
+
+        // ============== IMPROVEMENTS: Fetch with Timeout & Retry ==============
+
+        // Store active intervals for cleanup
+        const activeIntervals = new Set();
+
+        // Fetch with timeout and automatic retry
+        async function fetchWithTimeout(url, options = {}, timeout = 15000, retries = 2) {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+            const fetchOptions = {
+                ...options,
+                signal: controller.signal
+            };
+
+            for (let attempt = 0; attempt <= retries; attempt++) {
+                try {
+                    const response = await fetch(url, fetchOptions);
+                    clearTimeout(timeoutId);
+
+                    if (!response.ok && response.status >= 500) {
+                        throw new Error(`Server error: ${response.status}`);
+                    }
+
+                    return response;
+                } catch (error) {
+                    clearTimeout(timeoutId);
+
+                    if (error.name === 'AbortError') {
+                        if (attempt < retries) {
+                            const delay = Math.pow(2, attempt) * 1000; // Exponential backoff
+                            await new Promise(r => setTimeout(r, delay));
+                            continue;
+                        }
+                        showToast('Timeout', 'O servidor demorou muito a responder. Tente novamente.', 'error');
+                        throw new Error('Request timeout');
+                    }
+
+                    if (attempt < retries) {
+                        const delay = Math.pow(2, attempt) * 1000;
+                        await new Promise(r => setTimeout(r, delay));
+                        continue;
+                    }
+
+                    showToast('Erro de Rede', 'Não foi possível conectar ao servidor. Verifique a sua ligação.', 'error');
+                    throw error;
+                }
+            }
+        }
+
+        // ============== IMPROVEMENTS: Keyboard Navigation ==============
+
+        let selectedEventIndex = -1;
+        let lastKeyboardPage = null;
+
+        function initKeyboardNavigation() {
+            document.addEventListener('keydown', handleGlobalKeyboard);
+
+            // Track focused element for focus trap
+            document.addEventListener('focusin', trackFocus);
+        }
+
+        function handleGlobalKeyboard(e) {
+            // Don't handle if typing in input/textarea
+            if (e.target.matches('input, textarea, select, [contenteditable]')) {
+                // But allow Escape to blur
+                if (e.key === 'Escape') {
+                    e.target.blur();
+                }
+                return;
+            }
+
+            // Escape - close any open modal
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                closeAnyOpenModal();
+                return;
+            }
+
+            // Only enable J/K navigation on events page
+            const currentPage = document.querySelector('.page.active')?.id;
+            if (currentPage !== 'page-eventos') return;
+
+            const cards = document.querySelectorAll('.event-card');
+            if (cards.length === 0) return;
+
+            // Reset selection if page changed
+            if (lastKeyboardPage !== currentPage) {
+                selectedEventIndex = -1;
+                lastKeyboardPage = currentPage;
+            }
+
+            // J - next event
+            if (e.key === 'j' || e.key === 'J') {
+                e.preventDefault();
+                selectedEventIndex = Math.min(selectedEventIndex + 1, cards.length - 1);
+                highlightSelectedCard(cards);
+            }
+
+            // K - previous event
+            if (e.key === 'k' || e.key === 'K') {
+                e.preventDefault();
+                selectedEventIndex = Math.max(selectedEventIndex - 1, 0);
+                highlightSelectedCard(cards);
+            }
+
+            // Enter - open selected event
+            if (e.key === 'Enter' && selectedEventIndex >= 0) {
+                e.preventDefault();
+                const card = cards[selectedEventIndex];
+                if (card) card.click();
+            }
+
+            // F - toggle favorite on selected event
+            if ((e.key === 'f' || e.key === 'F') && selectedEventIndex >= 0) {
+                e.preventDefault();
+                const card = cards[selectedEventIndex];
+                const favBtn = card?.querySelector('.card-favorite-btn');
+                if (favBtn) favBtn.click();
+            }
+        }
+
+        function highlightSelectedCard(cards) {
+            // Remove previous highlight
+            cards.forEach(c => c.style.outline = '');
+
+            // Add highlight to selected
+            if (selectedEventIndex >= 0 && cards[selectedEventIndex]) {
+                const card = cards[selectedEventIndex];
+                card.style.outline = '3px solid #3b82f6';
+                card.style.outlineOffset = '2px';
+                card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+
+        function closeAnyOpenModal() {
+            // Close inspection modal
+            const inspectionModal = document.getElementById('inspection-modal');
+            if (inspectionModal?.classList.contains('active')) {
+                closeInspectionModal();
+                return;
+            }
+
+            // Close price chart modal
+            const priceModal = document.getElementById('price-chart-modal');
+            if (priceModal) {
+                priceModal.remove();
+                return;
+            }
+
+            // Close generic modal
+            const genericModal = document.getElementById('generic-modal');
+            if (genericModal?.style.display === 'flex') {
+                closeModal();
+                return;
+            }
+
+            // Close create rule modal
+            const ruleModal = document.getElementById('create-rule-modal');
+            if (ruleModal?.style.display === 'flex') {
+                closeCreateRuleModal();
+                return;
+            }
+
+            // Close delete confirm modal
+            const deleteModal = document.getElementById('delete-confirm-modal');
+            if (deleteModal?.style.display === 'flex') {
+                deleteModal.style.display = 'none';
+                return;
+            }
+
+            // Close any other modal with .modal-backdrop or similar
+            document.querySelectorAll('[style*="position: fixed"][style*="z-index: 999"]').forEach(el => {
+                if (el.style.display !== 'none') {
+                    el.remove();
+                }
+            });
+        }
+
+        // ============== IMPROVEMENTS: Focus Trap for Modals ==============
+
+        let lastFocusedElement = null;
+
+        function trackFocus(e) {
+            if (!e.target.closest('.inspection-modal, #generic-modal, #create-rule-modal, #delete-confirm-modal, #price-chart-modal')) {
+                lastFocusedElement = e.target;
+            }
+        }
+
+        function trapFocusInModal(modalElement) {
+            const focusableElements = modalElement.querySelectorAll(
+                'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+            );
+
+            if (focusableElements.length === 0) return;
+
+            const firstFocusable = focusableElements[0];
+            const lastFocusable = focusableElements[focusableElements.length - 1];
+
+            // Focus first element
+            firstFocusable.focus();
+
+            // Trap focus within modal
+            modalElement.addEventListener('keydown', function trapHandler(e) {
+                if (e.key !== 'Tab') return;
+
+                if (e.shiftKey) {
+                    if (document.activeElement === firstFocusable) {
+                        e.preventDefault();
+                        lastFocusable.focus();
+                    }
+                } else {
+                    if (document.activeElement === lastFocusable) {
+                        e.preventDefault();
+                        firstFocusable.focus();
+                    }
+                }
+            });
+        }
+
+        function restoreFocus() {
+            if (lastFocusedElement && document.body.contains(lastFocusedElement)) {
+                lastFocusedElement.focus();
+            }
+        }
+
+        // ============== IMPROVEMENTS: Memory Leak Prevention ==============
+
+        // Track intervals for cleanup
+        function createTrackedInterval(callback, delay) {
+            const intervalId = setInterval(callback, delay);
+            activeIntervals.add(intervalId);
+            return intervalId;
+        }
+
+        function clearTrackedInterval(intervalId) {
+            clearInterval(intervalId);
+            activeIntervals.delete(intervalId);
+        }
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            // Clear all tracked intervals
+            activeIntervals.forEach(id => clearInterval(id));
+            activeIntervals.clear();
+
+            // Clear specific known intervals
+            if (typeof recentBidsInterval !== 'undefined' && recentBidsInterval) {
+                clearInterval(recentBidsInterval);
+            }
+            if (typeof consolePollingInterval !== 'undefined' && consolePollingInterval) {
+                clearInterval(consolePollingInterval);
+            }
+
+            // Disconnect WebSocket
+            if (typeof notificationSocket !== 'undefined' && notificationSocket) {
+                notificationSocket.close();
+            }
+        });
+
+        // ============== IMPROVEMENTS: Favorites Cache Sync ==============
+
+        // Sync all favorites caches after mutation
+        async function syncAllFavoritesCaches() {
+            try {
+                // Invalidate all caches
+                favoritesCache = null;
+                favoritesCacheTime = 0;
+                FAVORITES._cacheTime = 0;
+                if (typeof FAVORITES_CACHE !== 'undefined') {
+                    FAVORITES_CACHE.cacheTime = 0;
+                }
+
+                // Refresh from API
+                await getFavoritesFromCache(true);
+                await FAVORITES.getAll();
+
+                // Update UI
+                updateEndingSoonFavoriteButtons();
+                if (typeof updateFavoriteStars === 'function') {
+                    updateFavoriteStars();
+                }
+                updateNotificationIcons();
+                FAVORITES.updateWidget();
+
+                console.log('✅ All favorites caches synced');
+            } catch (error) {
+                console.error('Error syncing favorites caches:', error);
+            }
+        }
+
+        // ============== IMPROVEMENTS: Loading States for Buttons ==============
+
+        function setButtonLoading(button, loading = true) {
+            if (!button) return;
+
+            if (loading) {
+                button.dataset.originalText = button.innerHTML;
+                button.disabled = true;
+                button.style.opacity = '0.7';
+                button.innerHTML = `
+                    <svg class="spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 1s linear infinite;">
+                        <path d="M12 2v4m0 12v4m-8-10h4m12 0h4"/>
+                    </svg>
+                `;
+            } else {
+                button.disabled = false;
+                button.style.opacity = '1';
+                if (button.dataset.originalText) {
+                    button.innerHTML = button.dataset.originalText;
+                    delete button.dataset.originalText;
+                }
+            }
+        }
+
+        // Add spin animation if not exists
+        if (!document.getElementById('spin-animation-style')) {
+            const style = document.createElement('style');
+            style.id = 'spin-animation-style';
+            style.textContent = `
+                @keyframes spin {
+                    from { transform: rotate(0deg); }
+                    to { transform: rotate(360deg); }
+                }
+                .spin { animation: spin 1s linear infinite; }
+            `;
+            document.head.appendChild(style);
+        }
+
+        // ============== IMPROVEMENTS: Lazy Loading for Images ==============
+
+        // Intersection Observer for lazy loading
+        const imageObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const img = entry.target;
+                    if (img.dataset.src) {
+                        img.src = img.dataset.src;
+                        img.removeAttribute('data-src');
+                        img.classList.remove('lazy');
+                        imageObserver.unobserve(img);
+                    }
+                }
+            });
+        }, {
+            rootMargin: '100px',
+            threshold: 0.1
+        });
+
+        // Function to setup lazy loading on images
+        function setupLazyImages(container = document) {
+            container.querySelectorAll('img[data-src]').forEach(img => {
+                imageObserver.observe(img);
+            });
+        }
+
+        // ============== IMPROVEMENTS: Debounced API Calls ==============
+
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        // Debounced version of updateFavoriteStars
+        const debouncedUpdateFavoriteStars = debounce(() => {
+            if (typeof updateFavoriteStars === 'function') {
+                updateFavoriteStars();
+            }
+        }, 300);
 
         // ============== End Security Key Management ==============
 
@@ -11846,29 +12254,29 @@
     </div>
 
     <!-- Inspection Modal -->
-    <div class="inspection-modal" id="inspection-modal">
-        <button class="inspection-close" onclick="closeInspectionModal()">
-            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+    <div class="inspection-modal" id="inspection-modal" role="dialog" aria-modal="true" aria-labelledby="inspection-title">
+        <button class="inspection-close" onclick="closeInspectionModal()" aria-label="Fechar modal">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
             </svg>
         </button>
         <div class="inspection-content">
             <!-- Loading Overlay -->
-            <div class="modal-loading-overlay" id="modal-loading-overlay">
-                <div class="modal-loading-spinner"></div>
+            <div class="modal-loading-overlay" id="modal-loading-overlay" role="status" aria-live="polite">
+                <div class="modal-loading-spinner" aria-hidden="true"></div>
                 <div class="modal-loading-text" id="modal-loading-text">A processar...</div>
                 <div class="modal-loading-subtext" id="modal-loading-subtext">Aguarde enquanto atualizamos os dados</div>
             </div>
-            <div class="inspection-carousel" id="inspection-carousel">
-                <div class="inspection-carousel-counter" id="inspection-counter">1 / 1</div>
+            <div class="inspection-carousel" id="inspection-carousel" role="region" aria-label="Galeria de imagens">
+                <div class="inspection-carousel-counter" id="inspection-counter" aria-live="polite">1 / 1</div>
                 <div class="inspection-carousel-images" id="inspection-images"></div>
-                <button class="inspection-carousel-nav prev" onclick="inspectionCarouselPrev()">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <button class="inspection-carousel-nav prev" onclick="inspectionCarouselPrev()" aria-label="Imagem anterior">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
                     </svg>
                 </button>
-                <button class="inspection-carousel-nav next" onclick="inspectionCarouselNext()">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <button class="inspection-carousel-nav next" onclick="inspectionCarouselNext()" aria-label="Próxima imagem">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
                     </svg>
                 </button>
