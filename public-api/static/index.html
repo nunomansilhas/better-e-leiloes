@@ -11199,6 +11199,8 @@
                     if (!FAVORITES._cache.some(r => r.event_reference === reference)) {
                         FAVORITES._cache.push({ event_reference: reference, active: true });
                     }
+                    // Invalidate favoritesCache so updateFavoriteStars gets fresh data
+                    favoritesCache = null;
                     // Update badge
                     const countResp = await fetch(`${API_BASE}/api/favorites/count`);
                     const countData = await countResp.json();
@@ -11223,7 +11225,11 @@
 
                 if (response.ok) {
                     addLog(`Evento ${reference} removido dos favoritos`, 'info');
+                    // Invalidate caches
+                    FAVORITES._cache = FAVORITES._cache.filter(r => r.event_reference !== reference);
+                    favoritesCache = null;
                     loadFavoritosPage();
+                    updateEndingSoonFavoriteButtons();
                 }
             } catch (error) {
                 console.error('Erro ao remover favorito:', error);
@@ -11280,6 +11286,8 @@
                 addLog(`Evento ${reference} removido dos favoritos`, 'info');
                 // Update FAVORITES cache for sync checks
                 FAVORITES._cache = FAVORITES._cache.filter(r => r.event_reference !== reference);
+                // Invalidate favoritesCache so updateFavoriteStars gets fresh data
+                favoritesCache = null;
                 const countResp = await fetch(`${API_BASE}/api/favorites/count`);
                 const countData = await countResp.json();
                 updateFavoritesBadge(countData.count);
