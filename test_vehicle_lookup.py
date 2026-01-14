@@ -96,16 +96,18 @@ async def main():
         modelo = vehicle_info.get('modelo', 'POLESTAR 2')
         ano = vehicle_info.get('ano', 2023)
         combustivel = vehicle_info.get('combustivel', 'ELÉTRICO')
-        print(f"   A pesquisar {marca} {modelo} {ano} ({combustivel})...")
+        km = 112500  # Default KM for testing (normally from event JSON)
+        print(f"   A pesquisar {marca} {modelo} {ano} ({combustivel}) ~{km}km...")
     else:
         marca = "POLESTAR"
         modelo = "POLESTAR 2"
         ano = 2023
         combustivel = "ELÉTRICO"
-        print(f"   A pesquisar {marca} {modelo} {ano}...")
+        km = 112500
+        print(f"   A pesquisar {marca} {modelo} {ano} ({combustivel}) ~{km}km...")
 
     try:
-        market_data = await get_market_prices(marca, modelo, ano, debug=True)
+        market_data = await get_market_prices(marca, modelo, ano, combustivel, km, debug=True)
 
         if market_data:
             print(f"\n   ✅ Encontrados {market_data.num_resultados} resultados!")

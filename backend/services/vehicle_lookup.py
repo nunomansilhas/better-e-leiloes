@@ -160,9 +160,17 @@ def extract_vehicle_from_title(title: str) -> Dict[str, Optional[str]]:
     }
 
 
-async def search_standvirtual(marca: str, modelo: str = None, ano: int = None, debug: bool = False) -> Optional[VehicleMarketData]:
+async def search_standvirtual(marca: str, modelo: str = None, ano: int = None, combustivel: str = None, km: int = None, debug: bool = False) -> Optional[VehicleMarketData]:
     """
     Search Standvirtual for similar vehicles.
+
+    Args:
+        marca: Vehicle brand (e.g., "POLESTAR")
+        modelo: Vehicle model (e.g., "POLESTAR 2")
+        ano: Vehicle year (e.g., 2023)
+        combustivel: Fuel type (e.g., "ELÉTRICO", "Diesel", "Gasolina")
+        km: Current mileage for filtering (+/- 25000 km range)
+        debug: Enable debug output
 
     Note: This uses Playwright and should be run locally, not on cloud servers
     which typically get blocked.
@@ -185,23 +193,63 @@ async def search_standvirtual(marca: str, modelo: str = None, ano: int = None, d
         page = await context.new_page()
 
         try:
-            # Build search URL
+            # Build search URL - StandVirtual format:
+            # /carros/{marca}/{modelo}/desde-{ano}?fuel_type={fuel}&mileage_from={km_min}&mileage_to={km_max}
             marca_slug = marca.lower().replace(" ", "-").replace("_", "-")
             url = f"https://www.standvirtual.com/carros/{marca_slug}"
 
+            # Add modelo to URL path (not query parameter)
             if modelo:
-                # Clean modelo slug
-                modelo_slug = modelo.lower()
-                modelo_slug = re.sub(r'[^\w\s-]', '', modelo_slug)  # Remove special chars except -
-                modelo_slug = modelo_slug.replace(" ", "-").replace(".", "-")
-                # Take only the first part for common model names
-                modelo_first = modelo_slug.split('-')[0] if '-' in modelo_slug else modelo_slug
-                url = f"{url}?search[filter_enum_model]={modelo_first}"
+                # Clean modelo slug - remove brand name if duplicated
+                modelo_clean = modelo.lower()
+                # Remove brand name from modelo if present (e.g., "POLESTAR 2" -> "2")
+                if marca_slug in modelo_clean:
+                    modelo_clean = modelo_clean.replace(marca_slug, "").strip()
+                # If modelo has multiple parts, create proper slug
+                modelo_slug = modelo_clean.replace(" ", "-").replace(".", "-")
+                modelo_slug = re.sub(r'[^\w-]', '', modelo_slug)  # Remove special chars except -
+                modelo_slug = re.sub(r'-+', '-', modelo_slug).strip('-')  # Clean multiple dashes
+                if modelo_slug:
+                    url = f"{url}/{modelo_slug}"
 
-            # Add year filter
+            # Add year filter using /desde-{ano} format
             if ano:
-                separator = '&' if '?' in url else '?'
-                url = f"{url}{separator}search[filter_float_year:from]={ano-2}&search[filter_float_year:to]={ano+2}"
+                url = f"{url}/desde-{ano}"
+
+            # Build query parameters
+            params = []
+
+            # Map fuel type to StandVirtual parameter values
+            if combustivel:
+                fuel_map = {
+                    'elétrico': 'electric',
+                    'eletrico': 'electric',
+                    'electric': 'electric',
+                    'diesel': 'diesel',
+                    'gasolina': 'petrol',
+                    'petrol': 'petrol',
+                    'híbrido': 'hybrid',
+                    'hibrido': 'hybrid',
+                    'hybrid': 'hybrid',
+                    'híbrido plug-in': 'hybrid-petrol',
+                    'gpl': 'lpg',
+                    'gnv': 'cng',
+                }
+                fuel_key = combustivel.lower().strip()
+                if fuel_key in fuel_map:
+                    params.append(f"fuel_type={fuel_map[fuel_key]}")
+
+            # Add mileage range filter (+/- 25000 km)
+            if km:
+                km_margin = 25000
+                km_min = max(0, km - km_margin)
+                km_max = km + km_margin
+                params.append(f"mileage_from={km_min}")
+                params.append(f"mileage_to={km_max}")
+
+            # Add query string to URL
+            if params:
+                url = f"{url}?{'&'.join(params)}"
 
             if debug:
                 print(f"  [DEBUG] URL: {url}")
@@ -1207,16 +1255,24 @@ async def search_autouncle(marca: str, modelo: str = None, ano: int = None, debu
     )
 
 
-async def get_market_prices(marca: str, modelo: str = None, ano: int = None, debug: bool = False) -> Optional[VehicleMarketData]:
+async def get_market_prices(marca: str, modelo: str = None, ano: int = None, combustivel: str = None, km: int = None, debug: bool = False) -> Optional[VehicleMarketData]:
     """
     Get market prices from multiple sources. Tries StandVirtual first, then AutoUncle.
+
+    Args:
+        marca: Vehicle brand (e.g., "POLESTAR")
+        modelo: Vehicle model (e.g., "POLESTAR 2")
+        ano: Vehicle year (e.g., 2023)
+        combustivel: Fuel type (e.g., "ELÉTRICO", "Diesel", "Gasolina")
+        km: Current mileage for filtering (+/- 25000 km range)
+        debug: Enable debug output
     """
-    # Try StandVirtual first
-    result = await search_standvirtual(marca, modelo, ano, debug)
+    # Try StandVirtual first (with all filters)
+    result = await search_standvirtual(marca, modelo, ano, combustivel, km, debug)
     if result and result.num_resultados > 0:
         return result
 
-    # Fallback to AutoUncle
+    # Fallback to AutoUncle (less filters but may have more results)
     if debug:
         print("  [DEBUG] StandVirtual sem resultados, tentando AutoUncle...")
 
