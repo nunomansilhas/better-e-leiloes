@@ -5,7 +5,7 @@ Schema v2 - Baseado na API oficial e-leiloes.pt
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy import select, func, String, Float, DateTime, Text, Integer, Boolean, JSON, text
+from sqlalchemy import select, func, String, Float, DateTime, Text, Integer, Boolean, JSON, text, Numeric, Index
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from typing import List, Tuple, Optional
 from datetime import datetime
@@ -25,8 +25,18 @@ if not DATABASE_URL:
         "DATABASE_URL=mysql+aiomysql://user:password@localhost:3306/eleiloes"
     )
 
-# SQLAlchemy setup
-engine = create_async_engine(DATABASE_URL, echo=False)
+# SQLAlchemy setup with Connection Pooling
+# Pool configuration for production performance
+engine = create_async_engine(
+    DATABASE_URL,
+    echo=False,
+    # Connection pool settings
+    pool_size=10,           # Number of connections to keep open
+    max_overflow=20,        # Extra connections when pool is exhausted
+    pool_timeout=30,        # Seconds to wait before giving up on getting a connection
+    pool_recycle=1800,      # Recycle connections after 30 minutes (avoid stale connections)
+    pool_pre_ping=True,     # Test connections before using (handles disconnects gracefully)
+)
 async_session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
@@ -40,6 +50,11 @@ class EventDB(Base):
     Baseado na API oficial e-leiloes.pt
     """
     __tablename__ = "events"
+    __table_args__ = (
+        Index('idx_events_active', 'terminado', 'cancelado', 'data_fim'),
+        Index('idx_events_tipo', 'tipo_id'),
+        Index('idx_events_distrito', 'distrito'),
+    )
 
     # ========== IDENTIFICAÇÃO ==========
     reference: Mapped[str] = mapped_column(String(50), primary_key=True)
@@ -60,11 +75,11 @@ class EventDB(Base):
     tipologia: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     modalidade_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
-    # ========== VALORES (€) ==========
-    valor_base: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    valor_abertura: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    valor_minimo: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    lance_atual: Mapped[float] = mapped_column(Float, default=0)
+    # ========== VALORES (€) - DECIMAL for precision ==========
+    valor_base: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True)
+    valor_abertura: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True)
+    valor_minimo: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True)
+    lance_atual: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
     lance_atual_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
     # ========== IVA ==========
@@ -300,16 +315,19 @@ class PriceHistoryDB(Base):
     Guarda cada mudança de preço para análise e treino de AI.
     """
     __tablename__ = "price_history"
+    __table_args__ = (
+        Index('idx_price_history_ref_time', 'reference', 'recorded_at'),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     reference: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
 
-    # Preços
-    old_price: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # Null no primeiro registo
-    new_price: Mapped[float] = mapped_column(Float, nullable=False)
+    # Preços - DECIMAL for precision
+    old_price: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True)  # Null no primeiro registo
+    new_price: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
 
     # Variação calculada
-    change_amount: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # new_price - old_price
+    change_amount: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True)  # new_price - old_price
     change_percent: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # Percentagem de variação
 
     # Metadados
@@ -382,6 +400,96 @@ class NotificationDB(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
+class PipelineStateDB(Base):
+    """
+    Estado persistente das pipelines automáticas (X-Monitor, Y-Sync, Z-Watch)
+    """
+    __tablename__ = "pipeline_state"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    pipeline_name: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)  # xmonitor, ysync, zwatch
+
+    # Estado
+    enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_running: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # Configuração
+    interval_hours: Mapped[float] = mapped_column(Float, default=1.0)
+    description: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+
+    # Timestamps
+    last_run: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    next_run: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+    # Estatísticas
+    runs_count: Mapped[int] = mapped_column(Integer, default=0)
+    last_result: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON with last run stats
+
+    # Timestamps de controlo
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class RefreshLogDB(Base):
+    """
+    Refresh request queue - frontend creates, backend processes
+    States: 0=pending, 1=processing, 2=completed, 3=error
+    """
+    __tablename__ = "refresh_logs"
+    __table_args__ = (
+        Index('idx_refresh_logs_state_time', 'state', 'created_at'),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    reference: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    refresh_type: Mapped[str] = mapped_column(String(20), default='price')  # 'price' or 'full'
+    state: Mapped[int] = mapped_column(Integer, default=0, index=True)  # 0=pending, 1=processing, 2=completed, 3=error
+    result_lance: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True)  # Updated price after refresh
+    result_message: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)  # Error message or success info
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    processed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)  # When backend processed it
+
+
+class FavoriteDB(Base):
+    """
+    Favorites - user's watched events with notification preferences
+    """
+    __tablename__ = "favorites"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    event_reference: Mapped[str] = mapped_column(String(50), nullable=False, unique=True, index=True)
+
+    # Cached event info
+    event_titulo: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    event_tipo: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    event_subtipo: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    event_distrito: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    event_data_fim: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+    # Price tracking
+    price_when_added: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True)
+    last_known_price: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True)
+    price_min_seen: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True)
+    price_max_seen: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True)
+
+    # Notification preferences
+    notify_price_change: Mapped[bool] = mapped_column(Boolean, default=True)
+    notify_ending_soon: Mapped[bool] = mapped_column(Boolean, default=True)
+    notify_ending_minutes: Mapped[int] = mapped_column(Integer, default=30)
+    notify_price_threshold: Mapped[Optional[float]] = mapped_column(Numeric(5, 2), nullable=True)
+
+    # Stats
+    price_changes_count: Mapped[int] = mapped_column(Integer, default=0)
+    notifications_sent: Mapped[int] = mapped_column(Integer, default=0)
+
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    last_notified_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+
 async def init_db():
     """Cria tabelas se não existirem"""
     async with engine.begin() as conn:
@@ -403,6 +511,11 @@ async def init_db():
                 print("✅ Added event_reference column to notification_rules")
             except Exception as e:
                 print(f"⚠️ Migration note: {e}")
+
+    # Initialize default pipeline states
+    async with async_session_maker() as session:
+        db = DatabaseManager(session)
+        await db.init_default_pipelines()
 
     print("✅ Database inicializada")
 
@@ -623,6 +736,255 @@ class DatabaseManager:
             return True
         return False
 
+    async def insert_event_stubs_batch(self, items: list, chunk_size: int = 200) -> int:
+        """
+        Insere múltiplos eventos básicos em chunks (evita timeouts).
+
+        Args:
+            items: Lista de dicts com {reference, tipo_id}
+            chunk_size: Tamanho de cada chunk
+
+        Returns:
+            Número de novos eventos inseridos
+        """
+        if not items:
+            return 0
+
+        total_new = 0
+
+        # Processar em chunks
+        for i in range(0, len(items), chunk_size):
+            chunk = items[i:i + chunk_size]
+            refs = [item['reference'] for item in chunk]
+
+            result = await self.session.execute(
+                select(EventDB.reference).where(EventDB.reference.in_(refs))
+            )
+            existing_refs = set(row[0] for row in result.fetchall())
+
+            new_items = [item for item in chunk if item['reference'] not in existing_refs]
+
+            if new_items:
+                new_events = [
+                    EventDB(
+                        reference=item['reference'],
+                        tipo_id=item.get('tipo_id', 1),
+                        lance_atual=0,
+                        scraped_at=datetime.utcnow()
+                    )
+                    for item in new_items
+                ]
+                self.session.add_all(new_events)
+                await self.session.commit()
+                total_new += len(new_events)
+
+        return total_new
+
+    async def save_events_batch(self, events: list, chunk_size: int = 50, on_progress=None) -> tuple:
+        """
+        Guarda múltiplos eventos em chunks (evita timeouts).
+
+        Args:
+            events: Lista de EventData
+            chunk_size: Tamanho de cada chunk (default 50)
+            on_progress: Callback async(processed, total) para progresso
+
+        Returns:
+            Tuple (inserted_count, updated_count)
+        """
+        if not events:
+            return 0, 0
+
+        total_inserted = 0
+        total_updated = 0
+        total_events = len(events)
+
+        # Processar em chunks
+        for i in range(0, len(events), chunk_size):
+            chunk = events[i:i + chunk_size]
+            refs = [e.reference for e in chunk]
+
+            result = await self.session.execute(
+                select(EventDB).where(EventDB.reference.in_(refs))
+            )
+            existing_map = {e.reference: e for e in result.scalars().all()}
+
+            for event in chunk:
+                # Serializa arrays
+                fotos_json = json.dumps([f.model_dump() for f in event.fotos]) if event.fotos else None
+                onus_json = json.dumps([o.model_dump() for o in event.onus]) if event.onus else None
+                desc_predial_json = json.dumps([dp.model_dump() for dp in event.desc_predial]) if event.desc_predial else None
+                executados_json = json.dumps([e.model_dump() for e in event.executados]) if event.executados else None
+                visitas_json = json.dumps(event.visitas) if event.visitas else None
+                anexos_json = json.dumps(event.anexos) if event.anexos else None
+
+                existing = existing_map.get(event.reference)
+
+                if existing:
+                    existing.id_api = event.id_api
+                    existing.origem = event.origem
+                    existing.verba_id = event.verba_id
+                    existing.titulo = event.titulo
+                    existing.capa = event.capa
+                    existing.tipo_id = event.tipo_id
+                    existing.subtipo_id = event.subtipo_id
+                    existing.tipologia_id = event.tipologia_id
+                    existing.tipo = event.tipo
+                    existing.subtipo = event.subtipo
+                    existing.tipologia = event.tipologia
+                    existing.modalidade_id = event.modalidade_id
+                    existing.valor_base = event.valor_base
+                    existing.valor_abertura = event.valor_abertura
+                    existing.valor_minimo = event.valor_minimo
+                    existing.lance_atual = event.lance_atual or 0
+                    existing.lance_atual_id = event.lance_atual_id
+                    existing.iva_cobrar = event.iva_cobrar
+                    existing.iva_percentagem = event.iva_percentagem
+                    existing.data_inicio = event.data_inicio
+                    existing.data_fim_inicial = event.data_fim_inicial
+                    existing.data_fim = event.data_fim
+                    existing.cancelado = event.cancelado
+                    existing.iniciado = event.iniciado
+                    existing.terminado = event.terminado
+                    existing.ultimos_5m = event.ultimos_5m
+                    existing.area_privativa = event.area_privativa
+                    existing.area_dependente = event.area_dependente
+                    existing.area_total = event.area_total
+                    existing.morada = event.morada
+                    existing.morada_numero = event.morada_numero
+                    existing.morada_andar = event.morada_andar
+                    existing.morada_cp = event.morada_cp
+                    existing.distrito = event.distrito
+                    existing.concelho = event.concelho
+                    existing.freguesia = event.freguesia
+                    existing.latitude = event.latitude
+                    existing.longitude = event.longitude
+                    existing.matricula = event.matricula
+                    existing.osae360 = event.osae360
+                    existing.descricao = event.descricao
+                    existing.observacoes = event.observacoes
+                    existing.processo_id = event.processo_id
+                    existing.processo_numero = event.processo_numero
+                    existing.processo_comarca = event.processo_comarca
+                    existing.processo_comarca_codigo = event.processo_comarca_codigo
+                    existing.processo_tribunal = event.processo_tribunal
+                    existing.cerimonia_id = event.cerimonia_id
+                    existing.cerimonia_data = event.cerimonia_data
+                    existing.cerimonia_local = event.cerimonia_local
+                    existing.cerimonia_morada = event.cerimonia_morada
+                    existing.gestor_id = event.gestor_id
+                    existing.gestor_tipo = event.gestor_tipo
+                    existing.gestor_tipo_id = event.gestor_tipo_id
+                    existing.gestor_cedula = event.gestor_cedula
+                    existing.gestor_nome = event.gestor_nome
+                    existing.gestor_email = event.gestor_email
+                    existing.gestor_comarca = event.gestor_comarca
+                    existing.gestor_tribunal = event.gestor_tribunal
+                    existing.gestor_telefone = event.gestor_telefone
+                    existing.gestor_fax = event.gestor_fax
+                    existing.gestor_morada = event.gestor_morada
+                    existing.gestor_horario = event.gestor_horario
+                    existing.fotos = fotos_json
+                    existing.onus = onus_json
+                    existing.desc_predial = desc_predial_json
+                    existing.executados = executados_json
+                    existing.visitas = visitas_json
+                    existing.anexos = anexos_json
+                    existing.data_servidor = event.data_servidor
+                    existing.data_atualizacao = event.data_atualizacao
+                    existing.scraped_at = event.scraped_at or datetime.utcnow()
+                    existing.ativo = event.ativo if event.ativo is not None else True
+                    total_updated += 1
+                else:
+                    new_event = EventDB(
+                        reference=event.reference,
+                        id_api=event.id_api,
+                        origem=event.origem,
+                        verba_id=event.verba_id,
+                        titulo=event.titulo,
+                        capa=event.capa,
+                        tipo_id=event.tipo_id,
+                        subtipo_id=event.subtipo_id,
+                        tipologia_id=event.tipologia_id,
+                        tipo=event.tipo,
+                        subtipo=event.subtipo,
+                        tipologia=event.tipologia,
+                        modalidade_id=event.modalidade_id,
+                        valor_base=event.valor_base,
+                        valor_abertura=event.valor_abertura,
+                        valor_minimo=event.valor_minimo,
+                        lance_atual=event.lance_atual or 0,
+                        lance_atual_id=event.lance_atual_id,
+                        iva_cobrar=event.iva_cobrar,
+                        iva_percentagem=event.iva_percentagem,
+                        data_inicio=event.data_inicio,
+                        data_fim_inicial=event.data_fim_inicial,
+                        data_fim=event.data_fim,
+                        cancelado=event.cancelado,
+                        iniciado=event.iniciado,
+                        terminado=event.terminado,
+                        ultimos_5m=event.ultimos_5m,
+                        area_privativa=event.area_privativa,
+                        area_dependente=event.area_dependente,
+                        area_total=event.area_total,
+                        morada=event.morada,
+                        morada_numero=event.morada_numero,
+                        morada_andar=event.morada_andar,
+                        morada_cp=event.morada_cp,
+                        distrito=event.distrito,
+                        concelho=event.concelho,
+                        freguesia=event.freguesia,
+                        latitude=event.latitude,
+                        longitude=event.longitude,
+                        matricula=event.matricula,
+                        osae360=event.osae360,
+                        descricao=event.descricao,
+                        observacoes=event.observacoes,
+                        processo_id=event.processo_id,
+                        processo_numero=event.processo_numero,
+                        processo_comarca=event.processo_comarca,
+                        processo_comarca_codigo=event.processo_comarca_codigo,
+                        processo_tribunal=event.processo_tribunal,
+                        cerimonia_id=event.cerimonia_id,
+                        cerimonia_data=event.cerimonia_data,
+                        cerimonia_local=event.cerimonia_local,
+                        cerimonia_morada=event.cerimonia_morada,
+                        gestor_id=event.gestor_id,
+                        gestor_tipo=event.gestor_tipo,
+                        gestor_tipo_id=event.gestor_tipo_id,
+                        gestor_cedula=event.gestor_cedula,
+                        gestor_nome=event.gestor_nome,
+                        gestor_email=event.gestor_email,
+                        gestor_comarca=event.gestor_comarca,
+                        gestor_tribunal=event.gestor_tribunal,
+                        gestor_telefone=event.gestor_telefone,
+                        gestor_fax=event.gestor_fax,
+                        gestor_morada=event.gestor_morada,
+                        gestor_horario=event.gestor_horario,
+                        fotos=fotos_json,
+                        onus=onus_json,
+                        desc_predial=desc_predial_json,
+                        executados=executados_json,
+                        visitas=visitas_json,
+                        anexos=anexos_json,
+                        data_servidor=event.data_servidor,
+                        data_atualizacao=event.data_atualizacao,
+                        scraped_at=event.scraped_at or datetime.utcnow(),
+                        ativo=event.ativo if event.ativo is not None else True
+                    )
+                    self.session.add(new_event)
+                    total_inserted += 1
+
+            # Commit cada chunk
+            await self.session.commit()
+
+            # Callback de progresso
+            processed = min(i + chunk_size, total_events)
+            if on_progress:
+                await on_progress(processed, total_events)
+
+        return total_inserted, total_updated
+
     async def get_event(self, reference: str) -> Optional[EventData]:
         """Busca um evento por referência"""
         result = await self.session.execute(
@@ -833,6 +1195,20 @@ class DatabaseManager:
         )
         cancelados = cancelados_result.scalar()
 
+        # Inativos (ativo = False)
+        inativos_result = await self.session.execute(
+            select(func.count(EventDB.reference))
+            .where(EventDB.ativo == False)
+        )
+        inativos = inativos_result.scalar()
+
+        # Ativos
+        ativos_result = await self.session.execute(
+            select(func.count(EventDB.reference))
+            .where(EventDB.ativo == True)
+        )
+        ativos = ativos_result.scalar()
+
         # Por tipo_id
         by_type_result = await self.session.execute(
             select(EventDB.tipo_id, func.count(EventDB.reference))
@@ -842,6 +1218,8 @@ class DatabaseManager:
 
         return {
             "total": total,
+            "ativos": ativos,
+            "inativos": inativos,
             "with_content": with_content,
             "with_images": with_images,
             "cancelados": cancelados,
@@ -873,38 +1251,64 @@ class DatabaseManager:
         )
         return list(result.scalars().all())
 
-    async def get_events_ending_soon(self, hours: int = 24, limit: int = 10) -> List[dict]:
-        """Get events ending within the next X hours"""
+    async def get_events_ending_soon(self, hours: int = 24, limit: int = 1000, include_terminated: bool = True, terminated_hours: int = 120) -> List[dict]:
+        """Get events ending within the next X hours + recently terminated events"""
         from datetime import timedelta
         now = datetime.utcnow()
         end_time = now + timedelta(hours=hours)
 
+        # Get active events ending soon
         result = await self.session.execute(
             select(EventDB)
             .where(EventDB.data_fim.isnot(None))
-            .where(EventDB.data_fim > now)
+            .where(EventDB.data_fim >= now)
             .where(EventDB.data_fim <= end_time)
-            .where(EventDB.cancelado == False)
+            .where(EventDB.terminado == 0)  # Use 0 for MySQL tinyint
+            .where(EventDB.cancelado == 0)
             .order_by(EventDB.data_fim.asc())
             .limit(limit)
         )
-        events = result.scalars().all()
+        active_events = result.scalars().all()
+
+        # Get recently terminated events
+        terminated_events = []
+        if include_terminated:
+            terminated_cutoff = now - timedelta(hours=terminated_hours)
+            terminated_result = await self.session.execute(
+                select(EventDB)
+                .where(EventDB.data_fim.isnot(None))
+                .where(EventDB.data_fim >= terminated_cutoff)
+                .where(EventDB.data_fim <= now)
+                .where(EventDB.terminado == 1)  # Use 1 for MySQL tinyint
+                .where(EventDB.cancelado == 0)
+                .order_by(EventDB.data_fim.desc())
+                .limit(limit)
+            )
+            terminated_events = terminated_result.scalars().all()
 
         modalidades = {1: 'LO', 2: 'NP'}
-        return [{
-            "reference": e.reference,
-            "titulo": e.titulo,
-            "tipo_id": e.tipo_id,
-            "tipo": e.tipo,
-            "subtipo": e.subtipo,
-            "distrito": e.distrito,
-            "lance_atual": e.lance_atual,
-            "valor_base": e.valor_base,
-            "valor_abertura": e.valor_abertura,
-            "valor_minimo": e.valor_minimo,
-            "data_fim": e.data_fim.isoformat() if e.data_fim else None,
-            "modalidade": modalidades.get(e.modalidade_id, '')
-        } for e in events]
+
+        def format_event(e, is_terminated=False):
+            return {
+                "reference": e.reference,
+                "titulo": e.titulo,
+                "tipo_id": e.tipo_id,
+                "tipo": e.tipo,
+                "subtipo": e.subtipo,
+                "distrito": e.distrito,
+                "lance_atual": e.lance_atual,
+                "valor_base": e.valor_base,
+                "valor_abertura": e.valor_abertura,
+                "valor_minimo": e.valor_minimo,
+                "data_fim": e.data_fim.isoformat() if e.data_fim else None,
+                "modalidade": modalidades.get(e.modalidade_id, ''),
+                "terminado": is_terminated
+            }
+
+        # Return active first, then terminated
+        result_list = [format_event(e, False) for e in active_events]
+        result_list.extend([format_event(e, True) for e in terminated_events])
+        return result_list
 
     async def get_stats_by_distrito(self, limit: int = 10) -> List[dict]:
         """Get event counts by distrito with breakdown by tipo"""
@@ -1490,6 +1894,221 @@ class DatabaseManager:
 
         await self.session.commit()
         return count
+
+    # ========== PIPELINE STATE METHODS ==========
+
+    async def get_pipeline_state(self, pipeline_name: str) -> Optional[PipelineStateDB]:
+        """Get pipeline state by name"""
+        result = await self.session.execute(
+            select(PipelineStateDB).where(PipelineStateDB.pipeline_name == pipeline_name)
+        )
+        return result.scalar_one_or_none()
+
+    async def get_all_pipeline_states(self) -> list:
+        """Get all pipeline states"""
+        result = await self.session.execute(
+            select(PipelineStateDB).order_by(PipelineStateDB.pipeline_name)
+        )
+        return list(result.scalars().all())
+
+    async def save_pipeline_state(
+        self,
+        pipeline_name: str,
+        enabled: bool = None,
+        is_running: bool = None,
+        interval_hours: float = None,
+        description: str = None,
+        last_run: datetime = None,
+        next_run: datetime = None,
+        runs_count: int = None,
+        last_result: str = None
+    ) -> PipelineStateDB:
+        """Save or update pipeline state"""
+        result = await self.session.execute(
+            select(PipelineStateDB).where(PipelineStateDB.pipeline_name == pipeline_name)
+        )
+        existing = result.scalar_one_or_none()
+
+        if existing:
+            if enabled is not None:
+                existing.enabled = enabled
+            if is_running is not None:
+                existing.is_running = is_running
+            if interval_hours is not None:
+                existing.interval_hours = interval_hours
+            if description is not None:
+                existing.description = description
+            if last_run is not None:
+                existing.last_run = last_run
+            if next_run is not None:
+                existing.next_run = next_run
+            if runs_count is not None:
+                existing.runs_count = runs_count
+            if last_result is not None:
+                existing.last_result = last_result
+            existing.updated_at = datetime.utcnow()
+            await self.session.commit()
+            return existing
+        else:
+            # Create new
+            new_state = PipelineStateDB(
+                pipeline_name=pipeline_name,
+                enabled=enabled or False,
+                is_running=is_running or False,
+                interval_hours=interval_hours or 1.0,
+                description=description,
+                last_run=last_run,
+                next_run=next_run,
+                runs_count=runs_count or 0,
+                last_result=last_result
+            )
+            self.session.add(new_state)
+            await self.session.commit()
+            return new_state
+
+    async def get_refresh_stats(self) -> dict:
+        """Get refresh request statistics"""
+        from datetime import timedelta
+        try:
+            now = datetime.utcnow()
+            cutoff_24h = now - timedelta(hours=24)
+
+            # Count ALL requests in last 24h
+            total_24h = await self.session.scalar(
+                select(func.count()).select_from(RefreshLogDB).where(
+                    RefreshLogDB.created_at >= cutoff_24h
+                )
+            )
+
+            # Count pending (state=0) or processing (state=1)
+            pending = await self.session.scalar(
+                select(func.count()).select_from(RefreshLogDB).where(
+                    RefreshLogDB.state.in_([0, 1])
+                )
+            )
+
+            # Total all-time
+            total_all = await self.session.scalar(
+                select(func.count()).select_from(RefreshLogDB)
+            )
+
+            return {
+                "total_24h": total_24h or 0,
+                "pending": pending or 0,
+                "total_all_time": total_all or 0
+            }
+        except Exception as e:
+            print(f"Error getting refresh stats: {e}")
+            return {"total_24h": 0, "pending": 0, "total_all_time": 0}
+
+    async def init_default_pipelines(self):
+        """Initialize default pipeline states if they don't exist"""
+        defaults = {
+            "xmonitor": {
+                "description": "Monitoriza eventos nas próximas 24h - atualiza lance_atual e data_fim",
+                "interval_hours": 5/3600  # 5 seconds
+            },
+            "ysync": {
+                "description": "Sincronização completa: todos os IDs + marca terminados",
+                "interval_hours": 2.0  # 2 hours
+            },
+            "zwatch": {
+                "description": "Monitoriza EventosMaisRecentes API a cada 10 minutos",
+                "interval_hours": 10/60  # 10 minutes
+            }
+        }
+
+        for name, config in defaults.items():
+            existing = await self.get_pipeline_state(name)
+            if not existing:
+                await self.save_pipeline_state(
+                    pipeline_name=name,
+                    enabled=False,
+                    interval_hours=config["interval_hours"],
+                    description=config["description"]
+                )
+                print(f"✨ Created default pipeline state: {name}")
+
+    # ============ FAVORITES METHODS ============
+
+    async def get_favorite_for_event(self, event_reference: str) -> Optional[dict]:
+        """Get favorite if it exists for an event reference"""
+        result = await self.session.execute(
+            select(FavoriteDB).where(FavoriteDB.event_reference == event_reference)
+        )
+        fav = result.scalar_one_or_none()
+        if not fav:
+            return None
+        return {
+            "id": fav.id,
+            "event_reference": fav.event_reference,
+            "event_titulo": fav.event_titulo,
+            "event_tipo": fav.event_tipo,
+            "event_distrito": fav.event_distrito,
+            "notify_price_change": fav.notify_price_change,
+            "notify_ending_soon": fav.notify_ending_soon,
+            "notify_ending_minutes": fav.notify_ending_minutes,
+            "notify_price_threshold": float(fav.notify_price_threshold) if fav.notify_price_threshold else None,
+            "last_known_price": float(fav.last_known_price) if fav.last_known_price else None,
+            "last_notified_at": fav.last_notified_at,
+        }
+
+    async def get_favorites_with_price_notifications(self) -> List[dict]:
+        """Get all favorites that have price change notifications enabled"""
+        result = await self.session.execute(
+            select(FavoriteDB).where(FavoriteDB.notify_price_change == True)
+        )
+        favorites = result.scalars().all()
+        return [{
+            "id": f.id,
+            "event_reference": f.event_reference,
+            "event_titulo": f.event_titulo,
+            "last_known_price": float(f.last_known_price) if f.last_known_price else None,
+            "notify_price_threshold": float(f.notify_price_threshold) if f.notify_price_threshold else None,
+        } for f in favorites]
+
+    async def update_favorite_price(
+        self,
+        event_reference: str,
+        new_price: float,
+        increment_changes: bool = True
+    ) -> bool:
+        """Update favorite's last_known_price and optionally increment price_changes_count"""
+        result = await self.session.execute(
+            select(FavoriteDB).where(FavoriteDB.event_reference == event_reference)
+        )
+        fav = result.scalar_one_or_none()
+        if not fav:
+            return False
+
+        fav.last_known_price = new_price
+        fav.updated_at = datetime.utcnow()
+
+        # Update min/max
+        if fav.price_min_seen is None or new_price < float(fav.price_min_seen):
+            fav.price_min_seen = new_price
+        if fav.price_max_seen is None or new_price > float(fav.price_max_seen):
+            fav.price_max_seen = new_price
+
+        if increment_changes:
+            fav.price_changes_count = (fav.price_changes_count or 0) + 1
+
+        await self.session.commit()
+        return True
+
+    async def increment_favorite_notifications(self, event_reference: str) -> bool:
+        """Increment notifications_sent counter and update last_notified_at"""
+        result = await self.session.execute(
+            select(FavoriteDB).where(FavoriteDB.event_reference == event_reference)
+        )
+        fav = result.scalar_one_or_none()
+        if not fav:
+            return False
+
+        fav.notifications_sent = (fav.notifications_sent or 0) + 1
+        fav.last_notified_at = datetime.utcnow()
+        await self.session.commit()
+        return True
 
 
 @asynccontextmanager

@@ -19,7 +19,7 @@ if sys.platform == 'win32':
 from dotenv import load_dotenv
 load_dotenv()
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Query, Body
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Query, Body, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -39,6 +39,7 @@ from pipeline_state import get_pipeline_state, SafeJSONEncoder
 from auto_pipelines import get_auto_pipelines_manager
 from collections import deque
 import threading
+from logger import log_info, log_error, log_warning, log_exception
 
 # Global instances
 scraper = None
@@ -53,13 +54,48 @@ sse_clients: Set[asyncio.Queue] = set()
 log_buffer = deque(maxlen=100)  # Circular buffer, keeps last 100 logs
 log_lock = threading.Lock()
 
+# SSE clients for real-time logs
+log_sse_clients: Set[asyncio.Queue] = set()
+
+# Pipeline execution history
+pipeline_history = deque(maxlen=50)  # Keep last 50 pipeline runs
+pipeline_history_lock = threading.Lock()
+
 def add_dashboard_log(message: str, level: str = "info"):
-    """Adiciona um log ao buffer para o dashboard console"""
+    """Adiciona um log ao buffer para o dashboard console e envia para SSE clients"""
+    log_entry = {
+        "message": message,
+        "level": level,
+        "timestamp": datetime.now().isoformat()
+    }
     with log_lock:
-        log_buffer.append({
-            "message": message,
-            "level": level,
-            "timestamp": datetime.now().isoformat()
+        log_buffer.append(log_entry)
+
+    # Broadcast to SSE clients
+    asyncio.create_task(broadcast_log(log_entry))
+
+
+async def broadcast_log(log_entry: dict):
+    """Broadcast log entry to all connected SSE log clients"""
+    dead_clients = set()
+    for queue in log_sse_clients:
+        try:
+            await queue.put(log_entry)
+        except:
+            dead_clients.add(queue)
+
+    for client in dead_clients:
+        log_sse_clients.discard(client)
+
+
+def add_pipeline_history(pipeline_type: str, status: str, details: dict = None):
+    """Adiciona uma execução de pipeline ao histórico"""
+    with pipeline_history_lock:
+        pipeline_history.append({
+            "pipeline": pipeline_type,
+            "status": status,
+            "timestamp": datetime.now().isoformat(),
+            "details": details or {}
         })
 
 
@@ -99,6 +135,71 @@ def get_sse_clients():
     return sse_clients
 
 
+async def process_refresh_queue():
+    """
+    Background job that polls for pending refresh requests and processes them.
+    Runs every 5 seconds.
+    States: 0=pending, 1=processing, 2=completed, 3=error
+    """
+    global scraper
+    try:
+        async with get_db() as db:
+            from database import RefreshLogDB
+            from sqlalchemy import select
+
+            # Find pending requests (state=0)
+            result = await db.session.execute(
+                select(RefreshLogDB)
+                .where(RefreshLogDB.state == 0)
+                .order_by(RefreshLogDB.created_at)
+                .limit(5)  # Process up to 5 at a time
+            )
+            pending_requests = result.scalars().all()
+
+            if not pending_requests:
+                return  # Nothing to process
+
+            for request in pending_requests:
+                try:
+                    # Mark as processing (state=1)
+                    request.state = 1
+                    await db.session.commit()
+
+                    # Scrape fresh data
+                    events = await scraper.scrape_details_via_api([request.reference], None)
+
+                    if events and len(events) > 0:
+                        event = events[0]
+                        # Save to database
+                        await db.save_event(event)
+
+                        # Mark as completed (state=2)
+                        request.state = 2
+                        request.result_lance = event.lance_atual
+                        request.result_message = "Atualizado com sucesso"
+                        request.processed_at = datetime.utcnow()
+                        await db.session.commit()
+
+                        add_dashboard_log(f"🔄 Refresh: {request.reference} → {request.result_lance}€", "success")
+                    else:
+                        # Event not found
+                        request.state = 3  # error
+                        request.result_message = "Evento não encontrado"
+                        request.processed_at = datetime.utcnow()
+                        await db.session.commit()
+
+                except Exception as e:
+                    # Mark as error (state=3)
+                    request.state = 3
+                    request.result_message = str(e)[:500]
+                    request.processed_at = datetime.utcnow()
+                    await db.session.commit()
+                    add_dashboard_log(f"❌ Refresh failed: {request.reference} - {e}", "error")
+
+    except Exception as e:
+        log_exception(f"Error in refresh queue processor: {e}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup e shutdown da aplicação"""
@@ -130,6 +231,10 @@ async def lifespan(app: FastAPI):
     # Auto-start enabled pipelines
     from auto_pipelines import get_auto_pipelines_manager
     pipelines_manager = get_auto_pipelines_manager()
+
+    # Load pipeline state from database (overrides JSON file)
+    await pipelines_manager.load_from_database()
+
     enabled_count = 0
     for pipeline_type, pipeline in pipelines_manager.pipelines.items():
         if pipeline.enabled:
@@ -138,6 +243,19 @@ async def lifespan(app: FastAPI):
             print(f"  ▶️ Auto-started: {pipeline.name}")
     if enabled_count > 0:
         print(f"🔄 {enabled_count} pipeline(s) auto-started from saved config")
+
+    # Start refresh queue processor (polls every 5 seconds)
+    scheduler.add_job(
+        process_refresh_queue,
+        IntervalTrigger(seconds=5),
+        id="refresh_queue_processor",
+        replace_existing=True
+    )
+    print("🔄 Refresh queue processor started (5s interval)")
+
+    # Schedule automatic cleanup jobs
+    from cleanup import schedule_cleanup_jobs
+    schedule_cleanup_jobs(scheduler)
 
     print("✅ API pronta!")
 
@@ -152,11 +270,75 @@ async def lifespan(app: FastAPI):
     if cache_manager:
         await cache_manager.close()
 
+# API Documentation Tags
+tags_metadata = [
+    {
+        "name": "Health",
+        "description": "System health and status monitoring endpoints",
+    },
+    {
+        "name": "Events",
+        "description": "Query and manage auction events data",
+    },
+    {
+        "name": "Pipelines",
+        "description": "Control data scraping pipelines (X-Monitor, Y-Sync, Z-Watch)",
+    },
+    {
+        "name": "Notifications",
+        "description": "Manage notification rules and view triggered notifications",
+    },
+    {
+        "name": "Statistics",
+        "description": "View system and data statistics",
+    },
+    {
+        "name": "Cache",
+        "description": "Cache management and statistics",
+    },
+    {
+        "name": "Cleanup",
+        "description": "Data cleanup and maintenance operations",
+    },
+    {
+        "name": "Admin",
+        "description": "Administrative operations (scraping, database management)",
+    },
+]
+
 app = FastAPI(
     title="E-Leiloes Data API",
-    description="API para recolha e consulta de dados de leilões do e-leiloes.pt",
-    version="1.0.0",
-    lifespan=lifespan
+    description="""
+## API para gestão de dados de leilões do e-leiloes.pt
+
+### Funcionalidades:
+- **Scraping automático** de dados de leilões
+- **Monitorização em tempo real** de preços e eventos
+- **Sistema de notificações** configurável
+- **Histórico de preços** completo
+- **API pública** para consulta de dados
+
+### Autenticação:
+A API usa autenticação HMAC-SHA256 para endpoints protegidos.
+Headers necessários: `X-Signature`, `X-Timestamp`
+
+### Rate Limiting:
+- 100 requests por minuto por IP
+- Headers de resposta: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Window`
+    """,
+    version="2.0.0",
+    lifespan=lifespan,
+    openapi_tags=tags_metadata,
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json",
+    contact={
+        "name": "E-Leiloes API Support",
+        "url": "https://github.com/nunomansilhas/better-e-leiloes",
+    },
+    license_info={
+        "name": "MIT",
+    },
 )
 
 # CORS - Restrict to allowed origins
@@ -174,6 +356,16 @@ app.add_middleware(
 from security import security_middleware
 app.middleware("http")(security_middleware)
 
+# Error handlers for consistent error responses
+from error_handlers import setup_error_handlers
+setup_error_handlers(app)
+
+# Register modular routers
+from routers import cache_router, cleanup_router, metrics_router
+app.include_router(cache_router)
+app.include_router(cleanup_router)
+app.include_router(metrics_router)
+
 # Servir arquivos estáticos
 static_dir = os.path.join(os.path.dirname(__file__), "static")
 if os.path.exists(static_dir):
@@ -184,17 +376,111 @@ if os.path.exists(static_dir):
 
 @app.get("/")
 async def root():
-    """Redireciona para a dashboard"""
+    """Página de administração - Scrapers & Tools"""
     return FileResponse(os.path.join(static_dir, "index.html"))
 
 
 @app.get("/health")
 async def health():
-    """Health check"""
+    """Health check simples"""
+    return {"status": "ok"}
+
+
+# ============== WEBSOCKET FOR REAL-TIME NOTIFICATIONS ==============
+
+@app.websocket("/ws/notifications")
+async def websocket_notifications(websocket: WebSocket):
+    """
+    WebSocket endpoint for real-time notifications.
+    Clients connect here to receive instant notification updates.
+    """
+    from websocket_manager import notification_ws_manager
+
+    await notification_ws_manager.connect(websocket)
+    try:
+        while True:
+            # Keep connection alive, wait for messages (ping/pong)
+            data = await websocket.receive_text()
+            # Echo back for ping/pong
+            if data == "ping":
+                await websocket.send_text("pong")
+    except WebSocketDisconnect:
+        await notification_ws_manager.disconnect(websocket)
+    except Exception as e:
+        print(f"WebSocket error: {e}")
+        await notification_ws_manager.disconnect(websocket)
+
+
+@app.get("/api/health")
+async def health_detailed():
+    """
+    Health check detalhado com status de todos os serviços.
+
+    Retorna:
+    - status: "healthy" | "degraded" | "unhealthy"
+    - services: estado de cada serviço (database, redis, pipelines)
+    - uptime: tempo desde o início
+    - version: versão da API
+    """
+    import time
+
+    services = {}
+    overall_status = "healthy"
+
+    # Database check
+    try:
+        async with get_db() as db:
+            from sqlalchemy import text
+            await db.session.execute(text("SELECT 1"))
+        services["database"] = {"status": "ok", "type": "mysql"}
+    except Exception as e:
+        services["database"] = {"status": "error", "error": str(e)}
+        overall_status = "unhealthy"
+
+    # Redis check - only if REDIS_URL is configured
+    redis_url = os.getenv("REDIS_URL")
+    if redis_url:
+        try:
+            if cache_manager and cache_manager.redis_client:
+                await cache_manager.redis_client.ping()
+                services["redis"] = {"status": "ok"}
+            else:
+                services["redis"] = {"status": "error", "error": "client not initialized"}
+                if overall_status == "healthy":
+                    overall_status = "degraded"
+        except Exception as e:
+            services["redis"] = {"status": "error", "error": str(e)}
+            if overall_status == "healthy":
+                overall_status = "degraded"
+    else:
+        # Redis not configured - this is fine, using memory cache
+        services["redis"] = {"status": "disabled", "note": "REDIS_URL not set, using memory cache"}
+
+    # Pipelines check
+    try:
+        auto_pipelines = get_auto_pipelines_manager()
+        status = auto_pipelines.get_status()
+        pipelines_status = status.get("pipelines", {})
+        active_count = sum(1 for p in pipelines_status.values() if p.get("enabled"))
+        services["pipelines"] = {
+            "status": "ok",
+            "active": active_count,
+            "total": len(pipelines_status)
+        }
+    except Exception as e:
+        services["pipelines"] = {"status": "error", "error": str(e)}
+
+    # Scraper check
+    services["scraper"] = {
+        "status": "running" if scraper and scraper.is_running else "idle",
+        "stop_requested": scraper.stop_requested if scraper else False
+    }
+
     return {
-        "status": "online",
-        "service": "E-Leiloes Data API",
-        "version": "1.0.0"
+        "status": overall_status,
+        "timestamp": datetime.now().isoformat(),
+        "version": "1.0.0",
+        "services": services
     }
 
 
@@ -889,7 +1175,7 @@ async def scrape_stage1_ids(
                         )
 
                     except Exception as e:
-                        print(f"  ⚠️ Erro ao guardar {item['reference']}: {e}")
+                        log_error(f"Erro ao guardar {item['reference']}", e)
                         await pipeline_state.add_error(f"Erro ao guardar {item['reference']}: {e}")
                         continue
 
@@ -1246,18 +1532,68 @@ async def clear_cache():
 @app.delete("/api/database")
 async def clear_database():
     """
-    Apaga TODOS os eventos da base de dados.
+    Apaga TODOS os dados da base de dados (eventos, histórico, notificações, etc).
     ATENÇÃO: Esta operação é irreversível!
     """
+    from sqlalchemy import text
+    deleted_counts = {}
+
     async with get_db() as db:
-        deleted = await db.delete_all_events()
-    
+        # Delete events
+        result = await db.session.execute(text("DELETE FROM events"))
+        deleted_counts["events"] = result.rowcount
+
+        # Delete price history
+        try:
+            result = await db.session.execute(text("DELETE FROM price_history"))
+            deleted_counts["price_history"] = result.rowcount
+        except:
+            deleted_counts["price_history"] = 0
+
+        # Delete refresh logs
+        try:
+            result = await db.session.execute(text("DELETE FROM refresh_logs"))
+            deleted_counts["refresh_logs"] = result.rowcount
+        except:
+            deleted_counts["refresh_logs"] = 0
+
+        # Delete notifications
+        try:
+            result = await db.session.execute(text("DELETE FROM notification_rules"))
+            deleted_counts["notifications"] = result.rowcount
+        except:
+            deleted_counts["notifications"] = 0
+
+        # Delete ALL pipeline states (table name is singular: pipeline_state)
+        try:
+            result = await db.session.execute(text("DELETE FROM pipeline_state"))
+            deleted_counts["pipeline_states"] = result.rowcount
+        except:
+            deleted_counts["pipeline_states"] = 0
+
+        await db.session.commit()
+
     # Limpa também o cache
     await cache_manager.clear_all()
-    
+
+    # Reset pipeline states in memory
+    pipeline_state = get_pipeline_state()
+    await pipeline_state.stop()
+
+    # Reset auto pipelines manager (X-Monitor, Y-Sync, Z-Watch)
+    auto_pipelines = get_auto_pipelines_manager()
+    for pipeline_name in auto_pipelines.pipelines:
+        auto_pipelines.pipelines[pipeline_name].is_running = False
+        auto_pipelines.pipelines[pipeline_name].enabled = False
+
+    # Reset scraper state
+    if scraper:
+        scraper.is_running = False
+        scraper.stop_requested = False
+
     return {
         "message": "Base de dados limpa com sucesso",
-        "deleted_events": deleted
+        "deleted": deleted_counts
     }
 
 
@@ -1412,11 +1748,66 @@ async def get_db_extended_stats():
         return stats
 
 
-@app.get("/api/dashboard/ending-soon")
-async def get_events_ending_soon(hours: int = 24, limit: int = 5):
-    """Get events ending within the next X hours"""
+@app.get("/api/refresh/stats")
+async def get_refresh_stats():
+    """Get refresh request statistics for the last 24 hours"""
     async with get_db() as db:
-        events = await db.get_events_ending_soon(hours=hours, limit=limit)
+        stats = await db.get_refresh_stats()
+        return stats
+
+
+@app.post("/api/refresh/{reference}")
+async def refresh_single_event(reference: str):
+    """
+    Refresh a single event's data by scraping the latest info from e-leiloes.pt.
+    This is called when user clicks the refresh button on an event.
+    """
+    try:
+        # Scrape fresh data for this single event
+        events = await scraper.scrape_details_via_api([reference], None)
+
+        if not events:
+            return JSONResponse(
+                {"success": False, "message": "Event not found on source"},
+                status_code=404
+            )
+
+        event = events[0]
+
+        # Save to database
+        async with get_db() as db:
+            await db.save_event(event)
+
+            # Log the refresh
+            from database import RefreshLogDB
+            session = db.session
+            refresh_log = RefreshLogDB(reference=reference, refresh_type='price')
+            session.add(refresh_log)
+            await session.commit()
+
+        # Update cache
+        await cache_manager.set(reference, event)
+
+        return {
+            "success": True,
+            "reference": reference,
+            "lance_atual": event.valores.lanceAtual if event.valores else 0,
+            "data_fim": event.datas.dataFim.isoformat() if event.datas and event.datas.dataFim else None
+        }
+
+    except Exception as e:
+        log_error(f"Error refreshing event {reference}", e)
+        return JSONResponse(
+            {"success": False, "message": str(e)},
+            status_code=500
+        )
+
+
+@app.get("/api/dashboard/ending-soon")
+async def get_events_ending_soon(hours: int = 24, limit: int = 1000, include_terminated: bool = True, terminated_hours: int = 120):
+    """Get events ending within the next X hours + recently terminated events"""
+    async with get_db() as db:
+        events = await db.get_events_ending_soon(hours=hours, limit=limit, include_terminated=include_terminated, terminated_hours=terminated_hours)
         return JSONResponse(events)
 
 
@@ -1703,6 +2094,71 @@ async def get_logs():
     return {"logs": logs_to_return}
 
 
+@app.get("/api/logs/stream")
+async def stream_logs():
+    """
+    Server-Sent Events (SSE) endpoint para logs em tempo real.
+    Conecta a este endpoint para receber logs instantaneamente.
+
+    Formato do evento:
+    {
+        "message": "Log message",
+        "level": "info|success|warning|error",
+        "timestamp": "2025-01-01T12:00:00"
+    }
+    """
+    async def log_stream():
+        queue = asyncio.Queue()
+        log_sse_clients.add(queue)
+
+        try:
+            # Send connection message
+            yield f"data: {json.dumps({'type': 'connected', 'message': 'Connected to log stream'})}\n\n"
+
+            while True:
+                try:
+                    log_entry = await asyncio.wait_for(queue.get(), timeout=30)
+                    yield f"data: {json.dumps({'type': 'log', **log_entry})}\n\n"
+                except asyncio.TimeoutError:
+                    yield f"data: {json.dumps({'type': 'ping'})}\n\n"
+        except asyncio.CancelledError:
+            pass
+        finally:
+            log_sse_clients.discard(queue)
+
+    return StreamingResponse(
+        log_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Access-Control-Allow-Origin": "*",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
+
+@app.get("/api/pipeline-history")
+async def get_pipeline_history(limit: int = Query(20, ge=1, le=50)):
+    """
+    Retorna o histórico de execuções de pipelines.
+
+    - **limit**: Número máximo de entradas (1-50)
+
+    Retorna lista de execuções com:
+    - pipeline: tipo da pipeline
+    - status: "started" | "completed" | "error"
+    - timestamp: quando executou
+    - details: informações adicionais
+    """
+    with pipeline_history_lock:
+        history = list(pipeline_history)
+
+    # Return most recent first
+    history.reverse()
+    return {"history": history[:limit], "total": len(history)}
+
+
 # ============== BACKGROUND TASKS ==============
 
 async def scrape_and_update(reference: str):
@@ -1715,9 +2171,9 @@ async def scrape_and_update(reference: str):
         
         await cache_manager.set(reference, event_data)
         
-        print(f"✅ Evento {reference} atualizado")
+        log_info(f"Evento {reference} atualizado")
     except Exception as e:
-        print(f"❌ Erro ao atualizar {reference}: {e}")
+        log_error(f"Erro ao atualizar {reference}", e)
 
 
 async def scrape_all_events(max_pages: Optional[int] = None):
@@ -1732,10 +2188,10 @@ async def scrape_all_events(max_pages: Optional[int] = None):
                 await db.save_event(event)
                 await cache_manager.set(event.reference, event)
 
-        print(f"✅ Scraping total concluído: {len(all_events)} eventos")
+        log_info(f"Scraping total concluído: {len(all_events)} eventos")
 
     except Exception as e:
-        print(f"❌ Erro no scraping total: {e}")
+        log_error("Erro no scraping total", e)
 
 
 async def scheduled_scrape_task():
@@ -1758,6 +2214,10 @@ async def run_full_pipeline(tipo: Optional[int], max_pages: Optional[int]):
     Stage 1: Scrape IDs → Stage 2: Scrape Detalhes → Stage 3: Scrape Imagens
     """
     pipeline_state = get_pipeline_state()
+    start_time = datetime.now()
+
+    # Register pipeline start in history
+    add_pipeline_history("full_pipeline", "started", {"tipo": tipo, "max_pages": max_pages})
 
     try:
         # CRITICAL: Clean pipeline state at start
@@ -1901,8 +2361,8 @@ async def run_full_pipeline(tipo: Optional[int], max_pages: Optional[int]):
                 message=f"🚀 API: {current}/{total} - {ref}"
             )
 
-        # Use API-based scraping (includes images!)
-        events = await scraper.scrape_details_via_api(references, on_progress)
+        # Use FAST API scraping - httpx concurrent, ~10x faster!
+        events = await scraper.scrape_details_fast(references, on_progress, batch_size=15)
 
         # Check if stopped during scraping
         if scraper.stop_requested:
@@ -1931,15 +2391,31 @@ async def run_full_pipeline(tipo: Optional[int], max_pages: Optional[int]):
         print(msg)
         add_dashboard_log(msg, "success")
 
+        # Register completion in history
+        duration = (datetime.now() - start_time).total_seconds()
+        add_pipeline_history("full_pipeline", "completed", {
+            "ids": len(references),
+            "events": len(events),
+            "duration_seconds": round(duration, 1)
+        })
+
         # Delay to show final message, then stop
         await asyncio.sleep(3)
         await pipeline_state.stop()
 
     except Exception as e:
-        msg = f"❌ Erro no pipeline: {e}"
-        print(msg)
-        add_dashboard_log(msg, "error")
+        msg = f"Erro no pipeline: {e}"
+        log_exception(msg)
+        add_dashboard_log(f"❌ {msg}", "error")
         await pipeline_state.add_error(msg)
+
+        # Register error in history
+        duration = (datetime.now() - start_time).total_seconds()
+        add_pipeline_history("full_pipeline", "error", {
+            "error": str(e),
+            "duration_seconds": round(duration, 1)
+        })
+
         await asyncio.sleep(2)
         await pipeline_state.stop()
 
@@ -1981,8 +2457,25 @@ async def run_api_pipeline(tipo: Optional[int], max_pages: Optional[int]):
     Stage 2: Usa API para obter TUDO (detalhes + imagens) - SEM Stage 3!
     """
     pipeline_state = get_pipeline_state()
+    start_time = datetime.now()
+    lock_acquired = False
+
+    # Get auto pipelines manager for mutex lock
+    from auto_pipelines import get_auto_pipelines_manager
+    pipelines_manager = get_auto_pipelines_manager()
+
+    # Register pipeline start in history
+    add_pipeline_history("api_pipeline", "started", {"tipo": tipo, "max_pages": max_pages})
 
     try:
+        # Try to acquire heavy pipeline lock (mutex with Y-Sync, Z-Watch)
+        lock_acquired = await pipelines_manager.acquire_heavy_lock("Pipeline API")
+        if not lock_acquired:
+            msg = "⏸️ Pipeline API não pode correr - outra pipeline pesada em execução"
+            print(msg)
+            add_dashboard_log(msg, "warning")
+            return
+
         # CRITICAL: Clean pipeline state at start
         await pipeline_state.stop()
 
@@ -1996,25 +2489,43 @@ async def run_api_pipeline(tipo: Optional[int], max_pages: Optional[int]):
         await pipeline_state.start(
             stage=1,
             stage_name=f"Stage 1 - IDs ({tipo_str})",
-            total=6 if tipo is None else 1,
+            total=0,
             details={"tipo": tipo, "max_pages": max_pages, "mode": "api"}
         )
 
         await pipeline_state.update(
             current=0,
             total=0,
-            message="Total: 0",
+            message="A iniciar recolha de IDs...",
             details={"types_done": 0, "total_ids": 0, "breakdown": {}}
         )
 
         add_dashboard_log("🔍 STAGE 1: SCRAPING IDs", "info")
 
-        type_counter = {"count": 0}
+        # Track progress across types
+        progress_state = {"total": 0, "breakdown": {}, "current_type": ""}
+
+        async def on_page_progress(tipo_nome: str, page_num: int, page_count: int, total_count: int, offset: int):
+            """Called after each page - updates total in real-time"""
+            # Update running total for current type
+            progress_state["current_type"] = tipo_nome
+            # Calculate grand total (previous types + current type progress)
+            prev_types_total = sum(v for k, v in progress_state["breakdown"].items() if k != tipo_nome)
+            grand_total = prev_types_total + total_count
+
+            await pipeline_state.update(
+                current=grand_total,
+                total=grand_total,
+                message=f"🔍 {tipo_nome} - Pág {page_num}: +{page_count} (total: {grand_total})"
+            )
 
         async def on_type_complete(tipo_nome: str, count: int, totals: dict):
-            type_counter["count"] += 1
+            """Called when a type finishes - shows breakdown"""
+            progress_state["breakdown"] = totals.copy()
             total_ids = sum(totals.values())
+            progress_state["total"] = total_ids
 
+            # Build summary message
             totals_parts = [f"Total: {total_ids}"]
             tipo_names_map = {
                 "imoveis": "Imóveis",
@@ -2029,13 +2540,13 @@ async def run_api_pipeline(tipo: Optional[int], max_pages: Optional[int]):
                 totals_parts.append(f"{display_name}: {tipo_count}")
 
             msg = " | ".join(totals_parts)
-            add_dashboard_log(f"✓ {tipo_nome}: {count} IDs | {msg}", "info")
+            add_dashboard_log(f"✓ {tipo_nome}: {count} IDs", "info")
 
             await pipeline_state.update(
                 current=total_ids,
                 total=total_ids,
                 message=msg,
-                details={"types_done": type_counter["count"], "total_ids": total_ids, "breakdown": totals}
+                details={"total_ids": total_ids, "breakdown": totals}
             )
 
         if scraper.stop_requested:
@@ -2046,30 +2557,39 @@ async def run_api_pipeline(tipo: Optional[int], max_pages: Optional[int]):
         ids_data = await scraper.scrape_ids_only(
             tipo=tipo,
             max_pages=max_pages,
-            on_type_complete=on_type_complete
+            on_type_complete=on_type_complete,
+            on_page_progress=on_page_progress
         )
 
         references = [item['reference'] for item in ids_data]
         tipo_map = {item['reference']: item.get('tipo_evento', 'imoveis') for item in ids_data}
 
-        # Inserir IDs na BD imediatamente
+        # BATCH INSERT - muito mais rápido!
+        await pipeline_state.update(
+            message=f"💾 A guardar {len(references)} IDs na BD (batch)...",
+            details={"phase": "saving_ids"}
+        )
+
         # Mapeamento tipo_evento (string) para tipo_id (int)
         tipo_str_to_id = {
             'imoveis': 1, 'veiculos': 2, 'equipamentos': 3,
             'mobiliario': 4, 'maquinas': 5, 'direitos': 6,
             'imovel': 1, 'movel': 2  # Legacy compatibility
         }
-        new_count = 0
-        async with get_db() as db:
-            for item in ids_data:
-                ref = item['reference']
-                tipo_ev = item.get('tipo_evento', 'imoveis')
-                tipo_id = tipo_str_to_id.get(tipo_ev, 1)
-                was_new = await db.insert_event_stub(ref, tipo_id)
-                if was_new:
-                    new_count += 1
 
-        add_dashboard_log(f"💾 {new_count} novos IDs inseridos na BD ({len(references) - new_count} já existiam)", "info")
+        # Preparar lista para batch insert
+        batch_items = [
+            {
+                'reference': item['reference'],
+                'tipo_id': tipo_str_to_id.get(item.get('tipo_evento', 'imoveis'), 1)
+            }
+            for item in ids_data
+        ]
+
+        async with get_db() as db:
+            new_count = await db.insert_event_stubs_batch(batch_items)
+
+        add_dashboard_log(f"💾 {new_count} novos IDs inseridos ({len(references) - new_count} já existiam)", "info")
 
         if scraper.stop_requested:
             if len(references) > 0:
@@ -2082,12 +2602,15 @@ async def run_api_pipeline(tipo: Optional[int], max_pages: Optional[int]):
             scraper.stop_requested = False
             return
 
-        await pipeline_state.update(total=len(references), message=f"{len(references)} IDs recolhidos")
-        await pipeline_state.complete(message=f"✅ Stage 1: {len(references)} IDs recolhidos")
-
-        msg = f"✅ Stage 1: {len(references)} IDs recolhidos"
+        # Stage 1 complete - log and prepare for Stage 2
+        msg = f"✅ Stage 1 completo: {len(references)} IDs ({new_count} novos)"
         print(msg)
         add_dashboard_log(msg, "success")
+        await pipeline_state.update(
+            message=msg,
+            current=len(references),
+            total=len(references)
+        )
 
         if not references:
             msg = "⚠️ Nenhum ID encontrado. Pipeline terminado."
@@ -2097,7 +2620,7 @@ async def run_api_pipeline(tipo: Optional[int], max_pages: Optional[int]):
             await pipeline_state.stop()
             return
 
-        # ===== STAGE 2: API Scraping (Detalhes + Imagens em um só!) =====
+        # ===== STAGE 2: Fetch full details via API =====
         if scraper.stop_requested:
             add_dashboard_log("🛑 Pipeline interrompida pelo utilizador", "warning")
             await pipeline_state.stop()
@@ -2106,12 +2629,12 @@ async def run_api_pipeline(tipo: Optional[int], max_pages: Optional[int]):
 
         await pipeline_state.start(
             stage=2,
-            stage_name="Stage 2 - API (Detalhes + Imagens)",
+            stage_name="Stage 2 - Detalhes via API",
             total=len(references),
             details={"save_to_db": True, "mode": "api"}
         )
 
-        add_dashboard_log("🚀 STAGE 2: API SCRAPING (detalhes + imagens)", "info")
+        add_dashboard_log(f"📡 STAGE 2: A obter detalhes de {len(references)} eventos via API...", "info")
 
         scraped_count = 0
         success_count = 0
@@ -2119,13 +2642,14 @@ async def run_api_pipeline(tipo: Optional[int], max_pages: Optional[int]):
         async def on_progress(current: int, total: int, ref: str):
             nonlocal scraped_count
             scraped_count = current
+            pct = int((current / total) * 100) if total > 0 else 0
             await pipeline_state.update(
                 current=current,
-                message=f"🚀 API: {current}/{total} - {ref}"
+                message=f"📡 A obter detalhes: {current}/{total} ({pct}%)"
             )
 
-        # Use API-based scraping - gets EVERYTHING in one call!
-        events = await scraper.scrape_details_via_api(references, on_progress)
+        # Use FAST API scraping - httpx concurrent, ~10x faster than Playwright!
+        events = await scraper.scrape_details_fast(references, on_progress, batch_size=15)
 
         if scraper.stop_requested:
             add_dashboard_log("🛑 Pipeline interrompida pelo utilizador", "warning")
@@ -2133,44 +2657,72 @@ async def run_api_pipeline(tipo: Optional[int], max_pages: Optional[int]):
             scraper.stop_requested = False
             return
 
-        # Save all events to database
-        add_dashboard_log(f"💾 Guardando {len(events)} eventos na BD...", "info")
+        # BATCH SAVE com progresso
+        total_events = len(events)
+
+        async def on_db_progress(processed: int, total: int):
+            pct = int((processed / total) * 100) if total > 0 else 0
+            await pipeline_state.update(
+                message=f"💾 A guardar na BD: {processed}/{total} ({pct}%)"
+            )
+
         async with get_db() as db:
-            for event in events:
-                try:
-                    await db.save_event(event)
-                    await cache_manager.set(event.reference, event)
-                    success_count += 1
-                except Exception as e:
-                    add_dashboard_log(f"⚠️ Erro ao guardar {event.reference}: {e}", "warning")
+            inserted, updated = await db.save_events_batch(
+                events,
+                chunk_size=50,
+                on_progress=on_db_progress
+            )
+            success_count = inserted + updated
+
+        # Atualizar estado imediatamente após BD save
+        await pipeline_state.update(message=f"✅ BD: {inserted} novos + {updated} atualizados")
+        add_dashboard_log(f"💾 BD: {inserted} novos + {updated} atualizados", "info")
 
         # Count images (fotos is a list of FotoItem or None)
         total_images = sum(len(event.fotos) if event.fotos else 0 for event in events)
 
-        await pipeline_state.complete(
-            message=f"✅ Stage 2: {success_count} eventos + {total_images} imagens"
-        )
+        # Final message
+        duration = (datetime.now() - start_time).total_seconds()
+        duration_str = f"{int(duration // 60)}m {int(duration % 60)}s" if duration >= 60 else f"{int(duration)}s"
 
-        msg = f"✅ Stage 2: {success_count} eventos processados com {total_images} imagens"
+        msg = f"🎉 PIPELINE COMPLETO em {duration_str}! Eventos: {success_count} | Imagens: {total_images}"
         print(msg)
         add_dashboard_log(msg, "success")
 
-        # Final message - NO Stage 3 needed!
-        msg = f"🎉 API PIPELINE COMPLETO! IDs: {len(references)} | Eventos: {success_count} | Imagens: {total_images}"
-        print(msg)
-        add_dashboard_log(msg, "success")
-        add_dashboard_log("💡 Sem Stage 3 - API já incluiu as imagens!", "info")
+        await pipeline_state.update(message=msg)
 
-        await asyncio.sleep(3)
+        # Register completion in history
+        add_pipeline_history("api_pipeline", "completed", {
+            "ids": len(references),
+            "events": success_count,
+            "images": total_images,
+            "duration_seconds": round(duration, 1)
+        })
+
+        # Small delay to show completion message, then stop
+        await asyncio.sleep(2)
         await pipeline_state.stop()
 
     except Exception as e:
-        msg = f"❌ Erro no API pipeline: {e}"
-        print(msg)
-        add_dashboard_log(msg, "error")
+        msg = f"Erro no API pipeline: {e}"
+        log_exception(msg)
+        add_dashboard_log(f"❌ {msg}", "error")
         await pipeline_state.add_error(msg)
+
+        # Register error in history
+        duration = (datetime.now() - start_time).total_seconds()
+        add_pipeline_history("api_pipeline", "error", {
+            "error": str(e),
+            "duration_seconds": round(duration, 1)
+        })
+
         await asyncio.sleep(2)
         await pipeline_state.stop()
+
+    finally:
+        # Release heavy pipeline lock
+        if lock_acquired:
+            pipelines_manager.release_heavy_lock("Pipeline API")
 
 
 # ============== SSE & STREAMING ENDPOINTS ==============

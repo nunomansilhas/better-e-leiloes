@@ -62,6 +62,12 @@ class AutoPipelinesManager:
         self.job_ids: Dict[str, str] = {}  # pipeline_type -> scheduler_job_id
         self._scheduler = None  # Store scheduler reference for rescheduling
 
+        # Mutex for heavy pipelines (Y-Sync, Z-Watch, Pipeline API)
+        # X-Monitor is exempt - it runs freely for real-time price tracking
+        self._heavy_pipeline_lock = asyncio.Lock()
+        self._heavy_pipeline_running: Optional[str] = None  # Which heavy pipeline is running
+        self._heavy_pipeline_waiting: list = []  # Queue of waiting pipelines
+
         # Cache for critical events (< 6 min) - refreshed every 5 minutes
         self._critical_events_cache = []
         self._cache_last_refresh = None
@@ -80,7 +86,7 @@ class AutoPipelinesManager:
         self._load_config()
 
     def _load_config(self):
-        """Load configuration from file or create default"""
+        """Load configuration from file or create default (sync fallback)"""
         if self.CONFIG_FILE.exists():
             try:
                 with open(self.CONFIG_FILE, 'r') as f:
@@ -90,7 +96,9 @@ class AutoPipelinesManager:
                 for key, value in data.items():
                     self.pipelines[key] = PipelineConfig(**value)
 
-                print(f"📂 Auto-pipelines config loaded: {len(self.pipelines)} pipelines")
+                # Log which pipelines are enabled
+                enabled = [k for k, p in self.pipelines.items() if p.enabled]
+                print(f"📂 Auto-pipelines config loaded from JSON: {len(self.pipelines)} pipelines (enabled: {enabled or 'none'})")
             except Exception as e:
                 print(f"⚠️ Error loading auto-pipelines config: {e}")
                 self._create_default_config()
@@ -104,16 +112,88 @@ class AutoPipelinesManager:
         print(f"✨ Created default auto-pipelines config")
 
     def _save_config(self):
-        """Save configuration to file"""
+        """Save configuration to JSON file (sync fallback)"""
         try:
             data = {k: asdict(v) for k, v in self.pipelines.items()}
 
             with open(self.CONFIG_FILE, 'w') as f:
                 json.dump(data, f, indent=2)
 
-            print(f"💾 Auto-pipelines config saved")
+            # Log which pipelines are enabled
+            enabled = [k for k, v in data.items() if v.get('enabled')]
+            print(f"💾 Auto-pipelines config saved to JSON (enabled: {enabled or 'none'})")
         except Exception as e:
             print(f"⚠️ Error saving auto-pipelines config: {e}")
+
+    async def load_from_database(self):
+        """Load pipeline state from database (async)"""
+        from database import get_db
+
+        try:
+            async with get_db() as db:
+                states = await db.get_all_pipeline_states()
+
+                for state in states:
+                    if state.pipeline_name in self.pipelines:
+                        # Update in-memory config from database
+                        self.pipelines[state.pipeline_name].enabled = state.enabled
+                        self.pipelines[state.pipeline_name].is_running = state.is_running
+                        self.pipelines[state.pipeline_name].last_run = state.last_run.isoformat() if state.last_run else None
+                        self.pipelines[state.pipeline_name].next_run = state.next_run.isoformat() if state.next_run else None
+                        self.pipelines[state.pipeline_name].runs_count = state.runs_count
+
+                enabled = [s.pipeline_name for s in states if s.enabled]
+                print(f"📂 Auto-pipelines loaded from DB: {len(states)} pipelines (enabled: {enabled or 'none'})")
+
+                # Also save to JSON for quick startup next time
+                self._save_config()
+
+        except Exception as e:
+            print(f"⚠️ Error loading from database, using JSON fallback: {e}")
+
+    async def save_to_database(self, pipeline_type: str):
+        """Save single pipeline state to database (async)"""
+        from database import get_db
+
+        if pipeline_type not in self.pipelines:
+            return
+
+        config = self.pipelines[pipeline_type]
+
+        try:
+            async with get_db() as db:
+                # Parse datetime strings
+                last_run = None
+                if config.last_run:
+                    try:
+                        last_run = datetime.fromisoformat(config.last_run)
+                    except:
+                        pass
+
+                next_run = None
+                if config.next_run:
+                    try:
+                        next_run = datetime.fromisoformat(config.next_run)
+                    except:
+                        pass
+
+                await db.save_pipeline_state(
+                    pipeline_name=pipeline_type,
+                    enabled=config.enabled,
+                    is_running=config.is_running,
+                    interval_hours=config.interval_hours,
+                    description=config.description,
+                    last_run=last_run,
+                    next_run=next_run,
+                    runs_count=config.runs_count
+                )
+                print(f"💾 Pipeline {pipeline_type} saved to DB (enabled: {config.enabled})")
+
+        except Exception as e:
+            print(f"⚠️ Error saving to database: {e}")
+
+        # Also save to JSON as backup
+        self._save_config()
 
     async def refresh_critical_events_cache(self):
         """Refresh cache of events ending in < 6 minutes (called every 5 minutes)"""
@@ -231,8 +311,38 @@ class AutoPipelinesManager:
                 "critical": critical_count,
                 "urgent": urgent_count,
                 "soon": soon_count
-            }
+            },
+            # Mutex status for heavy pipelines
+            "heavy_pipeline_running": self._heavy_pipeline_running,
+            "heavy_pipeline_waiting": self._heavy_pipeline_waiting.copy()
         }
+
+    async def acquire_heavy_lock(self, pipeline_name: str) -> bool:
+        """
+        Try to acquire lock for heavy pipeline (Y-Sync, Z-Watch, Pipeline API).
+        Returns True if lock acquired, False if should skip (another heavy pipeline running).
+        """
+        if self._heavy_pipeline_lock.locked():
+            # Another heavy pipeline is running
+            if pipeline_name not in self._heavy_pipeline_waiting:
+                self._heavy_pipeline_waiting.append(pipeline_name)
+            print(f"⏸️ {pipeline_name} aguarda (a correr: {self._heavy_pipeline_running})")
+            return False
+
+        await self._heavy_pipeline_lock.acquire()
+        self._heavy_pipeline_running = pipeline_name
+        if pipeline_name in self._heavy_pipeline_waiting:
+            self._heavy_pipeline_waiting.remove(pipeline_name)
+        print(f"🔒 {pipeline_name} adquiriu lock")
+        return True
+
+    def release_heavy_lock(self, pipeline_name: str):
+        """Release lock for heavy pipeline."""
+        if self._heavy_pipeline_running == pipeline_name:
+            self._heavy_pipeline_running = None
+            if self._heavy_pipeline_lock.locked():
+                self._heavy_pipeline_lock.release()
+            print(f"🔓 {pipeline_name} libertou lock")
 
     async def toggle_pipeline(self, pipeline_type: str, enabled: bool, scheduler=None) -> Dict[str, Any]:
         """Enable or disable a pipeline"""
@@ -260,6 +370,9 @@ class AutoPipelinesManager:
                 await self._unschedule_pipeline(pipeline_type, scheduler)
 
         self._save_config()
+
+        # Save to database (async)
+        await self.save_to_database(pipeline_type)
 
         status = "ativada" if enabled else "desativada"
         message = f"Pipeline {pipeline.name} {status}"
@@ -1045,10 +1158,13 @@ class AutoPipelinesManager:
             main_pipeline = get_pipeline_state()
             if main_pipeline.is_active:
                 print(f"⏸️ X-Monitor skipped - main pipeline is running")
+                # Reschedule for 30 seconds later
+                self._reschedule_xmonitor(30)
                 return
 
             # Mark as running
             self.pipelines['xmonitor'].is_running = True
+            await self.save_to_database('xmonitor')
 
             # Refresh caches to get current events
             now = datetime.now()
@@ -1096,6 +1212,7 @@ class AutoPipelinesManager:
             else:
                 print(f"🔴 X-Monitor: Sem eventos nas próximas 24h")
                 self.pipelines['xmonitor'].is_running = False
+                await self.save_to_database('xmonitor')
                 # Reschedule to check again in 30 minutes
                 self._reschedule_xmonitor(1800)
                 return
@@ -1191,8 +1308,10 @@ class AutoPipelinesManager:
             finally:
                 await scraper.close()
                 self.pipelines['xmonitor'].is_running = False
-                # Reschedule with adaptive interval
+                # Reschedule with adaptive interval (updates next_run)
                 self._reschedule_xmonitor(next_interval_seconds)
+                # Save to database AFTER reschedule so next_run is correct
+                await self.save_to_database('xmonitor')
 
         async def run_ysync_pipeline():
             """Y-Sync: Sincroniza novos IDs e marca eventos terminados"""
@@ -1204,18 +1323,34 @@ class AutoPipelinesManager:
             scraper = None
             cache_manager = None
             skipped = False
+            lock_acquired = False
 
             try:
                 # Skip if main pipeline is running
                 main_pipeline = get_pipeline_state()
                 if main_pipeline.is_active:
                     print(f"⏸️ Y-Sync skipped - main pipeline is running")
+                    # Update next_run to avoid constant retries (retry in 5 min)
+                    pipeline = self.pipelines['ysync']
+                    pipeline.next_run = (datetime.now() + timedelta(minutes=5)).strftime("%Y-%m-%d %H:%M:%S")
+                    self._save_config()
+                    skipped = True
+                    return
+
+                # Try to acquire heavy pipeline lock (mutex with Z-Watch, Pipeline API)
+                lock_acquired = await self.acquire_heavy_lock("Y-Sync")
+                if not lock_acquired:
+                    # Update next_run to avoid constant retries (retry in 2 min)
+                    pipeline = self.pipelines['ysync']
+                    pipeline.next_run = (datetime.now() + timedelta(minutes=2)).strftime("%Y-%m-%d %H:%M:%S")
+                    self._save_config()
                     skipped = True
                     return
 
                 # Mark as running
                 self.pipelines['ysync'].is_running = True
                 self._save_config()
+                await self.save_to_database('ysync')
 
                 print(f"🔄 Y-Sync: A iniciar sincronização completa...")
 
@@ -1441,8 +1576,16 @@ class AutoPipelinesManager:
                     self._save_config()
                     print(f"  ⏰ Y-Sync: próxima execução em {pipeline.interval_hours}h")
 
+                # Release heavy pipeline lock
+                if lock_acquired:
+                    self.release_heavy_lock("Y-Sync")
+
                 # ALWAYS reschedule - even if skipped
                 self._reschedule_pipeline('ysync')
+
+                # Save to database AFTER reschedule so next_run is correct
+                if not skipped:
+                    await self.save_to_database('ysync')
 
         async def run_zwatch_pipeline():
             """Z-Watch: Monitoriza EventosMaisRecentes API para novos eventos"""
@@ -1459,24 +1602,34 @@ class AutoPipelinesManager:
             scraper = None
             cache_manager = None
             skipped = False
+            lock_acquired = False
 
             try:
                 # Skip if main pipeline is running
                 main_pipeline = get_pipeline_state()
                 if main_pipeline.is_active:
                     print(f"⏸️ Z-Watch skipped - main pipeline is running")
+                    # Update next_run to avoid constant retries (retry in 5 min)
+                    pipeline = self.pipelines['zwatch']
+                    pipeline.next_run = (datetime.now() + timedelta(minutes=5)).strftime("%Y-%m-%d %H:%M:%S")
+                    self._save_config()
                     skipped = True
                     return
 
-                # Skip if Y-Sync is running (avoid duplicate work)
-                if self.pipelines.get('ysync') and self.pipelines['ysync'].is_running:
-                    print(f"⏸️ Z-Watch skipped - Y-Sync is running")
+                # Try to acquire heavy pipeline lock (mutex with Y-Sync, Pipeline API)
+                lock_acquired = await self.acquire_heavy_lock("Z-Watch")
+                if not lock_acquired:
+                    # Update next_run to avoid constant retries (retry in 2 min)
+                    pipeline = self.pipelines['zwatch']
+                    pipeline.next_run = (datetime.now() + timedelta(minutes=2)).strftime("%Y-%m-%d %H:%M:%S")
+                    self._save_config()
                     skipped = True
                     return
 
                 # Mark as running
                 self.pipelines['zwatch'].is_running = True
                 self._save_config()
+                await self.save_to_database('zwatch')
 
                 print(f"👁️ Z-Watch: A verificar EventosMaisRecentes...")
 
@@ -1598,8 +1751,16 @@ class AutoPipelinesManager:
                     self._save_config()
                     print(f"  ⏰ Z-Watch: próxima execução em {pipeline.interval_hours * 60:.0f} min")
 
+                # Release heavy pipeline lock
+                if lock_acquired:
+                    self.release_heavy_lock("Z-Watch")
+
                 # ALWAYS reschedule - even if skipped
                 self._reschedule_pipeline('zwatch')
+
+                # Save to database AFTER reschedule so next_run is correct
+                if not skipped:
+                    await self.save_to_database('zwatch')
 
         # Return the appropriate function
         tasks = {

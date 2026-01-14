@@ -65,7 +65,7 @@ class EventScraper:
     async def scrape_event(self, reference: str) -> EventData:
         """
         Scrape público de um único evento por referência.
-        Detecta automaticamente se é imóvel (LO) ou móvel (NP) pela referência.
+        Usa a API oficial e-leiloes.pt para obter dados completos.
 
         Args:
             reference: Referência do evento (ex: LO1234567890 ou NP1234567890)
@@ -73,24 +73,11 @@ class EventScraper:
         Returns:
             EventData completo do evento
         """
-        await self.init_browser()
-
-        # Determina tipo baseado no prefixo da referência
-        # LO = Leilão Online (geralmente imóveis)
-        # NP = Negociação Particular (pode ser móveis ou imóveis)
-        # Para segurança, vamos tentar buscar a página e detectar o tipo
-        tipo_evento = "imovel" if reference.startswith("LO") else "imovel"  # default imovel
-
-        # Cria preview fake (valores virão da página individual)
-        preview = {
-            'reference': reference,
-            'valores': ValoresLeilao()  # Vazio, será preenchido na página
-        }
-
-        try:
-            return await self._scrape_event_details(preview, tipo_evento)
-        except Exception as e:
-            raise Exception(f"Erro ao fazer scrape do evento {reference}: {str(e)}")
+        # Usa o API scraper que é mais rápido e tem schema correto
+        events = await self.scrape_details_via_api([reference], None)
+        if events and len(events) > 0:
+            return events[0]
+        raise Exception(f"Evento {reference} não encontrado na API")
 
     async def _scrape_event_details(self, preview: dict, tipo_evento: str) -> EventData:
         """
@@ -809,12 +796,23 @@ class EventScraper:
 
         return all_events
     
-    async def _extract_from_listing(self, tipo: int, max_pages: Optional[int]) -> List[dict]:
+    async def _extract_from_listing(
+        self,
+        tipo: int,
+        max_pages: Optional[int],
+        on_page_progress: Optional[Callable[[str, int, int, int, int], Awaitable[None]]] = None
+    ) -> List[dict]:
         """
         FASE 1: Extrai referências + valores da página de listagem
-        
+
         Usa paginação com first=0, first=12, first=24, etc. (12 eventos por página)
-        
+
+        Args:
+            tipo: Tipo de evento (1-6)
+            max_pages: Máximo de páginas
+            on_page_progress: Callback async chamado a cada página
+                              (tipo_nome, page_num, page_count, total_count, offset)
+
         Returns:
             Lista de dicts com {reference, valores}
         """
@@ -895,7 +893,12 @@ class EventScraper:
                 
                 count_new = len(events_preview) - count_before
                 print(f"📄 Página {page_num + 1}: +{count_new} eventos (total: {len(events_preview)})")
-                
+
+                # Call page progress callback if provided
+                if on_page_progress:
+                    tipo_nome = TIPO_EVENTO_NAMES.get(tipo, "Desconhecido")
+                    await on_page_progress(tipo_nome, page_num + 1, count_new, len(events_preview), first_offset)
+
                 if count_new == 0:
                     break
                 
@@ -1102,7 +1105,8 @@ class EventScraper:
         self,
         tipo: Optional[int] = None,
         max_pages: Optional[int] = None,
-        on_type_complete: Optional[Callable[[str, int, dict], Awaitable[None]]] = None
+        on_type_complete: Optional[Callable[[str, int, dict], Awaitable[None]]] = None,
+        on_page_progress: Optional[Callable[[str, int, int, int, int], Awaitable[None]]] = None
     ) -> List[dict]:
         """
         STAGE 1: Scrape apenas referências e valores básicos da listagem (rápido).
@@ -1113,6 +1117,8 @@ class EventScraper:
             max_pages: Máximo de páginas por tipo
             on_type_complete: Callback async chamado quando um tipo é completado
                               (tipo_nome, count, totals_dict)
+            on_page_progress: Callback async chamado a cada página
+                              (tipo_nome, page_num, page_count, total_count, offset)
 
         Returns:
             Lista de dicts: [{reference, tipo_evento, valores}, ...]
@@ -1133,7 +1139,11 @@ class EventScraper:
 
                     tipo_nome = TIPO_EVENTO_NAMES[tipo_code]
                     print(f"🆔 Stage 1: Scraping IDs de {tipo_nome} (tipo={tipo_code})...")
-                    ids = await self._extract_from_listing(tipo=tipo_code, max_pages=max_pages)
+                    ids = await self._extract_from_listing(
+                        tipo=tipo_code,
+                        max_pages=max_pages,
+                        on_page_progress=on_page_progress
+                    )
 
                     # ALWAYS add collected IDs, even if interrupted
                     for item in ids:
@@ -1159,7 +1169,11 @@ class EventScraper:
                 tipo_str = TIPO_EVENTO_MAP[tipo]
                 tipo_nome = TIPO_EVENTO_NAMES[tipo]
                 print(f"🆔 Stage 1: Scraping IDs de {tipo_nome} (tipo={tipo})...")
-                ids = await self._extract_from_listing(tipo=tipo, max_pages=max_pages)
+                ids = await self._extract_from_listing(
+                    tipo=tipo,
+                    max_pages=max_pages,
+                    on_page_progress=on_page_progress
+                )
 
                 # ALWAYS add collected IDs, even if interrupted
                 for item in ids:
@@ -1718,9 +1732,14 @@ class EventScraper:
             except:
                 return None
 
-        data_inicio = parse_date(item.get('dataInicio'))
+        data_inicio_raw = item.get('dataInicio')
+        data_inicio = parse_date(data_inicio_raw)
         data_fim_inicial = parse_date(item.get('dataFimInicial'))
         data_fim = parse_date(item.get('dataFim'))
+
+        # Debug: log if data_inicio is missing
+        if not data_inicio and data_fim:
+            print(f"⚠️ {reference}: dataInicio missing/null (raw={data_inicio_raw}), but dataFim={data_fim}")
         cerimonia_data = parse_date(item.get('cerimoniaData'))
         data_servidor = parse_date(item.get('dataServidor'))
         data_atualizacao = parse_date(item.get('dataAtualizacao'))
@@ -2061,3 +2080,108 @@ class EventScraper:
         if total > 10:
             print(f"✅ API Volatile: {len(results)}/{total} atualizados")
         return results
+
+    async def scrape_details_fast(
+        self,
+        references: List[str],
+        on_progress: Optional[Callable[[int, int, str], Awaitable[None]]] = None,
+        batch_size: int = 10
+    ) -> List[EventData]:
+        """
+        FAST scrape event details using httpx directly - NO browser needed!
+        Uses concurrent requests for maximum speed.
+
+        This is ~10x faster than scrape_details_via_api which uses Playwright.
+
+        Args:
+            references: List of event references to scrape
+            on_progress: Optional callback for progress updates
+            batch_size: Number of concurrent requests (default 10)
+
+        Returns:
+            List of EventData objects
+        """
+        results = []
+        total = len(references)
+        errors = 0
+
+        if total == 0:
+            return results
+
+        print(f"⚡ FAST API Scraping: {total} eventos (batch_size={batch_size})...")
+
+        headers = {
+            'Accept': 'application/json, text/plain, */*',
+            'Accept-Language': 'pt-PT,pt;q=0.9,en;q=0.8',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Referer': 'https://www.e-leiloes.pt/',
+        }
+
+        async with httpx.AsyncClient(
+            timeout=15.0,
+            follow_redirects=True,
+            verify=False,
+            headers=headers
+        ) as client:
+            # Process in batches for concurrency
+            for batch_start in range(0, total, batch_size):
+                if self.stop_requested:
+                    print("🛑 Scraping interrompido pelo utilizador")
+                    break
+
+                batch = references[batch_start:batch_start + batch_size]
+                batch_tasks = []
+
+                for ref in batch:
+                    batch_tasks.append(self._fetch_event_fast(client, ref))
+
+                # Run batch concurrently
+                batch_results = await asyncio.gather(*batch_tasks, return_exceptions=True)
+
+                for i, result in enumerate(batch_results):
+                    idx = batch_start + i
+                    ref = batch[i]
+
+                    if isinstance(result, Exception):
+                        errors += 1
+                        if total <= 50:
+                            print(f"  ❌ [{idx+1}/{total}] {ref}: {str(result)[:40]}")
+                    elif result is None:
+                        errors += 1
+                    else:
+                        results.append(result)
+                        if total <= 50:
+                            print(f"  ✅ [{idx+1}/{total}] {ref}")
+
+                    if on_progress:
+                        await on_progress(idx + 1, total, ref)
+
+                # Small delay between batches
+                if batch_start + batch_size < total:
+                    await asyncio.sleep(0.2)
+
+        print(f"⚡ FAST API concluído: {len(results)}/{total} eventos ({errors} erros)")
+        return results
+
+    async def _fetch_event_fast(self, client: httpx.AsyncClient, reference: str) -> Optional[EventData]:
+        """Fetch single event via httpx - helper for scrape_details_fast"""
+        try:
+            api_url = f"https://www.e-leiloes.pt/api/eventos/{reference}"
+            response = await client.get(api_url)
+
+            if response.status_code != 200:
+                return None
+
+            data = response.json()
+
+            if data.get('errors') or data.get('exception'):
+                return None
+
+            item = data.get('item', {})
+            if not item:
+                return None
+
+            return self._api_response_to_event_data(item, reference)
+
+        except Exception as e:
+            raise Exception(f"HTTP error: {str(e)[:30]}")
