@@ -607,22 +607,28 @@ async def check_insurance_api(plate: str, debug: bool = False) -> Dict[str, Any]
 
                 if data:
                     # Map API response
-                    # Check for insurance status
-                    has_insurance = data.get('hasInsurance') or data.get('temSeguro') or data.get('insured')
-                    if has_insurance is not None:
-                        result['tem_seguro'] = bool(has_insurance)
-                    elif 'status' in data:
-                        result['tem_seguro'] = data['status'].lower() in ['valid', 'active', 'válido', 'ativo']
+                    # API returns: entity, startDate, endDate, policy, license, logo
 
-                    # Insurer name
-                    result['seguradora'] = data.get('insurerName') or data.get('seguradora') or data.get('company')
+                    # Insurer name (entity is the field name)
+                    result['seguradora'] = data.get('entity') or data.get('insurerName') or data.get('seguradora') or data.get('company')
 
                     # Policy number
-                    result['apolice'] = data.get('policyNumber') or data.get('apolice') or data.get('policy')
+                    result['apolice'] = data.get('policy') or data.get('policyNumber') or data.get('apolice')
 
                     # Dates
                     result['data_inicio'] = data.get('startDate') or data.get('dataInicio')
                     result['data_fim'] = data.get('endDate') or data.get('dataFim')
+
+                    # If we have entity or policy, then vehicle has valid insurance
+                    if result.get('seguradora') or result.get('apolice'):
+                        result['tem_seguro'] = True
+                    else:
+                        # Check for explicit status flags
+                        has_insurance = data.get('hasInsurance') or data.get('temSeguro') or data.get('insured')
+                        if has_insurance is not None:
+                            result['tem_seguro'] = bool(has_insurance)
+                        elif 'status' in data:
+                            result['tem_seguro'] = data['status'].lower() in ['valid', 'active', 'válido', 'ativo']
 
                     # Clean None values
                     result = {k: v for k, v in result.items() if v is not None}
