@@ -7837,6 +7837,10 @@
                 // Update notification icons after events are loaded
                 updateNotificationIcons();
 
+                // Update favorite star button states
+                console.log('[loadAllEvents] Calling updateFavoriteStars');
+                await updateFavoriteStars();
+
             } catch (error) {
                 console.error('Erro ao carregar eventos:', error);
                 content.innerHTML = '<div style="text-align: center; padding: 40px; color: #ef4444;">Erro ao carregar eventos</div>';
@@ -8055,7 +8059,9 @@
                 updatePagination(type);
 
                 // Update favorite star button states (await to ensure cache is loaded)
+                console.log('[loadEvents] About to call updateFavoriteStars, cards rendered:', pageEvents.length);
                 await updateFavoriteStars();
+                console.log('[loadEvents] updateFavoriteStars completed');
 
             } catch (error) {
                 console.error('Erro ao carregar eventos:', error);
