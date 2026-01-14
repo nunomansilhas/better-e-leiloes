@@ -5147,6 +5147,7 @@
             _cacheTTL: 60000, // 60 seconds (WebSocket handles real-time updates)
             _allRulesCache: [], // Cache for all rules (used by updateNotificationIcons)
             _pendingRequest: null, // Prevent duplicate simultaneous requests
+            _previousWidgetRefs: new Set(), // Track displayed favorites for animation
 
             async getAll() {
                 // Use cache if fresh
@@ -5380,19 +5381,35 @@
                     `;
                 }).join('');
 
-                // Animate favorites cards with stagger
-                requestAnimationFrame(() => {
-                    const cards = container.children;
-                    Array.from(cards).forEach((card, i) => {
-                        card.style.opacity = '0';
-                        card.style.transform = 'translateY(15px)';
-                        setTimeout(() => {
-                            card.style.transition = 'opacity 0.35s ease-out, transform 0.35s ease-out';
-                            card.style.opacity = '1';
-                            card.style.transform = 'translateY(0)';
-                        }, i * 60);
+                // Identify new favorites for animation
+                const currentRefs = new Set(favorites.map(f => f.event_reference));
+                const newRefs = favorites.filter(f => !this._previousWidgetRefs.has(f.event_reference)).map(f => f.event_reference);
+                const isFirstLoad = this._previousWidgetRefs.size === 0;
+
+                // Only animate on first load or when new favorites are added
+                if (isFirstLoad || newRefs.length > 0) {
+                    requestAnimationFrame(() => {
+                        const cards = container.children;
+                        Array.from(cards).forEach((card, i) => {
+                            // Get reference from card's onclick attribute or data
+                            const cardRef = favorites[i]?.event_reference;
+                            const isNew = isFirstLoad || newRefs.includes(cardRef);
+
+                            if (isNew) {
+                                card.style.opacity = '0';
+                                card.style.transform = 'translateY(15px)';
+                                setTimeout(() => {
+                                    card.style.transition = 'opacity 0.35s ease-out, transform 0.35s ease-out';
+                                    card.style.opacity = '1';
+                                    card.style.transform = 'translateY(0)';
+                                }, i * 60);
+                            }
+                        });
                     });
-                });
+                }
+
+                // Update tracking
+                this._previousWidgetRefs = currentRefs;
             }
         };
 
@@ -7785,20 +7802,44 @@
 
                 // Already sorted by scraped_at DESC from API
 
-                // Add cards with staggered entrance animation
+                // Identify which events are new (not seen before)
+                const currentRefs = new Set(events.map(e => e.reference));
+                const newRefs = events.filter(e => !previousNewEventRefs.has(e.reference)).map(e => e.reference);
+                const isFirstLoad = previousNewEventRefs.size === 0;
+
+                // Add cards - only animate if new or first load
                 events.forEach((e, i) => {
                     const card = createNewEventCard(e, false);
-                    card.style.opacity = '0';
-                    card.style.transform = 'translateX(20px)';
-                    track.appendChild(card);
+                    const isNewCard = newRefs.includes(e.reference);
 
-                    // Stagger the animation
-                    setTimeout(() => {
-                        card.style.transition = 'opacity 0.35s ease-out, transform 0.35s ease-out';
-                        card.style.opacity = '1';
-                        card.style.transform = 'translateX(0)';
-                    }, i * 50);
+                    // Only animate new cards (not on every refresh)
+                    if (isNewCard && !isFirstLoad) {
+                        card.style.opacity = '0';
+                        card.style.transform = 'translateX(20px)';
+                        track.appendChild(card);
+                        setTimeout(() => {
+                            card.style.transition = 'opacity 0.35s ease-out, transform 0.35s ease-out';
+                            card.style.opacity = '1';
+                            card.style.transform = 'translateX(0)';
+                        }, i * 50);
+                    } else if (isFirstLoad) {
+                        // First load: stagger animation for all
+                        card.style.opacity = '0';
+                        card.style.transform = 'translateX(20px)';
+                        track.appendChild(card);
+                        setTimeout(() => {
+                            card.style.transition = 'opacity 0.35s ease-out, transform 0.35s ease-out';
+                            card.style.opacity = '1';
+                            card.style.transform = 'translateX(0)';
+                        }, i * 50);
+                    } else {
+                        // Existing card on refresh: no animation
+                        track.appendChild(card);
+                    }
                 });
+
+                // Update tracking
+                previousNewEventRefs = currentRefs;
 
                 // Update count
                 if (countBadge) countBadge.textContent = events.length;
@@ -7812,6 +7853,7 @@
         }
 
         // Load dashboard widgets on page load and refresh periodically
+        let previousNewEventRefs = new Set(); // Track previously displayed events
         loadDashboardWidgets();
         setInterval(loadDashboardWidgets, 60000); // Refresh every minute
 
