@@ -1,0 +1,26 @@
+{
+  "events": {
+    "LO1421442025": {
+      "reference": "LO1421442025",
+      "firstSeen": "2026-01-14T09:27:36.085798",
+      "history": [
+        {
+          "timestamp": "2026-01-14T09:27:36.085798",
+          "lanceAtual": 2843.63,
+          "dataFim": "2026-01-14T10:00:00",
+          "tier": "urgent",
+          "lanceAnterior": 2815.48,
+          "lanceVariacao": 28.15000000000009
+        }
+      ],
+      "lastUpdate": "2026-01-14T09:27:36.085798",
+      "currentLance": 2843.63,
+      "currentDataFim": "2026-01-14T10:00:00"
+    }
+  },
+  "lastUpdated": "2026-01-14T09:27:36.085798",
+  "stats": {
+    "totalUpdates": 1,
+    "eventsTracked": 1
+  }
+}
