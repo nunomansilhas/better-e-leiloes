@@ -67,6 +67,7 @@ class MarketPriceService:
         modelo: str,
         ano: int,
         combustivel: Optional[str] = None,
+        ano_min: Optional[int] = None,
         force_refresh: bool = False
     ) -> MarketPriceResult:
         """
@@ -75,8 +76,9 @@ class MarketPriceService:
         Args:
             marca: Vehicle brand (e.g., "CITROEN")
             modelo: Vehicle model (e.g., "C4 Picasso")
-            ano: Vehicle year
+            ano: Vehicle year (used as max year)
             combustivel: Fuel type (optional)
+            ano_min: Production start year (e.g., 2010 for 508 I)
             force_refresh: Skip cache and force scraping
 
         Returns:
@@ -85,17 +87,17 @@ class MarketPriceService:
         marca_normalized = self._normalize_marca(marca)
         modelo_normalized = self._normalize_modelo(modelo)
 
-        log_info(f"Getting market price for {marca_normalized} {modelo_normalized} ({ano})")
+        log_info(f"Getting market price for {marca_normalized} {modelo_normalized} ({ano_min or ano}-{ano})")
 
         # Strategy 1: Try database cache first (unless force_refresh)
         if not force_refresh:
-            cached = await self._get_from_database(marca_normalized, modelo_normalized, ano, combustivel)
+            cached = await self._get_from_database(marca_normalized, modelo_normalized, ano, combustivel, ano_min)
             if cached and cached.preco_medio:
                 log_info(f"Found cached price: {cached.preco_medio}€ (from {cached.fonte})")
                 return cached
 
         # Strategy 2: Try real-time scraping
-        scraped = await self._get_from_scraping(marca_normalized, modelo_normalized, ano, combustivel)
+        scraped = await self._get_from_scraping(marca_normalized, modelo_normalized, ano, combustivel, ano_min)
         if scraped and scraped.preco_medio and not scraped.error:
             # Save to cache for future use
             await self._save_to_database(scraped)
@@ -169,13 +171,18 @@ class MarketPriceService:
         marca: str,
         modelo: str,
         ano: int,
-        combustivel: Optional[str] = None
+        combustivel: Optional[str] = None,
+        ano_min: Optional[int] = None
     ) -> Optional[MarketPriceResult]:
         """Try to get price from database cache"""
         try:
             from database import get_db, MarketPricesDB
 
             cutoff_date = datetime.utcnow() - timedelta(days=self.CACHE_MAX_AGE_DAYS)
+
+            # Use production year range if available, otherwise just the vehicle year
+            year_min = ano_min or ano
+            year_max = ano
 
             async with get_db() as db:
                 # Build query
@@ -186,9 +193,16 @@ class MarketPriceService:
                     )
                 )
 
-                # Try exact model match first
+                # Try exact model match first with year range
                 exact_query = query.where(MarketPricesDB.modelo == modelo)
-                if ano:
+                if year_min and year_max:
+                    exact_query = exact_query.where(
+                        and_(
+                            MarketPricesDB.ano >= year_min,
+                            MarketPricesDB.ano <= year_max
+                        )
+                    )
+                elif ano:
                     exact_query = exact_query.where(MarketPricesDB.ano == ano)
                 if combustivel:
                     exact_query = exact_query.where(MarketPricesDB.combustivel == combustivel)
@@ -225,12 +239,20 @@ class MarketPriceService:
                 partial_query = query.where(
                     MarketPricesDB.modelo.contains(modelo.split()[0])  # First word of model
                 )
-                if ano:
-                    # Allow +/- 2 years
+                if year_min and year_max:
+                    # Use the production year range
                     partial_query = partial_query.where(
                         and_(
-                            MarketPricesDB.ano >= ano - 2,
-                            MarketPricesDB.ano <= ano + 2
+                            MarketPricesDB.ano >= year_min,
+                            MarketPricesDB.ano <= year_max
+                        )
+                    )
+                elif ano:
+                    # Fallback: allow +/- 1 year only
+                    partial_query = partial_query.where(
+                        and_(
+                            MarketPricesDB.ano >= ano - 1,
+                            MarketPricesDB.ano <= ano + 1
                         )
                     )
 
@@ -273,7 +295,8 @@ class MarketPriceService:
         marca: str,
         modelo: str,
         ano: int,
-        combustivel: Optional[str] = None
+        combustivel: Optional[str] = None,
+        ano_min: Optional[int] = None
     ) -> Optional[MarketPriceResult]:
         """Try to get price from real-time scraping"""
         try:
@@ -285,6 +308,7 @@ class MarketPriceService:
                 ano=ano,
                 combustivel=combustivel,
                 km=None,
+                ano_min=ano_min,
                 debug=False
             )
 

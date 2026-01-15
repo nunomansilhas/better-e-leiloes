@@ -1567,7 +1567,8 @@ async def complete_vehicle_analysis_v2(
                 marca=vehicle_info.get('marca'),
                 modelo=vehicle_info.get('modelo'),
                 ano=vehicle_info.get('ano') or 2020,
-                combustivel=vehicle_info.get('combustivel')
+                combustivel=vehicle_info.get('combustivel'),
+                ano_min=vehicle_info.get('producao_inicio')  # Use production start year for filtering
             )
 
             if market_result and market_result.preco_medio:

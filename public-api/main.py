@@ -612,7 +612,7 @@ async def list_vehicle_analyses(
                     evd.reference, evd.matricula, evd.event_titulo, evd.event_valor_base, evd.event_lance_atual,
                     evd.marca, evd.modelo, evd.versao, evd.ano, evd.producao_inicio, evd.producao_fim,
                     evd.combustivel, evd.potencia_cv,
-                    evd.tem_seguro, evd.market_preco_medio, evd.desconto_percentagem,
+                    evd.tem_seguro, evd.market_preco_min, evd.market_preco_medio, evd.desconto_percentagem,
                     evd.ai_score, evd.ai_recommendation, evd.ai_summary, evd.ai_pros, evd.ai_cons,
                     evd.processed_at,
                     e.capa, e.data_fim
@@ -630,7 +630,7 @@ async def list_vehicle_analyses(
             'reference', 'matricula', 'event_titulo', 'event_valor_base', 'event_lance_atual',
             'marca', 'modelo', 'versao', 'ano', 'producao_inicio', 'producao_fim',
             'combustivel', 'potencia_cv',
-            'tem_seguro', 'market_preco_medio', 'desconto_percentagem',
+            'tem_seguro', 'market_preco_min', 'market_preco_medio', 'desconto_percentagem',
             'ai_score', 'ai_recommendation', 'ai_summary', 'ai_pros', 'ai_cons',
             'processed_at', 'capa', 'data_fim'
         ]

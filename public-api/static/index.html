@@ -12998,20 +12998,20 @@
                                 <!-- Prices Grid -->
                                 <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 14px; padding: 12px; background: #f8fafc; border-radius: 10px;">
                                     <div>
-                                        <div style="font-size: 10px; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Leilão</div>
+                                        <div style="font-size: 10px; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Valor Base</div>
                                         <div style="font-size: 16px; font-weight: 700; color: #0f172a;">${formatPrice(v.event_valor_base)}</div>
                                     </div>
                                     <div>
-                                        <div style="font-size: 10px; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Mercado</div>
+                                        <div style="font-size: 10px; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Lance Atual</div>
+                                        <div style="font-size: 16px; font-weight: 700; color: ${v.event_lance_atual ? '#dc2626' : '#94a3b8'};">${v.event_lance_atual ? formatPrice(v.event_lance_atual) : '-'}</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-size: 10px; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Mercado Mín</div>
+                                        <div style="font-size: 16px; font-weight: 600; color: #166534;">${formatPrice(v.market_preco_min)}</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-size: 10px; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Mercado Méd</div>
                                         <div style="font-size: 16px; font-weight: 600; color: #64748b;">${formatPrice(v.market_preco_medio)}</div>
-                                    </div>
-                                    <div>
-                                        <div style="font-size: 10px; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Poupança</div>
-                                        <div style="font-size: 16px; font-weight: 700; color: ${discountColor};">${poupanca}</div>
-                                    </div>
-                                    <div>
-                                        <div style="font-size: 10px; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Desconto</div>
-                                        <div style="font-size: 16px; font-weight: 700; color: ${discountColor};">${discount}</div>
                                     </div>
                                 </div>
 

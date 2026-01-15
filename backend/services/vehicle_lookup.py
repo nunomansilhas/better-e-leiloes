@@ -160,16 +160,17 @@ def extract_vehicle_from_title(title: str) -> Dict[str, Optional[str]]:
     }
 
 
-async def search_standvirtual(marca: str, modelo: str = None, ano: int = None, combustivel: str = None, km: int = None, debug: bool = False) -> Optional[VehicleMarketData]:
+async def search_standvirtual(marca: str, modelo: str = None, ano: int = None, combustivel: str = None, km: int = None, ano_min: int = None, debug: bool = False) -> Optional[VehicleMarketData]:
     """
     Search Standvirtual for similar vehicles.
 
     Args:
         marca: Vehicle brand (e.g., "POLESTAR")
         modelo: Vehicle model (e.g., "POLESTAR 2")
-        ano: Vehicle year (e.g., 2023)
+        ano: Vehicle year / max year (e.g., 2011)
         combustivel: Fuel type (e.g., "ELÉTRICO", "Diesel", "Gasolina")
         km: Current mileage for filtering (+/- 25000 km range)
+        ano_min: Production start year (e.g., 2010 for 508 I)
         debug: Enable debug output
 
     Note: This uses Playwright and should be run locally, not on cloud servers
@@ -221,12 +222,19 @@ async def search_standvirtual(marca: str, modelo: str = None, ano: int = None, c
                 if modelo_slug:
                     url = f"{url}/{modelo_slug}"
 
-            # Add year filter using /desde-{ano} format
-            if ano:
-                url = f"{url}/desde-{ano}"
+            # Add year filter using /desde-{ano_min} format and max year in query
+            # Use production start year (ano_min) for minimum, vehicle year (ano) for maximum
+            year_min = ano_min or ano
+            year_max = ano
+            if year_min:
+                url = f"{url}/desde-{year_min}"
 
             # Build query parameters
             params = []
+
+            # Add max year filter if we have a range
+            if year_max and year_min and year_max != year_min:
+                params.append(f"search[filter_float_first_registration_year:to]={year_max}")
 
             # Map fuel type to StandVirtual parameter values
             if combustivel:
@@ -1177,10 +1185,17 @@ async def get_full_vehicle_info(plate: str, include_market: bool = True) -> Vehi
     return result
 
 
-async def search_autouncle(marca: str, modelo: str = None, ano: int = None, debug: bool = False) -> Optional[VehicleMarketData]:
+async def search_autouncle(marca: str, modelo: str = None, ano: int = None, ano_min: int = None, debug: bool = False) -> Optional[VehicleMarketData]:
     """
     Search AutoUncle.pt for vehicle market prices.
     Alternative to Standvirtual that may be more reliable.
+
+    Args:
+        marca: Vehicle brand
+        modelo: Vehicle model
+        ano: Vehicle year / max year
+        ano_min: Production start year
+        debug: Enable debug output
     """
     try:
         from playwright.async_api import async_playwright
@@ -1210,8 +1225,13 @@ async def search_autouncle(marca: str, modelo: str = None, ano: int = None, debu
                 modelo_slug = modelo.lower().replace(" ", "-").split('-')[0]
                 url = f"{url}/{modelo_slug}"
 
-            if ano:
-                url = f"{url}?year_from={ano-2}&year_to={ano+2}"
+            # Use production year range: s[min_year]=X&s[max_year]=Y
+            year_min = ano_min or (ano - 1 if ano else None)
+            year_max = ano
+            if year_min and year_max:
+                url = f"{url}?s[min_year]={year_min}&s[max_year]={year_max}"
+            elif ano:
+                url = f"{url}?s[min_year]={ano-1}&s[max_year]={ano+1}"
 
             if debug:
                 print(f"  [DEBUG] AutoUncle URL: {url}")
@@ -1295,20 +1315,21 @@ async def search_autouncle(marca: str, modelo: str = None, ano: int = None, debu
     )
 
 
-async def get_market_prices(marca: str, modelo: str = None, ano: int = None, combustivel: str = None, km: int = None, debug: bool = False) -> Optional[VehicleMarketData]:
+async def get_market_prices(marca: str, modelo: str = None, ano: int = None, combustivel: str = None, km: int = None, ano_min: int = None, debug: bool = False) -> Optional[VehicleMarketData]:
     """
     Get market prices from multiple sources. Tries StandVirtual first, then AutoUncle.
 
     Args:
         marca: Vehicle brand (e.g., "POLESTAR")
         modelo: Vehicle model (e.g., "POLESTAR 2")
-        ano: Vehicle year (e.g., 2023)
+        ano: Vehicle year (max year, e.g., 2011)
         combustivel: Fuel type (e.g., "ELÉTRICO", "Diesel", "Gasolina")
         km: Current mileage for filtering (+/- 25000 km range)
+        ano_min: Production start year (e.g., 2010 for 508 I)
         debug: Enable debug output
     """
     # Try StandVirtual first (with all filters)
-    result = await search_standvirtual(marca, modelo, ano, combustivel, km, debug)
+    result = await search_standvirtual(marca, modelo, ano, combustivel, km, ano_min, debug)
     if result and result.num_resultados > 0:
         return result
 
@@ -1316,7 +1337,7 @@ async def get_market_prices(marca: str, modelo: str = None, ano: int = None, com
     if debug:
         print("  [DEBUG] StandVirtual sem resultados, tentando AutoUncle...")
 
-    result = await search_autouncle(marca, modelo, ano, debug)
+    result = await search_autouncle(marca, modelo, ano, ano_min, debug)
     if result and result.num_resultados > 0:
         return result
 
