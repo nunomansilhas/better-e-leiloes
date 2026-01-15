@@ -247,42 +247,40 @@ class AutoPipelinesManager:
         self._save_config()
 
     async def refresh_critical_events_cache(self):
-        """Refresh cache of events ending in < 6 minutes (called every 5 minutes)"""
+        """Refresh cache of events ending in < 6 minutes OR recently ended (called every 5 minutes)"""
         from database import get_db
 
         try:
-            # Get upcoming events (next 1 hour, ordered by end time)
+            # Get events for monitoring (upcoming + recently ended in last 10 min)
             async with get_db() as db:
-                events = await db.get_upcoming_events(hours=1)
+                events = await db.get_events_for_monitoring(hours_ahead=1, minutes_behind=10)
 
             if not events:
                 self._critical_events_cache = []
                 self._cache_last_refresh = datetime.now()
-                print(f"🔴 Critical cache: No upcoming events in next 1h")
+                print(f"🔴 Critical cache: No events to monitor")
                 return
 
-            # Filter events ending in LESS THAN 6 MINUTES (360 seconds)
+            # Filter events ending in < 6 minutes OR ended in last 5 minutes
             now = datetime.now()
             critical_events = []
-
-            print(f"🔍 Critical cache: {len(events)} upcoming events (< 1h)")
 
             for event in events:
                 if event.data_fim:
                     time_until_end = event.data_fim - now
                     seconds_until_end = time_until_end.total_seconds()
 
-                    print(f"    {event.reference}: {int(seconds_until_end)}s")
-
-                    # Cache events ending in < 6 minutes (1-minute buffer)
-                    if 0 < seconds_until_end <= 360:
+                    # Include: ending in < 6 min (360s) OR ended in last 5 min (-300s)
+                    if -300 <= seconds_until_end <= 360:
                         critical_events.append(event)
 
             self._critical_events_cache = critical_events
             self._cache_last_refresh = datetime.now()
 
             if critical_events:
-                print(f"🔴 Critical cache: {len(critical_events)} events (< 6 min)")
+                upcoming = sum(1 for e in critical_events if (e.data_fim - now).total_seconds() > 0)
+                expired = len(critical_events) - upcoming
+                print(f"🔴 Critical cache: {len(critical_events)} events ({upcoming} upcoming, {expired} expired)")
 
         except Exception as e:
             print(f"⚠️ Error refreshing critical events cache: {e}")

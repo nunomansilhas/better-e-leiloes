@@ -1387,6 +1387,37 @@ class DatabaseManager:
         events_db = result.scalars().all()
         return [event.to_model() for event in events_db]
 
+    async def get_events_for_monitoring(self, hours_ahead: int = 1, minutes_behind: int = 10) -> List[EventData]:
+        """
+        Get events for X-Monitor: upcoming events AND recently ended events.
+
+        Args:
+            hours_ahead: Include events ending in the next X hours
+            minutes_behind: Include events that ended in the last X minutes
+
+        Returns:
+            List of events (both upcoming and recently ended)
+        """
+        from datetime import timedelta
+
+        now = datetime.utcnow()
+        cutoff_future = now + timedelta(hours=hours_ahead)
+        cutoff_past = now - timedelta(minutes=minutes_behind)
+
+        query = (
+            select(EventDB)
+            .where(EventDB.data_fim.isnot(None))
+            .where(EventDB.data_fim >= cutoff_past)  # Include recently ended
+            .where(EventDB.data_fim <= cutoff_future)
+            .where(EventDB.cancelado == False)
+            .where(EventDB.ativo == True)  # Only active events (not yet marked as finished)
+            .order_by(EventDB.data_fim.asc())
+        )
+
+        result = await self.session.execute(query)
+        events_db = result.scalars().all()
+        return [event.to_model() for event in events_db]
+
     async def get_stats(self) -> dict:
         """Estatísticas gerais"""
         total_result = await self.session.execute(select(func.count(EventDB.reference)))
