@@ -164,7 +164,8 @@ class EnhancedAIAnalysisService:
         start_time = time.time()
 
         # Download image and convert to base64
-        async with httpx.AsyncClient(timeout=30) as client:
+        # Note: verify=False needed for e-leiloes.pt SSL certificate issues
+        async with httpx.AsyncClient(timeout=30, verify=False) as client:
             img_response = await client.get(image_url)
             if img_response.status_code != 200:
                 return {"error": f"Failed to download image: {img_response.status_code}"}
