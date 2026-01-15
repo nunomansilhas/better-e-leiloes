@@ -11185,21 +11185,33 @@
                 sharedAudioContext.resume();
             }
 
-            // Create a simple beep sound
+            // Create a subtle electronic "tick" sound - minimalist and non-intrusive
             try {
-                const oscillator = sharedAudioContext.createOscillator();
-                const gainNode = sharedAudioContext.createGain();
+                const now = sharedAudioContext.currentTime;
 
-                oscillator.connect(gainNode);
-                gainNode.connect(sharedAudioContext.destination);
+                // First tick - higher frequency, very short (40ms)
+                const osc1 = sharedAudioContext.createOscillator();
+                const gain1 = sharedAudioContext.createGain();
+                osc1.connect(gain1);
+                gain1.connect(sharedAudioContext.destination);
+                osc1.frequency.value = 1800;
+                osc1.type = 'sine';
+                gain1.gain.setValueAtTime(0.08, now);
+                gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+                osc1.start(now);
+                osc1.stop(now + 0.04);
 
-                oscillator.frequency.value = 800;
-                oscillator.type = 'sine';
-                gainNode.gain.setValueAtTime(0.15, sharedAudioContext.currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, sharedAudioContext.currentTime + 0.3);
-
-                oscillator.start(sharedAudioContext.currentTime);
-                oscillator.stop(sharedAudioContext.currentTime + 0.3);
+                // Second tick - slightly lower, creates depth (40ms, delayed 20ms)
+                const osc2 = sharedAudioContext.createOscillator();
+                const gain2 = sharedAudioContext.createGain();
+                osc2.connect(gain2);
+                gain2.connect(sharedAudioContext.destination);
+                osc2.frequency.value = 1200;
+                osc2.type = 'sine';
+                gain2.gain.setValueAtTime(0.05, now + 0.02);
+                gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+                osc2.start(now + 0.02);
+                osc2.stop(now + 0.06);
             } catch (e) {
                 console.warn('Could not play notification sound:', e);
             }
