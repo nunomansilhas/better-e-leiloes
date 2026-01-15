@@ -869,31 +869,6 @@ async def get_distritos_for_tipo(tipo_id: int):
 # ============== END FILTER OPTIONS ENDPOINTS ==============
 
 
-@app.get("/api/events/{reference}", response_model=EventData)
-async def get_event(reference: str):
-    """
-    Obtém dados de um evento específico por referência.
-    
-    - **reference**: Referência do evento (ex: NP-2024-12345 ou LO-2024-67890)
-    
-    Retorna dados completos incluindo GPS, áreas, tipo, etc.
-    """
-    # Verifica cache primeiro
-    cached = await cache_manager.get(reference)
-    if cached:
-        return cached
-    
-    # Verifica base de dados
-    async with get_db() as db:
-        event = await db.get_event(reference)
-        if event:
-            await cache_manager.set(reference, event)
-            return event
-
-    # Evento não existe - retorna 404 (não faz auto-scraping)
-    raise HTTPException(status_code=404, detail=f"Evento não encontrado: {reference}")
-
-
 @app.get("/api/events", response_model=EventListResponse)
 async def get_events(
     page: int = Query(1, ge=1, description="Número da página"),
@@ -919,7 +894,7 @@ async def get_events(
             tipo_evento=tipo_evento,
             distrito=distrito
         )
-        
+
         return EventListResponse(
             events=events,
             total=total,
@@ -944,6 +919,31 @@ async def get_events_batch(references: List[str]):
     async with get_db() as db:
         events = await db.get_events_by_refs(references)
         return {"events": events, "found": len(events), "requested": len(references)}
+
+
+@app.get("/api/events/{reference}", response_model=EventData)
+async def get_event(reference: str):
+    """
+    Obtém dados de um evento específico por referência.
+
+    - **reference**: Referência do evento (ex: NP-2024-12345 ou LO-2024-67890)
+
+    Retorna dados completos incluindo GPS, áreas, tipo, etc.
+    """
+    # Verifica cache primeiro
+    cached = await cache_manager.get(reference)
+    if cached:
+        return cached
+
+    # Verifica base de dados
+    async with get_db() as db:
+        event = await db.get_event(reference)
+        if event:
+            await cache_manager.set(reference, event)
+            return event
+
+    # Evento não existe - retorna 404 (não faz auto-scraping)
+    raise HTTPException(status_code=404, detail=f"Evento não encontrado: {reference}")
 
 
 @app.post("/api/scrape/event/{reference}")
