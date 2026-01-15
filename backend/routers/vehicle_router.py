@@ -1184,3 +1184,577 @@ async def complete_vehicle_analysis(
             "total_processing_time_ms": total_time_ms,
             "errors": errors
         }
+
+
+# ============== FEEDBACK ENDPOINTS ==============
+
+class FeedbackSubmitRequest(BaseModel):
+    """Request model for submitting feedback"""
+    score_precisao: Optional[int] = Field(None, ge=0, le=10, description="Accuracy score 0-10")
+    score_utilidade: Optional[int] = Field(None, ge=0, le=10, description="Usefulness score 0-10")
+    erro_preco: bool = Field(False, description="Price estimation was wrong")
+    erro_problemas_modelo: bool = Field(False, description="Model problems were incorrect")
+    erro_recomendacao: bool = Field(False, description="Recommendation didn't make sense")
+    falta_info: bool = Field(False, description="Missing important information")
+    outro_erro: Optional[str] = Field(None, description="Other error description")
+    comprou: Optional[bool] = Field(None, description="Did user buy this vehicle?")
+    preco_compra: Optional[float] = Field(None, description="Actual purchase price")
+    satisfacao_compra: Optional[int] = Field(None, ge=0, le=10, description="Purchase satisfaction 0-10")
+    comentario: Optional[str] = Field(None, description="Additional comments")
+
+
+class FeedbackResponse(BaseModel):
+    """Response model for feedback"""
+    id: int
+    reference: str
+    score_precisao: Optional[int]
+    score_utilidade: Optional[int]
+    created_at: datetime
+
+
+@router.post("/event/{reference}/feedback", response_model=FeedbackResponse)
+async def submit_feedback(reference: str, feedback: FeedbackSubmitRequest):
+    """
+    Submit feedback for a vehicle analysis.
+
+    This helps improve future AI analysis by collecting user ratings
+    and actual outcomes.
+    """
+    from database import get_db, AnalysisFeedbackDB, EventVehicleDataDB
+    from sqlalchemy import select, func
+
+    async with get_db() as db:
+        # Create feedback record
+        new_feedback = AnalysisFeedbackDB(
+            reference=reference,
+            score_precisao=feedback.score_precisao,
+            score_utilidade=feedback.score_utilidade,
+            erro_preco=feedback.erro_preco,
+            erro_problemas_modelo=feedback.erro_problemas_modelo,
+            erro_recomendacao=feedback.erro_recomendacao,
+            falta_info=feedback.falta_info,
+            outro_erro=feedback.outro_erro,
+            comprou=feedback.comprou,
+            preco_compra=feedback.preco_compra,
+            satisfacao_compra=feedback.satisfacao_compra,
+            comentario=feedback.comentario
+        )
+        db.session.add(new_feedback)
+        await db.session.flush()
+
+        # Update aggregate feedback score on vehicle data
+        result = await db.session.execute(
+            select(
+                func.avg(AnalysisFeedbackDB.score_precisao).label('avg_precisao'),
+                func.count(AnalysisFeedbackDB.id).label('count')
+            ).where(AnalysisFeedbackDB.reference == reference)
+        )
+        stats = result.one()
+
+        if stats.avg_precisao is not None:
+            vd_result = await db.session.execute(
+                select(EventVehicleDataDB).where(EventVehicleDataDB.reference == reference)
+            )
+            vd = vd_result.scalar_one_or_none()
+            if vd:
+                vd.feedback_score_medio = float(stats.avg_precisao)
+                vd.feedback_count = stats.count
+
+        await db.session.commit()
+
+        return FeedbackResponse(
+            id=new_feedback.id,
+            reference=reference,
+            score_precisao=feedback.score_precisao,
+            score_utilidade=feedback.score_utilidade,
+            created_at=new_feedback.created_at
+        )
+
+
+@router.get("/event/{reference}/feedback")
+async def get_feedback(reference: str):
+    """
+    Get all feedback for a vehicle analysis.
+    """
+    from database import get_db, AnalysisFeedbackDB
+    from sqlalchemy import select
+
+    async with get_db() as db:
+        result = await db.session.execute(
+            select(AnalysisFeedbackDB)
+            .where(AnalysisFeedbackDB.reference == reference)
+            .order_by(AnalysisFeedbackDB.created_at.desc())
+        )
+        feedbacks = result.scalars().all()
+
+        return {
+            "reference": reference,
+            "total_feedbacks": len(feedbacks),
+            "feedbacks": [
+                {
+                    "id": f.id,
+                    "score_precisao": f.score_precisao,
+                    "score_utilidade": f.score_utilidade,
+                    "erro_preco": f.erro_preco,
+                    "erro_problemas_modelo": f.erro_problemas_modelo,
+                    "erro_recomendacao": f.erro_recomendacao,
+                    "falta_info": f.falta_info,
+                    "outro_erro": f.outro_erro,
+                    "comprou": f.comprou,
+                    "preco_compra": float(f.preco_compra) if f.preco_compra else None,
+                    "satisfacao_compra": f.satisfacao_compra,
+                    "comentario": f.comentario,
+                    "created_at": f.created_at.isoformat()
+                }
+                for f in feedbacks
+            ]
+        }
+
+
+# ============== AUCTION HISTORY ENDPOINTS ==============
+
+@router.get("/auction-history")
+async def get_auction_history(
+    marca: str = Query(..., description="Vehicle brand"),
+    modelo: Optional[str] = Query(None, description="Vehicle model"),
+    ano: Optional[int] = Query(None, description="Vehicle year (+/- 3 years)"),
+    limit: int = Query(10, ge=1, le=50, description="Max results")
+):
+    """
+    Get historical auction data for similar vehicles.
+
+    Returns past auction results to help estimate likely sale prices.
+    """
+    from services.market_price_service import get_market_price_service
+
+    service = get_market_price_service()
+
+    history = await service.get_auction_history(
+        marca=marca,
+        modelo=modelo,
+        ano=ano,
+        limit=limit
+    )
+
+    stats = await service.calculate_auction_stats(
+        marca=marca,
+        modelo=modelo,
+        ano=ano
+    )
+
+    return {
+        "marca": marca,
+        "modelo": modelo,
+        "ano": ano,
+        "stats": stats,
+        "history": history
+    }
+
+
+# ============== MARKET PRICE ENDPOINT (HYBRID) ==============
+
+@router.get("/market-price-hybrid")
+async def get_hybrid_market_price(
+    marca: str = Query(..., description="Vehicle brand"),
+    modelo: str = Query(..., description="Vehicle model"),
+    ano: int = Query(..., description="Vehicle year"),
+    combustivel: Optional[str] = Query(None, description="Fuel type"),
+    force_refresh: bool = Query(False, description="Force refresh from scraping")
+):
+    """
+    Get market price using hybrid approach.
+
+    Strategy:
+    1. Check database cache (instant)
+    2. Try real-time scraping (slower)
+    3. Fall back to AI estimation (always available)
+
+    Returns price data with confidence level and source.
+    """
+    from services.market_price_service import get_market_price_service
+
+    service = get_market_price_service()
+
+    result = await service.get_market_price(
+        marca=marca,
+        modelo=modelo,
+        ano=ano,
+        combustivel=combustivel,
+        force_refresh=force_refresh
+    )
+
+    return {
+        "marca": result.marca,
+        "modelo": result.modelo,
+        "ano": result.ano,
+        "preco_min": result.preco_min,
+        "preco_max": result.preco_max,
+        "preco_medio": result.preco_medio,
+        "preco_mediana": result.preco_mediana,
+        "num_anuncios": result.num_anuncios,
+        "fonte": result.fonte,
+        "confianca": result.confianca,
+        "data_recolha": result.data_recolha.isoformat() if result.data_recolha else None,
+        "listings": result.listings[:5],  # Top 5 listings
+        "error": result.error
+    }
+
+
+# ============== COMPLETE ANALYSIS V2 (NEW PIPELINE) ==============
+
+@router.post("/event/{reference}/analyze-v2")
+async def complete_vehicle_analysis_v2(
+    reference: str,
+    include_ai: bool = Query(True, description="Include AI analysis"),
+    ai_model: str = Query("llama3.2:3b", description="AI model to use")
+):
+    """
+    Complete vehicle analysis v2 - New pipeline with structured AI questions.
+
+    Pipeline:
+    1. Get event data from database
+    2. Lookup vehicle info (InfoMatricula API)
+    3. Check insurance status
+    4. Get market price (hybrid: DB -> Scraping -> AI)
+    5. Run structured AI analysis questions
+    6. Calculate scores and generate recommendation
+    7. Save results and return
+
+    Returns complete analysis with consistent JSON structure.
+    """
+    from database import get_db, EventDB, EventVehicleDataDB
+    from services.vehicle_lookup import (
+        lookup_plate_infomatricula_api,
+        check_insurance_api,
+        decode_portuguese_plate,
+        extract_vehicle_from_title
+    )
+    from services.market_price_service import get_market_price_service
+    from services.ai_questions_service import get_ai_questions_service
+    from sqlalchemy import select
+    import time
+    import json
+
+    start_time = time.time()
+    errors = []
+
+    # 1. Get event from database
+    async with get_db() as db:
+        result = await db.session.execute(
+            select(EventDB).where(EventDB.reference == reference)
+        )
+        event = result.scalar_one_or_none()
+
+        if not event:
+            raise HTTPException(status_code=404, detail=f"Event {reference} not found")
+
+        if not event.matricula:
+            raise HTTPException(status_code=400, detail=f"Event {reference} has no matricula")
+
+        # Create event dict
+        event_dict = {
+            'reference': event.reference,
+            'titulo': event.titulo,
+            'matricula': event.matricula,
+            'valor_base': float(event.valor_base) if event.valor_base else None,
+            'lance_atual': float(event.lance_atual) if event.lance_atual else None,
+            'descricao': event.descricao,
+            'fotos': event.fotos,
+        }
+
+        # Get or create vehicle data record
+        vd_result = await db.session.execute(
+            select(EventVehicleDataDB).where(EventVehicleDataDB.reference == reference)
+        )
+        vehicle_data = vd_result.scalar_one_or_none()
+
+        if not vehicle_data:
+            vehicle_data = EventVehicleDataDB(
+                reference=reference,
+                matricula=event.matricula,
+                event_titulo=event.titulo,
+                event_valor_base=event_dict['valor_base'],
+                event_lance_atual=event_dict['lance_atual'],
+                status='processing'
+            )
+            db.session.add(vehicle_data)
+        else:
+            vehicle_data.status = 'processing'
+
+        await db.session.commit()
+
+    normalized_plate = _normalize_plate(event_dict['matricula'])
+
+    # 2. Get vehicle info from InfoMatricula API
+    vehicle_info = {}
+    try:
+        vehicle_info = await lookup_plate_infomatricula_api(normalized_plate)
+        if 'error' not in vehicle_info:
+            async with get_db() as db:
+                result = await db.session.execute(
+                    select(EventVehicleDataDB).where(EventVehicleDataDB.reference == reference)
+                )
+                vd = result.scalar_one()
+                vd.marca = vehicle_info.get('marca')
+                vd.modelo = vehicle_info.get('modelo')
+                vd.versao = vehicle_info.get('versao')
+                vd.ano = vehicle_info.get('ano')
+                vd.combustivel = vehicle_info.get('combustivel')
+                vd.potencia_cv = vehicle_info.get('potencia_cv')
+                vd.cor = vehicle_info.get('cor')
+                vd.vin = vehicle_info.get('vin')
+                await db.session.commit()
+        else:
+            errors.append(f"Vehicle info: {vehicle_info.get('error')}")
+    except Exception as e:
+        errors.append(f"Vehicle info: {str(e)}")
+
+    # 2b. Fallback: Extract from title
+    if not vehicle_info.get('marca'):
+        titulo = event_dict.get('titulo', '')
+        extracted = extract_vehicle_from_title(titulo)
+        if extracted.get('marca'):
+            vehicle_info['marca'] = extracted.get('marca')
+            vehicle_info['modelo'] = extracted.get('modelo') or titulo
+            plate_info = decode_portuguese_plate(normalized_plate)
+            vehicle_info['ano'] = extracted.get('ano') or plate_info.year_min
+
+            titulo_lower = titulo.lower()
+            if 'diesel' in titulo_lower or 'gasoleo' in titulo_lower or 'gasóleo' in titulo_lower:
+                vehicle_info['combustivel'] = 'Diesel'
+            elif 'gasolina' in titulo_lower:
+                vehicle_info['combustivel'] = 'Gasolina'
+            elif 'elétrico' in titulo_lower or 'eletrico' in titulo_lower:
+                vehicle_info['combustivel'] = 'Elétrico'
+
+            async with get_db() as db:
+                result = await db.session.execute(
+                    select(EventVehicleDataDB).where(EventVehicleDataDB.reference == reference)
+                )
+                vd = result.scalar_one()
+                vd.marca = vehicle_info.get('marca')
+                vd.modelo = vehicle_info.get('modelo')
+                vd.ano = vehicle_info.get('ano')
+                vd.combustivel = vehicle_info.get('combustivel')
+                await db.session.commit()
+
+    # 3. Check insurance
+    insurance_info = {}
+    try:
+        insurance_info = await check_insurance_api(normalized_plate)
+        if 'error' not in insurance_info:
+            async with get_db() as db:
+                result = await db.session.execute(
+                    select(EventVehicleDataDB).where(EventVehicleDataDB.reference == reference)
+                )
+                vd = result.scalar_one()
+                vd.tem_seguro = insurance_info.get('tem_seguro')
+                vd.seguradora = insurance_info.get('seguradora')
+                vd.seguro_data_fim = insurance_info.get('data_fim')
+                await db.session.commit()
+    except Exception as e:
+        errors.append(f"Insurance: {str(e)}")
+
+    # 4. Get market price (hybrid approach)
+    market_price = None
+    market_result = None
+    if vehicle_info.get('marca'):
+        try:
+            market_service = get_market_price_service()
+            market_result = await market_service.get_market_price(
+                marca=vehicle_info.get('marca'),
+                modelo=vehicle_info.get('modelo'),
+                ano=vehicle_info.get('ano') or 2020,
+                combustivel=vehicle_info.get('combustivel')
+            )
+
+            if market_result and market_result.preco_medio:
+                market_price = market_result.preco_medio
+
+                async with get_db() as db:
+                    result = await db.session.execute(
+                        select(EventVehicleDataDB).where(EventVehicleDataDB.reference == reference)
+                    )
+                    vd = result.scalar_one()
+                    vd.market_preco_min = market_result.preco_min
+                    vd.market_preco_max = market_result.preco_max
+                    vd.market_preco_medio = market_result.preco_medio
+                    vd.market_preco_mediana = market_result.preco_mediana
+                    vd.market_num_resultados = market_result.num_anuncios
+                    vd.market_fonte = market_result.fonte
+                    vd.market_preco_fonte = market_result.fonte
+                    vd.market_preco_confianca = market_result.confianca
+                    vd.market_data_recolha = market_result.data_recolha
+                    vd.market_listings = json.dumps(market_result.listings[:10])
+
+                    # Calculate savings
+                    valor_leilao = event_dict['valor_base'] or event_dict['lance_atual'] or 0
+                    if valor_leilao > 0 and market_result.preco_medio:
+                        vd.poupanca_estimada = market_result.preco_medio - valor_leilao
+                        vd.desconto_percentagem = ((market_result.preco_medio - valor_leilao) / market_result.preco_medio) * 100
+
+                    await db.session.commit()
+
+        except Exception as e:
+            errors.append(f"Market price: {str(e)}")
+
+    # 5. Get auction history
+    auction_stats = None
+    if vehicle_info.get('marca'):
+        try:
+            market_service = get_market_price_service()
+            auction_stats = await market_service.calculate_auction_stats(
+                marca=vehicle_info.get('marca'),
+                modelo=vehicle_info.get('modelo'),
+                ano=vehicle_info.get('ano')
+            )
+        except Exception as e:
+            errors.append(f"Auction history: {str(e)}")
+
+    # 6. AI Analysis (structured questions)
+    ai_result = None
+    if include_ai:
+        try:
+            ai_service = get_ai_questions_service(model=ai_model)
+
+            # Prepare vehicle data for AI
+            ai_vehicle_data = {
+                **vehicle_info,
+                'titulo': event_dict.get('titulo'),
+                'descricao': event_dict.get('descricao'),
+                'valor_base': event_dict.get('valor_base'),
+                'lance_atual': event_dict.get('lance_atual'),
+                'tem_seguro': insurance_info.get('tem_seguro'),
+            }
+
+            ai_result = await ai_service.analyze_vehicle(
+                vehicle_data=ai_vehicle_data,
+                market_price=market_price
+            )
+
+            # Save AI results
+            async with get_db() as db:
+                result = await db.session.execute(
+                    select(EventVehicleDataDB).where(EventVehicleDataDB.reference == reference)
+                )
+                vd = result.scalar_one()
+
+                vd.score_oportunidade = ai_result.score_oportunidade
+                vd.score_risco = ai_result.score_risco
+                vd.score_liquidez = ai_result.score_liquidez
+                vd.ai_score = ai_result.score_final
+                vd.ai_recommendation = ai_result.recomendacao
+                vd.ai_summary = ai_result.resumo
+                vd.ai_lance_maximo_sugerido = ai_result.lance_maximo_sugerido
+                vd.ai_pros = json.dumps(ai_result.pros, ensure_ascii=False)
+                vd.ai_cons = json.dumps(ai_result.cons, ensure_ascii=False)
+                vd.ai_red_flags = json.dumps(ai_result.red_flags, ensure_ascii=False)
+                vd.ai_checklist = json.dumps(ai_result.checklist, ensure_ascii=False)
+
+                # Save question results
+                questions_json = [
+                    {
+                        "question_id": q.question_id,
+                        "question": q.question[:500],  # Truncate for storage
+                        "answer": q.answer,
+                        "confidence": q.confidence,
+                        "time_ms": q.time_ms,
+                        "success": q.success
+                    }
+                    for q in ai_result.question_results
+                ]
+                vd.ai_questions_results = json.dumps(questions_json, ensure_ascii=False)
+
+                vd.ai_model_used = ai_result.model_used
+                vd.ai_processing_time_ms = ai_result.total_time_ms
+
+                await db.session.commit()
+
+        except Exception as e:
+            errors.append(f"AI analysis: {str(e)}")
+
+    # 7. Mark as completed
+    total_time_ms = int((time.time() - start_time) * 1000)
+
+    async with get_db() as db:
+        result = await db.session.execute(
+            select(EventVehicleDataDB).where(EventVehicleDataDB.reference == reference)
+        )
+        vd = result.scalar_one()
+        vd.status = 'completed'
+        vd.processed_at = datetime.utcnow()
+        vd.error_message = "; ".join(errors) if errors else None
+        await db.session.commit()
+
+    # Build response
+    response = {
+        "reference": reference,
+        "matricula": normalized_plate,
+        "event_titulo": event_dict.get('titulo'),
+        "event_valor_base": event_dict.get('valor_base'),
+        "event_lance_atual": event_dict.get('lance_atual'),
+
+        # Vehicle info
+        "veiculo": {
+            "marca": vehicle_info.get('marca'),
+            "modelo": vehicle_info.get('modelo'),
+            "versao": vehicle_info.get('versao'),
+            "ano": vehicle_info.get('ano'),
+            "combustivel": vehicle_info.get('combustivel'),
+            "potencia_cv": vehicle_info.get('potencia_cv'),
+            "cor": vehicle_info.get('cor'),
+            "vin": vehicle_info.get('vin'),
+        },
+
+        # Insurance
+        "seguro": {
+            "tem_seguro": insurance_info.get('tem_seguro'),
+            "seguradora": insurance_info.get('seguradora'),
+            "data_fim": insurance_info.get('data_fim'),
+        },
+
+        # Market prices
+        "mercado": {
+            "preco_min": market_result.preco_min if market_result else None,
+            "preco_max": market_result.preco_max if market_result else None,
+            "preco_medio": market_result.preco_medio if market_result else None,
+            "preco_mediana": market_result.preco_mediana if market_result else None,
+            "num_anuncios": market_result.num_anuncios if market_result else 0,
+            "fonte": market_result.fonte if market_result else None,
+            "confianca": market_result.confianca if market_result else None,
+            "listings": market_result.listings[:5] if market_result else [],
+        },
+
+        # Auction history
+        "historico_leiloes": auction_stats,
+
+        # Scores
+        "scores": {
+            "oportunidade": ai_result.score_oportunidade if ai_result else None,
+            "risco": ai_result.score_risco if ai_result else None,
+            "liquidez": ai_result.score_liquidez if ai_result else None,
+            "final": ai_result.score_final if ai_result else None,
+        },
+
+        # AI Analysis
+        "analise": {
+            "recomendacao": ai_result.recomendacao if ai_result else None,
+            "resumo": ai_result.resumo if ai_result else None,
+            "lance_maximo_sugerido": ai_result.lance_maximo_sugerido if ai_result else None,
+            "pros": ai_result.pros if ai_result else [],
+            "cons": ai_result.cons if ai_result else [],
+            "red_flags": ai_result.red_flags if ai_result else [],
+            "checklist_antes_licitar": ai_result.checklist if ai_result else [],
+            "problemas_conhecidos": ai_result.problemas_conhecidos if ai_result else [],
+        },
+
+        # Metadata
+        "status": "completed",
+        "processed_at": datetime.utcnow().isoformat(),
+        "total_processing_time_ms": total_time_ms,
+        "ai_model_used": ai_result.model_used if ai_result else None,
+        "ai_processing_time_ms": ai_result.total_time_ms if ai_result else None,
+        "errors": errors
+    }
+
+    return response
