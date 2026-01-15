@@ -205,6 +205,15 @@ async def search_standvirtual(marca: str, modelo: str = None, ano: int = None, c
                 # Remove brand name from modelo if present (e.g., "POLESTAR 2" -> "2")
                 if marca_slug in modelo_clean:
                     modelo_clean = modelo_clean.replace(marca_slug, "").strip()
+
+                # Remove Roman numeral version suffixes (I, II, III, IV, V)
+                modelo_clean = re.sub(r'\s+(i{1,3}|iv|v)$', '', modelo_clean)
+
+                # Remove common suffixes that don't match StandVirtual categories
+                for suffix in [' phase', ' facelift', ' fl', ' restyling']:
+                    if modelo_clean.endswith(suffix):
+                        modelo_clean = modelo_clean[:-len(suffix)]
+
                 # If modelo has multiple parts, create proper slug
                 modelo_slug = modelo_clean.replace(" ", "-").replace(".", "-")
                 modelo_slug = re.sub(r'[^\w-]', '', modelo_slug)  # Remove special chars except -
@@ -384,6 +393,27 @@ async def search_standvirtual(marca: str, modelo: str = None, ano: int = None, c
 
     if not results:
         return None
+
+    # Filter results to match target model more closely
+    if modelo:
+        # Extract key words from model (e.g., "C4 Grand Picasso" -> ["c4", "grand", "picasso"])
+        modelo_keywords = [w.lower() for w in re.sub(r'[^\w\s]', '', modelo).split() if len(w) > 1]
+        # Remove common words
+        modelo_keywords = [w for w in modelo_keywords if w not in ['de', 'e', 'ou', 'com']]
+
+        if modelo_keywords:
+            filtered_results = []
+            for r in results:
+                title_lower = r.get("titulo", "").lower()
+                # Check if most keywords match (at least 50%)
+                matches = sum(1 for kw in modelo_keywords if kw in title_lower)
+                if matches >= len(modelo_keywords) * 0.5:  # At least 50% of keywords must match
+                    filtered_results.append(r)
+
+            if filtered_results:
+                results = filtered_results
+                if debug:
+                    print(f"  [DEBUG] Filtered to {len(results)} results matching model keywords")
 
     prices = [r["preco"] for r in results]
 

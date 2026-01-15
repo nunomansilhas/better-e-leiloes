@@ -142,14 +142,27 @@ class MarketPriceService:
         if not modelo:
             return ""
 
+        import re
+
         modelo = modelo.strip()
 
-        # Remove common suffixes that vary
-        for suffix in [" (GASOLEO)", " (GASOLINA)", " (DIESEL)", " (ELETRICO)"]:
+        # Remove fuel type suffixes
+        for suffix in [" (GASOLEO)", " (GASOLINA)", " (DIESEL)", " (ELETRICO)", " (HÍBRIDO)"]:
             if modelo.upper().endswith(suffix):
                 modelo = modelo[:-len(suffix)]
 
-        return modelo
+        # Remove Roman numeral version suffixes (I, II, III, IV, V)
+        modelo = re.sub(r'\s+(I{1,3}|IV|V)$', '', modelo, flags=re.IGNORECASE)
+
+        # Remove common marketing suffixes
+        for suffix in [" PHASE", " FACELIFT", " FL", " RESTYLING"]:
+            if modelo.upper().endswith(suffix):
+                modelo = modelo[:-len(suffix)]
+
+        # Normalize "Grand" variations
+        modelo = re.sub(r'\bGRAND\s+', 'GRAND ', modelo, flags=re.IGNORECASE)
+
+        return modelo.strip()
 
     async def _get_from_database(
         self,
