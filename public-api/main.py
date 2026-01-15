@@ -528,6 +528,55 @@ async def list_events(
         return {"events": result_events, "total": len(result_events), "page": offset // limit + 1 if limit > 0 else 1}
 
 
+@app.post("/api/events/batch")
+async def get_events_batch(references: List[str]):
+    """
+    Fetch multiple events by their references.
+    Used by favorites widget to get event data efficiently.
+    """
+    if len(references) > 100:
+        raise HTTPException(status_code=400, detail="Maximum 100 references allowed")
+
+    if not references:
+        return {"events": [], "found": 0, "requested": 0}
+
+    async with get_session() as session:
+        result = await session.execute(
+            select(EventDB).where(EventDB.reference.in_(references))
+        )
+        events = result.scalars().all()
+
+        result_events = []
+        for e in events:
+            fotos = None
+            if e.fotos:
+                try:
+                    fotos_data = json.loads(e.fotos)
+                    if isinstance(fotos_data, list):
+                        fotos = [f.get("image") or f.get("url") if isinstance(f, dict) else f for f in fotos_data]
+                except:
+                    pass
+
+            result_events.append({
+                "reference": e.reference,
+                "titulo": e.titulo,
+                "capa": e.capa,
+                "fotos": fotos,
+                "tipo_id": e.tipo_id,
+                "tipo": e.tipo,
+                "subtipo": e.subtipo,
+                "valor_base": e.valor_base,
+                "lance_atual": e.lance_atual,
+                "data_fim": e.data_fim.isoformat() if e.data_fim else None,
+                "distrito": e.distrito,
+                "terminado": e.terminado,
+                "cancelado": e.cancelado,
+                "ativo": not e.terminado and not e.cancelado
+            })
+
+        return {"events": result_events, "found": len(result_events), "requested": len(references)}
+
+
 @app.get("/api/events/{reference}")
 async def get_event(reference: str):
     """Get event details by reference"""
