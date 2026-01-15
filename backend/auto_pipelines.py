@@ -1526,14 +1526,20 @@ class AutoPipelinesManager:
                                         })
 
                                     if new_end and new_end < now:
+                                        # Use API values for terminado/cancelado
+                                        api_terminado = data.get('terminado', True)
+                                        api_cancelado = data.get('cancelado', False)
+
                                         # Only update specific fields, not full save
                                         await db.update_event_fields(
                                             event.reference,
-                                            {'terminado': True, 'cancelado': True, 'ativo': False, 'lance_atual': new_price or old_price}
+                                            {'terminado': api_terminado, 'cancelado': api_cancelado, 'ativo': False, 'lance_atual': new_price or old_price}
                                         )
                                         await cache_manager.invalidate(event.reference)
                                         terminated_count += 1
-                                        print(f"    🔴 Terminado: {event.reference}")
+                                        status_icon = "🚫" if api_cancelado else "✅"
+                                        status_text = "Cancelado" if api_cancelado else "Vendido"
+                                        print(f"    {status_icon} {status_text}: {event.reference}")
 
                                         # Create notification for ended event
                                         await create_event_ended_notification({
@@ -1559,14 +1565,14 @@ class AutoPipelinesManager:
                                             "timestamp": datetime.now().isoformat()
                                         })
                                 else:
-                                    # Not in API results = likely 404/not found
+                                    # Not in API results = likely removed/cancelled
                                     await db.update_event_fields(
                                         event.reference,
                                         {'terminado': True, 'cancelado': True, 'ativo': False}
                                     )
                                     await cache_manager.invalidate(event.reference)
                                     terminated_count += 1
-                                    print(f"    🔴 Não encontrado: {event.reference}")
+                                    print(f"    🚫 Removido da API: {event.reference}")
 
                                     # Create notification for ended event (not found)
                                     await create_event_ended_notification({
