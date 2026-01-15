@@ -1690,8 +1690,14 @@ async def complete_vehicle_analysis_v2(
             vision_service = EnhancedAIAnalysisService()
 
             # Analyze first 3 images max
-            for foto_url in fotos[:3]:
-                if foto_url and foto_url.startswith('http'):
+            for foto in fotos[:3]:
+                # Handle both dict format {"image": "url"} and direct URL string
+                if isinstance(foto, dict):
+                    foto_url = foto.get('image') or foto.get('thumbnail')
+                else:
+                    foto_url = foto
+
+                if foto_url and isinstance(foto_url, str) and foto_url.startswith('http'):
                     try:
                         img_analysis = await vision_service.analyze_vehicle_image(foto_url)
                         image_analyses.append({
