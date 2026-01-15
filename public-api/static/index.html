@@ -12889,6 +12889,28 @@
         function renderVehicleCards(analyses) {
             const grid = document.getElementById('va-cards-grid');
 
+            // Helper to build market verification URLs
+            const buildStandVirtualUrl = (marca, modelo, ano, combustivel) => {
+                const marcaSlug = (marca || '').toLowerCase().replace(/\s+/g, '-');
+                let modeloSlug = (modelo || '').toLowerCase().replace(/\s+(i{1,3}|iv|v)$/i, '').replace(/\s+/g, '-').split('-')[0];
+                let url = `https://www.standvirtual.com/carros/${marcaSlug}`;
+                if (modeloSlug) url += `/${modeloSlug}`;
+                if (ano) url += `/desde-${ano}`;
+                const fuelMap = { 'gasóleo': 'diesel', 'diesel': 'diesel', 'gasolina': 'petrol', 'elétrico': 'electric', 'híbrido': 'hybrid' };
+                const fuel = fuelMap[(combustivel || '').toLowerCase()];
+                if (fuel) url += `?fuel_type=${fuel}`;
+                return url;
+            };
+
+            const buildAutoUncleUrl = (marca, modelo, ano) => {
+                const marcaSlug = (marca || '').toLowerCase().replace(/\s+/g, '-');
+                let modeloSlug = (modelo || '').toLowerCase().replace(/\s+/g, '-').split('-')[0];
+                let url = `https://www.autouncle.pt/pt/carros-usados/${marcaSlug}`;
+                if (modeloSlug) url += `/${modeloSlug}`;
+                if (ano) url += `?year_from=${ano-1}&year_to=${ano+1}`;
+                return url;
+            };
+
             grid.innerHTML = analyses.map(v => {
                 const score = v.ai_score || 0;
                 const scoreColor = score >= 7 ? '#10b981' : score >= 5 ? '#f59e0b' : '#ef4444';
@@ -12914,6 +12936,10 @@
                 try { cons = JSON.parse(v.ai_cons || '[]'); } catch(e) {}
 
                 const yearKm = [v.ano, v.quilometros ? `${(v.quilometros/1000).toFixed(0)}k km` : null].filter(Boolean).join(' • ');
+
+                // Build verification URLs
+                const standVirtualUrl = buildStandVirtualUrl(v.marca, v.modelo, v.ano, v.combustivel);
+                const autoUncleUrl = buildAutoUncleUrl(v.marca, v.modelo, v.ano);
 
                 return `
                     <div class="va-card" style="background: white; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.04);"
@@ -12969,6 +12995,18 @@
                                         <div style="font-size: 10px; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Desconto</div>
                                         <div style="font-size: 16px; font-weight: 700; color: ${discountColor};">${discount}</div>
                                     </div>
+                                </div>
+
+                                <!-- Verify Prices Links -->
+                                <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                                    <a href="${standVirtualUrl}" target="_blank" onclick="event.stopPropagation();" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 12px; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; font-size: 11px; font-weight: 600; color: #c2410c; text-decoration: none; transition: all 0.2s;" onmouseover="this.style.background='#ffedd5'" onmouseout="this.style.background='#fff7ed'">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                                        Stand Virtual
+                                    </a>
+                                    <a href="${autoUncleUrl}" target="_blank" onclick="event.stopPropagation();" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 12px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; font-size: 11px; font-weight: 600; color: #1d4ed8; text-decoration: none; transition: all 0.2s;" onmouseover="this.style.background='#dbeafe'" onmouseout="this.style.background='#eff6ff'">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                                        Auto Uncle
+                                    </a>
                                 </div>
 
                                 <!-- AI Summary -->
