@@ -1758,3 +1758,121 @@ async def complete_vehicle_analysis_v2(
     }
 
     return response
+
+
+# ============== TEST PIPELINE - FIRST VEHICLE ==============
+
+@router.post("/test-pipeline")
+async def test_pipeline_first_vehicle(
+    ai_model: str = Query("llama3.2:3b", description="AI model to use")
+):
+    """
+    Test the AI analysis pipeline on the first available vehicle.
+
+    Finds the first active vehicle with a matricula and runs the complete
+    analyze-v2 pipeline on it. Useful for testing and debugging.
+
+    Returns the complete analysis result.
+    """
+    from database import get_db, EventDB
+    from sqlalchemy import select
+
+    # Find first active vehicle with matricula
+    async with get_db() as db:
+        result = await db.session.execute(
+            select(EventDB)
+            .where(EventDB.tipo_id == 2)  # Vehicles
+            .where(EventDB.terminado == False)
+            .where(EventDB.cancelado == False)
+            .where(EventDB.matricula != None)
+            .where(EventDB.matricula != '')
+            .order_by(EventDB.data_fim.asc())
+            .limit(1)
+        )
+        event = result.scalar_one_or_none()
+
+        if not event:
+            raise HTTPException(
+                status_code=404,
+                detail="No active vehicle with matricula found"
+            )
+
+        reference = event.reference
+
+    # Run the analyze-v2 pipeline
+    from fastapi import Request
+
+    # Call the analyze-v2 endpoint directly
+    return await complete_vehicle_analysis_v2(
+        reference=reference,
+        include_ai=True,
+        ai_model=ai_model
+    )
+
+
+@router.get("/test-pipeline/status")
+async def test_pipeline_status():
+    """
+    Check the status of vehicle analysis - shows counts and recent analyses.
+    """
+    from database import get_db, EventDB, EventVehicleDataDB
+    from sqlalchemy import select, func
+
+    async with get_db() as db:
+        # Count vehicles
+        total_vehicles = await db.session.scalar(
+            select(func.count()).select_from(EventDB)
+            .where(EventDB.tipo_id == 2)
+        )
+
+        active_vehicles = await db.session.scalar(
+            select(func.count()).select_from(EventDB)
+            .where(EventDB.tipo_id == 2)
+            .where(EventDB.terminado == False)
+            .where(EventDB.cancelado == False)
+        )
+
+        with_matricula = await db.session.scalar(
+            select(func.count()).select_from(EventDB)
+            .where(EventDB.tipo_id == 2)
+            .where(EventDB.terminado == False)
+            .where(EventDB.cancelado == False)
+            .where(EventDB.matricula != None)
+            .where(EventDB.matricula != '')
+        )
+
+        # Count analyzed
+        analyzed = await db.session.scalar(
+            select(func.count()).select_from(EventVehicleDataDB)
+            .where(EventVehicleDataDB.ai_score != None)
+        )
+
+        # Recent analyses
+        recent = await db.session.execute(
+            select(EventVehicleDataDB)
+            .where(EventVehicleDataDB.ai_score != None)
+            .order_by(EventVehicleDataDB.processed_at.desc())
+            .limit(5)
+        )
+        recent_analyses = [
+            {
+                "reference": r.reference,
+                "marca": r.marca,
+                "modelo": r.modelo,
+                "ai_score": r.ai_score,
+                "ai_recommendation": r.ai_recommendation,
+                "processed_at": r.processed_at.isoformat() if r.processed_at else None
+            }
+            for r in recent.scalars().all()
+        ]
+
+        return {
+            "vehicles": {
+                "total": total_vehicles,
+                "active": active_vehicles,
+                "with_matricula": with_matricula,
+                "analyzed": analyzed,
+                "pending": with_matricula - analyzed if with_matricula and analyzed else 0
+            },
+            "recent_analyses": recent_analyses
+        }
