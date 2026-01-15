@@ -6290,8 +6290,222 @@
             document.body.style.overflow = '';
             inspectionCurrentEvent = null;
 
+            // Reset to details tab when closing
+            switchInspectionTab('details');
+
             // Restore focus to previous element
             restoreFocus();
+        }
+
+        // ============== AI ANALYSIS TAB ==============
+
+        let currentAiData = null;
+
+        function switchInspectionTab(tab) {
+            const detailsTab = document.getElementById('inspection-details');
+            const aiTab = document.getElementById('inspection-ai-tab');
+            const tabDetails = document.getElementById('tab-details');
+            const tabAi = document.getElementById('tab-ai');
+
+            if (tab === 'details') {
+                detailsTab.style.display = 'block';
+                aiTab.style.display = 'none';
+                tabDetails.style.background = '#3b82f6';
+                tabDetails.style.color = 'white';
+                tabAi.style.background = '#334155';
+                tabAi.style.color = '#94a3b8';
+            } else if (tab === 'ai') {
+                detailsTab.style.display = 'none';
+                aiTab.style.display = 'block';
+                tabDetails.style.background = '#334155';
+                tabDetails.style.color = '#94a3b8';
+                tabAi.style.background = '#8b5cf6';
+                tabAi.style.color = 'white';
+
+                // Load AI data for current event
+                if (inspectionCurrentEvent) {
+                    loadAiAnalysis(inspectionCurrentEvent.reference);
+                }
+            }
+        }
+
+        async function loadAiAnalysis(reference) {
+            const loading = document.getElementById('ai-loading');
+            const noData = document.getElementById('ai-no-data');
+            const content = document.getElementById('ai-content');
+
+            loading.style.display = 'block';
+            noData.style.display = 'none';
+            content.style.display = 'none';
+
+            try {
+                // Try to get vehicle analysis data
+                const response = await fetch(`${API_BASE}/api/vehicle-data/${reference}`);
+
+                if (!response.ok) {
+                    loading.style.display = 'none';
+                    noData.style.display = 'block';
+                    return;
+                }
+
+                const data = await response.json();
+                currentAiData = data;
+
+                // Check if we have AI analysis
+                if (!data.ai_score && !data.ai_recommendation) {
+                    loading.style.display = 'none';
+                    noData.style.display = 'block';
+                    return;
+                }
+
+                // Display AI data
+                displayAiAnalysisTab(data);
+
+                loading.style.display = 'none';
+                content.style.display = 'block';
+
+            } catch (error) {
+                console.error('Error loading AI analysis:', error);
+                loading.style.display = 'none';
+                noData.style.display = 'block';
+            }
+        }
+
+        function displayAiAnalysisTab(data) {
+            const formatPrice = (price) => {
+                if (!price) return '-';
+                return new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(price);
+            };
+
+            // Score
+            const score = data.ai_score || 0;
+            const scoreEl = document.getElementById('ai-score-display');
+            scoreEl.textContent = score.toFixed(1);
+            scoreEl.style.color = score >= 7 ? '#10b981' : score >= 5 ? '#f59e0b' : '#ef4444';
+
+            const scoreFill = document.getElementById('ai-score-fill');
+            scoreFill.style.width = `${score * 10}%`;
+            scoreFill.style.background = score >= 7 ? '#10b981' : score >= 5 ? '#f59e0b' : '#ef4444';
+
+            // Recommendation badge
+            const rec = data.ai_recommendation || 'N/A';
+            const recBadge = document.getElementById('ai-rec-badge');
+            recBadge.textContent = rec.toUpperCase();
+            const recColors = {
+                'comprar': { bg: '#059669', color: 'white' },
+                'excelente': { bg: '#059669', color: 'white' },
+                'considerar': { bg: '#0891b2', color: 'white' },
+                'cautela': { bg: '#d97706', color: 'white' },
+                'evitar': { bg: '#dc2626', color: 'white' }
+            };
+            const recStyle = recColors[rec.toLowerCase()] || { bg: '#64748b', color: 'white' };
+            recBadge.style.background = recStyle.bg;
+            recBadge.style.color = recStyle.color;
+
+            // Summary
+            document.getElementById('ai-summary').textContent = data.ai_summary || 'Sem resumo disponível.';
+
+            // Collected Data (left column)
+            const collectedHtml = `
+                <div style="margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #334155;">
+                    <div style="color: #64748b; font-size: 9px;">VEÍCULO</div>
+                    <div style="font-weight: 600; color: #e2e8f0;">${data.marca || '-'} ${data.modelo || ''}</div>
+                    ${data.versao ? `<div style="color: #94a3b8; font-size: 10px;">${data.versao}</div>` : ''}
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+                    <div>
+                        <div style="color: #64748b; font-size: 9px;">ANO</div>
+                        <div style="font-weight: 500;">${data.ano || '-'}</div>
+                    </div>
+                    <div>
+                        <div style="color: #64748b; font-size: 9px;">COMBUSTÍVEL</div>
+                        <div style="font-weight: 500;">${data.combustivel || '-'}</div>
+                    </div>
+                    <div>
+                        <div style="color: #64748b; font-size: 9px;">POTÊNCIA</div>
+                        <div style="font-weight: 500;">${data.potencia_cv ? data.potencia_cv + ' cv' : '-'}</div>
+                    </div>
+                    <div>
+                        <div style="color: #64748b; font-size: 9px;">SEGURO</div>
+                        <div style="font-weight: 500; color: ${data.tem_seguro ? '#10b981' : '#ef4444'};">${data.tem_seguro ? '✓ Ativo' : '✗ Sem'}</div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('ai-collected-data').innerHTML = collectedHtml;
+
+            // Market Data (right column)
+            const marketHtml = `
+                <div style="margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #334155;">
+                    <div style="color: #64748b; font-size: 9px;">PREÇO MÉDIO MERCADO</div>
+                    <div style="font-size: 16px; font-weight: 700; color: #10b981;">${formatPrice(data.market_preco_medio)}</div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+                    <div>
+                        <div style="color: #64748b; font-size: 9px;">MÍNIMO</div>
+                        <div style="font-weight: 500;">${formatPrice(data.market_preco_min)}</div>
+                    </div>
+                    <div>
+                        <div style="color: #64748b; font-size: 9px;">MÁXIMO</div>
+                        <div style="font-weight: 500;">${formatPrice(data.market_preco_max)}</div>
+                    </div>
+                    <div>
+                        <div style="color: #64748b; font-size: 9px;">ANÚNCIOS</div>
+                        <div style="font-weight: 500;">${data.market_num_resultados || '-'}</div>
+                    </div>
+                    <div>
+                        <div style="color: #64748b; font-size: 9px;">DESCONTO</div>
+                        <div style="font-weight: 600; color: ${(data.desconto_percentagem || 0) > 0 ? '#10b981' : '#ef4444'};">
+                            ${data.desconto_percentagem ? data.desconto_percentagem.toFixed(0) + '%' : '-'}
+                        </div>
+                    </div>
+                </div>
+                ${data.ai_lance_maximo_sugerido ? `
+                    <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #334155;">
+                        <div style="color: #64748b; font-size: 9px;">LANCE MÁXIMO SUGERIDO</div>
+                        <div style="font-size: 14px; font-weight: 700; color: #f59e0b;">${formatPrice(data.ai_lance_maximo_sugerido)}</div>
+                    </div>
+                ` : ''}
+            `;
+            document.getElementById('ai-market-data').innerHTML = marketHtml;
+
+            // Pros
+            let pros = [];
+            try { pros = JSON.parse(data.ai_pros || '[]'); } catch(e) { pros = []; }
+            document.getElementById('ai-pros-list').innerHTML = pros.length > 0
+                ? pros.map(p => `<li>${p}</li>`).join('')
+                : '<li style="opacity: 0.6;">Sem pontos positivos identificados</li>';
+
+            // Cons
+            let cons = [];
+            try { cons = JSON.parse(data.ai_cons || '[]'); } catch(e) { cons = []; }
+            document.getElementById('ai-cons-list').innerHTML = cons.length > 0
+                ? cons.map(c => `<li>${c}</li>`).join('')
+                : '<li style="opacity: 0.6;">Sem pontos negativos identificados</li>';
+
+            // Red flags
+            let redFlags = [];
+            try { redFlags = JSON.parse(data.ai_red_flags || '[]'); } catch(e) { redFlags = []; }
+            const redFlagsSection = document.getElementById('ai-red-flags-section');
+            if (redFlags.length > 0) {
+                redFlagsSection.style.display = 'block';
+                document.getElementById('ai-red-flags-list').innerHTML = redFlags.map(r => `<li>${r}</li>`).join('');
+            } else {
+                redFlagsSection.style.display = 'none';
+            }
+
+            // Checklist
+            let checklist = [];
+            try { checklist = JSON.parse(data.ai_checklist || '[]'); } catch(e) { checklist = []; }
+            document.getElementById('ai-checklist').innerHTML = checklist.length > 0
+                ? checklist.map(c => `<li>${c}</li>`).join('')
+                : '<li>Verificar documentação do veículo</li><li>Confirmar estado mecânico</li><li>Definir lance máximo</li>';
+
+            // Metadata
+            document.getElementById('ai-model-info').textContent = data.ai_model_used || '-';
+            document.getElementById('ai-time-info').textContent = data.ai_processing_time_ms || '-';
+            document.getElementById('ai-date-info').textContent = data.processed_at
+                ? new Date(data.processed_at).toLocaleString('pt-PT')
+                : '-';
         }
 
         function inspectionCarouselPrev() {
@@ -13157,8 +13371,113 @@
                 </button>
                 <div class="inspection-carousel-indicators" id="inspection-indicators"></div>
             </div>
+
+            <!-- Tab Navigation -->
+            <div class="inspection-tabs" id="inspection-tabs" style="display: flex; gap: 4px; padding: 8px 12px; background: #1e293b; border-bottom: 1px solid #334155;">
+                <button class="inspection-tab active" onclick="switchInspectionTab('details')" id="tab-details" style="flex: 1; padding: 8px 12px; border: none; border-radius: 6px; background: #3b82f6; color: white; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                    📋 Detalhes
+                </button>
+                <button class="inspection-tab" onclick="switchInspectionTab('ai')" id="tab-ai" style="flex: 1; padding: 8px 12px; border: none; border-radius: 6px; background: #334155; color: #94a3b8; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                    🤖 AI Analysis
+                </button>
+            </div>
+
+            <!-- Details Tab (existing) -->
             <div class="inspection-details" id="inspection-details">
                 <!-- Populated by JavaScript -->
+            </div>
+
+            <!-- AI Analysis Tab (new) -->
+            <div class="inspection-ai-tab" id="inspection-ai-tab" style="display: none; padding: 12px; overflow-y: auto; max-height: 60vh;">
+                <!-- Loading state -->
+                <div id="ai-loading" style="text-align: center; padding: 40px;">
+                    <div class="spinner-border text-info" role="status" style="width: 2rem; height: 2rem;"></div>
+                    <div style="margin-top: 12px; color: #94a3b8; font-size: 12px;">A carregar análise AI...</div>
+                </div>
+
+                <!-- No data state -->
+                <div id="ai-no-data" style="display: none; text-align: center; padding: 40px;">
+                    <div style="font-size: 48px; margin-bottom: 12px;">🤖</div>
+                    <div style="color: #94a3b8; font-size: 14px; margin-bottom: 16px;">Sem análise AI disponível</div>
+                    <div style="color: #64748b; font-size: 12px;">Este evento ainda não foi analisado pelo sistema AI</div>
+                </div>
+
+                <!-- AI Content (populated by JS) -->
+                <div id="ai-content" style="display: none;">
+                    <!-- Row 1: Score + Recommendation -->
+                    <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+                        <div style="flex: 1; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-radius: 12px; padding: 16px; text-align: center;">
+                            <div style="font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Score Final</div>
+                            <div id="ai-score-display" style="font-size: 36px; font-weight: 700; line-height: 1;">-</div>
+                            <div id="ai-score-bar" style="margin-top: 8px; height: 4px; background: #334155; border-radius: 2px; overflow: hidden;">
+                                <div id="ai-score-fill" style="height: 100%; width: 0%; transition: width 0.5s;"></div>
+                            </div>
+                        </div>
+                        <div style="flex: 1; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-radius: 12px; padding: 16px; text-align: center;">
+                            <div style="font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Recomendação</div>
+                            <div id="ai-rec-badge" style="display: inline-block; padding: 6px 16px; border-radius: 20px; font-size: 14px; font-weight: 700;">-</div>
+                        </div>
+                    </div>
+
+                    <!-- Row 2: Summary -->
+                    <div style="background: #1e293b; border-radius: 12px; padding: 16px; margin-bottom: 16px;">
+                        <div style="font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">📝 Resumo</div>
+                        <div id="ai-summary" style="font-size: 13px; color: #e2e8f0; line-height: 1.5;">-</div>
+                    </div>
+
+                    <!-- Row 3: Side by side - Data Collected vs AI Insights -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+                        <!-- Left: Collected Data -->
+                        <div style="background: #1e293b; border-radius: 12px; padding: 12px;">
+                            <div style="font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+                                <span>📊</span> Dados Recolhidos
+                            </div>
+                            <div id="ai-collected-data" style="font-size: 11px; color: #cbd5e1;">
+                                <!-- Populated by JS -->
+                            </div>
+                        </div>
+
+                        <!-- Right: Market Data -->
+                        <div style="background: #1e293b; border-radius: 12px; padding: 12px;">
+                            <div style="font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+                                <span>💰</span> Mercado
+                            </div>
+                            <div id="ai-market-data" style="font-size: 11px; color: #cbd5e1;">
+                                <!-- Populated by JS -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Row 4: Pros & Cons -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+                        <div style="background: linear-gradient(135deg, #064e3b 0%, #065f46 100%); border-radius: 12px; padding: 12px;">
+                            <div style="font-size: 10px; color: #6ee7b7; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">✓ Pontos Positivos</div>
+                            <ul id="ai-pros-list" style="margin: 0; padding-left: 16px; font-size: 11px; color: #a7f3d0; line-height: 1.6;"></ul>
+                        </div>
+                        <div style="background: linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%); border-radius: 12px; padding: 12px;">
+                            <div style="font-size: 10px; color: #fca5a5; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">✗ Pontos Negativos</div>
+                            <ul id="ai-cons-list" style="margin: 0; padding-left: 16px; font-size: 11px; color: #fecaca; line-height: 1.6;"></ul>
+                        </div>
+                    </div>
+
+                    <!-- Row 5: Red Flags & Checklist -->
+                    <div id="ai-red-flags-section" style="background: linear-gradient(135deg, #451a03 0%, #78350f 100%); border-radius: 12px; padding: 12px; margin-bottom: 16px; display: none;">
+                        <div style="font-size: 10px; color: #fbbf24; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">⚠️ Red Flags</div>
+                        <ul id="ai-red-flags-list" style="margin: 0; padding-left: 16px; font-size: 11px; color: #fde68a; line-height: 1.6;"></ul>
+                    </div>
+
+                    <div style="background: #1e293b; border-radius: 12px; padding: 12px;">
+                        <div style="font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">📋 Checklist Antes de Licitar</div>
+                        <ul id="ai-checklist" style="margin: 0; padding-left: 16px; font-size: 11px; color: #94a3b8; line-height: 1.6;"></ul>
+                    </div>
+
+                    <!-- Row 6: Metadata -->
+                    <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid #334155; display: flex; justify-content: space-between; font-size: 10px; color: #64748b;">
+                        <span>Modelo: <span id="ai-model-info">-</span></span>
+                        <span>Tempo: <span id="ai-time-info">-</span>ms</span>
+                        <span id="ai-date-info">-</span>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

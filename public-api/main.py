@@ -577,6 +577,65 @@ async def get_events_batch(references: List[str]):
         return {"events": result_events, "found": len(result_events), "requested": len(references)}
 
 
+@app.get("/api/vehicle-data/{reference}")
+async def get_vehicle_data(reference: str):
+    """
+    Get AI analysis and vehicle data for an event.
+    Returns vehicle info, market prices, insurance status, and AI analysis.
+    """
+    from sqlalchemy import text
+
+    async with get_session() as session:
+        # Query the event_vehicle_data table directly
+        result = await session.execute(
+            text("""
+                SELECT
+                    reference, matricula, event_titulo, event_valor_base, event_lance_atual,
+                    marca, modelo, versao, ano, combustivel, potencia_cv, potencia_kw, cor, vin,
+                    tem_seguro, seguradora, seguro_data_fim,
+                    market_preco_min, market_preco_max, market_preco_medio, market_preco_mediana,
+                    market_num_resultados, market_fonte, poupanca_estimada, desconto_percentagem,
+                    score_oportunidade, score_risco, score_liquidez,
+                    ai_score, ai_recommendation, ai_summary, ai_pros, ai_cons,
+                    ai_checklist, ai_red_flags, ai_lance_maximo_sugerido,
+                    ai_model_used, ai_processing_time_ms, processed_at, status
+                FROM event_vehicle_data
+                WHERE reference = :ref
+            """),
+            {"ref": reference}
+        )
+        row = result.fetchone()
+
+        if not row:
+            raise HTTPException(status_code=404, detail="Vehicle data not found for this event")
+
+        # Convert row to dict
+        columns = [
+            'reference', 'matricula', 'event_titulo', 'event_valor_base', 'event_lance_atual',
+            'marca', 'modelo', 'versao', 'ano', 'combustivel', 'potencia_cv', 'potencia_kw', 'cor', 'vin',
+            'tem_seguro', 'seguradora', 'seguro_data_fim',
+            'market_preco_min', 'market_preco_max', 'market_preco_medio', 'market_preco_mediana',
+            'market_num_resultados', 'market_fonte', 'poupanca_estimada', 'desconto_percentagem',
+            'score_oportunidade', 'score_risco', 'score_liquidez',
+            'ai_score', 'ai_recommendation', 'ai_summary', 'ai_pros', 'ai_cons',
+            'ai_checklist', 'ai_red_flags', 'ai_lance_maximo_sugerido',
+            'ai_model_used', 'ai_processing_time_ms', 'processed_at', 'status'
+        ]
+
+        data = {}
+        for i, col in enumerate(columns):
+            val = row[i]
+            # Convert Decimal to float
+            if val is not None and hasattr(val, '__float__'):
+                val = float(val)
+            # Convert datetime to ISO string
+            if val is not None and hasattr(val, 'isoformat'):
+                val = val.isoformat()
+            data[col] = val
+
+        return data
+
+
 @app.get("/api/events/{reference}")
 async def get_event(reference: str):
     """Get event details by reference"""
