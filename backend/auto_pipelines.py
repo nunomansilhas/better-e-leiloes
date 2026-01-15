@@ -102,9 +102,9 @@ class AutoPipelinesManager:
         "zwatch": PipelineConfig(
             type="zwatch",
             name="Z-Watch",
-            description="Monitoriza EventosMaisRecentes API a cada 10 minutos",
+            description="Monitoriza EventosMaisRecentes API a cada minuto",
             enabled=False,
-            interval_hours=10/60  # A cada 10 minutos
+            interval_hours=1/60  # A cada 1 minuto
         )
     }
 
@@ -113,8 +113,8 @@ class AutoPipelinesManager:
         self.job_ids: Dict[str, str] = {}  # pipeline_type -> scheduler_job_id
         self._scheduler = None  # Store scheduler reference for rescheduling
 
-        # Mutex for heavy pipelines (Y-Sync, Z-Watch, Pipeline API)
-        # X-Monitor is exempt - it runs freely for real-time price tracking
+        # Mutex for heavy pipelines (Y-Sync, Pipeline API)
+        # X-Monitor and Z-Watch are exempt - they run freely
         self._heavy_pipeline_lock = asyncio.Lock()
         self._heavy_pipeline_running: Optional[str] = None  # Which heavy pipeline is running
         self._heavy_pipeline_waiting: list = []  # Queue of waiting pipelines
@@ -1707,31 +1707,9 @@ class AutoPipelinesManager:
 
             scraper = None
             cache_manager = None
-            skipped = False
-            lock_acquired = False
 
             try:
-                # Skip if main pipeline is running
-                main_pipeline = get_pipeline_state()
-                if main_pipeline.is_active:
-                    print(f"⏸️ Z-Watch skipped - main pipeline is running")
-                    # Update next_run to avoid constant retries (retry in 5 min)
-                    pipeline = self.pipelines['zwatch']
-                    pipeline.next_run = (datetime.now() + timedelta(minutes=5)).strftime("%Y-%m-%d %H:%M:%S")
-                    self._save_config()
-                    skipped = True
-                    return
-
-                # Try to acquire heavy pipeline lock (mutex with Y-Sync, Pipeline API)
-                lock_acquired = await self.acquire_heavy_lock("Z-Watch")
-                if not lock_acquired:
-                    # Update next_run to avoid constant retries (retry in 2 min)
-                    pipeline = self.pipelines['zwatch']
-                    pipeline.next_run = (datetime.now() + timedelta(minutes=2)).strftime("%Y-%m-%d %H:%M:%S")
-                    self._save_config()
-                    skipped = True
-                    return
-
+                # Z-Watch is lightweight - runs independently without locks
                 # Mark as running
                 self.pipelines['zwatch'].is_running = True
                 self._save_config()
@@ -1846,27 +1824,21 @@ class AutoPipelinesManager:
                 except:
                     pass
 
-                # ALWAYS reset is_running if we started (not skipped)
-                if not skipped:
-                    self.pipelines['zwatch'].is_running = False
-                    pipeline = self.pipelines['zwatch']
-                    now = datetime.now()
-                    pipeline.last_run = now.strftime("%Y-%m-%d %H:%M:%S")
-                    pipeline.runs_count += 1
-                    pipeline.next_run = (now + timedelta(hours=pipeline.interval_hours)).strftime("%Y-%m-%d %H:%M:%S")
-                    self._save_config()
-                    print(f"  ⏰ Z-Watch: próxima execução em {pipeline.interval_hours * 60:.0f} min")
+                # Reset is_running and update stats
+                self.pipelines['zwatch'].is_running = False
+                pipeline = self.pipelines['zwatch']
+                now = datetime.now()
+                pipeline.last_run = now.strftime("%Y-%m-%d %H:%M:%S")
+                pipeline.runs_count += 1
+                pipeline.next_run = (now + timedelta(hours=pipeline.interval_hours)).strftime("%Y-%m-%d %H:%M:%S")
+                self._save_config()
+                print(f"  ⏰ Z-Watch: próxima execução em {pipeline.interval_hours * 60:.0f} min")
 
-                # Release heavy pipeline lock
-                if lock_acquired:
-                    self.release_heavy_lock("Z-Watch")
-
-                # ALWAYS reschedule - even if skipped
+                # Reschedule for next run
                 self._reschedule_pipeline('zwatch')
 
-                # Save to database AFTER reschedule so next_run is correct
-                if not skipped:
-                    await self.save_to_database('zwatch')
+                # Save to database
+                await self.save_to_database('zwatch')
 
         # Return the appropriate function
         tasks = {
