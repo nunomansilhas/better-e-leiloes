@@ -1499,6 +1499,8 @@ async def complete_vehicle_analysis_v2(
                 vd.modelo = vehicle_info.get('modelo')
                 vd.versao = vehicle_info.get('versao')
                 vd.ano = vehicle_info.get('ano')
+                vd.producao_inicio = vehicle_info.get('producao_inicio')
+                vd.producao_fim = vehicle_info.get('producao_fim')
                 vd.combustivel = vehicle_info.get('combustivel')
                 vd.potencia_cv = vehicle_info.get('potencia_cv')
                 vd.cor = vehicle_info.get('cor')
@@ -1754,6 +1756,8 @@ async def complete_vehicle_analysis_v2(
             "potencia_cv": vehicle_info.get('potencia_cv'),
             "cor": vehicle_info.get('cor'),
             "vin": vehicle_info.get('vin'),
+            "producao_inicio": vehicle_info.get('producao_inicio'),
+            "producao_fim": vehicle_info.get('producao_fim'),
         },
 
         # Insurance

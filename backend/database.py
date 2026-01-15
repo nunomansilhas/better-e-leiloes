@@ -561,6 +561,8 @@ class EventVehicleDataDB(Base):
     modelo: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     versao: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     ano: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    producao_inicio: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # Production start year
+    producao_fim: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # Production end year
     combustivel: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     potencia_cv: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     potencia_kw: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)

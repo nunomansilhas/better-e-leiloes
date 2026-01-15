@@ -610,7 +610,8 @@ async def list_vehicle_analyses(
             text(f"""
                 SELECT
                     evd.reference, evd.matricula, evd.event_titulo, evd.event_valor_base, evd.event_lance_atual,
-                    evd.marca, evd.modelo, evd.versao, evd.ano, evd.combustivel, evd.potencia_cv,
+                    evd.marca, evd.modelo, evd.versao, evd.ano, evd.producao_inicio, evd.producao_fim,
+                    evd.combustivel, evd.potencia_cv,
                     evd.tem_seguro, evd.market_preco_medio, evd.desconto_percentagem,
                     evd.ai_score, evd.ai_recommendation, evd.ai_summary, evd.ai_pros, evd.ai_cons,
                     evd.processed_at,
@@ -627,7 +628,8 @@ async def list_vehicle_analyses(
 
         columns = [
             'reference', 'matricula', 'event_titulo', 'event_valor_base', 'event_lance_atual',
-            'marca', 'modelo', 'versao', 'ano', 'combustivel', 'potencia_cv',
+            'marca', 'modelo', 'versao', 'ano', 'producao_inicio', 'producao_fim',
+            'combustivel', 'potencia_cv',
             'tem_seguro', 'market_preco_medio', 'desconto_percentagem',
             'ai_score', 'ai_recommendation', 'ai_summary', 'ai_pros', 'ai_cons',
             'processed_at', 'capa', 'data_fim'

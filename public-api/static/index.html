@@ -12890,24 +12890,42 @@
             const grid = document.getElementById('va-cards-grid');
 
             // Helper to build market verification URLs
-            const buildStandVirtualUrl = (marca, modelo, ano, combustivel) => {
+            // Uses production year range (producao_inicio) for better search accuracy
+            const buildStandVirtualUrl = (marca, modelo, ano, combustivel, producaoInicio) => {
                 const marcaSlug = (marca || '').toLowerCase().replace(/\s+/g, '-');
                 let modeloSlug = (modelo || '').toLowerCase().replace(/\s+(i{1,3}|iv|v)$/i, '').replace(/\s+/g, '-').split('-')[0];
                 let url = `https://www.standvirtual.com/carros/${marcaSlug}`;
                 if (modeloSlug) url += `/${modeloSlug}`;
-                if (ano) url += `/desde-${ano}`;
+
+                // Use production start year as min, vehicle year as max
+                const anoMin = producaoInicio || (ano ? ano - 1 : null);
+                const anoMax = ano;
+                if (anoMin) url += `/desde-${anoMin}`;
+
+                // Build query params
+                const params = [];
+                if (anoMax) params.push(`search[filter_float_first_registration_year:to]=${anoMax}`);
                 const fuelMap = { 'gasóleo': 'diesel', 'diesel': 'diesel', 'gasolina': 'petrol', 'elétrico': 'electric', 'híbrido': 'hybrid' };
                 const fuel = fuelMap[(combustivel || '').toLowerCase()];
-                if (fuel) url += `?fuel_type=${fuel}`;
+                if (fuel) params.push(`fuel_type=${fuel}`);
+                if (params.length > 0) url += '?' + params.join('&');
                 return url;
             };
 
-            const buildAutoUncleUrl = (marca, modelo, ano) => {
+            const buildAutoUncleUrl = (marca, modelo, ano, producaoInicio) => {
                 const marcaSlug = (marca || '').toLowerCase().replace(/\s+/g, '-');
                 let modeloSlug = (modelo || '').toLowerCase().replace(/\s+/g, '-').split('-')[0];
                 let url = `https://www.autouncle.pt/pt/carros-usados/${marcaSlug}`;
                 if (modeloSlug) url += `/${modeloSlug}`;
-                if (ano) url += `?year_from=${ano-1}&year_to=${ano+1}`;
+
+                // Use production start year as min, vehicle year as max
+                const anoMin = producaoInicio || (ano ? ano - 1 : null);
+                const anoMax = ano;
+                if (anoMin && anoMax) {
+                    url += `?s[min_year]=${anoMin}&s[max_year]=${anoMax}`;
+                } else if (ano) {
+                    url += `?s[min_year]=${ano-1}&s[max_year]=${ano+1}`;
+                }
                 return url;
             };
 
@@ -12937,9 +12955,9 @@
 
                 const yearKm = [v.ano, v.quilometros ? `${(v.quilometros/1000).toFixed(0)}k km` : null].filter(Boolean).join(' • ');
 
-                // Build verification URLs
-                const standVirtualUrl = buildStandVirtualUrl(v.marca, v.modelo, v.ano, v.combustivel);
-                const autoUncleUrl = buildAutoUncleUrl(v.marca, v.modelo, v.ano);
+                // Build verification URLs (using production year range if available)
+                const standVirtualUrl = buildStandVirtualUrl(v.marca, v.modelo, v.ano, v.combustivel, v.producao_inicio);
+                const autoUncleUrl = buildAutoUncleUrl(v.marca, v.modelo, v.ano, v.producao_inicio);
 
                 return `
                     <div class="va-card" style="background: white; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.04);"

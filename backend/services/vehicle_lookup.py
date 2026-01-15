@@ -551,14 +551,24 @@ async def lookup_plate_infomatricula_api(plate: str, debug: bool = False) -> Dic
                         except:
                             pass
 
-                    # Also check markFrom for manufacturing year
-                    if 'ano' not in result:
-                        mark_from = data.get('markFrom')
-                        if mark_from:
-                            try:
+                    # Production year range (markFrom - markTo)
+                    # This helps narrow down market searches
+                    mark_from = data.get('markFrom')
+                    if mark_from:
+                        try:
+                            result['producao_inicio'] = int(mark_from)
+                            # If no plateDate, use markFrom as year
+                            if 'ano' not in result:
                                 result['ano_fabrico'] = int(mark_from)
-                            except:
-                                pass
+                        except:
+                            pass
+
+                    mark_to = data.get('markTo')
+                    if mark_to:
+                        try:
+                            result['producao_fim'] = int(mark_to)
+                        except:
+                            pass
 
                     # Fuel type
                     result['combustivel'] = data.get('fuelType') or data.get('combustivel') or data.get('tipoCombustivel')
