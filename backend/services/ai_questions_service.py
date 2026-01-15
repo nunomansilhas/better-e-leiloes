@@ -70,31 +70,33 @@ class VehicleAnalysisResult:
 QUESTIONS = [
     {
         "id": "known_issues",
-        "name": "Problemas Conhecidos do Modelo",
-        "description": "Identifica problemas mecânicos comuns conhecidos para este modelo",
-        "template": """Para o veículo {marca} {modelo} {versao} ({ano}, {combustivel}):
+        "name": "Problemas Mencionados na Descrição",
+        "description": "Extrai problemas mencionados na descrição e observações do leilão",
+        "template": """Analisa a descrição e observações deste veículo em leilão e extrai APENAS os problemas que são EXPLICITAMENTE mencionados no texto.
 
-Lista os problemas mecânicos mais comuns conhecidos para este modelo específico.
+TÍTULO: {titulo}
+DESCRIÇÃO: {descricao}
+
+IMPORTANTE: NÃO inventes problemas. Extrai APENAS o que está escrito no texto acima.
 
 RESPONDE APENAS EM JSON COM ESTE FORMATO EXATO (sem texto adicional):
 {{
     "problemas": [
         {{
-            "problema": "descrição breve do problema",
+            "problema": "descrição do problema conforme mencionado",
             "gravidade": "baixa|media|alta",
-            "custo_reparacao_estimado": número em euros,
-            "frequencia": "raro|comum|muito_comum"
+            "fonte": "onde no texto foi mencionado"
         }}
     ],
-    "fiabilidade_geral": "baixa|media|alta",
-    "custo_manutencao_anual_estimado": número em euros
+    "estado_geral_mencionado": "desconhecido|mau|razoavel|bom|excelente",
+    "observacoes_importantes": ["lista de observações importantes do texto"]
 }}
 
-Máximo 5 problemas mais relevantes. Se não conheces problemas específicos, devolve lista vazia.""",
+Se não há problemas mencionados no texto, devolve lista vazia em "problemas".""",
         "default_output": {
             "problemas": [],
-            "fiabilidade_geral": "media",
-            "custo_manutencao_anual_estimado": 500
+            "estado_geral_mencionado": "desconhecido",
+            "observacoes_importantes": []
         }
     },
     {
@@ -236,10 +238,10 @@ DESCONTO ATUAL: {desconto_percentagem}%
 PREÇO MERCADO ESTIMADO: {preco_mercado}€
 TEM SEGURO: {tem_seguro}
 
-PROBLEMAS CONHECIDOS DO MODELO:
+PROBLEMAS MENCIONADOS NA DESCRIÇÃO:
 {problemas_conhecidos}
 
-ANÁLISE DA DESCRIÇÃO:
+ANÁLISE ADICIONAL DA DESCRIÇÃO:
 {analise_descricao}
 
 Dá a tua recomendação final.
