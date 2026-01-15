@@ -615,7 +615,7 @@ async def list_vehicle_analyses(
                     evd.tem_seguro, evd.market_preco_min, evd.market_preco_medio, evd.desconto_percentagem,
                     evd.ai_score, evd.ai_recommendation, evd.ai_summary, evd.ai_pros, evd.ai_cons,
                     evd.processed_at,
-                    e.capa, e.data_fim
+                    e.capa, e.data_fim, e.valor_minimo, e.lance_atual
                 FROM event_vehicle_data evd
                 LEFT JOIN events e ON evd.reference = e.reference
                 {where_clause}
@@ -632,7 +632,7 @@ async def list_vehicle_analyses(
             'combustivel', 'potencia_cv',
             'tem_seguro', 'market_preco_min', 'market_preco_medio', 'desconto_percentagem',
             'ai_score', 'ai_recommendation', 'ai_summary', 'ai_pros', 'ai_cons',
-            'processed_at', 'capa', 'data_fim'
+            'processed_at', 'capa', 'data_fim', 'valor_minimo', 'lance_atual_live'
         ]
 
         analyses = []
