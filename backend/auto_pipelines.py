@@ -1227,12 +1227,15 @@ class AutoPipelinesManager:
             critical_events = []
             urgent_events = []
             soon_events = []
+            expired_events = []  # Events that just ended (need to mark as ativo=0)
 
             for event in self._critical_events_cache or []:
                 if event.data_fim:
                     seconds = (event.data_fim - now).total_seconds()
                     if 0 < seconds <= 300:
                         critical_events.append({'event': event, 'tier': 'critical', 'seconds': seconds})
+                    elif -300 <= seconds <= 0:  # Ended in the last 5 minutes
+                        expired_events.append({'event': event, 'tier': 'expired', 'seconds': seconds})
 
             for event in self._urgent_events_cache or []:
                 if event.data_fim:
@@ -1268,7 +1271,7 @@ class AutoPipelinesManager:
                 self._reschedule_xmonitor(1800)
                 return
 
-            print(f"🔴 X-Monitor {tier_name}: {len(events_to_process)} eventos (total: 🔴{len(critical_events)} 🟠{len(urgent_events)} 🟡{len(soon_events)})")
+            print(f"🔴 X-Monitor {tier_name}: {len(events_to_process)} eventos (🔴{len(critical_events)} 🟠{len(urgent_events)} 🟡{len(soon_events)} ⏱️{len(expired_events)})")
 
             scraper = EventScraper()
 
@@ -1348,6 +1351,52 @@ class AutoPipelinesManager:
 
                 if updated_count > 0:
                     print(f"  ✅ X-Monitor: {updated_count} eventos atualizados")
+
+                # Process expired events - mark as ativo=0
+                terminated_count = 0
+                if expired_events:
+                    print(f"  ⏱️ X-Monitor: {len(expired_events)} eventos expirados a processar...")
+                    from cache import CacheManager
+                    cache_manager = CacheManager()
+
+                    for item in expired_events:
+                        event = item['event']
+                        try:
+                            volatile_data = await scraper.scrape_volatile_via_api([event.reference])
+
+                            async with get_db() as db:
+                                if volatile_data and len(volatile_data) > 0:
+                                    data = volatile_data[0]
+                                    # Use API values for terminado/cancelado
+                                    api_terminado = data.get('terminado', True)
+                                    api_cancelado = data.get('cancelado', False)
+                                    final_price = data.get('lanceAtual') or event.lance_atual
+
+                                    await db.update_event_fields(
+                                        event.reference,
+                                        {'terminado': api_terminado, 'cancelado': api_cancelado, 'ativo': False, 'lance_atual': final_price}
+                                    )
+                                    await cache_manager.invalidate(event.reference)
+                                    terminated_count += 1
+
+                                    status_icon = "🚫" if api_cancelado else "✅"
+                                    status_text = "Cancelado" if api_cancelado else "Vendido"
+                                    print(f"    {status_icon} {status_text}: {event.reference} - {final_price}€")
+                                else:
+                                    # Not found in API - mark as cancelled
+                                    await db.update_event_fields(
+                                        event.reference,
+                                        {'terminado': True, 'cancelado': True, 'ativo': False}
+                                    )
+                                    await cache_manager.invalidate(event.reference)
+                                    terminated_count += 1
+                                    print(f"    🚫 Removido: {event.reference}")
+
+                        except Exception as e:
+                            print(f"    ⚠️ Error processing expired {event.reference}: {e}")
+
+                    if terminated_count > 0:
+                        print(f"  ✅ X-Monitor: {terminated_count} eventos marcados como terminados")
 
                 # Update pipeline stats
                 pipeline = self.pipelines['xmonitor']
