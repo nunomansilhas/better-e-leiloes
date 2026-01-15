@@ -17,7 +17,7 @@ from .vehicle_lookup import decode_portuguese_plate, extract_vehicle_from_title
 
 # Ollama configuration
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-OLLAMA_TEXT_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2:3b")
+OLLAMA_TEXT_MODEL = os.getenv("OLLAMA_MODEL", "llama3.1:8b")
 OLLAMA_VISION_MODEL = os.getenv("OLLAMA_VISION_MODEL", "llava:7b")  # or llava:34b
 OLLAMA_TIMEOUT = int(os.getenv("OLLAMA_TIMEOUT", "180"))
 

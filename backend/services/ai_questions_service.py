@@ -298,7 +298,7 @@ class AIQuestionsService:
     Each question has a fixed JSON output schema to ensure consistent responses.
     """
 
-    def __init__(self, model: str = "llama3.2:3b"):
+    def __init__(self, model: str = "llama3.1:8b"):
         self.model = model
 
     async def analyze_vehicle(
@@ -588,7 +588,7 @@ class AIQuestionsService:
 _ai_questions_service: Optional[AIQuestionsService] = None
 
 
-def get_ai_questions_service(model: str = "llama3.2:3b") -> AIQuestionsService:
+def get_ai_questions_service(model: str = "llama3.1:8b") -> AIQuestionsService:
     """Get singleton instance of AIQuestionsService"""
     global _ai_questions_service
     if _ai_questions_service is None or _ai_questions_service.model != model:

@@ -1406,7 +1406,7 @@ async def get_hybrid_market_price(
 async def complete_vehicle_analysis_v2(
     reference: str,
     include_ai: bool = Query(True, description="Include AI analysis"),
-    ai_model: str = Query("llama3.2:3b", description="AI model to use")
+    ai_model: str = Query("llama3.1:8b", description="AI model to use")
 ):
     """
     Complete vehicle analysis v2 - New pipeline with structured AI questions.
@@ -1764,7 +1764,7 @@ async def complete_vehicle_analysis_v2(
 
 @router.post("/test-pipeline")
 async def test_pipeline_first_vehicle(
-    ai_model: str = Query("llama3.2:3b", description="AI model to use")
+    ai_model: str = Query("llama3.1:8b", description="AI model to use")
 ):
     """
     Test the AI analysis pipeline on the first available vehicle.
