@@ -1673,6 +1673,50 @@ async def complete_vehicle_analysis_v2(
         except Exception as e:
             errors.append(f"AI analysis: {str(e)}")
 
+    # 6b. Image Analysis (LLaVA)
+    image_analyses = []
+    try:
+        from services.ai_analysis_service import EnhancedAIAnalysisService
+
+        # Get image URLs from fotos field
+        fotos = event_dict.get('fotos', [])
+        if isinstance(fotos, str):
+            try:
+                fotos = json.loads(fotos)
+            except:
+                fotos = []
+
+        if fotos and len(fotos) > 0:
+            vision_service = EnhancedAIAnalysisService()
+
+            # Analyze first 3 images max
+            for foto_url in fotos[:3]:
+                if foto_url and foto_url.startswith('http'):
+                    try:
+                        img_analysis = await vision_service.analyze_vehicle_image(foto_url)
+                        image_analyses.append({
+                            "url": foto_url,
+                            "description": img_analysis.description,
+                            "condition": img_analysis.condition,
+                            "issues": img_analysis.issues_found,
+                            "confidence": img_analysis.confidence
+                        })
+                    except Exception as img_e:
+                        errors.append(f"Image analysis ({foto_url[:50]}): {str(img_e)}")
+
+            # Save image analyses
+            if image_analyses:
+                async with get_db() as db:
+                    result = await db.session.execute(
+                        select(EventVehicleDataDB).where(EventVehicleDataDB.reference == reference)
+                    )
+                    vd = result.scalar_one()
+                    vd.ai_image_analyses = json.dumps(image_analyses, ensure_ascii=False)
+                    await db.session.commit()
+
+    except Exception as e:
+        errors.append(f"Image analysis: {str(e)}")
+
     # 7. Mark as completed
     total_time_ms = int((time.time() - start_time) * 1000)
 
@@ -1747,6 +1791,9 @@ async def complete_vehicle_analysis_v2(
             "checklist_antes_licitar": ai_result.checklist if ai_result else [],
             "problemas_conhecidos": ai_result.problemas_conhecidos if ai_result else [],
         },
+
+        # Image Analysis (LLaVA)
+        "image_analyses": image_analyses,
 
         # Metadata
         "status": "completed",
