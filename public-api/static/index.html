@@ -5390,13 +5390,16 @@
                 let eventsData = {};
 
                 try {
-                    const response = await fetch(`${API_BASE}/api/events?limit=500&active_only=false`);
+                    // Fetch only the events we need using batch endpoint
+                    const response = await fetch(`${API_BASE}/api/events/batch`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(refs)
+                    });
                     const data = await response.json();
                     if (data.events) {
                         data.events.forEach(e => {
-                            if (refs.includes(e.reference)) {
-                                eventsData[e.reference] = e;
-                            }
+                            eventsData[e.reference] = e;
                         });
                     }
                 } catch (err) {

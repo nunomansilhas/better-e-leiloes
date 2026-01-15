@@ -929,6 +929,23 @@ async def get_events(
         )
 
 
+@app.post("/api/events/batch")
+async def get_events_batch(references: List[str]):
+    """
+    Fetch multiple events by their references.
+
+    - **references**: List of event references (max 100)
+
+    Returns list of events that were found.
+    """
+    if len(references) > 100:
+        raise HTTPException(status_code=400, detail="Maximum 100 references allowed")
+
+    async with get_db() as db:
+        events = await db.get_events_by_refs(references)
+        return {"events": events, "found": len(events), "requested": len(references)}
+
+
 @app.post("/api/scrape/event/{reference}")
 async def trigger_scrape_event(reference: str, background_tasks: BackgroundTasks):
     """
