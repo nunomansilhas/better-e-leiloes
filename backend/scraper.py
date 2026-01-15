@@ -2106,57 +2106,90 @@ class EventScraper:
     async def scrape_volatile_via_api(
         self,
         references: List[str],
-        on_progress: Optional[Callable[[int, int, str], Awaitable[None]]] = None
+        on_progress: Optional[Callable[[int, int, str], Awaitable[None]]] = None,
+        batch_size: int = 10
     ) -> List[dict]:
         """
         Scrape only volatile data (lanceAtual, dataFim) via API - VERY FAST!
-        Uses httpx directly - no browser needed!
+        Uses httpx directly with PARALLEL requests - no browser needed!
+
+        Args:
+            references: List of event references to scrape
+            on_progress: Optional callback for progress updates
+            batch_size: Number of concurrent requests (default 10)
         """
         results = []
         total = len(references)
 
-        if total > 10:
-            print(f"💰 API Volatile: {total} eventos...")
+        if total == 0:
+            return results
 
-        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True, verify=False) as client:
-            for i, ref in enumerate(references):
+        if total > 10:
+            print(f"💰 API Volatile: {total} eventos (parallel, batch={batch_size})...")
+
+        headers = {
+            'Accept': 'application/json, text/plain, */*',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Referer': 'https://www.e-leiloes.pt/',
+        }
+
+        async def fetch_one(client: httpx.AsyncClient, ref: str) -> Optional[dict]:
+            """Fetch volatile data for a single event"""
+            try:
+                api_url = f"https://www.e-leiloes.pt/api/eventos/{ref}"
+                response = await client.get(api_url)
+
+                if response.status_code == 200:
+                    data = response.json()
+                    item = data.get('item', {})
+
+                    if item:
+                        data_fim = None
+                        try:
+                            if item.get('dataFim'):
+                                data_fim = datetime.fromisoformat(item['dataFim'].replace('Z', ''))
+                        except:
+                            pass
+
+                        return {
+                            'reference': ref,
+                            'lanceAtual': item.get('lanceAtual', 0),
+                            'dataFim': data_fim,
+                            'terminado': item.get('terminado', False),
+                            'cancelado': item.get('cancelado', False),
+                        }
+            except Exception as e:
+                if total <= 10:
+                    print(f"  ❌ {ref}: {str(e)[:50]}")
+            return None
+
+        async with httpx.AsyncClient(
+            timeout=15.0,
+            follow_redirects=True,
+            verify=False,
+            headers=headers
+        ) as client:
+            # Process in parallel batches
+            processed = 0
+            for batch_start in range(0, total, batch_size):
                 if self.stop_requested:
                     break
 
-                try:
-                    api_url = f"https://www.e-leiloes.pt/api/eventos/{ref}"
-                    response = await client.get(api_url)
+                batch = references[batch_start:batch_start + batch_size]
 
-                    if response.status_code == 200:
-                        data = response.json()
-                        item = data.get('item', {})
+                # Fire all requests in parallel
+                tasks = [fetch_one(client, ref) for ref in batch]
+                batch_results = await asyncio.gather(*tasks)
 
-                        if item:
-                            data_fim = None
-                            try:
-                                if item.get('dataFim'):
-                                    data_fim = datetime.fromisoformat(item['dataFim'].replace('Z', ''))
-                            except:
-                                pass
+                # Collect successful results
+                for result in batch_results:
+                    if result:
+                        results.append(result)
 
-                            results.append({
-                                'reference': ref,
-                                'lanceAtual': item.get('lanceAtual', 0),
-                                'dataFim': data_fim
-                            })
+                processed += len(batch)
 
-                            if total <= 10:
-                                print(f"  💰 [{i+1}/{total}] {ref}: {item.get('lanceAtual', 0)}€")
-
-                    if on_progress:
-                        await on_progress(i + 1, total, ref)
-
-                except Exception as e:
-                    print(f"  ❌ [{i+1}/{total}] {ref}: {str(e)[:50]}")
-
-                # Small delay to be nice to the API
-                if total > 1:
-                    await asyncio.sleep(0.1)
+                if on_progress:
+                    await on_progress(processed, total, batch[-1] if batch else "")
 
         if total > 10:
             print(f"✅ API Volatile: {len(results)}/{total} atualizados")
