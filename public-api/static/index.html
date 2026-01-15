@@ -4667,88 +4667,80 @@
             </div>
         </div>
 
-        <!-- ========== AI ASSISTANT PAGE ========== -->
+        <!-- ========== AI ASSISTANT PAGE (VEHICLES ONLY) ========== -->
         <div id="ai-assistant" class="page">
             <div class="page-header" style="display: flex; justify-content: space-between; align-items: flex-start;">
                 <div>
-                    <h2>AI Assistant</h2>
-                    <p>Analises e recomendacoes automaticas para imoveis e veiculos</p>
+                    <h2>🤖 AI Veículos</h2>
+                    <p>Análises de veículos com dados recolhidos automaticamente</p>
                 </div>
-                <div style="display: flex; gap: 8px; align-items: center;">
-                    <span class="ai-status-indicator" id="ai-status-indicator" style="width: 8px; height: 8px; border-radius: 50%; background: #94a3b8;"></span>
-                    <span style="font-size: 12px; color: #94a3b8;" id="ai-status-text">Offline</span>
+                <button onclick="refreshVehicleAnalyses()" style="padding: 8px 16px; background: #3b82f6; color: white; border: none; border-radius: 8px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                    <span id="ai-refresh-icon">🔄</span> Atualizar
+                </button>
+            </div>
+
+            <!-- Stats Row -->
+            <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 20px;">
+                <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 16px; text-align: center;">
+                    <div style="font-size: 24px; font-weight: 700; color: #e2e8f0;" id="va-stat-total">-</div>
+                    <div style="font-size: 11px; color: #94a3b8; margin-top: 4px;">Total Analisados</div>
+                </div>
+                <div style="background: linear-gradient(135deg, #064e3b 0%, #065f46 100%); border-radius: 12px; padding: 16px; text-align: center;">
+                    <div style="font-size: 24px; font-weight: 700; color: #10b981;" id="va-stat-buy">-</div>
+                    <div style="font-size: 11px; color: #6ee7b7; margin-top: 4px;">🟢 Comprar</div>
+                </div>
+                <div style="background: linear-gradient(135deg, #1e3a5f 0%, #1e40af 100%); border-radius: 12px; padding: 16px; text-align: center;">
+                    <div style="font-size: 24px; font-weight: 700; color: #60a5fa;" id="va-stat-consider">-</div>
+                    <div style="font-size: 11px; color: #93c5fd; margin-top: 4px;">🔵 Considerar</div>
+                </div>
+                <div style="background: linear-gradient(135deg, #78350f 0%, #92400e 100%); border-radius: 12px; padding: 16px; text-align: center;">
+                    <div style="font-size: 24px; font-weight: 700; color: #fbbf24;" id="va-stat-caution">-</div>
+                    <div style="font-size: 11px; color: #fde68a; margin-top: 4px;">🟡 Cautela</div>
+                </div>
+                <div style="background: linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%); border-radius: 12px; padding: 16px; text-align: center;">
+                    <div style="font-size: 24px; font-weight: 700; color: #ef4444;" id="va-stat-avoid">-</div>
+                    <div style="font-size: 11px; color: #fca5a5; margin-top: 4px;">🔴 Evitar</div>
                 </div>
             </div>
 
-            <!-- AI Stats Cards -->
-            <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 24px;">
-                <div class="stats-card">
-                    <div class="stats-card-value" id="ai-stat-total">0</div>
-                    <div class="stats-card-label">Total Analisados</div>
-                </div>
-                <div class="stats-card">
-                    <div class="stats-card-value" id="ai-stat-pending">0</div>
-                    <div class="stats-card-label">Pendentes</div>
-                </div>
-                <div class="stats-card">
-                    <div class="stats-card-value" id="ai-stat-buy">0</div>
-                    <div class="stats-card-label" style="color: #10b981;">Recomenda Compra</div>
-                </div>
-                <div class="stats-card">
-                    <div class="stats-card-value" id="ai-stat-watch">0</div>
-                    <div class="stats-card-label" style="color: #f59e0b;">Acompanhar</div>
-                </div>
-                <div class="stats-card">
-                    <div class="stats-card-value" id="ai-stat-skip">0</div>
-                    <div class="stats-card-label" style="color: #ef4444;">Evitar</div>
-                </div>
-            </div>
-
-            <!-- Current Processing Status -->
-            <div id="ai-processing-status" style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border: 1px solid #bae6fd; border-radius: 12px; padding: 20px; margin-bottom: 24px; display: none;">
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <div class="loading-spinner" style="width: 20px; height: 20px;"></div>
-                    <div>
-                        <div style="font-weight: 600; color: #0369a1;">A processar evento...</div>
-                        <div style="font-size: 13px; color: #0284c7; margin-top: 4px;" id="ai-current-event">-</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Search and Filters -->
-            <div style="display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;">
-                <div style="flex: 1; min-width: 250px;">
-                    <input type="text" id="ai-search-input" placeholder="Pesquisar por referencia ou titulo..."
-                        style="width: 100%; padding: 10px 16px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px;"
-                        oninput="debounceAiSearch()">
-                </div>
-                <select id="ai-filter-status" onchange="loadAiTips()" style="padding: 10px 16px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; background: white; min-width: 150px;">
-                    <option value="">Todos os estados</option>
-                    <option value="completed">Concluido</option>
-                    <option value="pending">Pendente</option>
-                    <option value="processing">A processar</option>
-                    <option value="failed">Falhado</option>
+            <!-- Filters -->
+            <div style="display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; align-items: center;">
+                <input type="text" id="va-search" placeholder="🔍 Pesquisar marca, modelo..."
+                    style="flex: 1; min-width: 200px; padding: 10px 14px; border: 1px solid #334155; border-radius: 8px; font-size: 13px; background: #1e293b; color: #e2e8f0;"
+                    oninput="filterVehicleCards()">
+                <select id="va-filter-rec" onchange="filterVehicleCards()" style="padding: 10px 14px; border: 1px solid #334155; border-radius: 8px; font-size: 13px; background: #1e293b; color: #e2e8f0;">
+                    <option value="">Todas Recomendações</option>
+                    <option value="comprar">🟢 Comprar</option>
+                    <option value="excelente">🟢 Excelente</option>
+                    <option value="considerar">🔵 Considerar</option>
+                    <option value="cautela">🟡 Cautela</option>
+                    <option value="evitar">🔴 Evitar</option>
                 </select>
-                <select id="ai-filter-tipo" onchange="loadAiTips()" style="padding: 10px 16px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; background: white; min-width: 150px;">
-                    <option value="">Todos os tipos</option>
-                    <option value="imoveis">Imoveis</option>
-                    <option value="veiculos">Veiculos</option>
-                </select>
-                <select id="ai-filter-recommendation" onchange="loadAiTips()" style="padding: 10px 16px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; background: white; min-width: 150px;">
-                    <option value="">Todas recomendacoes</option>
-                    <option value="buy">Comprar</option>
-                    <option value="watch">Acompanhar</option>
-                    <option value="skip">Evitar</option>
+                <select id="va-sort" onchange="sortVehicleCards()" style="padding: 10px 14px; border: 1px solid #334155; border-radius: 8px; font-size: 13px; background: #1e293b; color: #e2e8f0;">
+                    <option value="score-desc">Score ↓</option>
+                    <option value="score-asc">Score ↑</option>
+                    <option value="discount-desc">Desconto ↓</option>
+                    <option value="price-asc">Preço ↑</option>
+                    <option value="date-desc">Mais Recente</option>
                 </select>
             </div>
 
-            <!-- AI Tips List -->
-            <div id="ai-tips-list" style="display: flex; flex-direction: column; gap: 16px;">
-                <div class="loading"><div class="loading-spinner"></div></div>
+            <!-- Loading State -->
+            <div id="va-loading" style="text-align: center; padding: 60px 20px;">
+                <div class="loading-spinner" style="width: 40px; height: 40px; margin: 0 auto 16px;"></div>
+                <div style="color: #94a3b8; font-size: 14px;">A carregar análises de veículos...</div>
             </div>
 
-            <!-- Pagination -->
-            <div id="ai-pagination" style="display: flex; justify-content: center; gap: 8px; margin-top: 24px;">
+            <!-- No Data State -->
+            <div id="va-no-data" style="display: none; text-align: center; padding: 60px 20px;">
+                <div style="font-size: 64px; margin-bottom: 16px;">🚗</div>
+                <div style="color: #e2e8f0; font-size: 18px; font-weight: 600; margin-bottom: 8px;">Sem análises de veículos</div>
+                <div style="color: #94a3b8; font-size: 14px;">Execute a pipeline AI no backend para analisar veículos</div>
+            </div>
+
+            <!-- Vehicle Cards Grid -->
+            <div id="va-cards-grid" style="display: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px;">
+                <!-- Cards populated by JS -->
             </div>
         </div>
 
@@ -12840,28 +12832,202 @@
         let aiCurrentPage = 1;
         let aiSearchTimeout = null;
 
+        // ============== VEHICLE ANALYSIS PAGE (NEW) ==============
+
+        let allVehicleAnalyses = [];
+
         async function loadAiAssistantPage() {
-            await Promise.all([
-                loadAiStats(),
-                loadAiPipelineStatus(),
-                loadAiTips()
-            ]);
+            // Load new vehicle analyses page
+            await loadVehicleAnalyses();
         }
 
-        async function loadAiStats() {
-            try {
-                const response = await fetch('/api/ai/stats');
-                if (!response.ok) throw new Error('Failed to load AI stats');
-                const data = await response.json();
+        async function loadVehicleAnalyses() {
+            const loading = document.getElementById('va-loading');
+            const noData = document.getElementById('va-no-data');
+            const grid = document.getElementById('va-cards-grid');
 
-                document.getElementById('ai-stat-total').textContent = data.total || 0;
-                document.getElementById('ai-stat-pending').textContent = data.by_status?.pending || 0;
-                document.getElementById('ai-stat-buy').textContent = data.by_recommendation?.buy || 0;
-                document.getElementById('ai-stat-watch').textContent = data.by_recommendation?.watch || 0;
-                document.getElementById('ai-stat-skip').textContent = data.by_recommendation?.skip || 0;
+            loading.style.display = 'block';
+            noData.style.display = 'none';
+            grid.style.display = 'none';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/vehicle-analyses?limit=200`);
+                if (!response.ok) throw new Error('Failed to load vehicle analyses');
+
+                const data = await response.json();
+                allVehicleAnalyses = data.analyses || [];
+
+                // Update stats
+                const stats = data.stats || {};
+                document.getElementById('va-stat-total').textContent = stats.total || 0;
+                document.getElementById('va-stat-buy').textContent = stats.comprar || 0;
+                document.getElementById('va-stat-consider').textContent = stats.considerar || 0;
+                document.getElementById('va-stat-caution').textContent = stats.cautela || 0;
+                document.getElementById('va-stat-avoid').textContent = stats.evitar || 0;
+
+                loading.style.display = 'none';
+
+                if (allVehicleAnalyses.length === 0) {
+                    noData.style.display = 'block';
+                    return;
+                }
+
+                renderVehicleCards(allVehicleAnalyses);
+                grid.style.display = 'grid';
+
             } catch (error) {
-                console.error('Error loading AI stats:', error);
+                console.error('Error loading vehicle analyses:', error);
+                loading.style.display = 'none';
+                noData.style.display = 'block';
             }
+        }
+
+        function renderVehicleCards(analyses) {
+            const grid = document.getElementById('va-cards-grid');
+
+            grid.innerHTML = analyses.map(v => {
+                const score = v.ai_score || 0;
+                const scoreColor = score >= 7 ? '#10b981' : score >= 5 ? '#f59e0b' : '#ef4444';
+
+                const rec = (v.ai_recommendation || 'N/A').toLowerCase();
+                const recConfig = {
+                    'comprar': { bg: '#059669', icon: '🟢' },
+                    'excelente': { bg: '#059669', icon: '🟢' },
+                    'considerar': { bg: '#0891b2', icon: '🔵' },
+                    'cautela': { bg: '#d97706', icon: '🟡' },
+                    'evitar': { bg: '#dc2626', icon: '🔴' }
+                }[rec] || { bg: '#64748b', icon: '⚪' };
+
+                const formatPrice = (p) => p ? new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(p) : '-';
+                const discount = v.desconto_percentagem ? `${v.desconto_percentagem.toFixed(0)}%` : '-';
+                const discountColor = (v.desconto_percentagem || 0) > 0 ? '#10b981' : '#94a3b8';
+
+                let pros = [];
+                try { pros = JSON.parse(v.ai_pros || '[]'); } catch(e) {}
+                let cons = [];
+                try { cons = JSON.parse(v.ai_cons || '[]'); } catch(e) {}
+
+                return `
+                    <div class="va-card" onclick="openInspectionModal('${v.reference}'); setTimeout(() => switchInspectionTab('ai'), 100);"
+                         style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; overflow: hidden; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;"
+                         onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 12px 40px rgba(0,0,0,0.4)';"
+                         onmouseout="this.style.transform=''; this.style.boxShadow='';"
+                         data-recommendation="${rec}" data-score="${score}" data-price="${v.event_valor_base || 0}" data-date="${v.processed_at || ''}">
+
+                        <!-- Image Header -->
+                        <div style="height: 140px; background: url('${v.capa || ''}') center/cover no-repeat, linear-gradient(135deg, #334155 0%, #1e293b 100%); position: relative;">
+                            <div style="position: absolute; top: 10px; left: 10px; display: flex; gap: 6px;">
+                                <span style="background: rgba(0,0,0,0.7); padding: 4px 10px; border-radius: 20px; font-size: 11px; color: #e2e8f0; font-weight: 600;">${v.reference}</span>
+                            </div>
+                            <div style="position: absolute; top: 10px; right: 10px; display: flex; gap: 6px; align-items: center;">
+                                <span style="background: ${recConfig.bg}; padding: 4px 10px; border-radius: 20px; font-size: 11px; color: white; font-weight: 600;">${recConfig.icon} ${(rec || 'N/A').toUpperCase()}</span>
+                            </div>
+                            <div style="position: absolute; bottom: 10px; right: 10px; background: rgba(0,0,0,0.8); padding: 6px 12px; border-radius: 12px;">
+                                <span style="font-size: 24px; font-weight: 700; color: ${scoreColor};">${score.toFixed(1)}</span>
+                                <span style="font-size: 11px; color: #94a3b8;">/10</span>
+                            </div>
+                        </div>
+
+                        <!-- Content -->
+                        <div style="padding: 16px;">
+                            <!-- Vehicle Title -->
+                            <div style="margin-bottom: 12px;">
+                                <div style="font-size: 16px; font-weight: 700; color: #e2e8f0; margin-bottom: 2px;">${v.marca || '-'} ${v.modelo || ''}</div>
+                                <div style="font-size: 12px; color: #94a3b8;">${v.versao ? v.versao + ' • ' : ''}${v.ano || '-'} • ${v.combustivel || '-'}</div>
+                            </div>
+
+                            <!-- Prices Row -->
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding: 10px; background: #0f172a; border-radius: 10px;">
+                                <div>
+                                    <div style="font-size: 9px; color: #64748b; text-transform: uppercase;">Leilão</div>
+                                    <div style="font-size: 15px; font-weight: 700; color: #f59e0b;">${formatPrice(v.event_valor_base)}</div>
+                                </div>
+                                <div style="text-align: center;">
+                                    <div style="font-size: 9px; color: #64748b; text-transform: uppercase;">Desconto</div>
+                                    <div style="font-size: 15px; font-weight: 700; color: ${discountColor};">${discount}</div>
+                                </div>
+                                <div style="text-align: right;">
+                                    <div style="font-size: 9px; color: #64748b; text-transform: uppercase;">Mercado</div>
+                                    <div style="font-size: 15px; font-weight: 700; color: #10b981;">${formatPrice(v.market_preco_medio)}</div>
+                                </div>
+                            </div>
+
+                            <!-- Summary -->
+                            <div style="font-size: 12px; color: #cbd5e1; line-height: 1.5; margin-bottom: 12px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                                ${v.ai_summary || 'Sem resumo disponível.'}
+                            </div>
+
+                            <!-- Quick Pros/Cons -->
+                            <div style="display: flex; gap: 8px; font-size: 10px;">
+                                <div style="flex: 1; color: #6ee7b7;">
+                                    ${pros.slice(0, 2).map(p => `<div style="margin-bottom: 2px;">✓ ${p.substring(0, 30)}${p.length > 30 ? '...' : ''}</div>`).join('') || '<div style="opacity: 0.5;">-</div>'}
+                                </div>
+                                <div style="flex: 1; color: #fca5a5;">
+                                    ${cons.slice(0, 2).map(c => `<div style="margin-bottom: 2px;">✗ ${c.substring(0, 30)}${c.length > 30 ? '...' : ''}</div>`).join('') || '<div style="opacity: 0.5;">-</div>'}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function filterVehicleCards() {
+            const search = (document.getElementById('va-search')?.value || '').toLowerCase();
+            const recFilter = document.getElementById('va-filter-rec')?.value || '';
+
+            let filtered = allVehicleAnalyses.filter(v => {
+                const matchSearch = !search ||
+                    (v.marca || '').toLowerCase().includes(search) ||
+                    (v.modelo || '').toLowerCase().includes(search) ||
+                    (v.reference || '').toLowerCase().includes(search);
+
+                const matchRec = !recFilter || (v.ai_recommendation || '').toLowerCase() === recFilter;
+
+                return matchSearch && matchRec;
+            });
+
+            renderVehicleCards(filtered);
+            document.getElementById('va-cards-grid').style.display = filtered.length > 0 ? 'grid' : 'none';
+            document.getElementById('va-no-data').style.display = filtered.length === 0 ? 'block' : 'none';
+        }
+
+        function sortVehicleCards() {
+            const sortBy = document.getElementById('va-sort')?.value || 'score-desc';
+            let sorted = [...allVehicleAnalyses];
+
+            switch(sortBy) {
+                case 'score-desc':
+                    sorted.sort((a, b) => (b.ai_score || 0) - (a.ai_score || 0));
+                    break;
+                case 'score-asc':
+                    sorted.sort((a, b) => (a.ai_score || 0) - (b.ai_score || 0));
+                    break;
+                case 'discount-desc':
+                    sorted.sort((a, b) => (b.desconto_percentagem || 0) - (a.desconto_percentagem || 0));
+                    break;
+                case 'price-asc':
+                    sorted.sort((a, b) => (a.event_valor_base || 0) - (b.event_valor_base || 0));
+                    break;
+                case 'date-desc':
+                    sorted.sort((a, b) => new Date(b.processed_at || 0) - new Date(a.processed_at || 0));
+                    break;
+            }
+
+            allVehicleAnalyses = sorted;
+            filterVehicleCards();
+        }
+
+        async function refreshVehicleAnalyses() {
+            const icon = document.getElementById('ai-refresh-icon');
+            icon.style.animation = 'spin 1s linear infinite';
+            await loadVehicleAnalyses();
+            icon.style.animation = '';
+        }
+
+        // Legacy function - keep for compatibility
+        async function loadAiStats() {
+            // Now handled by loadVehicleAnalyses
         }
 
         async function loadAiPipelineStatus() {

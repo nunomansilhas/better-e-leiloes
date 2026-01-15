@@ -577,6 +577,103 @@ async def get_events_batch(references: List[str]):
         return {"events": result_events, "found": len(result_events), "requested": len(references)}
 
 
+@app.get("/api/vehicle-analyses")
+async def list_vehicle_analyses(
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    recommendation: Optional[str] = None
+):
+    """
+    List all vehicle analyses with AI data.
+    Returns vehicles that have been analyzed.
+    """
+    from sqlalchemy import text
+
+    async with get_session() as session:
+        # Build query
+        where_clause = "WHERE ai_score IS NOT NULL"
+        params = {"limit": limit, "offset": offset}
+
+        if recommendation:
+            where_clause += " AND ai_recommendation = :rec"
+            params["rec"] = recommendation
+
+        # Get total count
+        count_result = await session.execute(
+            text(f"SELECT COUNT(*) FROM event_vehicle_data {where_clause}"),
+            params
+        )
+        total = count_result.scalar() or 0
+
+        # Get analyses
+        result = await session.execute(
+            text(f"""
+                SELECT
+                    evd.reference, evd.matricula, evd.event_titulo, evd.event_valor_base, evd.event_lance_atual,
+                    evd.marca, evd.modelo, evd.versao, evd.ano, evd.combustivel, evd.potencia_cv,
+                    evd.tem_seguro, evd.market_preco_medio, evd.desconto_percentagem,
+                    evd.ai_score, evd.ai_recommendation, evd.ai_summary, evd.ai_pros, evd.ai_cons,
+                    evd.processed_at,
+                    e.capa, e.data_fim
+                FROM event_vehicle_data evd
+                LEFT JOIN events e ON evd.reference = e.reference
+                {where_clause}
+                ORDER BY evd.ai_score DESC, evd.processed_at DESC
+                LIMIT :limit OFFSET :offset
+            """),
+            params
+        )
+        rows = result.fetchall()
+
+        columns = [
+            'reference', 'matricula', 'event_titulo', 'event_valor_base', 'event_lance_atual',
+            'marca', 'modelo', 'versao', 'ano', 'combustivel', 'potencia_cv',
+            'tem_seguro', 'market_preco_medio', 'desconto_percentagem',
+            'ai_score', 'ai_recommendation', 'ai_summary', 'ai_pros', 'ai_cons',
+            'processed_at', 'capa', 'data_fim'
+        ]
+
+        analyses = []
+        for row in rows:
+            data = {}
+            for i, col in enumerate(columns):
+                val = row[i]
+                if val is not None and hasattr(val, '__float__'):
+                    val = float(val)
+                if val is not None and hasattr(val, 'isoformat'):
+                    val = val.isoformat()
+                data[col] = val
+            analyses.append(data)
+
+        # Get stats
+        stats_result = await session.execute(
+            text("""
+                SELECT
+                    ai_recommendation,
+                    COUNT(*) as count
+                FROM event_vehicle_data
+                WHERE ai_score IS NOT NULL
+                GROUP BY ai_recommendation
+            """)
+        )
+        stats_rows = stats_result.fetchall()
+        stats = {row[0]: row[1] for row in stats_rows if row[0]}
+
+        return {
+            "analyses": analyses,
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "stats": {
+                "total": total,
+                "comprar": stats.get('comprar', 0) + stats.get('excelente', 0),
+                "considerar": stats.get('considerar', 0),
+                "cautela": stats.get('cautela', 0),
+                "evitar": stats.get('evitar', 0)
+            }
+        }
+
+
 @app.get("/api/vehicle-data/{reference}")
 async def get_vehicle_data(reference: str):
     """
