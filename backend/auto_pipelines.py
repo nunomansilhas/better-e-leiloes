@@ -1471,8 +1471,8 @@ class AutoPipelinesManager:
                 now = datetime.now()
 
                 async with get_db() as db:
-                    # Get active events
-                    events, total = await db.list_events(limit=500, cancelado=False)
+                    # Get active events (not cancelled AND still active)
+                    events, total = await db.list_events(limit=500, cancelado=False, ativo=True)
 
                     candidates = []
                     for event in events:
@@ -1562,8 +1562,9 @@ class AutoPipelinesManager:
                                     # Not in API results = likely 404/not found
                                     await db.update_event_fields(
                                         event.reference,
-                                        {'terminado': True, 'ativo': False}
+                                        {'terminado': True, 'cancelado': True, 'ativo': False}
                                     )
+                                    await cache_manager.invalidate(event.reference)
                                     terminated_count += 1
                                     print(f"    🔴 Não encontrado: {event.reference}")
 

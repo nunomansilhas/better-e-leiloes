@@ -1322,7 +1322,8 @@ class DatabaseManager:
         tipo: Optional[str] = None,  # Legacy: filter by tipo name (Imóvel, Apartamento)
         tipo_evento: Optional[str] = None,  # Legacy: filter by tipo_evento string
         distrito: Optional[str] = None,
-        cancelado: Optional[bool] = None
+        cancelado: Optional[bool] = None,
+        ativo: Optional[bool] = None  # Filter by active status
     ) -> Tuple[List[EventData], int]:
         """Lista eventos com paginação e filtros"""
         query = select(EventDB)
@@ -1348,6 +1349,8 @@ class DatabaseManager:
             query = query.where(EventDB.distrito == distrito)
         if cancelado is not None:
             query = query.where(EventDB.cancelado == cancelado)
+        if ativo is not None:
+            query = query.where(EventDB.ativo == ativo)
 
         # Total count
         count_query = select(func.count()).select_from(query.subquery())
