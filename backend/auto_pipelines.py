@@ -1769,7 +1769,7 @@ class AutoPipelinesManager:
                     events_list = data
                 elif isinstance(data, dict):
                     # Try different possible field names
-                    for key in ['items', 'eventos', 'events', 'data', 'results', 'lista']:
+                    for key in ['list', 'items', 'eventos', 'events', 'data', 'results', 'lista']:
                         if key in data and isinstance(data[key], list):
                             events_list = data[key]
                             print(f"  📝 Found events in field: {key}")
