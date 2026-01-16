@@ -2045,6 +2045,75 @@ async def get_volatile_data(reference: str):
         raise HTTPException(status_code=503, detail=f"Failed to fetch from e-leiloes.pt: {str(e)}")
 
 
+@app.get("/api/debug/api-raw/{reference}")
+async def debug_api_raw(reference: str):
+    """
+    Debug endpoint: Mostra a resposta RAW da API do e-leiloes.pt para um evento.
+    Usa Playwright para bypass anti-bot. Útil para debug de campos como observacoes.
+    """
+    import json
+    from playwright.async_api import async_playwright
+
+    browser = None
+    playwright_instance = None
+
+    try:
+        playwright_instance = await async_playwright().start()
+        browser = await playwright_instance.chromium.launch(headless=True)
+        context = await browser.new_context(
+            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        )
+        page = await context.new_page()
+
+        # First visit main site to get session
+        await page.goto("https://www.e-leiloes.pt", wait_until='domcontentloaded', timeout=15000)
+
+        # Then fetch API
+        api_url = f"https://www.e-leiloes.pt/api/eventos/{reference}"
+        response = await page.goto(api_url, wait_until='domcontentloaded', timeout=15000)
+
+        if response.status != 200:
+            raise HTTPException(status_code=response.status, detail=f"API returned {response.status}")
+
+        body = await page.query_selector('body')
+        json_str = await body.inner_text()
+        data = json.loads(json_str)
+
+        item = data.get('item', {})
+
+        # Campos importantes para debug
+        return {
+            "reference": reference,
+            "api_url": api_url,
+            "campos_observacoes": {
+                "observacoes": item.get('observacoes'),
+                "observacao": item.get('observacao'),
+                "obs": item.get('obs'),
+                "notas": item.get('notas'),
+                "notasVeiculo": item.get('notasVeiculo'),
+                "observacoesVeiculo": item.get('observacoesVeiculo'),
+            },
+            "campos_descricao": {
+                "descricao": item.get('descricao'),
+                "descricaoVerba": item.get('descricaoVerba'),
+                "descricaoEvento": item.get('descricaoEvento'),
+            },
+            "todos_campos_com_obs_ou_nota": {
+                k: v for k, v in item.items()
+                if 'obs' in k.lower() or 'nota' in k.lower() or 'descri' in k.lower()
+            },
+            "item_keys": list(item.keys()) if item else [],
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+    finally:
+        if browser:
+            await browser.close()
+        if playwright_instance:
+            await playwright_instance.stop()
+
+
 @app.get("/api/test/eventos-mais-recentes")
 async def test_eventos_mais_recentes():
     """
