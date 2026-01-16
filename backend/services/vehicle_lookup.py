@@ -367,18 +367,30 @@ async def search_standvirtual(marca: str, modelo: str = None, ano: int = None, c
                             if title and len(title) > 3:
                                 break
 
-                    # Get params (year, km, fuel)
+                    # Get params (year, km, fuel) - need ALL params, not just first
                     params_text = ""
                     params_selectors = [
                         '[data-testid="ad-parameters"]',
-                        'ul li',
+                        'ul',  # Get the whole ul, not individual li
                         '[class*="parameter"]',
                     ]
                     for psel in params_selectors:
                         params_el = await listing.query_selector(psel)
                         if params_el:
                             params_text = await params_el.inner_text()
-                            break
+                            if params_text and len(params_text) > 3:
+                                break
+
+                    # If params still empty, try getting all li elements and join them
+                    if not params_text or len(params_text) < 5:
+                        li_elements = await listing.query_selector_all('ul li')
+                        if li_elements:
+                            li_texts = []
+                            for li in li_elements[:5]:  # Max 5 params
+                                li_text = await li.inner_text()
+                                if li_text:
+                                    li_texts.append(li_text.strip())
+                            params_text = ' · '.join(li_texts)
 
                     if price > 500:  # Minimum reasonable price
                         results.append({
