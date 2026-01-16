@@ -87,11 +87,27 @@ class EventDB(Base):
 
     # Description
     descricao: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    observacoes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Morada extra
+    morada_cp: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
 
     # Processo (legal case)
     processo_numero: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     processo_tribunal: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
     processo_comarca: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+
+    # Cerimonia
+    cerimonia_data: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    cerimonia_local: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    cerimonia_morada: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Gestor/Agente
+    gestor_nome: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    gestor_email: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    gestor_telefone: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    gestor_tipo: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    gestor_cedula: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
 
     # Photos (JSON array)
     fotos: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
