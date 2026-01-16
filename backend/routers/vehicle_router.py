@@ -1776,10 +1776,11 @@ async def complete_vehicle_analysis_v2(
         except Exception as e:
             errors.append(f"AI analysis: {str(e)}")
 
-    # 6b. Image Analysis (LLaVA)
+    # 6b. Image Analysis (LLaVA) - PARALLEL PROCESSING
     image_analyses = []
     try:
         from services.ai_analysis_service import EnhancedAIAnalysisService
+        import asyncio
 
         # Get image URLs from fotos field
         fotos = event_dict.get('fotos', [])
@@ -1792,26 +1793,50 @@ async def complete_vehicle_analysis_v2(
         if fotos and len(fotos) > 0:
             vision_service = EnhancedAIAnalysisService()
 
-            # Analyze up to 10 images for comprehensive analysis
-            for foto in fotos[:10]:
-                # Handle both dict format {"image": "url"} and direct URL string
+            # Prepare list of valid image URLs
+            valid_urls = []
+            for foto in fotos[:10]:  # Analyze up to 10 images
                 if isinstance(foto, dict):
                     foto_url = foto.get('image') or foto.get('thumbnail')
                 else:
                     foto_url = foto
-
                 if foto_url and isinstance(foto_url, str) and foto_url.startswith('http'):
-                    try:
-                        img_analysis = await vision_service.analyze_vehicle_image(foto_url)
+                    valid_urls.append(foto_url)
+
+            # Analyze all images in PARALLEL
+            async def analyze_single_image(url: str) -> dict:
+                try:
+                    img_analysis = await vision_service.analyze_vehicle_image(url)
+                    return {
+                        "url": url,
+                        "description": img_analysis.description,
+                        "condition": img_analysis.condition,
+                        "issues": img_analysis.issues_found,
+                        "confidence": img_analysis.confidence,
+                        "success": True
+                    }
+                except Exception as img_e:
+                    return {
+                        "url": url,
+                        "error": str(img_e)[:100],
+                        "success": False
+                    }
+
+            # Run all image analyses in parallel
+            if valid_urls:
+                results = await asyncio.gather(*[analyze_single_image(url) for url in valid_urls])
+
+                for result in results:
+                    if result.get("success"):
                         image_analyses.append({
-                            "url": foto_url,
-                            "description": img_analysis.description,
-                            "condition": img_analysis.condition,
-                            "issues": img_analysis.issues_found,
-                            "confidence": img_analysis.confidence
+                            "url": result["url"],
+                            "description": result["description"],
+                            "condition": result["condition"],
+                            "issues": result["issues"],
+                            "confidence": result["confidence"]
                         })
-                    except Exception as img_e:
-                        errors.append(f"Image analysis ({foto_url[:50]}): {str(img_e)}")
+                    else:
+                        errors.append(f"Image analysis ({result['url'][:50]}): {result.get('error', 'Unknown error')}")
 
             # Save image analyses
             if image_analyses:

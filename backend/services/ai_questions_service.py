@@ -538,6 +538,50 @@ def calculate_investment_analysis(
     # =================================================================
     # COMPARATIVE METRICS (for frontend display)
     # =================================================================
+    # Helper to determine visual status
+    def _get_km_status_visual(km_val, km_reference, is_less_better=True):
+        """Determine visual indicator for KM comparison"""
+        if not km_val or not km_reference:
+            return {"cor": "cinza", "icone": "❓", "label": "desconhecido"}
+
+        diff_pct = ((km_val - km_reference) / km_reference) * 100
+
+        if is_less_better:  # For KM, less is better
+            if diff_pct <= -20:
+                return {"cor": "verde", "icone": "✅", "label": "excelente"}
+            elif diff_pct <= -5:
+                return {"cor": "verde", "icone": "👍", "label": "bom"}
+            elif diff_pct <= 10:
+                return {"cor": "amarelo", "icone": "⚠️", "label": "médio"}
+            elif diff_pct <= 30:
+                return {"cor": "laranja", "icone": "⚠️", "label": "alto"}
+            else:
+                return {"cor": "vermelho", "icone": "🔴", "label": "muito alto"}
+        else:  # For margins, more is better
+            if diff_pct >= 40:
+                return {"cor": "verde", "icone": "✅", "label": "excelente"}
+            elif diff_pct >= 20:
+                return {"cor": "verde", "icone": "👍", "label": "bom"}
+            elif diff_pct >= 5:
+                return {"cor": "amarelo", "icone": "⚠️", "label": "moderado"}
+            else:
+                return {"cor": "vermelho", "icone": "🔴", "label": "baixo"}
+
+    # Determine price margin visual
+    preco_visual = {"cor": "cinza", "icone": "❓", "label": "desconhecido"}
+    if margem_lucro is not None and market_price:
+        margin_pct = (margem_lucro / market_price) * 100 if market_price > 0 else 0
+        if margin_pct >= 40:
+            preco_visual = {"cor": "verde", "icone": "💰", "label": "excelente margem"}
+        elif margin_pct >= 25:
+            preco_visual = {"cor": "verde", "icone": "👍", "label": "boa margem"}
+        elif margin_pct >= 10:
+            preco_visual = {"cor": "amarelo", "icone": "⚠️", "label": "margem moderada"}
+        elif margin_pct >= 0:
+            preco_visual = {"cor": "laranja", "icone": "⚠️", "label": "margem baixa"}
+        else:
+            preco_visual = {"cor": "vermelho", "icone": "🔴", "label": "prejuízo"}
+
     comparacao = {
         "km": {
             "veiculo": km,
@@ -546,8 +590,10 @@ def calculate_investment_analysis(
             "mercado_max": km_mercado_max,
             "esperado_idade": km_medio_esperado,
             "por_ano": km_por_ano,
+            "uso_classificacao": km_uso_classificacao,
             "vs_mercado": None,
             "vs_esperado": None,
+            "visual": _get_km_status_visual(km, km_mercado_medio) if km_mercado_medio else _get_km_status_visual(km, km_medio_esperado),
         },
         "preco": {
             "leilao_lance": lance_atual,
@@ -559,30 +605,43 @@ def calculate_investment_analysis(
             "mercado_minimo": market_price_min,
             "margem_euros": round(margem_lucro, 0) if margem_lucro else None,
             "margem_percentagem": desconto_mercado,
+            "visual": preco_visual,
         },
         "scores": {
             "oportunidade": score_oportunidade,
             "risco": score_risco,
             "liquidez": score_liquidez,
             "final": score_final,
+        },
+        # Frontend-friendly summary
+        "resumo_visual": {
+            "km_display": f"{km:,} km" if km else "Desconhecido",
+            "km_por_ano_display": f"{km_por_ano:,}/ano" if km_por_ano else None,
+            "preco_display": f"{round(custo_total, 0):,.0f}€" if custo_total else None,
+            "margem_display": f"+{round(margem_lucro, 0):,.0f}€ ({desconto_mercado}%)" if margem_lucro and margem_lucro > 0 else f"{round(margem_lucro, 0):,.0f}€" if margem_lucro else None,
+            "score_display": f"{score_final}/10",
         }
     }
 
     # Calculate KM comparisons
     if km and km_mercado_medio:
         diff = km - km_mercado_medio
+        pct = round((diff / km_mercado_medio) * 100, 1) if km_mercado_medio > 0 else 0
         comparacao["km"]["vs_mercado"] = {
             "diferenca": diff,
-            "percentagem": round((diff / km_mercado_medio) * 100, 1) if km_mercado_medio > 0 else 0,
-            "status": "acima" if diff > 0 else "abaixo" if diff < 0 else "igual"
+            "percentagem": pct,
+            "status": "acima" if diff > 0 else "abaixo" if diff < 0 else "igual",
+            "display": f"{abs(pct)}% {'acima' if pct > 0 else 'abaixo'} da média" if pct != 0 else "igual à média"
         }
 
     if km and km_medio_esperado:
         diff = km - km_medio_esperado
+        pct = round((diff / km_medio_esperado) * 100, 1) if km_medio_esperado > 0 else 0
         comparacao["km"]["vs_esperado"] = {
             "diferenca": diff,
-            "percentagem": round((diff / km_medio_esperado) * 100, 1) if km_medio_esperado > 0 else 0,
-            "status": "acima" if diff > 0 else "abaixo" if diff < 0 else "igual"
+            "percentagem": pct,
+            "status": "acima" if diff > 0 else "abaixo" if diff < 0 else "igual",
+            "display": f"{abs(pct)}% {'acima' if pct > 0 else 'abaixo'} do esperado" if pct != 0 else "igual ao esperado"
         }
 
     # =================================================================

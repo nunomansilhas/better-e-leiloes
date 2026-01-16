@@ -18,6 +18,52 @@ from dataclasses import dataclass, field
 from sqlalchemy import select, and_, desc
 
 from logger import log_info, log_warning, log_error
+import re
+
+
+def _extract_km_from_listing_params(listing: Dict[str, Any]) -> Optional[int]:
+    """
+    Extract km from a market listing.
+    Listings have: titulo, preco, params (string like "2020 · 145 000 km · Gasóleo")
+    """
+    # First try direct km field
+    if listing.get('km'):
+        try:
+            km_val = int(str(listing['km']).replace(".", "").replace(",", "").replace(" ", ""))
+            if 0 < km_val < 1000000:
+                return km_val
+        except:
+            pass
+
+    # Try to extract from params string
+    params = listing.get('params', '') or ''
+    if params:
+        patterns = [
+            r'(\d{1,3}(?:\s?\d{3})+)\s*km',
+            r'(\d{1,3}(?:[.\s]\d{3})+)\s*km',
+            r'(\d{4,6})\s*km',
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, params, re.IGNORECASE)
+            if match:
+                try:
+                    km_str = match.group(1).replace(".", "").replace(",", "").replace(" ", "")
+                    km_val = int(km_str)
+                    if 0 < km_val < 1000000:
+                        return km_val
+                except:
+                    continue
+
+    return None
+
+
+def _listings_have_km_data(listings: List[Dict[str, Any]]) -> bool:
+    """Check if at least 30% of listings have km data"""
+    if not listings:
+        return False
+
+    km_count = sum(1 for l in listings if _extract_km_from_listing_params(l) is not None)
+    return km_count >= len(listings) * 0.3  # At least 30% have km
 
 
 @dataclass
@@ -90,11 +136,17 @@ class MarketPriceService:
         log_info(f"Getting market price for {marca_normalized} {modelo_normalized} ({ano_min or ano}-{ano})")
 
         # Strategy 1: Try database cache first (unless force_refresh)
+        cached_without_km = None  # Store for fallback
         if not force_refresh:
             cached = await self._get_from_database(marca_normalized, modelo_normalized, ano, combustivel, ano_min)
             if cached and cached.preco_medio:
-                log_info(f"Found cached price: {cached.preco_medio}€ (from {cached.fonte})")
-                return cached
+                # Check if cached listings have km data for comparison
+                if cached.listings and _listings_have_km_data(cached.listings):
+                    log_info(f"Found cached price: {cached.preco_medio}€ (from {cached.fonte}, with km data)")
+                    return cached
+                else:
+                    log_info(f"Cached data lacks km data, will try fresh scrape")
+                    cached_without_km = cached  # Keep for fallback
 
         # Strategy 2: Try real-time scraping
         scraped = await self._get_from_scraping(marca_normalized, modelo_normalized, ano, combustivel, ano_min)
@@ -103,6 +155,11 @@ class MarketPriceService:
             await self._save_to_database(scraped)
             log_info(f"Scraped price: {scraped.preco_medio}€")
             return scraped
+
+        # Strategy 2b: If scraping failed but we had cached data, return it (without km)
+        if cached_without_km:
+            log_info(f"Scraping failed, returning cached price without km data: {cached_without_km.preco_medio}€")
+            return cached_without_km
 
         # Strategy 3: Fallback to AI estimation
         estimated = await self._get_from_ai_estimation(marca_normalized, modelo_normalized, ano, combustivel)
