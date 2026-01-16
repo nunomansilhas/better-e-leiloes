@@ -401,8 +401,29 @@ def calculate_investment_analysis(
             cons.append(f"Preço total ({custo_total:,.0f}€) acima do mercado ({market_price:,.0f}€)")
 
     # =================================================================
-    # COMPARE WITH MARKET LISTINGS (KM comparison)
+    # MARKET KM ANALYSIS (average KM from market listings)
     # =================================================================
+    km_mercado_medio = None
+    km_mercado_min = None
+    km_mercado_max = None
+
+    if market_listings:
+        market_kms = []
+        for listing in market_listings:
+            listing_km = listing.get('km')
+            if listing_km:
+                try:
+                    l_km = int(str(listing_km).replace(".", "").replace(",", "").replace(" ", ""))
+                    if 0 < l_km < 1000000:  # Sanity check
+                        market_kms.append(l_km)
+                except (ValueError, TypeError):
+                    continue
+
+        if market_kms:
+            km_mercado_medio = round(sum(market_kms) / len(market_kms))
+            km_mercado_min = min(market_kms)
+            km_mercado_max = max(market_kms)
+
     market_comparison = None
     better_options_count = 0
 
@@ -465,6 +486,56 @@ def calculate_investment_analysis(
     # Final score
     score_final = round((score_oportunidade * 0.4 + (10 - score_risco) * 0.3 + score_liquidez * 0.3), 1)
     score_final = max(0, min(10, score_final))
+
+    # =================================================================
+    # COMPARATIVE METRICS (for frontend display)
+    # =================================================================
+    comparacao = {
+        "km": {
+            "veiculo": km,
+            "mercado_medio": km_mercado_medio,
+            "mercado_min": km_mercado_min,
+            "mercado_max": km_mercado_max,
+            "esperado_idade": km_medio_esperado,
+            "por_ano": km_por_ano,
+            "vs_mercado": None,
+            "vs_esperado": None,
+        },
+        "preco": {
+            "leilao_lance": lance_atual,
+            "leilao_minimo": valor_minimo,
+            "leilao_base": valor_base,
+            "custos_adicionais": round(comissao_leilao + custos_transferencia + custos_inspecao + custo_reparacoes_estimado, 0),
+            "custo_total": round(custo_total, 0),
+            "mercado_medio": market_price,
+            "mercado_minimo": market_price_min,
+            "margem_euros": round(margem_lucro, 0) if margem_lucro else None,
+            "margem_percentagem": desconto_mercado,
+        },
+        "scores": {
+            "oportunidade": score_oportunidade,
+            "risco": score_risco,
+            "liquidez": score_liquidez,
+            "final": score_final,
+        }
+    }
+
+    # Calculate KM comparisons
+    if km and km_mercado_medio:
+        diff = km - km_mercado_medio
+        comparacao["km"]["vs_mercado"] = {
+            "diferenca": diff,
+            "percentagem": round((diff / km_mercado_medio) * 100, 1) if km_mercado_medio > 0 else 0,
+            "status": "acima" if diff > 0 else "abaixo" if diff < 0 else "igual"
+        }
+
+    if km and km_medio_esperado:
+        diff = km - km_medio_esperado
+        comparacao["km"]["vs_esperado"] = {
+            "diferenca": diff,
+            "percentagem": round((diff / km_medio_esperado) * 100, 1) if km_medio_esperado > 0 else 0,
+            "status": "acima" if diff > 0 else "abaixo" if diff < 0 else "igual"
+        }
 
     # =================================================================
     # SUMMARY - Data-based, no recommendation (user preference)
@@ -562,7 +633,9 @@ def calculate_investment_analysis(
             "valor_minimo": valor_minimo,
             "lance_atual": lance_atual,
             "preco_referencia": preco_leilao  # The actual price to use for calculations
-        }
+        },
+        # Comparative metrics for frontend display
+        "comparacao": comparacao
     }
 
 
