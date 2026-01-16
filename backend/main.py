@@ -1883,8 +1883,9 @@ async def refresh_single_event(reference: str):
         return {
             "success": True,
             "reference": reference,
-            "lance_atual": event.valores.lanceAtual if event.valores else 0,
-            "data_fim": event.datas.dataFim.isoformat() if event.datas and event.datas.dataFim else None
+            "lance_atual": event.lance_atual or 0,
+            "data_fim": event.data_fim.isoformat() if event.data_fim else None,
+            "observacoes": event.observacoes[:200] + "..." if event.observacoes and len(event.observacoes) > 200 else event.observacoes,
         }
 
     except Exception as e:
