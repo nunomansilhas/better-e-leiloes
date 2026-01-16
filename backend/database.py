@@ -896,8 +896,9 @@ class DatabaseManager:
             existing.longitude = event.longitude
             existing.matricula = event.matricula
             existing.osae360 = event.osae360
-            existing.descricao = event.descricao
-            existing.observacoes = event.observacoes
+            # Preserve existing descricao/observacoes if new value is empty (prevents API overwriting HTML-scraped data)
+            existing.descricao = event.descricao if event.descricao else existing.descricao
+            existing.observacoes = event.observacoes if event.observacoes else existing.observacoes
             existing.processo_id = event.processo_id
             existing.processo_numero = event.processo_numero
             existing.processo_comarca = event.processo_comarca
@@ -1155,8 +1156,9 @@ class DatabaseManager:
                     existing.longitude = event.longitude
                     existing.matricula = event.matricula
                     existing.osae360 = event.osae360
-                    existing.descricao = event.descricao
-                    existing.observacoes = event.observacoes
+                    # Preserve existing descricao/observacoes if new value is empty
+                    existing.descricao = event.descricao if event.descricao else existing.descricao
+                    existing.observacoes = event.observacoes if event.observacoes else existing.observacoes
                     existing.processo_id = event.processo_id
                     existing.processo_numero = event.processo_numero
                     existing.processo_comarca = event.processo_comarca

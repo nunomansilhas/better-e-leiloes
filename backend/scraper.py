@@ -1971,9 +1971,9 @@ class EventScraper:
             matricula=item.get('matricula') or None,
             osae360=item.get('osae360') or None,
 
-            # Descrições
-            descricao=item.get('descricao'),
-            observacoes=item.get('observacoes'),
+            # Descrições - try multiple field names
+            descricao=item.get('descricao') or item.get('descricaoVerba') or item.get('descricaoEvento'),
+            observacoes=item.get('observacoes') or item.get('observacao') or item.get('obs') or item.get('notas') or item.get('notasVeiculo') or item.get('observacoesVeiculo'),
 
             # Processo
             processo_id=item.get('processoId'),
