@@ -19,7 +19,7 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
-from database import get_session, EventDB, PriceHistoryDB, PipelineStateDB, RefreshLogDB, NotificationRuleDB, NotificationDB, FavoriteDB, init_db
+from database import get_session, EventDB, PriceHistoryDB, PipelineStateDB, RefreshLogDB, NotificationRuleDB, NotificationDB, FavoriteDB, EventAiTipDB, AiPipelineStateDB, init_db
 from sqlalchemy import select, func, desc, and_, or_
 
 
@@ -528,9 +528,216 @@ async def list_events(
         return {"events": result_events, "total": len(result_events), "page": offset // limit + 1 if limit > 0 else 1}
 
 
+@app.post("/api/events/batch")
+async def get_events_batch(references: List[str]):
+    """
+    Fetch multiple events by their references.
+    Used by favorites widget to get event data efficiently.
+    """
+    if len(references) > 100:
+        raise HTTPException(status_code=400, detail="Maximum 100 references allowed")
+
+    if not references:
+        return {"events": [], "found": 0, "requested": 0}
+
+    async with get_session() as session:
+        result = await session.execute(
+            select(EventDB).where(EventDB.reference.in_(references))
+        )
+        events = result.scalars().all()
+
+        result_events = []
+        for e in events:
+            fotos = None
+            if e.fotos:
+                try:
+                    fotos_data = json.loads(e.fotos)
+                    if isinstance(fotos_data, list):
+                        fotos = [f.get("image") or f.get("url") if isinstance(f, dict) else f for f in fotos_data]
+                except:
+                    pass
+
+            result_events.append({
+                "reference": e.reference,
+                "titulo": e.titulo,
+                "capa": e.capa,
+                "fotos": fotos,
+                "tipo_id": e.tipo_id,
+                "tipo": e.tipo,
+                "subtipo": e.subtipo,
+                "valor_base": e.valor_base,
+                "lance_atual": e.lance_atual,
+                "data_fim": e.data_fim.isoformat() if e.data_fim else None,
+                "distrito": e.distrito,
+                "terminado": e.terminado,
+                "cancelado": e.cancelado,
+                "ativo": not e.terminado and not e.cancelado
+            })
+
+        return {"events": result_events, "found": len(result_events), "requested": len(references)}
+
+
+@app.get("/api/vehicle-analyses")
+async def list_vehicle_analyses(
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    recommendation: Optional[str] = None
+):
+    """
+    List all vehicle analyses with AI data.
+    Returns vehicles that have been analyzed.
+    """
+    from sqlalchemy import text
+
+    async with get_session() as session:
+        # Build query
+        where_clause = "WHERE ai_score IS NOT NULL"
+        params = {"limit": limit, "offset": offset}
+
+        if recommendation:
+            where_clause += " AND ai_recommendation = :rec"
+            params["rec"] = recommendation
+
+        # Get total count
+        count_result = await session.execute(
+            text(f"SELECT COUNT(*) FROM event_vehicle_data {where_clause}"),
+            params
+        )
+        total = count_result.scalar() or 0
+
+        # Get analyses
+        result = await session.execute(
+            text(f"""
+                SELECT
+                    evd.reference, evd.matricula, evd.event_titulo, evd.event_valor_base, evd.event_lance_atual,
+                    evd.marca, evd.modelo, evd.versao, evd.ano, evd.producao_inicio, evd.producao_fim,
+                    evd.combustivel, evd.potencia_cv,
+                    evd.tem_seguro, evd.market_preco_min, evd.market_preco_medio, evd.desconto_percentagem,
+                    evd.ai_score, evd.ai_recommendation, evd.ai_summary, evd.ai_pros, evd.ai_cons,
+                    evd.processed_at,
+                    e.capa, e.data_fim, e.valor_minimo, e.lance_atual
+                FROM event_vehicle_data evd
+                LEFT JOIN events e ON evd.reference = e.reference
+                {where_clause}
+                ORDER BY evd.ai_score DESC, evd.processed_at DESC
+                LIMIT :limit OFFSET :offset
+            """),
+            params
+        )
+        rows = result.fetchall()
+
+        columns = [
+            'reference', 'matricula', 'event_titulo', 'event_valor_base', 'event_lance_atual',
+            'marca', 'modelo', 'versao', 'ano', 'producao_inicio', 'producao_fim',
+            'combustivel', 'potencia_cv',
+            'tem_seguro', 'market_preco_min', 'market_preco_medio', 'desconto_percentagem',
+            'ai_score', 'ai_recommendation', 'ai_summary', 'ai_pros', 'ai_cons',
+            'processed_at', 'capa', 'data_fim', 'valor_minimo', 'lance_atual_live'
+        ]
+
+        analyses = []
+        for row in rows:
+            data = {}
+            for i, col in enumerate(columns):
+                val = row[i]
+                if val is not None and hasattr(val, '__float__'):
+                    val = float(val)
+                if val is not None and hasattr(val, 'isoformat'):
+                    val = val.isoformat()
+                data[col] = val
+            analyses.append(data)
+
+        # Get stats
+        stats_result = await session.execute(
+            text("""
+                SELECT
+                    ai_recommendation,
+                    COUNT(*) as count
+                FROM event_vehicle_data
+                WHERE ai_score IS NOT NULL
+                GROUP BY ai_recommendation
+            """)
+        )
+        stats_rows = stats_result.fetchall()
+        stats = {row[0]: row[1] for row in stats_rows if row[0]}
+
+        return {
+            "analyses": analyses,
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "stats": {
+                "total": total,
+                "comprar": stats.get('comprar', 0) + stats.get('excelente', 0),
+                "considerar": stats.get('considerar', 0),
+                "cautela": stats.get('cautela', 0),
+                "evitar": stats.get('evitar', 0)
+            }
+        }
+
+
+@app.get("/api/vehicle-data/{reference}")
+async def get_vehicle_data(reference: str):
+    """
+    Get AI analysis and vehicle data for an event.
+    Returns vehicle info, market prices, insurance status, and AI analysis.
+    """
+    from sqlalchemy import text
+
+    async with get_session() as session:
+        # Query the event_vehicle_data table directly
+        result = await session.execute(
+            text("""
+                SELECT
+                    reference, matricula, event_titulo, event_valor_base, event_lance_atual,
+                    marca, modelo, versao, ano, combustivel, potencia_cv, potencia_kw, cor, vin,
+                    tem_seguro, seguradora, seguro_data_fim,
+                    market_preco_min, market_preco_max, market_preco_medio, market_preco_mediana,
+                    market_num_resultados, market_fonte, poupanca_estimada, desconto_percentagem,
+                    score_oportunidade, score_risco, score_liquidez,
+                    ai_score, ai_recommendation, ai_summary, ai_pros, ai_cons,
+                    ai_checklist, ai_red_flags, ai_lance_maximo_sugerido,
+                    ai_model_used, ai_processing_time_ms, processed_at, status
+                FROM event_vehicle_data
+                WHERE reference = :ref
+            """),
+            {"ref": reference}
+        )
+        row = result.fetchone()
+
+        if not row:
+            raise HTTPException(status_code=404, detail="Vehicle data not found for this event")
+
+        # Convert row to dict
+        columns = [
+            'reference', 'matricula', 'event_titulo', 'event_valor_base', 'event_lance_atual',
+            'marca', 'modelo', 'versao', 'ano', 'combustivel', 'potencia_cv', 'potencia_kw', 'cor', 'vin',
+            'tem_seguro', 'seguradora', 'seguro_data_fim',
+            'market_preco_min', 'market_preco_max', 'market_preco_medio', 'market_preco_mediana',
+            'market_num_resultados', 'market_fonte', 'poupanca_estimada', 'desconto_percentagem',
+            'score_oportunidade', 'score_risco', 'score_liquidez',
+            'ai_score', 'ai_recommendation', 'ai_summary', 'ai_pros', 'ai_cons',
+            'ai_checklist', 'ai_red_flags', 'ai_lance_maximo_sugerido',
+            'ai_model_used', 'ai_processing_time_ms', 'processed_at', 'status'
+        ]
+
+        data = {}
+        for i, col in enumerate(columns):
+            val = row[i]
+            # Convert Decimal to float
+            if val is not None and hasattr(val, '__float__'):
+                val = float(val)
+            # Convert datetime to ISO string
+            if val is not None and hasattr(val, 'isoformat'):
+                val = val.isoformat()
+            data[col] = val
+
+        return data
+
+
 @app.get("/api/events/{reference}")
 async def get_event(reference: str):
-    """Get event details by reference"""
+    """Get event details by reference - returns ALL fields"""
     try:
         async with get_session() as session:
             result = await session.execute(
@@ -541,77 +748,34 @@ async def get_event(reference: str):
             if not event:
                 raise HTTPException(status_code=404, detail="Event not found")
 
-            fotos = None
-            if event.fotos:
-                try:
-                    import json
-                    fotos_data = json.loads(event.fotos)
-                    if isinstance(fotos_data, list):
-                        fotos = [f.get("image") or f.get("url") if isinstance(f, dict) else f for f in fotos_data]
-                except:
-                    pass
+            # Convert SQLAlchemy model to dict with ALL fields
+            import json
+            from sqlalchemy import inspect
 
-            # Helper to safely get attribute with default
-            def safe_get(attr, default=None):
-                return getattr(event, attr, default)
+            data = {}
+            for column in inspect(EventDB).mapper.column_attrs:
+                col_name = column.key
+                value = getattr(event, col_name, None)
 
-            def safe_date(attr):
-                val = getattr(event, attr, None)
-                return val.isoformat() if val else None
+                # Handle datetime serialization
+                if value is not None and hasattr(value, 'isoformat'):
+                    value = value.isoformat()
 
-            # Return dict directly to avoid Pydantic validation issues with None fields
-            return {
-                "reference": event.reference,
-                "titulo": event.titulo,
-                "capa": event.capa,
-                "tipo_id": event.tipo_id,
-                "tipo": event.tipo,
-                "subtipo": event.subtipo,
-                "tipologia": safe_get('tipologia'),
-                "valor_base": event.valor_base,
-                "valor_abertura": safe_get('valor_abertura'),
-                "valor_minimo": safe_get('valor_minimo'),
-                "lance_atual": event.lance_atual or 0,
-                "data_inicio": safe_date('data_inicio'),
-                "data_fim": safe_date('data_fim'),
-                # Location
-                "distrito": event.distrito,
-                "concelho": event.concelho,
-                "freguesia": safe_get('freguesia'),
-                "morada": safe_get('morada'),
-                "morada_cp": safe_get('morada_cp'),
-                "latitude": safe_get('latitude'),
-                "longitude": safe_get('longitude'),
-                # Areas
-                "area_privativa": safe_get('area_privativa'),
-                "area_dependente": safe_get('area_dependente'),
-                "area_total": safe_get('area_total'),
-                # Vehicle
-                "matricula": safe_get('matricula'),
-                # Process
-                "processo_numero": safe_get('processo_numero'),
-                "processo_tribunal": safe_get('processo_tribunal'),
-                "processo_comarca": safe_get('processo_comarca'),
-                # Ceremony
-                "cerimonia_data": safe_date('cerimonia_data'),
-                "cerimonia_local": safe_get('cerimonia_local'),
-                "cerimonia_morada": safe_get('cerimonia_morada'),
-                # Manager
-                "gestor_nome": safe_get('gestor_nome'),
-                "gestor_email": safe_get('gestor_email'),
-                "gestor_telefone": safe_get('gestor_telefone'),
-                "gestor_tipo": safe_get('gestor_tipo'),
-                "gestor_cedula": safe_get('gestor_cedula'),
-                # Content
-                "descricao": safe_get('descricao'),
-                "observacoes": safe_get('observacoes'),
-                "fotos": fotos,
-                # Status
-                "terminado": event.terminado if event.terminado is not None else False,
-                "cancelado": event.cancelado if event.cancelado is not None else False,
-                "iniciado": safe_get('iniciado', False),
-                "ativo": not (event.terminado or event.cancelado)
-            }
+                # Parse JSON fields
+                if col_name == 'fotos' and value:
+                    try:
+                        fotos_data = json.loads(value)
+                        if isinstance(fotos_data, list):
+                            value = fotos_data  # Keep full foto objects with legenda, image, thumbnail
+                    except:
+                        pass
+
+                data[col_name] = value
+
+            # Add computed fields
+            data['ativo'] = not (event.terminado or event.cancelado)
+
+            return data
     except HTTPException:
         raise
     except Exception as e:
@@ -1747,6 +1911,249 @@ async def live_events_stub():
     """Stub: SSE not available on public API - returns empty"""
     from fastapi.responses import PlainTextResponse
     return PlainTextResponse("data: {\"type\":\"ping\"}\n\n", media_type="text/event-stream")
+
+
+# ============ AI Tips Endpoints ============
+
+class AiTipResponse(BaseModel):
+    """AI tip response model"""
+    reference: str
+    event_titulo: Optional[str] = None
+    event_tipo: Optional[str] = None
+    event_subtipo: Optional[str] = None
+    event_distrito: Optional[str] = None
+    event_valor_base: Optional[float] = None
+    tip_summary: Optional[str] = None
+    tip_analysis: Optional[str] = None
+    tip_pros: List[str] = []
+    tip_cons: List[str] = []
+    tip_recommendation: Optional[str] = None
+    tip_confidence: Optional[float] = None
+    status: str
+    error_message: Optional[str] = None
+    model_used: Optional[str] = None
+    tokens_used: Optional[int] = None
+    processing_time_ms: Optional[int] = None
+    created_at: datetime
+    processed_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class AiTipListResponse(BaseModel):
+    """AI tips list response"""
+    tips: List[AiTipResponse]
+    total: int
+    page: int
+    page_size: int
+    has_more: bool
+
+
+class AiPipelineStatusResponse(BaseModel):
+    """AI pipeline status response"""
+    is_running: bool
+    current_reference: Optional[str] = None
+    current_event_titulo: Optional[str] = None
+    total_processed: int
+    total_failed: int
+    total_pending: int
+    last_started_at: Optional[datetime] = None
+    last_completed_at: Optional[datetime] = None
+
+
+@app.get("/api/ai/tips", response_model=AiTipListResponse)
+async def list_ai_tips(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    status: Optional[str] = Query(None, description="Filter by status"),
+    search: Optional[str] = Query(None, description="Search by reference or title"),
+    tipo: Optional[str] = Query(None, description="Filter by type: imoveis, veiculos"),
+):
+    """List AI tips with pagination and filters"""
+    async with get_session() as session:
+        # Base query
+        query = select(EventAiTipDB)
+        count_query = select(func.count(EventAiTipDB.id))
+
+        # Apply filters
+        if status:
+            query = query.where(EventAiTipDB.status == status)
+            count_query = count_query.where(EventAiTipDB.status == status)
+
+        if search:
+            search_filter = or_(
+                EventAiTipDB.reference.ilike(f"%{search}%"),
+                EventAiTipDB.event_titulo.ilike(f"%{search}%")
+            )
+            query = query.where(search_filter)
+            count_query = count_query.where(search_filter)
+
+        if tipo:
+            tipo_map = {"imoveis": "Imovel", "veiculos": "Veiculo"}
+            if tipo in tipo_map:
+                query = query.where(EventAiTipDB.event_tipo == tipo_map[tipo])
+                count_query = count_query.where(EventAiTipDB.event_tipo == tipo_map[tipo])
+
+        # Get total count
+        total_result = await session.execute(count_query)
+        total = total_result.scalar() or 0
+
+        # Apply pagination and ordering
+        offset = (page - 1) * page_size
+        query = query.order_by(EventAiTipDB.created_at.desc()).offset(offset).limit(page_size)
+
+        # Execute
+        result = await session.execute(query)
+        tips_db = result.scalars().all()
+
+        # Convert to response
+        tips = []
+        for tip in tips_db:
+            tips.append(AiTipResponse(
+                reference=tip.reference,
+                event_titulo=tip.event_titulo,
+                event_tipo=tip.event_tipo,
+                event_subtipo=tip.event_subtipo,
+                event_distrito=tip.event_distrito,
+                event_valor_base=float(tip.event_valor_base) if tip.event_valor_base else None,
+                tip_summary=tip.tip_summary,
+                tip_analysis=tip.tip_analysis,
+                tip_pros=json.loads(tip.tip_pros) if tip.tip_pros else [],
+                tip_cons=json.loads(tip.tip_cons) if tip.tip_cons else [],
+                tip_recommendation=tip.tip_recommendation,
+                tip_confidence=tip.tip_confidence,
+                status=tip.status,
+                error_message=tip.error_message,
+                model_used=tip.model_used,
+                tokens_used=tip.tokens_used,
+                processing_time_ms=tip.processing_time_ms,
+                created_at=tip.created_at,
+                processed_at=tip.processed_at
+            ))
+
+        return AiTipListResponse(
+            tips=tips,
+            total=total,
+            page=page,
+            page_size=page_size,
+            has_more=offset + len(tips) < total
+        )
+
+
+@app.get("/api/ai/tips/{reference}", response_model=AiTipResponse)
+async def get_ai_tip(reference: str):
+    """Get AI tip for a specific event"""
+    async with get_session() as session:
+        query = select(EventAiTipDB).where(EventAiTipDB.reference == reference)
+        result = await session.execute(query)
+        tip = result.scalar_one_or_none()
+
+        if not tip:
+            raise HTTPException(status_code=404, detail=f"No AI tip found for event {reference}")
+
+        return AiTipResponse(
+            reference=tip.reference,
+            event_titulo=tip.event_titulo,
+            event_tipo=tip.event_tipo,
+            event_subtipo=tip.event_subtipo,
+            event_distrito=tip.event_distrito,
+            event_valor_base=float(tip.event_valor_base) if tip.event_valor_base else None,
+            tip_summary=tip.tip_summary,
+            tip_analysis=tip.tip_analysis,
+            tip_pros=json.loads(tip.tip_pros) if tip.tip_pros else [],
+            tip_cons=json.loads(tip.tip_cons) if tip.tip_cons else [],
+            tip_recommendation=tip.tip_recommendation,
+            tip_confidence=tip.tip_confidence,
+            status=tip.status,
+            error_message=tip.error_message,
+            model_used=tip.model_used,
+            tokens_used=tip.tokens_used,
+            processing_time_ms=tip.processing_time_ms,
+            created_at=tip.created_at,
+            processed_at=tip.processed_at
+        )
+
+
+@app.get("/api/ai/pipeline/status", response_model=AiPipelineStatusResponse)
+async def get_ai_pipeline_status():
+    """Get AI pipeline processing status"""
+    async with get_session() as session:
+        # Get pipeline state
+        query = select(AiPipelineStateDB).where(AiPipelineStateDB.pipeline_name == "ai_tips")
+        result = await session.execute(query)
+        state = result.scalar_one_or_none()
+
+        # Count pending tips
+        pending_query = select(func.count(EventAiTipDB.id)).where(EventAiTipDB.status == "pending")
+        pending_result = await session.execute(pending_query)
+        pending_count = pending_result.scalar() or 0
+
+        if state:
+            return AiPipelineStatusResponse(
+                is_running=state.is_running,
+                current_reference=state.current_reference,
+                current_event_titulo=state.current_event_titulo,
+                total_processed=state.total_processed,
+                total_failed=state.total_failed,
+                total_pending=pending_count,
+                last_started_at=state.last_started_at,
+                last_completed_at=state.last_completed_at
+            )
+        else:
+            return AiPipelineStatusResponse(
+                is_running=False,
+                current_reference=None,
+                current_event_titulo=None,
+                total_processed=0,
+                total_failed=0,
+                total_pending=pending_count,
+                last_started_at=None,
+                last_completed_at=None
+            )
+
+
+@app.get("/api/ai/stats")
+async def get_ai_stats():
+    """Get AI tips statistics"""
+    async with get_session() as session:
+        # Count by status
+        status_query = select(
+            EventAiTipDB.status,
+            func.count(EventAiTipDB.id)
+        ).group_by(EventAiTipDB.status)
+        status_result = await session.execute(status_query)
+        status_counts = {row[0]: row[1] for row in status_result.all()}
+
+        # Count by recommendation
+        rec_query = select(
+            EventAiTipDB.tip_recommendation,
+            func.count(EventAiTipDB.id)
+        ).where(EventAiTipDB.status == "completed").group_by(EventAiTipDB.tip_recommendation)
+        rec_result = await session.execute(rec_query)
+        rec_counts = {row[0]: row[1] for row in rec_result.all() if row[0]}
+
+        # Average confidence
+        conf_query = select(func.avg(EventAiTipDB.tip_confidence)).where(
+            EventAiTipDB.status == "completed"
+        )
+        conf_result = await session.execute(conf_query)
+        avg_confidence = conf_result.scalar()
+
+        # Average processing time
+        time_query = select(func.avg(EventAiTipDB.processing_time_ms)).where(
+            EventAiTipDB.status == "completed"
+        )
+        time_result = await session.execute(time_query)
+        avg_time_ms = time_result.scalar()
+
+        return {
+            "by_status": status_counts,
+            "by_recommendation": rec_counts,
+            "avg_confidence": round(float(avg_confidence), 2) if avg_confidence else None,
+            "avg_processing_time_ms": int(avg_time_ms) if avg_time_ms else None,
+            "total": sum(status_counts.values()) if status_counts else 0
+        }
 
 
 # ============ Static Files ============

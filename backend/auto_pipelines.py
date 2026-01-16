@@ -3,9 +3,75 @@ Automatic Pipelines Management System
 Manages scheduled automatic scrapers with persistent configuration
 """
 
+import sys
 import json
 import asyncio
+import concurrent.futures
 from datetime import datetime, timedelta
+
+
+# Thread pool para executar Playwright operations no Windows
+_proactor_executor = None
+
+
+def get_proactor_executor():
+    """Get or create a thread pool executor for Playwright operations."""
+    global _proactor_executor
+    if _proactor_executor is None:
+        _proactor_executor = concurrent.futures.ThreadPoolExecutor(
+            max_workers=1,
+            thread_name_prefix="proactor"
+        )
+    return _proactor_executor
+
+
+async def run_in_proactor(coro_func, *args, **kwargs):
+    """
+    Windows fix: Run an async function in a thread with ProactorEventLoop.
+    This allows Playwright to work even when the main loop is SelectorEventLoop.
+    On Linux/Mac, just runs the coroutine directly.
+    """
+    if sys.platform != 'win32':
+        # Linux/Mac: run directly
+        return await coro_func(*args, **kwargs)
+
+    # Windows: run in thread with ProactorEventLoop
+    main_loop = asyncio.get_event_loop()
+
+    def thread_target():
+        # Create ProactorEventLoop for this thread
+        loop = asyncio.ProactorEventLoop()
+        asyncio.set_event_loop(loop)
+        try:
+            coro = coro_func(*args, **kwargs)
+            return loop.run_until_complete(coro)
+        finally:
+            loop.close()
+
+    return await main_loop.run_in_executor(get_proactor_executor(), thread_target)
+
+
+async def scrape_refs_with_new_scraper(references: list):
+    """
+    Helper function that creates a fresh scraper and scrapes references.
+    This ensures the browser is initialized in the correct thread/loop.
+    """
+    from scraper import EventScraper
+    scraper = EventScraper()
+    try:
+        return await scraper.scrape_details_via_api(references)
+    finally:
+        await scraper.close()
+
+
+# nest_asyncio para nested event loops (APScheduler + Playwright)
+# NOTA: nest_asyncio NÃO funciona com uvloop - só aplicar em Windows
+if sys.platform == 'win32':
+    try:
+        import nest_asyncio
+        nest_asyncio.apply()
+    except ImportError:
+        pass
 from pathlib import Path
 from typing import Dict, Any, Optional, Callable
 from dataclasses import dataclass, asdict
@@ -51,9 +117,9 @@ class AutoPipelinesManager:
         "zwatch": PipelineConfig(
             type="zwatch",
             name="Z-Watch",
-            description="Monitoriza EventosMaisRecentes API a cada 10 minutos",
+            description="Monitoriza EventosMaisRecentes API a cada minuto",
             enabled=False,
-            interval_hours=10/60  # A cada 10 minutos
+            interval_hours=1/60  # A cada 1 minuto
         )
     }
 
@@ -62,8 +128,8 @@ class AutoPipelinesManager:
         self.job_ids: Dict[str, str] = {}  # pipeline_type -> scheduler_job_id
         self._scheduler = None  # Store scheduler reference for rescheduling
 
-        # Mutex for heavy pipelines (Y-Sync, Z-Watch, Pipeline API)
-        # X-Monitor is exempt - it runs freely for real-time price tracking
+        # Mutex for heavy pipelines (Y-Sync, Pipeline API)
+        # X-Monitor and Z-Watch are exempt - they run freely
         self._heavy_pipeline_lock = asyncio.Lock()
         self._heavy_pipeline_running: Optional[str] = None  # Which heavy pipeline is running
         self._heavy_pipeline_waiting: list = []  # Queue of waiting pipelines
@@ -196,42 +262,40 @@ class AutoPipelinesManager:
         self._save_config()
 
     async def refresh_critical_events_cache(self):
-        """Refresh cache of events ending in < 6 minutes (called every 5 minutes)"""
+        """Refresh cache of events ending in < 6 minutes OR recently ended (called every 5 minutes)"""
         from database import get_db
 
         try:
-            # Get upcoming events (next 1 hour, ordered by end time)
+            # Get events for monitoring (upcoming + recently ended in last 10 min)
             async with get_db() as db:
-                events = await db.get_upcoming_events(hours=1)
+                events = await db.get_events_for_monitoring(hours_ahead=1, minutes_behind=10)
 
             if not events:
                 self._critical_events_cache = []
                 self._cache_last_refresh = datetime.now()
-                print(f"🔴 Critical cache: No upcoming events in next 1h")
+                print(f"🔴 Critical cache: No events to monitor")
                 return
 
-            # Filter events ending in LESS THAN 6 MINUTES (360 seconds)
+            # Filter events ending in < 6 minutes OR ended in last 5 minutes
             now = datetime.now()
             critical_events = []
-
-            print(f"🔍 Critical cache: {len(events)} upcoming events (< 1h)")
 
             for event in events:
                 if event.data_fim:
                     time_until_end = event.data_fim - now
                     seconds_until_end = time_until_end.total_seconds()
 
-                    print(f"    {event.reference}: {int(seconds_until_end)}s")
-
-                    # Cache events ending in < 6 minutes (1-minute buffer)
-                    if 0 < seconds_until_end <= 360:
+                    # Include: ending in < 6 min (360s) OR ended in last 5 min (-300s)
+                    if -300 <= seconds_until_end <= 360:
                         critical_events.append(event)
 
             self._critical_events_cache = critical_events
             self._cache_last_refresh = datetime.now()
 
             if critical_events:
-                print(f"🔴 Critical cache: {len(critical_events)} events (< 6 min)")
+                upcoming = sum(1 for e in critical_events if (e.data_fim - now).total_seconds() > 0)
+                expired = len(critical_events) - upcoming
+                print(f"🔴 Critical cache: {len(critical_events)} events ({upcoming} upcoming, {expired} expired)")
 
         except Exception as e:
             print(f"⚠️ Error refreshing critical events cache: {e}")
@@ -1176,12 +1240,15 @@ class AutoPipelinesManager:
             critical_events = []
             urgent_events = []
             soon_events = []
+            expired_events = []  # Events that just ended (need to mark as ativo=0)
 
             for event in self._critical_events_cache or []:
                 if event.data_fim:
                     seconds = (event.data_fim - now).total_seconds()
                     if 0 < seconds <= 300:
                         critical_events.append({'event': event, 'tier': 'critical', 'seconds': seconds})
+                    elif -300 <= seconds <= 0:  # Ended in the last 5 minutes
+                        expired_events.append({'event': event, 'tier': 'expired', 'seconds': seconds})
 
             for event in self._urgent_events_cache or []:
                 if event.data_fim:
@@ -1217,7 +1284,7 @@ class AutoPipelinesManager:
                 self._reschedule_xmonitor(1800)
                 return
 
-            print(f"🔴 X-Monitor {tier_name}: {len(events_to_process)} eventos (total: 🔴{len(critical_events)} 🟠{len(urgent_events)} 🟡{len(soon_events)})")
+            print(f"🔴 X-Monitor {tier_name}: {len(events_to_process)} eventos (🔴{len(critical_events)} 🟠{len(urgent_events)} 🟡{len(soon_events)} ⏱️{len(expired_events)})")
 
             scraper = EventScraper()
 
@@ -1298,6 +1365,52 @@ class AutoPipelinesManager:
                 if updated_count > 0:
                     print(f"  ✅ X-Monitor: {updated_count} eventos atualizados")
 
+                # Process expired events - mark as ativo=0
+                terminated_count = 0
+                if expired_events:
+                    print(f"  ⏱️ X-Monitor: {len(expired_events)} eventos expirados a processar...")
+                    from cache import CacheManager
+                    cache_manager = CacheManager()
+
+                    for item in expired_events:
+                        event = item['event']
+                        try:
+                            volatile_data = await scraper.scrape_volatile_via_api([event.reference])
+
+                            async with get_db() as db:
+                                if volatile_data and len(volatile_data) > 0:
+                                    data = volatile_data[0]
+                                    # Use API values for terminado/cancelado
+                                    api_terminado = data.get('terminado', True)
+                                    api_cancelado = data.get('cancelado', False)
+                                    final_price = data.get('lanceAtual') or event.lance_atual
+
+                                    await db.update_event_fields(
+                                        event.reference,
+                                        {'terminado': api_terminado, 'cancelado': api_cancelado, 'ativo': False, 'lance_atual': final_price}
+                                    )
+                                    await cache_manager.invalidate(event.reference)
+                                    terminated_count += 1
+
+                                    status_icon = "🚫" if api_cancelado else "✅"
+                                    status_text = "Cancelado" if api_cancelado else "Vendido"
+                                    print(f"    {status_icon} {status_text}: {event.reference} - {final_price}€")
+                                else:
+                                    # Not found in API - mark as cancelled
+                                    await db.update_event_fields(
+                                        event.reference,
+                                        {'terminado': True, 'cancelado': True, 'ativo': False}
+                                    )
+                                    await cache_manager.invalidate(event.reference)
+                                    terminated_count += 1
+                                    print(f"    🚫 Removido: {event.reference}")
+
+                        except Exception as e:
+                            print(f"    ⚠️ Error processing expired {event.reference}: {e}")
+
+                    if terminated_count > 0:
+                        print(f"  ✅ X-Monitor: {terminated_count} eventos marcados como terminados")
+
                 # Update pipeline stats
                 pipeline = self.pipelines['xmonitor']
                 now = datetime.now()
@@ -1361,7 +1474,8 @@ class AutoPipelinesManager:
 
                 # Stage 1: Discover ALL IDs (full scan, no page limit)
                 print(f"  🔍 Stage 1: A descobrir TODOS os IDs...")
-                ids = await scraper.scrape_ids_only(tipo=None, max_pages=None)
+                # Use run_in_proactor for Windows compatibility (SelectorEventLoop doesn't support subprocesses)
+                ids = await run_in_proactor(scraper.scrape_ids_only, tipo=None, max_pages=None)
                 print(f"  📊 {len(ids)} IDs encontrados no site")
 
                 # Find only NEW ids
@@ -1375,7 +1489,8 @@ class AutoPipelinesManager:
                 if new_ids:
                     print(f"  🆕 {len(new_ids)} novos IDs, a obter dados via API...")
                     new_refs = [item['reference'] for item in new_ids]
-                    events = await scraper.scrape_details_via_api(new_refs)
+                    # Use helper that creates fresh scraper in correct thread/loop
+                    events = await run_in_proactor(scrape_refs_with_new_scraper, new_refs)
 
                     # Process notifications for new events
                     from notification_engine import process_new_events_batch
@@ -1419,8 +1534,8 @@ class AutoPipelinesManager:
                 now = datetime.now()
 
                 async with get_db() as db:
-                    # Get active events
-                    events, total = await db.list_events(limit=500, cancelado=False)
+                    # Get active events (not cancelled AND still active)
+                    events, total = await db.list_events(limit=500, cancelado=False, ativo=True)
 
                     candidates = []
                     for event in events:
@@ -1432,7 +1547,7 @@ class AutoPipelinesManager:
 
                         # OPTIMIZED: Batch API call instead of one-by-one
                         refs = [e.reference for e in candidates]
-                        api_results = await scraper.scrape_volatile_via_api(refs)
+                        api_results = await run_in_proactor(scraper.scrape_volatile_via_api, refs)
 
                         # Create lookup map for quick access
                         api_map = {r['reference']: r for r in api_results}
@@ -1474,14 +1589,20 @@ class AutoPipelinesManager:
                                         })
 
                                     if new_end and new_end < now:
+                                        # Use API values for terminado/cancelado
+                                        api_terminado = data.get('terminado', True)
+                                        api_cancelado = data.get('cancelado', False)
+
                                         # Only update specific fields, not full save
                                         await db.update_event_fields(
                                             event.reference,
-                                            {'terminado': True, 'cancelado': True, 'ativo': False, 'lance_atual': new_price or old_price}
+                                            {'terminado': api_terminado, 'cancelado': api_cancelado, 'ativo': False, 'lance_atual': new_price or old_price}
                                         )
                                         await cache_manager.invalidate(event.reference)
                                         terminated_count += 1
-                                        print(f"    🔴 Terminado: {event.reference}")
+                                        status_icon = "🚫" if api_cancelado else "✅"
+                                        status_text = "Cancelado" if api_cancelado else "Vendido"
+                                        print(f"    {status_icon} {status_text}: {event.reference}")
 
                                         # Create notification for ended event
                                         await create_event_ended_notification({
@@ -1507,13 +1628,14 @@ class AutoPipelinesManager:
                                             "timestamp": datetime.now().isoformat()
                                         })
                                 else:
-                                    # Not in API results = likely 404/not found
+                                    # Not in API results = likely removed/cancelled
                                     await db.update_event_fields(
                                         event.reference,
-                                        {'terminado': True, 'ativo': False}
+                                        {'terminado': True, 'cancelado': True, 'ativo': False}
                                     )
+                                    await cache_manager.invalidate(event.reference)
                                     terminated_count += 1
-                                    print(f"    🔴 Não encontrado: {event.reference}")
+                                    print(f"    🚫 Removido da API: {event.reference}")
 
                                     # Create notification for ended event (not found)
                                     await create_event_ended_notification({
@@ -1556,7 +1678,7 @@ class AutoPipelinesManager:
                 # Close resources safely (don't let errors here block the rest)
                 try:
                     if scraper:
-                        await scraper.close()
+                        await run_in_proactor(scraper.close)
                 except:
                     pass
                 try:
@@ -1589,7 +1711,8 @@ class AutoPipelinesManager:
 
         async def run_zwatch_pipeline():
             """Z-Watch: Monitoriza EventosMaisRecentes API para novos eventos"""
-            import httpx
+            import json
+            from playwright.async_api import async_playwright
             from scraper import EventScraper
             from database import get_db
             from cache import CacheManager
@@ -1601,31 +1724,11 @@ class AutoPipelinesManager:
 
             scraper = None
             cache_manager = None
-            skipped = False
-            lock_acquired = False
+            browser = None
+            playwright_instance = None
 
             try:
-                # Skip if main pipeline is running
-                main_pipeline = get_pipeline_state()
-                if main_pipeline.is_active:
-                    print(f"⏸️ Z-Watch skipped - main pipeline is running")
-                    # Update next_run to avoid constant retries (retry in 5 min)
-                    pipeline = self.pipelines['zwatch']
-                    pipeline.next_run = (datetime.now() + timedelta(minutes=5)).strftime("%Y-%m-%d %H:%M:%S")
-                    self._save_config()
-                    skipped = True
-                    return
-
-                # Try to acquire heavy pipeline lock (mutex with Y-Sync, Pipeline API)
-                lock_acquired = await self.acquire_heavy_lock("Z-Watch")
-                if not lock_acquired:
-                    # Update next_run to avoid constant retries (retry in 2 min)
-                    pipeline = self.pipelines['zwatch']
-                    pipeline.next_run = (datetime.now() + timedelta(minutes=2)).strftime("%Y-%m-%d %H:%M:%S")
-                    self._save_config()
-                    skipped = True
-                    return
-
+                # Z-Watch is lightweight - runs independently without locks
                 # Mark as running
                 self.pipelines['zwatch'].is_running = True
                 self._save_config()
@@ -1637,101 +1740,142 @@ class AutoPipelinesManager:
                 cache_manager = CacheManager()
                 new_count = 0
 
-                # Call the EventosMaisRecentes API
-                async with httpx.AsyncClient(timeout=15.0, follow_redirects=True, verify=False) as client:
-                    api_url = "https://www.e-leiloes.pt/api/EventosMaisRecentes/"
+                # Use Playwright to access the API (httpx gets blocked by anti-bot)
+                playwright_instance = await async_playwright().start()
+                browser = await playwright_instance.chromium.launch(headless=True)
+                context = await browser.new_context(
+                    user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    ignore_https_errors=True
+                )
+                page = await context.new_page()
 
-                    # Try with browser-like headers
-                    headers = {
-                        'Accept': 'application/json, text/plain, */*',
-                        'Accept-Language': 'pt-PT,pt;q=0.9,en;q=0.8',
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                        'Referer': 'https://www.e-leiloes.pt/',
-                        'Origin': 'https://www.e-leiloes.pt'
-                    }
+                # Visit main site first to establish session
+                await page.goto("https://www.e-leiloes.pt", wait_until='domcontentloaded', timeout=30000)
+                await asyncio.sleep(1)
 
-                    response = await client.get(api_url, headers=headers)
+                # Now fetch the EventosMaisRecentes API
+                api_url = "https://www.e-leiloes.pt/api/EventosMaisRecentes/"
+                response = await page.goto(api_url, wait_until='domcontentloaded', timeout=15000)
 
-                    if response.status_code != 200:
-                        print(f"  ⚠️ EventosMaisRecentes API returned {response.status_code}")
-                        return
+                if not response or response.status != 200:
+                    status = response.status if response else 'None'
+                    print(f"  ⚠️ EventosMaisRecentes API returned {status}")
+                    return
 
-                    data = response.json()
+                # Parse JSON from page body
+                body = await page.query_selector('body')
+                json_str = await body.inner_text() if body else ''
 
-                    # The API returns a list of recent events
-                    events_list = data if isinstance(data, list) else data.get('items', data.get('eventos', []))
+                # Debug: show what we got
+                print(f"  📝 API response length: {len(json_str)} chars")
+                if len(json_str) < 500:
+                    print(f"  📝 Response: {json_str[:500]}")
 
-                    if not events_list:
-                        print(f"  ✓ Nenhum evento na resposta")
-                        return
+                data = json.loads(json_str)
 
-                    print(f"  📊 {len(events_list)} eventos na API")
+                # Debug: show structure
+                if isinstance(data, dict):
+                    print(f"  📝 Response keys: {list(data.keys())[:10]}")
 
-                    # Extract references and check which are new
-                    new_refs = []
-                    async with get_db() as db:
-                        for item in events_list:
-                            # Try different field names for reference
-                            ref = item.get('reference') or item.get('referencia') or item.get('id') or item.get('codigo')
-                            if ref:
-                                existing = await db.get_event(ref)
-                                if not existing:
-                                    new_refs.append(ref)
+                # The API returns a list of recent events - try multiple field names
+                events_list = []
+                if isinstance(data, list):
+                    events_list = data
+                elif isinstance(data, dict):
+                    # Try different possible field names
+                    for key in ['list', 'items', 'eventos', 'events', 'data', 'results', 'lista']:
+                        if key in data and isinstance(data[key], list):
+                            events_list = data[key]
+                            print(f"  📝 Found events in field: {key}")
+                            break
+                    # If still empty, check if data itself contains event-like items
+                    if not events_list and 'reference' in data or 'referencia' in data:
+                        events_list = [data]  # Single event response
 
-                    if not new_refs:
-                        print(f"  ✓ Nenhum evento novo")
-                        return
+                # Close the page/context after getting data
+                await page.close()
+                await context.close()
 
-                    print(f"  🆕 {len(new_refs)} eventos novos encontrados!")
+                if not events_list:
+                    print(f"  ✓ Nenhum evento na resposta")
+                    return
 
-                    # Scrape details for new events
-                    events = await scraper.scrape_details_via_api(new_refs)
+                print(f"  📊 {len(events_list)} eventos na API")
 
-                    # Process notifications for new events
-                    from notification_engine import process_new_events_batch
-                    from main import broadcast_new_event
+                # Extract references and check which are new
+                new_refs = []
+                async with get_db() as db:
+                    for item in events_list:
+                        # Try different field names for reference
+                        ref = item.get('reference') or item.get('referencia') or item.get('id') or item.get('codigo')
+                        if ref:
+                            existing = await db.get_event(ref)
+                            if not existing:
+                                new_refs.append(ref)
 
-                    async with get_db() as db:
-                        for event in events:
-                            await db.save_event(event)
-                            await cache_manager.set(event.reference, event)
-                            new_count += 1
+                if not new_refs:
+                    print(f"  ✓ Nenhum evento novo")
+                    return
 
-                            # Broadcast new event to SSE clients
-                            await broadcast_new_event({
-                                "reference": event.reference,
-                                "titulo": event.titulo,
-                                "tipo": event.tipo,
-                                "capa": event.capa,
-                                "distrito": event.distrito,
-                                "concelho": event.concelho,
-                                "valor_minimo": event.valor_minimo,
-                                "lance_atual": event.lance_atual,
-                                "valor_base": event.valor_base,
-                                "data_fim": event.data_fim.isoformat() if event.data_fim else None,
-                                "data_inicio": event.data_inicio.isoformat() if event.data_inicio else None,
-                                "timestamp": datetime.now().isoformat()
-                            })
+                print(f"  🆕 {len(new_refs)} eventos novos encontrados!")
 
-                            print(f"    ✨ Novo: {event.reference} - {event.titulo[:50]}...")
+                # Scrape details for new events (use helper that creates fresh scraper)
+                events = await run_in_proactor(scrape_refs_with_new_scraper, new_refs)
 
-                        # Check notification rules for new events
-                        notifications_count = await process_new_events_batch(events, db)
+                # Process notifications for new events
+                from notification_engine import process_new_events_batch
+                from main import broadcast_new_event
 
-                        if notifications_count > 0:
-                            print(f"  🔔 {notifications_count} notificações criadas")
+                async with get_db() as db:
+                    for event in events:
+                        await db.save_event(event)
+                        await cache_manager.set(event.reference, event)
+                        new_count += 1
 
-                    print(f"  ✅ Z-Watch: {new_count} novos eventos adicionados")
+                        # Broadcast new event to SSE clients
+                        await broadcast_new_event({
+                            "reference": event.reference,
+                            "titulo": event.titulo,
+                            "tipo": event.tipo,
+                            "capa": event.capa,
+                            "distrito": event.distrito,
+                            "concelho": event.concelho,
+                            "valor_minimo": event.valor_minimo,
+                            "lance_atual": event.lance_atual,
+                            "valor_base": event.valor_base,
+                            "data_fim": event.data_fim.isoformat() if event.data_fim else None,
+                            "data_inicio": event.data_inicio.isoformat() if event.data_inicio else None,
+                            "timestamp": datetime.now().isoformat()
+                        })
 
-            except httpx.RequestError as e:
-                print(f"  ❌ Z-Watch erro de rede: {str(e)[:50]}")
+                        print(f"    ✨ Novo: {event.reference} - {event.titulo[:50]}...")
+
+                    # Check notification rules for new events
+                    notifications_count = await process_new_events_batch(events, db)
+
+                    if notifications_count > 0:
+                        print(f"  🔔 {notifications_count} notificações criadas")
+
+                print(f"  ✅ Z-Watch: {new_count} novos eventos adicionados")
+
             except Exception as e:
                 print(f"  ❌ Z-Watch erro: {str(e)[:100]}")
             finally:
-                # Close resources safely (don't let errors here block the rest)
+                # Close Playwright resources safely
+                try:
+                    if browser:
+                        await browser.close()
+                except:
+                    pass
+                try:
+                    if playwright_instance:
+                        await playwright_instance.stop()
+                except:
+                    pass
+                # Close other resources safely
                 try:
                     if scraper:
-                        await scraper.close()
+                        await run_in_proactor(scraper.close)
                 except:
                     pass
                 try:
@@ -1740,27 +1884,21 @@ class AutoPipelinesManager:
                 except:
                     pass
 
-                # ALWAYS reset is_running if we started (not skipped)
-                if not skipped:
-                    self.pipelines['zwatch'].is_running = False
-                    pipeline = self.pipelines['zwatch']
-                    now = datetime.now()
-                    pipeline.last_run = now.strftime("%Y-%m-%d %H:%M:%S")
-                    pipeline.runs_count += 1
-                    pipeline.next_run = (now + timedelta(hours=pipeline.interval_hours)).strftime("%Y-%m-%d %H:%M:%S")
-                    self._save_config()
-                    print(f"  ⏰ Z-Watch: próxima execução em {pipeline.interval_hours * 60:.0f} min")
+                # Reset is_running and update stats
+                self.pipelines['zwatch'].is_running = False
+                pipeline = self.pipelines['zwatch']
+                now = datetime.now()
+                pipeline.last_run = now.strftime("%Y-%m-%d %H:%M:%S")
+                pipeline.runs_count += 1
+                pipeline.next_run = (now + timedelta(hours=pipeline.interval_hours)).strftime("%Y-%m-%d %H:%M:%S")
+                self._save_config()
+                print(f"  ⏰ Z-Watch: próxima execução em {pipeline.interval_hours * 60:.0f} min")
 
-                # Release heavy pipeline lock
-                if lock_acquired:
-                    self.release_heavy_lock("Z-Watch")
-
-                # ALWAYS reschedule - even if skipped
+                # Reschedule for next run
                 self._reschedule_pipeline('zwatch')
 
-                # Save to database AFTER reschedule so next_run is correct
-                if not skipped:
-                    await self.save_to_database('zwatch')
+                # Save to database
+                await self.save_to_database('zwatch')
 
         # Return the appropriate function
         tasks = {

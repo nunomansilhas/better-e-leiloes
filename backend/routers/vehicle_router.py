@@ -1,0 +1,2171 @@
+# -*- coding: utf-8 -*-
+"""
+Vehicle Lookup Router
+API endpoints for vehicle information lookup using license plate (matrícula).
+
+Features:
+- Decode Portuguese license plate format
+- Lookup vehicle info from InfoMatricula.pt API
+- Check insurance status
+- Search market prices (StandVirtual/AutoUncle)
+"""
+
+from fastapi import APIRouter, HTTPException, Query, BackgroundTasks
+from pydantic import BaseModel, Field
+from typing import Optional, List
+from datetime import datetime
+import re
+
+router = APIRouter(prefix="/api/vehicle", tags=["Vehicle Lookup"])
+
+
+# =============================================================================
+# HELPER FUNCTIONS
+# =============================================================================
+
+def extract_km_from_text(text: str) -> Optional[int]:
+    """
+    Extract kilometers from text description.
+    Handles formats like: 145000 km, 145.000 km, 145 000 km, 145000km, KM: 145000
+    """
+    if not text:
+        return None
+
+    # Normalize text
+    text = text.lower()
+
+    # Pattern: number followed by km OR km followed by number
+    # Examples: 145000 km, 145.000 km, 145 000 km, 145,000 km, KM: 145000
+    patterns = [
+        r'(\d{1,3}(?:[.\s]\d{3})+)\s*km',  # 145.000 km, 145 000 km
+        r'(\d{4,6})\s*km',  # 145000 km, 145000km
+        r'km[:\s]+(\d{1,3}(?:[.\s]\d{3})+)',  # KM: 145.000, km: 145 000
+        r'km[:\s]+(\d{4,6})',  # KM: 145000, km:145000
+        r'quilometr[ao]s?[:\s]+(\d{1,3}(?:[.\s]\d{3})+)',  # quilometros: 145.000
+        r'quilometr[ao]s?[:\s]+(\d{4,6})',  # quilometros: 145000
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, text)
+        if match:
+            km_str = match.group(1)
+            # Remove dots, spaces, commas - keep only digits
+            km_str = re.sub(r'[.\s,]', '', km_str)
+            try:
+                km = int(km_str)
+                # Sanity check: must be between 0 and 2,000,000 km
+                if 0 < km < 2000000:
+                    return km
+            except ValueError:
+                continue
+
+    return None
+
+
+# Response models
+class PlateInfoResponse(BaseModel):
+    """Decoded plate information"""
+    plate: str
+    format: str
+    era: str
+    year_min: int
+    year_max: int
+    notes: str
+
+
+class VehicleInfoResponse(BaseModel):
+    """Vehicle information from InfoMatricula API"""
+    plate: str
+    marca: Optional[str] = None
+    modelo: Optional[str] = None
+    versao: Optional[str] = None
+    ano: Optional[int] = None
+    combustivel: Optional[str] = None
+    potencia_cv: Optional[int] = None
+    potencia_kw: Optional[int] = None
+    cor: Optional[str] = None
+    categoria: Optional[str] = None
+    vin: Optional[str] = None
+    tipo_proprietario: Optional[str] = None
+    origem: Optional[str] = None
+    source: Optional[str] = None
+    error: Optional[str] = None
+
+
+class InsuranceInfoResponse(BaseModel):
+    """Insurance information"""
+    plate: str
+    tem_seguro: Optional[bool] = None
+    seguradora: Optional[str] = None
+    apolice: Optional[str] = None
+    data_inicio: Optional[str] = None
+    data_fim: Optional[str] = None
+    source: Optional[str] = None
+    error: Optional[str] = None
+
+
+class MarketListingResponse(BaseModel):
+    """Individual market listing"""
+    titulo: str
+    preco: int
+    params: Optional[str] = None
+
+
+class MarketPricesResponse(BaseModel):
+    """Market prices summary"""
+    marca: str
+    modelo: str
+    ano: int
+    num_resultados: int
+    preco_min: float
+    preco_max: float
+    preco_medio: float
+    preco_mediana: float
+    fonte: str
+    data_consulta: str
+    listings: List[MarketListingResponse]
+
+
+class FullVehicleResponse(BaseModel):
+    """Complete vehicle information from all sources"""
+    plate: str
+    plate_info: PlateInfoResponse
+    vehicle_info: Optional[VehicleInfoResponse] = None
+    insurance: Optional[InsuranceInfoResponse] = None
+    market_prices: Optional[MarketPricesResponse] = None
+    sources: List[str]
+    errors: List[str]
+    lookup_time_ms: int
+
+
+def _normalize_plate(plate: str) -> str:
+    """Normalize plate format to XX-XX-XX"""
+    clean = plate.replace("-", "").replace(" ", "").upper()
+    if len(clean) == 6:
+        return f"{clean[:2]}-{clean[2:4]}-{clean[4:6]}"
+    return plate.upper()
+
+
+@router.get("/decode/{plate}", response_model=PlateInfoResponse)
+async def decode_plate(plate: str):
+    """
+    Decode a Portuguese license plate to estimate vehicle year.
+
+    Portuguese plate formats:
+    - Pre-1992: XX-00-00 (letters-numbers-numbers)
+    - 1992-2005: 00-00-XX (numbers-numbers-letters)
+    - 2005-2020: 00-XX-00 (numbers-letters-numbers)
+    - 2020+: XX-00-XX (letters-numbers-letters)
+    """
+    from services.vehicle_lookup import decode_portuguese_plate
+
+    info = decode_portuguese_plate(plate)
+
+    return PlateInfoResponse(
+        plate=info.plate,
+        format=info.format,
+        era=info.era,
+        year_min=info.year_min,
+        year_max=info.year_max,
+        notes=info.notes
+    )
+
+
+@router.get("/info/{plate}", response_model=VehicleInfoResponse)
+async def get_vehicle_info(plate: str):
+    """
+    Get vehicle information from InfoMatricula.pt API.
+
+    Returns: marca, modelo, ano, combustivel, potencia, cor, etc.
+    """
+    from services.vehicle_lookup import lookup_plate_infomatricula_api
+
+    normalized_plate = _normalize_plate(plate)
+
+    try:
+        result = await lookup_plate_infomatricula_api(normalized_plate)
+
+        if "error" in result:
+            return VehicleInfoResponse(
+                plate=normalized_plate,
+                error=result["error"]
+            )
+
+        return VehicleInfoResponse(
+            plate=normalized_plate,
+            marca=result.get("marca"),
+            modelo=result.get("modelo"),
+            versao=result.get("versao"),
+            ano=result.get("ano"),
+            combustivel=result.get("combustivel"),
+            potencia_cv=result.get("potencia_cv"),
+            potencia_kw=result.get("potencia_kw"),
+            cor=result.get("cor"),
+            categoria=result.get("categoria"),
+            vin=result.get("vin"),
+            tipo_proprietario=result.get("tipo_proprietario"),
+            origem=result.get("origem"),
+            source=result.get("source")
+        )
+
+    except Exception as e:
+        return VehicleInfoResponse(
+            plate=normalized_plate,
+            error=str(e)
+        )
+
+
+@router.get("/insurance/{plate}", response_model=InsuranceInfoResponse)
+async def get_insurance_info(plate: str):
+    """
+    Check vehicle insurance status from InfoMatricula API.
+
+    Returns: tem_seguro, seguradora, apolice, data_inicio, data_fim
+    """
+    from services.vehicle_lookup import check_insurance_api
+
+    normalized_plate = _normalize_plate(plate)
+
+    try:
+        result = await check_insurance_api(normalized_plate)
+
+        if "error" in result:
+            return InsuranceInfoResponse(
+                plate=normalized_plate,
+                error=result["error"]
+            )
+
+        return InsuranceInfoResponse(
+            plate=normalized_plate,
+            tem_seguro=result.get("tem_seguro"),
+            seguradora=result.get("seguradora"),
+            apolice=result.get("apolice"),
+            data_inicio=result.get("data_inicio"),
+            data_fim=result.get("data_fim"),
+            source=result.get("source")
+        )
+
+    except Exception as e:
+        return InsuranceInfoResponse(
+            plate=normalized_plate,
+            error=str(e)
+        )
+
+
+@router.get("/market-prices")
+async def get_market_prices(
+    marca: str = Query(..., description="Vehicle brand (e.g., POLESTAR)"),
+    modelo: Optional[str] = Query(None, description="Vehicle model (e.g., POLESTAR 2)"),
+    ano: Optional[int] = Query(None, description="Vehicle year (e.g., 2023)"),
+    combustivel: Optional[str] = Query(None, description="Fuel type (e.g., ELÉTRICO, Diesel, Gasolina)"),
+    km: Optional[int] = Query(None, description="Current mileage for filtering (+/- 25000 km range)")
+):
+    """
+    Search market prices for a vehicle on StandVirtual and AutoUncle.
+
+    Note: This uses Playwright for web scraping and may take a few seconds.
+    Should be run locally, not on cloud servers which typically get blocked.
+    """
+    from services.vehicle_lookup import get_market_prices as search_market_prices
+
+    try:
+        result = await search_market_prices(marca, modelo, ano, combustivel, km, debug=False)
+
+        if not result:
+            return {
+                "error": "Nenhum resultado encontrado",
+                "marca": marca,
+                "modelo": modelo,
+                "ano": ano
+            }
+
+        return MarketPricesResponse(
+            marca=result.marca,
+            modelo=result.modelo,
+            ano=result.ano,
+            num_resultados=result.num_resultados,
+            preco_min=result.preco_min,
+            preco_max=result.preco_max,
+            preco_medio=result.preco_medio,
+            preco_mediana=result.preco_mediana,
+            fonte=result.fonte,
+            data_consulta=result.data_consulta,
+            listings=[
+                MarketListingResponse(
+                    titulo=l["titulo"],
+                    preco=l["preco"],
+                    params=l.get("params")
+                )
+                for l in result.listings
+            ]
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/full/{plate}", response_model=FullVehicleResponse)
+async def get_full_vehicle_info(
+    plate: str,
+    include_market: bool = Query(False, description="Include market prices (slower, requires Playwright)")
+):
+    """
+    Get complete vehicle information from all sources.
+
+    Sources:
+    1. Plate decoder (instant)
+    2. InfoMatricula.pt API (vehicle info)
+    3. InfoMatricula.pt API (insurance)
+    4. StandVirtual/AutoUncle (market prices - optional)
+
+    Note: Set include_market=true to also fetch market prices (requires Playwright).
+    """
+    from services.vehicle_lookup import (
+        decode_portuguese_plate,
+        lookup_plate_infomatricula_api,
+        check_insurance_api,
+        get_market_prices as search_market_prices
+    )
+    import time
+
+    start_time = time.time()
+    normalized_plate = _normalize_plate(plate)
+    sources = ["plate_decoder"]
+    errors = []
+
+    # 1. Decode plate (instant)
+    plate_info = decode_portuguese_plate(normalized_plate)
+    plate_info_response = PlateInfoResponse(
+        plate=plate_info.plate,
+        format=plate_info.format,
+        era=plate_info.era,
+        year_min=plate_info.year_min,
+        year_max=plate_info.year_max,
+        notes=plate_info.notes
+    )
+
+    # 2. Get vehicle info from API
+    vehicle_info_response = None
+    try:
+        vehicle_result = await lookup_plate_infomatricula_api(normalized_plate)
+        if "error" not in vehicle_result:
+            vehicle_info_response = VehicleInfoResponse(
+                plate=normalized_plate,
+                marca=vehicle_result.get("marca"),
+                modelo=vehicle_result.get("modelo"),
+                versao=vehicle_result.get("versao"),
+                ano=vehicle_result.get("ano"),
+                combustivel=vehicle_result.get("combustivel"),
+                potencia_cv=vehicle_result.get("potencia_cv"),
+                potencia_kw=vehicle_result.get("potencia_kw"),
+                cor=vehicle_result.get("cor"),
+                categoria=vehicle_result.get("categoria"),
+                vin=vehicle_result.get("vin"),
+                tipo_proprietario=vehicle_result.get("tipo_proprietario"),
+                origem=vehicle_result.get("origem"),
+                source=vehicle_result.get("source")
+            )
+            sources.append("infomatricula.pt (API)")
+        else:
+            errors.append(f"InfoMatricula: {vehicle_result['error']}")
+    except Exception as e:
+        errors.append(f"InfoMatricula: {str(e)}")
+
+    # 3. Get insurance info from API
+    insurance_response = None
+    try:
+        insurance_result = await check_insurance_api(normalized_plate)
+        if "error" not in insurance_result:
+            insurance_response = InsuranceInfoResponse(
+                plate=normalized_plate,
+                tem_seguro=insurance_result.get("tem_seguro"),
+                seguradora=insurance_result.get("seguradora"),
+                apolice=insurance_result.get("apolice"),
+                data_inicio=insurance_result.get("data_inicio"),
+                data_fim=insurance_result.get("data_fim"),
+                source=insurance_result.get("source")
+            )
+            sources.append("infomatricula.pt (seguro)")
+        else:
+            errors.append(f"Seguro: {insurance_result['error']}")
+    except Exception as e:
+        errors.append(f"Seguro: {str(e)}")
+
+    # 4. Get market prices (optional, slower)
+    market_prices_response = None
+    if include_market and vehicle_info_response and vehicle_info_response.marca:
+        try:
+            market_result = await search_market_prices(
+                vehicle_info_response.marca,
+                vehicle_info_response.modelo,
+                vehicle_info_response.ano or plate_info.year_min,
+                vehicle_info_response.combustivel,
+                None,  # km not available from API
+                debug=False
+            )
+            if market_result:
+                market_prices_response = MarketPricesResponse(
+                    marca=market_result.marca,
+                    modelo=market_result.modelo,
+                    ano=market_result.ano,
+                    num_resultados=market_result.num_resultados,
+                    preco_min=market_result.preco_min,
+                    preco_max=market_result.preco_max,
+                    preco_medio=market_result.preco_medio,
+                    preco_mediana=market_result.preco_mediana,
+                    fonte=market_result.fonte,
+                    data_consulta=market_result.data_consulta,
+                    listings=[
+                        MarketListingResponse(
+                            titulo=l["titulo"],
+                            preco=l["preco"],
+                            params=l.get("params")
+                        )
+                        for l in market_result.listings[:10]  # Limit to 10 listings
+                    ]
+                )
+                sources.append(market_result.fonte)
+        except Exception as e:
+            errors.append(f"Market prices: {str(e)}")
+
+    lookup_time_ms = int((time.time() - start_time) * 1000)
+
+    return FullVehicleResponse(
+        plate=normalized_plate,
+        plate_info=plate_info_response,
+        vehicle_info=vehicle_info_response,
+        insurance=insurance_response,
+        market_prices=market_prices_response,
+        sources=sources,
+        errors=errors,
+        lookup_time_ms=lookup_time_ms
+    )
+
+
+# ============== EVENT VEHICLE DATA ENDPOINTS ==============
+
+class AIQuestionResultResponse(BaseModel):
+    """AI question result"""
+    question_id: str
+    question: str
+    answer: str
+    confidence: float
+    time_ms: int
+
+
+class AIImageAnalysisResponse(BaseModel):
+    """AI image analysis result"""
+    image_url: str
+    description: str
+    condition: str
+    issues_found: List[str]
+    confidence: float
+
+
+class EventVehicleDataResponse(BaseModel):
+    """Vehicle data for an auction event"""
+    reference: str
+    matricula: Optional[str] = None
+    event_titulo: Optional[str] = None
+    event_valor_base: Optional[float] = None
+    event_lance_atual: Optional[float] = None
+
+    # Vehicle info
+    marca: Optional[str] = None
+    modelo: Optional[str] = None
+    versao: Optional[str] = None
+    ano: Optional[int] = None
+    combustivel: Optional[str] = None
+    potencia_cv: Optional[int] = None
+    cor: Optional[str] = None
+    vin: Optional[str] = None
+
+    # Insurance
+    tem_seguro: Optional[bool] = None
+    seguradora: Optional[str] = None
+    seguro_data_fim: Optional[str] = None
+
+    # Market comparison
+    market_num_resultados: Optional[int] = None
+    market_preco_min: Optional[float] = None
+    market_preco_max: Optional[float] = None
+    market_preco_medio: Optional[float] = None
+    market_preco_mediana: Optional[float] = None
+    market_fonte: Optional[str] = None
+    market_listings: Optional[List[MarketListingResponse]] = None
+
+    # Analysis
+    poupanca_estimada: Optional[float] = None
+    desconto_percentagem: Optional[float] = None
+
+    # AI Analysis
+    ai_score: Optional[float] = None
+    ai_recommendation: Optional[str] = None
+    ai_summary: Optional[str] = None
+    ai_pros: Optional[List[str]] = None
+    ai_cons: Optional[List[str]] = None
+    ai_questions: Optional[List[AIQuestionResultResponse]] = None
+    ai_image_analyses: Optional[List[AIImageAnalysisResponse]] = None
+    ai_model_used: Optional[str] = None
+    ai_tokens_used: Optional[int] = None
+    ai_processing_time_ms: Optional[int] = None
+
+    # Status
+    status: str
+    error_message: Optional[str] = None
+    processed_at: Optional[datetime] = None
+
+
+class VehiclePipelineStatus(BaseModel):
+    """Pipeline status"""
+    is_running: bool
+    current_reference: Optional[str] = None
+    current_event_titulo: Optional[str] = None
+    total_processed: int
+    total_failed: int
+    total_pending: int
+
+
+@router.get("/event/{reference}", response_model=EventVehicleDataResponse)
+async def get_event_vehicle_data(reference: str):
+    """
+    Get cached vehicle data for a specific auction event.
+
+    Returns vehicle info, insurance status, and market comparison
+    if already processed. Returns status='pending' if not yet processed.
+    """
+    from database import get_db, EventVehicleDataDB
+    from sqlalchemy import select
+    import json
+
+    async with get_db() as db:
+        result = await db.session.execute(
+            select(EventVehicleDataDB).where(EventVehicleDataDB.reference == reference)
+        )
+        vehicle_data = result.scalar_one_or_none()
+
+        if not vehicle_data:
+            return EventVehicleDataResponse(
+                reference=reference,
+                status='not_found'
+            )
+
+        # Parse market listings if available
+        listings = None
+        if vehicle_data.market_listings:
+            try:
+                listings_raw = json.loads(vehicle_data.market_listings)
+                listings = [
+                    MarketListingResponse(
+                        titulo=l.get('titulo', ''),
+                        preco=l.get('preco', 0),
+                        params=l.get('params')
+                    )
+                    for l in listings_raw
+                ]
+            except:
+                pass
+
+        # Parse AI fields
+        ai_questions = None
+        if vehicle_data.ai_questions_results:
+            try:
+                q_raw = json.loads(vehicle_data.ai_questions_results)
+                ai_questions = [
+                    AIQuestionResultResponse(
+                        question_id=q.get('question_id', ''),
+                        question=q.get('question', ''),
+                        answer=q.get('answer', ''),
+                        confidence=q.get('confidence', 0),
+                        time_ms=q.get('time_ms', 0)
+                    )
+                    for q in q_raw
+                ]
+            except:
+                pass
+
+        ai_image_analyses = None
+        if vehicle_data.ai_image_analyses:
+            try:
+                img_raw = json.loads(vehicle_data.ai_image_analyses)
+                ai_image_analyses = [
+                    AIImageAnalysisResponse(
+                        image_url=img.get('image_url', ''),
+                        description=img.get('description', ''),
+                        condition=img.get('condition', 'unknown'),
+                        issues_found=img.get('issues_found', []),
+                        confidence=img.get('confidence', 0)
+                    )
+                    for img in img_raw
+                ]
+            except:
+                pass
+
+        ai_pros = None
+        ai_cons = None
+        if vehicle_data.ai_pros:
+            try:
+                ai_pros = json.loads(vehicle_data.ai_pros)
+            except:
+                pass
+        if vehicle_data.ai_cons:
+            try:
+                ai_cons = json.loads(vehicle_data.ai_cons)
+            except:
+                pass
+
+        return EventVehicleDataResponse(
+            reference=vehicle_data.reference,
+            matricula=vehicle_data.matricula,
+            event_titulo=vehicle_data.event_titulo,
+            event_valor_base=float(vehicle_data.event_valor_base) if vehicle_data.event_valor_base else None,
+            event_lance_atual=float(vehicle_data.event_lance_atual) if vehicle_data.event_lance_atual else None,
+            marca=vehicle_data.marca,
+            modelo=vehicle_data.modelo,
+            versao=vehicle_data.versao,
+            ano=vehicle_data.ano,
+            combustivel=vehicle_data.combustivel,
+            potencia_cv=vehicle_data.potencia_cv,
+            cor=vehicle_data.cor,
+            vin=vehicle_data.vin,
+            tem_seguro=vehicle_data.tem_seguro,
+            seguradora=vehicle_data.seguradora,
+            seguro_data_fim=vehicle_data.seguro_data_fim,
+            market_num_resultados=vehicle_data.market_num_resultados,
+            market_preco_min=float(vehicle_data.market_preco_min) if vehicle_data.market_preco_min else None,
+            market_preco_max=float(vehicle_data.market_preco_max) if vehicle_data.market_preco_max else None,
+            market_preco_medio=float(vehicle_data.market_preco_medio) if vehicle_data.market_preco_medio else None,
+            market_preco_mediana=float(vehicle_data.market_preco_mediana) if vehicle_data.market_preco_mediana else None,
+            market_fonte=vehicle_data.market_fonte,
+            market_listings=listings,
+            poupanca_estimada=float(vehicle_data.poupanca_estimada) if vehicle_data.poupanca_estimada else None,
+            desconto_percentagem=vehicle_data.desconto_percentagem,
+            ai_score=vehicle_data.ai_score,
+            ai_recommendation=vehicle_data.ai_recommendation,
+            ai_summary=vehicle_data.ai_summary,
+            ai_pros=ai_pros,
+            ai_cons=ai_cons,
+            ai_questions=ai_questions,
+            ai_image_analyses=ai_image_analyses,
+            ai_model_used=vehicle_data.ai_model_used,
+            ai_tokens_used=vehicle_data.ai_tokens_used,
+            ai_processing_time_ms=vehicle_data.ai_processing_time_ms,
+            status=vehicle_data.status,
+            error_message=vehicle_data.error_message,
+            processed_at=vehicle_data.processed_at
+        )
+
+
+@router.post("/event/{reference}/process")
+async def process_event_vehicle(reference: str, background_tasks: BackgroundTasks):
+    """
+    Trigger vehicle data processing for a specific event.
+    Runs in background and returns immediately.
+    """
+    from vehicle_pipeline import get_vehicle_pipeline_manager
+
+    pipeline = get_vehicle_pipeline_manager()
+
+    # Run in background
+    background_tasks.add_task(pipeline.process_single, reference)
+
+    return {
+        "status": "queued",
+        "message": f"Vehicle data processing queued for {reference}",
+        "reference": reference
+    }
+
+
+@router.get("/pipeline/status", response_model=VehiclePipelineStatus)
+async def get_vehicle_pipeline_status():
+    """Get vehicle pipeline processing status"""
+    from database import get_db, EventVehicleDataDB, EventDB
+    from sqlalchemy import select, func, and_
+    from vehicle_pipeline import get_vehicle_pipeline_manager
+
+    pipeline = get_vehicle_pipeline_manager()
+
+    # Count pending events (vehicles with matricula not yet processed)
+    async with get_db() as db:
+        subquery = select(EventVehicleDataDB.reference).where(
+            EventVehicleDataDB.status.in_(['completed', 'processing'])
+        )
+
+        pending_result = await db.session.execute(
+            select(func.count(EventDB.reference)).where(
+                and_(
+                    EventDB.tipo_id == 2,
+                    EventDB.matricula.isnot(None),
+                    EventDB.matricula != '',
+                    EventDB.terminado == False,
+                    EventDB.cancelado == False,
+                    EventDB.reference.notin_(subquery)
+                )
+            )
+        )
+        pending_count = pending_result.scalar() or 0
+
+    return VehiclePipelineStatus(
+        is_running=pipeline.is_running,
+        current_reference=pipeline.current_reference,
+        current_event_titulo=pipeline.current_event_titulo,
+        total_processed=pipeline.total_processed,
+        total_failed=pipeline.total_failed,
+        total_pending=pending_count
+    )
+
+
+@router.post("/pipeline/start")
+async def start_vehicle_pipeline(background_tasks: BackgroundTasks):
+    """Start the vehicle data pipeline"""
+    from vehicle_pipeline import get_vehicle_pipeline_manager
+
+    pipeline = get_vehicle_pipeline_manager()
+
+    if pipeline.is_running:
+        return {"status": "already_running", "message": "Vehicle pipeline is already running"}
+
+    background_tasks.add_task(pipeline.start)
+
+    return {"status": "starting", "message": "Vehicle pipeline is starting"}
+
+
+@router.post("/pipeline/stop")
+async def stop_vehicle_pipeline():
+    """Stop the vehicle data pipeline"""
+    from vehicle_pipeline import get_vehicle_pipeline_manager
+
+    pipeline = get_vehicle_pipeline_manager()
+    await pipeline.stop()
+
+    return {"status": "stopped", "message": "Vehicle pipeline stopped"}
+
+
+@router.get("/events/list")
+async def list_vehicle_events(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    status: Optional[str] = Query(None, description="Filter by status: pending, completed, failed"),
+):
+    """
+    List vehicle events with their processing status.
+    Shows events that have matricula and their market comparison status.
+    """
+    from database import get_db, EventDB, EventVehicleDataDB
+    from sqlalchemy import select, func, outerjoin
+
+    async with get_db() as db:
+        # Get vehicle events with their processing status
+        query = (
+            select(
+                EventDB.reference,
+                EventDB.titulo,
+                EventDB.matricula,
+                EventDB.valor_base,
+                EventDB.lance_atual,
+                EventDB.data_fim,
+                EventVehicleDataDB.status,
+                EventVehicleDataDB.marca,
+                EventVehicleDataDB.modelo,
+                EventVehicleDataDB.market_preco_medio,
+                EventVehicleDataDB.poupanca_estimada,
+            )
+            .outerjoin(EventVehicleDataDB, EventDB.reference == EventVehicleDataDB.reference)
+            .where(
+                and_(
+                    EventDB.tipo_id == 2,
+                    EventDB.matricula.isnot(None),
+                    EventDB.matricula != '',
+                    EventDB.terminado == False,
+                    EventDB.cancelado == False,
+                )
+            )
+        )
+
+        # Filter by status
+        if status:
+            if status == 'pending':
+                query = query.where(EventVehicleDataDB.status.is_(None))
+            else:
+                query = query.where(EventVehicleDataDB.status == status)
+
+        # Count total
+        count_query = select(func.count()).select_from(query.subquery())
+        total_result = await db.session.execute(count_query)
+        total = total_result.scalar() or 0
+
+        # Apply pagination
+        offset = (page - 1) * page_size
+        query = query.order_by(EventDB.data_fim.asc()).offset(offset).limit(page_size)
+
+        result = await db.session.execute(query)
+        events = result.all()
+
+        return {
+            "events": [
+                {
+                    "reference": e.reference,
+                    "titulo": e.titulo,
+                    "matricula": e.matricula,
+                    "valor_base": float(e.valor_base) if e.valor_base else None,
+                    "lance_atual": float(e.lance_atual) if e.lance_atual else None,
+                    "data_fim": e.data_fim.isoformat() if e.data_fim else None,
+                    "status": e.status or "pending",
+                    "marca": e.marca,
+                    "modelo": e.modelo,
+                    "market_preco_medio": float(e.market_preco_medio) if e.market_preco_medio else None,
+                    "poupanca_estimada": float(e.poupanca_estimada) if e.poupanca_estimada else None,
+                }
+                for e in events
+            ],
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "has_more": offset + len(events) < total
+        }
+
+
+# ============== COMPLETE ANALYSIS ENDPOINT ==============
+
+@router.post("/event/{reference}/complete-analysis")
+async def complete_vehicle_analysis(
+    reference: str,
+    include_market: bool = Query(True, description="Include market prices lookup"),
+    include_ai: bool = Query(True, description="Include AI analysis"),
+    analyze_images: bool = Query(True, description="Analyze images with LLaVA"),
+    max_images: int = Query(3, ge=1, le=5, description="Max images to analyze")
+):
+    """
+    Complete vehicle analysis in one request (synchronous).
+
+    Performs ALL analysis steps:
+    1. Vehicle info from InfoMatricula API
+    2. Insurance status check
+    3. Market prices from StandVirtual/AutoUncle (optional)
+    4. AI batch questions via Ollama (optional)
+    5. Image analysis via LLaVA (optional)
+
+    Returns complete analysis data and saves to database.
+    Note: This may take 30-60 seconds depending on options selected.
+    """
+    from database import get_db, EventDB, EventVehicleDataDB
+    from services.vehicle_lookup import (
+        lookup_plate_infomatricula_api,
+        check_insurance_api,
+        get_market_prices as search_market_prices,
+        decode_portuguese_plate,
+        extract_vehicle_from_title
+    )
+    from services.ai_analysis_service import get_enhanced_ai_service
+    from sqlalchemy import select
+    import time
+    import json
+
+    start_time = time.time()
+    errors = []
+
+    # 1. Get event from database
+    async with get_db() as db:
+        result = await db.session.execute(
+            select(EventDB).where(EventDB.reference == reference)
+        )
+        event = result.scalar_one_or_none()
+
+        if not event:
+            raise HTTPException(status_code=404, detail=f"Event {reference} not found")
+
+        if not event.matricula:
+            raise HTTPException(status_code=400, detail=f"Event {reference} has no matricula")
+
+        # Create event dict for analysis
+        event_dict = {
+            'reference': event.reference,
+            'titulo': event.titulo,
+            'matricula': event.matricula,
+            'valor_base': float(event.valor_base) if event.valor_base else None,
+            'lance_atual': float(event.lance_atual) if event.lance_atual else None,
+            'descricao': event.descricao,
+            'fotos': event.fotos,
+        }
+
+        # Get or create vehicle data record
+        vd_result = await db.session.execute(
+            select(EventVehicleDataDB).where(EventVehicleDataDB.reference == reference)
+        )
+        vehicle_data = vd_result.scalar_one_or_none()
+
+        if not vehicle_data:
+            vehicle_data = EventVehicleDataDB(
+                reference=reference,
+                matricula=event.matricula,
+                event_titulo=event.titulo,
+                event_valor_base=event_dict['valor_base'],
+                event_lance_atual=event_dict['lance_atual'],
+                status='processing'
+            )
+            db.session.add(vehicle_data)
+        else:
+            vehicle_data.status = 'processing'
+
+        await db.session.commit()
+
+    normalized_plate = _normalize_plate(event_dict['matricula'])
+
+    # 2. Get vehicle info from InfoMatricula API
+    vehicle_info = {}
+    try:
+        vehicle_info = await lookup_plate_infomatricula_api(normalized_plate)
+        if 'error' not in vehicle_info:
+            async with get_db() as db:
+                result = await db.session.execute(
+                    select(EventVehicleDataDB).where(EventVehicleDataDB.reference == reference)
+                )
+                vd = result.scalar_one()
+                vd.marca = vehicle_info.get('marca')
+                vd.modelo = vehicle_info.get('modelo')
+                vd.versao = vehicle_info.get('versao')
+                vd.ano = vehicle_info.get('ano')
+                vd.combustivel = vehicle_info.get('combustivel')
+                vd.potencia_cv = vehicle_info.get('potencia_cv')
+                vd.potencia_kw = vehicle_info.get('potencia_kw')
+                vd.cor = vehicle_info.get('cor')
+                vd.categoria = vehicle_info.get('categoria')
+                vd.vin = vehicle_info.get('vin')
+                vd.tipo_proprietario = vehicle_info.get('tipo_proprietario')
+                vd.origem = vehicle_info.get('origem')
+                await db.session.commit()
+        else:
+            errors.append(f"Vehicle info: {vehicle_info.get('error')}")
+    except Exception as e:
+        errors.append(f"Vehicle info: {str(e)}")
+
+    # 2b. Fallback: Extract vehicle info from title if API failed
+    if not vehicle_info.get('marca'):
+        titulo = event_dict.get('titulo', '')
+        extracted = extract_vehicle_from_title(titulo)
+        if extracted.get('marca'):
+            vehicle_info['marca'] = extracted.get('marca')
+            vehicle_info['modelo'] = extracted.get('modelo') or titulo
+            # Try to get year from plate
+            plate_info = decode_portuguese_plate(normalized_plate)
+            vehicle_info['ano'] = extracted.get('ano') or plate_info.year_min
+            # Extract fuel from title
+            titulo_lower = titulo.lower()
+            if 'diesel' in titulo_lower or 'gasoleo' in titulo_lower or 'gasóleo' in titulo_lower:
+                vehicle_info['combustivel'] = 'Diesel'
+            elif 'gasolina' in titulo_lower:
+                vehicle_info['combustivel'] = 'Gasolina'
+            elif 'elétrico' in titulo_lower or 'eletrico' in titulo_lower or 'electric' in titulo_lower:
+                vehicle_info['combustivel'] = 'Elétrico'
+            elif 'híbrido' in titulo_lower or 'hibrido' in titulo_lower:
+                vehicle_info['combustivel'] = 'Híbrido'
+
+            # Save extracted info to DB
+            async with get_db() as db:
+                result = await db.session.execute(
+                    select(EventVehicleDataDB).where(EventVehicleDataDB.reference == reference)
+                )
+                vd = result.scalar_one()
+                vd.marca = vehicle_info.get('marca')
+                vd.modelo = vehicle_info.get('modelo')
+                vd.ano = vehicle_info.get('ano')
+                vd.combustivel = vehicle_info.get('combustivel')
+                await db.session.commit()
+
+    # 3. Check insurance
+    insurance_info = {}
+    try:
+        insurance_info = await check_insurance_api(normalized_plate)
+        if 'error' not in insurance_info:
+            async with get_db() as db:
+                result = await db.session.execute(
+                    select(EventVehicleDataDB).where(EventVehicleDataDB.reference == reference)
+                )
+                vd = result.scalar_one()
+                vd.tem_seguro = insurance_info.get('tem_seguro')
+                vd.seguradora = insurance_info.get('seguradora')
+                vd.seguro_apolice = insurance_info.get('apolice')
+                vd.seguro_data_fim = insurance_info.get('data_fim')
+                await db.session.commit()
+        else:
+            errors.append(f"Insurance: {insurance_info.get('error')}")
+    except Exception as e:
+        errors.append(f"Insurance: {str(e)}")
+
+    # 4. Market prices (optional, may fail due to Playwright)
+    market_data = None
+    if include_market and vehicle_info.get('marca'):
+        try:
+            market_data = await search_market_prices(
+                marca=vehicle_info.get('marca'),
+                modelo=vehicle_info.get('modelo'),
+                ano=vehicle_info.get('ano'),
+                combustivel=vehicle_info.get('combustivel'),
+                km=None,
+                debug=False
+            )
+            if market_data:
+                async with get_db() as db:
+                    result = await db.session.execute(
+                        select(EventVehicleDataDB).where(EventVehicleDataDB.reference == reference)
+                    )
+                    vd = result.scalar_one()
+                    vd.market_num_resultados = market_data.num_resultados
+                    vd.market_preco_min = market_data.preco_min
+                    vd.market_preco_max = market_data.preco_max
+                    vd.market_preco_medio = market_data.preco_medio
+                    vd.market_preco_mediana = market_data.preco_mediana
+                    vd.market_fonte = market_data.fonte
+                    vd.market_listings = json.dumps(market_data.listings[:10])
+
+                    # Calculate savings
+                    valor_leilao = event_dict['valor_base'] or event_dict['lance_atual'] or 0
+                    if valor_leilao > 0 and market_data.preco_medio > 0:
+                        vd.poupanca_estimada = market_data.preco_medio - valor_leilao
+                        vd.desconto_percentagem = ((market_data.preco_medio - valor_leilao) / market_data.preco_medio) * 100
+
+                    await db.session.commit()
+        except Exception as e:
+            errors.append(f"Market prices: {str(e)}")
+
+    # 5. AI Analysis (optional)
+    ai_result = None
+    if include_ai:
+        try:
+            ai_service = get_enhanced_ai_service()
+
+            # Check if Ollama is available
+            models_check = await ai_service.check_models()
+            if 'error' not in models_check and models_check.get('text_model_available'):
+                ai_result = await ai_service.analyze_vehicle(
+                    event_dict,
+                    analyze_images=analyze_images,
+                    max_images=max_images
+                )
+
+                # Save AI results to database
+                async with get_db() as db:
+                    result = await db.session.execute(
+                        select(EventVehicleDataDB).where(EventVehicleDataDB.reference == reference)
+                    )
+                    vd = result.scalar_one()
+                    vd.ai_score = ai_result.score
+                    vd.ai_recommendation = ai_result.recommendation
+                    vd.ai_summary = ai_result.summary
+                    vd.ai_pros = json.dumps(ai_result.pros)
+                    vd.ai_cons = json.dumps(ai_result.cons)
+
+                    # Save question results
+                    questions_json = [
+                        {
+                            "question_id": q.question_id,
+                            "question": q.question,
+                            "answer": q.answer,
+                            "confidence": q.confidence,
+                            "time_ms": q.time_ms
+                        }
+                        for q in ai_result.questions
+                    ]
+                    vd.ai_questions_results = json.dumps(questions_json)
+
+                    # Save image analyses
+                    images_json = [
+                        {
+                            "image_url": img.image_url,
+                            "description": img.description,
+                            "condition": img.condition,
+                            "issues_found": img.issues_found,
+                            "confidence": img.confidence
+                        }
+                        for img in ai_result.image_analyses
+                    ]
+                    vd.ai_image_analyses = json.dumps(images_json)
+
+                    vd.ai_model_used = ",".join(ai_result.models_used)
+                    vd.ai_tokens_used = ai_result.total_tokens
+                    vd.ai_processing_time_ms = ai_result.total_time_ms
+
+                    await db.session.commit()
+            else:
+                errors.append(f"AI: Ollama not available or model not found")
+        except Exception as e:
+            errors.append(f"AI analysis: {str(e)}")
+
+    # Mark as completed
+    total_time_ms = int((time.time() - start_time) * 1000)
+
+    async with get_db() as db:
+        result = await db.session.execute(
+            select(EventVehicleDataDB).where(EventVehicleDataDB.reference == reference)
+        )
+        vd = result.scalar_one()
+        vd.status = 'completed'
+        vd.processed_at = datetime.utcnow()
+        vd.error_message = "; ".join(errors) if errors else None
+        await db.session.commit()
+
+    # Build response
+    async with get_db() as db:
+        result = await db.session.execute(
+            select(EventVehicleDataDB).where(EventVehicleDataDB.reference == reference)
+        )
+        vd = result.scalar_one()
+
+        # Parse stored JSON fields
+        market_listings = None
+        if vd.market_listings:
+            try:
+                listings_raw = json.loads(vd.market_listings)
+                market_listings = [
+                    MarketListingResponse(
+                        titulo=l.get('titulo', ''),
+                        preco=l.get('preco', 0),
+                        params=l.get('params')
+                    )
+                    for l in listings_raw
+                ]
+            except:
+                pass
+
+        ai_questions = None
+        if vd.ai_questions_results:
+            try:
+                q_raw = json.loads(vd.ai_questions_results)
+                ai_questions = [
+                    AIQuestionResultResponse(
+                        question_id=q.get('question_id', ''),
+                        question=q.get('question', ''),
+                        answer=q.get('answer', ''),
+                        confidence=q.get('confidence', 0),
+                        time_ms=q.get('time_ms', 0)
+                    )
+                    for q in q_raw
+                ]
+            except:
+                pass
+
+        ai_image_analyses = None
+        if vd.ai_image_analyses:
+            try:
+                img_raw = json.loads(vd.ai_image_analyses)
+                ai_image_analyses = [
+                    AIImageAnalysisResponse(
+                        image_url=img.get('image_url', ''),
+                        description=img.get('description', ''),
+                        condition=img.get('condition', 'unknown'),
+                        issues_found=img.get('issues_found', []),
+                        confidence=img.get('confidence', 0)
+                    )
+                    for img in img_raw
+                ]
+            except:
+                pass
+
+        ai_pros = None
+        ai_cons = None
+        if vd.ai_pros:
+            try:
+                ai_pros = json.loads(vd.ai_pros)
+            except:
+                pass
+        if vd.ai_cons:
+            try:
+                ai_cons = json.loads(vd.ai_cons)
+            except:
+                pass
+
+        return {
+            "reference": vd.reference,
+            "matricula": vd.matricula,
+            "event_titulo": vd.event_titulo,
+            "event_valor_base": float(vd.event_valor_base) if vd.event_valor_base else None,
+            "event_lance_atual": float(vd.event_lance_atual) if vd.event_lance_atual else None,
+
+            # Vehicle info
+            "marca": vd.marca,
+            "modelo": vd.modelo,
+            "versao": vd.versao,
+            "ano": vd.ano,
+            "combustivel": vd.combustivel,
+            "potencia_cv": vd.potencia_cv,
+            "cor": vd.cor,
+            "vin": vd.vin,
+
+            # Insurance
+            "tem_seguro": vd.tem_seguro,
+            "seguradora": vd.seguradora,
+            "seguro_data_fim": vd.seguro_data_fim,
+
+            # Market comparison
+            "market_num_resultados": vd.market_num_resultados,
+            "market_preco_min": float(vd.market_preco_min) if vd.market_preco_min else None,
+            "market_preco_max": float(vd.market_preco_max) if vd.market_preco_max else None,
+            "market_preco_medio": float(vd.market_preco_medio) if vd.market_preco_medio else None,
+            "market_preco_mediana": float(vd.market_preco_mediana) if vd.market_preco_mediana else None,
+            "market_fonte": vd.market_fonte,
+            "market_listings": market_listings,
+            "poupanca_estimada": float(vd.poupanca_estimada) if vd.poupanca_estimada else None,
+            "desconto_percentagem": vd.desconto_percentagem,
+
+            # AI Analysis
+            "ai_score": vd.ai_score,
+            "ai_recommendation": vd.ai_recommendation,
+            "ai_summary": vd.ai_summary,
+            "ai_pros": ai_pros,
+            "ai_cons": ai_cons,
+            "ai_questions": ai_questions,
+            "ai_image_analyses": ai_image_analyses,
+            "ai_model_used": vd.ai_model_used,
+            "ai_tokens_used": vd.ai_tokens_used,
+            "ai_processing_time_ms": vd.ai_processing_time_ms,
+
+            # Status
+            "status": vd.status,
+            "error_message": vd.error_message,
+            "processed_at": vd.processed_at.isoformat() if vd.processed_at else None,
+
+            # Metadata
+            "total_processing_time_ms": total_time_ms,
+            "errors": errors
+        }
+
+
+# ============== FEEDBACK ENDPOINTS ==============
+
+class FeedbackSubmitRequest(BaseModel):
+    """Request model for submitting feedback"""
+    score_precisao: Optional[int] = Field(None, ge=0, le=10, description="Accuracy score 0-10")
+    score_utilidade: Optional[int] = Field(None, ge=0, le=10, description="Usefulness score 0-10")
+    erro_preco: bool = Field(False, description="Price estimation was wrong")
+    erro_problemas_modelo: bool = Field(False, description="Model problems were incorrect")
+    erro_recomendacao: bool = Field(False, description="Recommendation didn't make sense")
+    falta_info: bool = Field(False, description="Missing important information")
+    outro_erro: Optional[str] = Field(None, description="Other error description")
+    comprou: Optional[bool] = Field(None, description="Did user buy this vehicle?")
+    preco_compra: Optional[float] = Field(None, description="Actual purchase price")
+    satisfacao_compra: Optional[int] = Field(None, ge=0, le=10, description="Purchase satisfaction 0-10")
+    comentario: Optional[str] = Field(None, description="Additional comments")
+
+
+class FeedbackResponse(BaseModel):
+    """Response model for feedback"""
+    id: int
+    reference: str
+    score_precisao: Optional[int]
+    score_utilidade: Optional[int]
+    created_at: datetime
+
+
+@router.post("/event/{reference}/feedback", response_model=FeedbackResponse)
+async def submit_feedback(reference: str, feedback: FeedbackSubmitRequest):
+    """
+    Submit feedback for a vehicle analysis.
+
+    This helps improve future AI analysis by collecting user ratings
+    and actual outcomes.
+    """
+    from database import get_db, AnalysisFeedbackDB, EventVehicleDataDB
+    from sqlalchemy import select, func
+
+    async with get_db() as db:
+        # Create feedback record
+        new_feedback = AnalysisFeedbackDB(
+            reference=reference,
+            score_precisao=feedback.score_precisao,
+            score_utilidade=feedback.score_utilidade,
+            erro_preco=feedback.erro_preco,
+            erro_problemas_modelo=feedback.erro_problemas_modelo,
+            erro_recomendacao=feedback.erro_recomendacao,
+            falta_info=feedback.falta_info,
+            outro_erro=feedback.outro_erro,
+            comprou=feedback.comprou,
+            preco_compra=feedback.preco_compra,
+            satisfacao_compra=feedback.satisfacao_compra,
+            comentario=feedback.comentario
+        )
+        db.session.add(new_feedback)
+        await db.session.flush()
+
+        # Update aggregate feedback score on vehicle data
+        result = await db.session.execute(
+            select(
+                func.avg(AnalysisFeedbackDB.score_precisao).label('avg_precisao'),
+                func.count(AnalysisFeedbackDB.id).label('count')
+            ).where(AnalysisFeedbackDB.reference == reference)
+        )
+        stats = result.one()
+
+        if stats.avg_precisao is not None:
+            vd_result = await db.session.execute(
+                select(EventVehicleDataDB).where(EventVehicleDataDB.reference == reference)
+            )
+            vd = vd_result.scalar_one_or_none()
+            if vd:
+                vd.feedback_score_medio = float(stats.avg_precisao)
+                vd.feedback_count = stats.count
+
+        await db.session.commit()
+
+        return FeedbackResponse(
+            id=new_feedback.id,
+            reference=reference,
+            score_precisao=feedback.score_precisao,
+            score_utilidade=feedback.score_utilidade,
+            created_at=new_feedback.created_at
+        )
+
+
+@router.get("/event/{reference}/feedback")
+async def get_feedback(reference: str):
+    """
+    Get all feedback for a vehicle analysis.
+    """
+    from database import get_db, AnalysisFeedbackDB
+    from sqlalchemy import select
+
+    async with get_db() as db:
+        result = await db.session.execute(
+            select(AnalysisFeedbackDB)
+            .where(AnalysisFeedbackDB.reference == reference)
+            .order_by(AnalysisFeedbackDB.created_at.desc())
+        )
+        feedbacks = result.scalars().all()
+
+        return {
+            "reference": reference,
+            "total_feedbacks": len(feedbacks),
+            "feedbacks": [
+                {
+                    "id": f.id,
+                    "score_precisao": f.score_precisao,
+                    "score_utilidade": f.score_utilidade,
+                    "erro_preco": f.erro_preco,
+                    "erro_problemas_modelo": f.erro_problemas_modelo,
+                    "erro_recomendacao": f.erro_recomendacao,
+                    "falta_info": f.falta_info,
+                    "outro_erro": f.outro_erro,
+                    "comprou": f.comprou,
+                    "preco_compra": float(f.preco_compra) if f.preco_compra else None,
+                    "satisfacao_compra": f.satisfacao_compra,
+                    "comentario": f.comentario,
+                    "created_at": f.created_at.isoformat()
+                }
+                for f in feedbacks
+            ]
+        }
+
+
+# ============== AUCTION HISTORY ENDPOINTS ==============
+
+@router.get("/auction-history")
+async def get_auction_history(
+    marca: str = Query(..., description="Vehicle brand"),
+    modelo: Optional[str] = Query(None, description="Vehicle model"),
+    ano: Optional[int] = Query(None, description="Vehicle year (+/- 3 years)"),
+    limit: int = Query(10, ge=1, le=50, description="Max results")
+):
+    """
+    Get historical auction data for similar vehicles.
+
+    Returns past auction results to help estimate likely sale prices.
+    """
+    from services.market_price_service import get_market_price_service
+
+    service = get_market_price_service()
+
+    history = await service.get_auction_history(
+        marca=marca,
+        modelo=modelo,
+        ano=ano,
+        limit=limit
+    )
+
+    stats = await service.calculate_auction_stats(
+        marca=marca,
+        modelo=modelo,
+        ano=ano
+    )
+
+    return {
+        "marca": marca,
+        "modelo": modelo,
+        "ano": ano,
+        "stats": stats,
+        "history": history
+    }
+
+
+# ============== MARKET PRICE ENDPOINT (HYBRID) ==============
+
+@router.get("/market-price-hybrid")
+async def get_hybrid_market_price(
+    marca: str = Query(..., description="Vehicle brand"),
+    modelo: str = Query(..., description="Vehicle model"),
+    ano: int = Query(..., description="Vehicle year"),
+    combustivel: Optional[str] = Query(None, description="Fuel type"),
+    force_refresh: bool = Query(False, description="Force refresh from scraping")
+):
+    """
+    Get market price using hybrid approach.
+
+    Strategy:
+    1. Check database cache (instant)
+    2. Try real-time scraping (slower)
+    3. Fall back to AI estimation (always available)
+
+    Returns price data with confidence level and source.
+    """
+    from services.market_price_service import get_market_price_service
+
+    service = get_market_price_service()
+
+    result = await service.get_market_price(
+        marca=marca,
+        modelo=modelo,
+        ano=ano,
+        combustivel=combustivel,
+        force_refresh=force_refresh
+    )
+
+    return {
+        "marca": result.marca,
+        "modelo": result.modelo,
+        "ano": result.ano,
+        "preco_min": result.preco_min,
+        "preco_max": result.preco_max,
+        "preco_medio": result.preco_medio,
+        "preco_mediana": result.preco_mediana,
+        "num_anuncios": result.num_anuncios,
+        "fonte": result.fonte,
+        "confianca": result.confianca,
+        "data_recolha": result.data_recolha.isoformat() if result.data_recolha else None,
+        "listings": result.listings[:5],  # Top 5 listings
+        "error": result.error
+    }
+
+
+# ============== COMPLETE ANALYSIS V2 (NEW PIPELINE) ==============
+
+@router.post("/event/{reference}/analyze-v2")
+async def complete_vehicle_analysis_v2(
+    reference: str,
+    include_ai: bool = Query(True, description="Include AI analysis"),
+    ai_model: str = Query("llama3.1:8b", description="AI model to use")
+):
+    """
+    Complete vehicle analysis v2 - New pipeline with structured AI questions.
+
+    Pipeline:
+    1. Get event data from database
+    2. Lookup vehicle info (InfoMatricula API)
+    3. Check insurance status
+    4. Get market price (hybrid: DB -> Scraping -> AI)
+    5. Run structured AI analysis questions
+    6. Calculate scores and generate recommendation
+    7. Save results and return
+
+    Returns complete analysis with consistent JSON structure.
+    """
+    from database import get_db, EventDB, EventVehicleDataDB
+    from services.vehicle_lookup import (
+        lookup_plate_infomatricula_api,
+        check_insurance_api,
+        decode_portuguese_plate,
+        extract_vehicle_from_title
+    )
+    from services.market_price_service import get_market_price_service
+    from services.ai_questions_service import get_ai_questions_service
+    from sqlalchemy import select
+    import time
+    import json
+
+    start_time = time.time()
+    errors = []
+
+    # 1. Get event from database
+    async with get_db() as db:
+        result = await db.session.execute(
+            select(EventDB).where(EventDB.reference == reference)
+        )
+        event = result.scalar_one_or_none()
+
+        if not event:
+            raise HTTPException(status_code=404, detail=f"Event {reference} not found")
+
+        if not event.matricula:
+            raise HTTPException(status_code=400, detail=f"Event {reference} has no matricula")
+
+        # Create event dict
+        event_dict = {
+            'reference': event.reference,
+            'titulo': event.titulo,
+            'matricula': event.matricula,
+            'valor_base': float(event.valor_base) if event.valor_base else None,
+            'lance_atual': float(event.lance_atual) if event.lance_atual else None,
+            'descricao': event.descricao,
+            'fotos': event.fotos,
+        }
+
+        # Get or create vehicle data record
+        vd_result = await db.session.execute(
+            select(EventVehicleDataDB).where(EventVehicleDataDB.reference == reference)
+        )
+        vehicle_data = vd_result.scalar_one_or_none()
+
+        if not vehicle_data:
+            vehicle_data = EventVehicleDataDB(
+                reference=reference,
+                matricula=event.matricula,
+                event_titulo=event.titulo,
+                event_valor_base=event_dict['valor_base'],
+                event_lance_atual=event_dict['lance_atual'],
+                status='processing'
+            )
+            db.session.add(vehicle_data)
+        else:
+            vehicle_data.status = 'processing'
+
+        await db.session.commit()
+
+    normalized_plate = _normalize_plate(event_dict['matricula'])
+
+    # 2. Get vehicle info from InfoMatricula API
+    vehicle_info = {}
+    try:
+        vehicle_info = await lookup_plate_infomatricula_api(normalized_plate)
+        if 'error' not in vehicle_info:
+            async with get_db() as db:
+                result = await db.session.execute(
+                    select(EventVehicleDataDB).where(EventVehicleDataDB.reference == reference)
+                )
+                vd = result.scalar_one()
+                vd.marca = vehicle_info.get('marca')
+                vd.modelo = vehicle_info.get('modelo')
+                vd.versao = vehicle_info.get('versao')
+                vd.ano = vehicle_info.get('ano')
+                vd.producao_inicio = vehicle_info.get('producao_inicio')
+                vd.producao_fim = vehicle_info.get('producao_fim')
+                vd.combustivel = vehicle_info.get('combustivel')
+                vd.potencia_cv = vehicle_info.get('potencia_cv')
+                vd.cor = vehicle_info.get('cor')
+                vd.vin = vehicle_info.get('vin')
+                await db.session.commit()
+        else:
+            errors.append(f"Vehicle info: {vehicle_info.get('error')}")
+    except Exception as e:
+        errors.append(f"Vehicle info: {str(e)}")
+
+    # 2b. Fallback: Extract from title
+    if not vehicle_info.get('marca'):
+        titulo = event_dict.get('titulo', '')
+        extracted = extract_vehicle_from_title(titulo)
+        if extracted.get('marca'):
+            vehicle_info['marca'] = extracted.get('marca')
+            vehicle_info['modelo'] = extracted.get('modelo') or titulo
+            plate_info = decode_portuguese_plate(normalized_plate)
+            vehicle_info['ano'] = extracted.get('ano') or plate_info.year_min
+
+            titulo_lower = titulo.lower()
+            if 'diesel' in titulo_lower or 'gasoleo' in titulo_lower or 'gasóleo' in titulo_lower:
+                vehicle_info['combustivel'] = 'Diesel'
+            elif 'gasolina' in titulo_lower:
+                vehicle_info['combustivel'] = 'Gasolina'
+            elif 'elétrico' in titulo_lower or 'eletrico' in titulo_lower:
+                vehicle_info['combustivel'] = 'Elétrico'
+
+            async with get_db() as db:
+                result = await db.session.execute(
+                    select(EventVehicleDataDB).where(EventVehicleDataDB.reference == reference)
+                )
+                vd = result.scalar_one()
+                vd.marca = vehicle_info.get('marca')
+                vd.modelo = vehicle_info.get('modelo')
+                vd.ano = vehicle_info.get('ano')
+                vd.combustivel = vehicle_info.get('combustivel')
+                await db.session.commit()
+
+    # 3. Check insurance
+    insurance_info = {}
+    try:
+        insurance_info = await check_insurance_api(normalized_plate)
+        if 'error' not in insurance_info:
+            async with get_db() as db:
+                result = await db.session.execute(
+                    select(EventVehicleDataDB).where(EventVehicleDataDB.reference == reference)
+                )
+                vd = result.scalar_one()
+                vd.tem_seguro = insurance_info.get('tem_seguro')
+                vd.seguradora = insurance_info.get('seguradora')
+                vd.seguro_data_fim = insurance_info.get('data_fim')
+                await db.session.commit()
+    except Exception as e:
+        errors.append(f"Insurance: {str(e)}")
+
+    # 3.5 Extract KM from description (used in response and AI analysis)
+    descricao_text = event_dict.get('descricao') or ''
+    titulo_text = event_dict.get('titulo') or ''
+    observacoes_text = event_dict.get('observacoes') or ''
+
+    # Try to extract KM from multiple sources
+    quilometros = (
+        vehicle_info.get('quilometros') or
+        event_dict.get('quilometros') or
+        extract_km_from_text(descricao_text) or
+        extract_km_from_text(titulo_text) or
+        extract_km_from_text(observacoes_text)
+    )
+
+    # 3.6 Quick image scan for KM if not found yet (before full analysis)
+    if not quilometros:
+        fotos = event_dict.get('fotos', [])
+        if isinstance(fotos, str):
+            try:
+                fotos = json.loads(fotos)
+            except:
+                fotos = []
+
+        # Check first 3 images for dashboard/KM
+        if fotos:
+            try:
+                from services.ai_analysis_service import EnhancedAIAnalysisService
+                vision_service = EnhancedAIAnalysisService()
+
+                for foto in fotos[:3]:
+                    foto_url = foto.get('image') if isinstance(foto, dict) else foto
+                    if foto_url and isinstance(foto_url, str) and foto_url.startswith('http'):
+                        try:
+                            img_analysis = await vision_service.analyze_vehicle_image(foto_url)
+                            # Try to extract KM from image analysis
+                            km_from_image = extract_km_from_text(img_analysis.description or '')
+                            if km_from_image:
+                                quilometros = km_from_image
+                                break
+                        except:
+                            pass
+            except:
+                pass
+
+    # 4. Get market price (hybrid approach)
+    market_price = None
+    market_result = None
+    if vehicle_info.get('marca'):
+        try:
+            market_service = get_market_price_service()
+            market_result = await market_service.get_market_price(
+                marca=vehicle_info.get('marca'),
+                modelo=vehicle_info.get('modelo'),
+                ano=vehicle_info.get('ano') or 2020,
+                combustivel=vehicle_info.get('combustivel'),
+                ano_min=vehicle_info.get('producao_inicio')  # Use production start year for filtering
+            )
+
+            if market_result and market_result.preco_medio:
+                market_price = market_result.preco_medio
+
+                async with get_db() as db:
+                    result = await db.session.execute(
+                        select(EventVehicleDataDB).where(EventVehicleDataDB.reference == reference)
+                    )
+                    vd = result.scalar_one()
+                    vd.market_preco_min = market_result.preco_min
+                    vd.market_preco_max = market_result.preco_max
+                    vd.market_preco_medio = market_result.preco_medio
+                    vd.market_preco_mediana = market_result.preco_mediana
+                    vd.market_num_resultados = market_result.num_anuncios
+                    vd.market_fonte = market_result.fonte
+                    vd.market_preco_fonte = market_result.fonte
+                    vd.market_preco_confianca = market_result.confianca
+                    vd.market_data_recolha = market_result.data_recolha
+                    vd.market_listings = json.dumps(market_result.listings[:10])
+
+                    # Calculate savings
+                    valor_leilao = event_dict['valor_base'] or event_dict['lance_atual'] or 0
+                    if valor_leilao > 0 and market_result.preco_medio:
+                        vd.poupanca_estimada = market_result.preco_medio - valor_leilao
+                        vd.desconto_percentagem = ((market_result.preco_medio - valor_leilao) / market_result.preco_medio) * 100
+
+                    await db.session.commit()
+
+        except Exception as e:
+            errors.append(f"Market price: {str(e)}")
+
+    # 5. Get auction history
+    auction_stats = None
+    if vehicle_info.get('marca'):
+        try:
+            market_service = get_market_price_service()
+            auction_stats = await market_service.calculate_auction_stats(
+                marca=vehicle_info.get('marca'),
+                modelo=vehicle_info.get('modelo'),
+                ano=vehicle_info.get('ano')
+            )
+        except Exception as e:
+            errors.append(f"Auction history: {str(e)}")
+
+    # 6. AI Analysis (structured questions)
+    ai_result = None
+    if include_ai:
+        try:
+            ai_service = get_ai_questions_service(model=ai_model)
+
+            # Prepare vehicle data for AI - include all available info
+            # IMPORTANT: valor_minimo is the real minimum price (not valor_base)
+            # KM was already extracted in step 3.5
+
+            ai_vehicle_data = {
+                **vehicle_info,
+                'titulo': titulo_text,
+                'descricao': descricao_text,
+                'valor_base': event_dict.get('valor_base'),
+                'valor_minimo': event_dict.get('valor_minimo'),  # Critical for investment analysis
+                'lance_atual': event_dict.get('lance_atual'),
+                'tem_seguro': insurance_info.get('tem_seguro'),
+                'quilometros': quilometros,
+            }
+
+            # Get market listings for comparison
+            market_listings = []
+            market_price_min = None
+            if market_result:
+                market_price_min = market_result.preco_min
+                market_listings = market_result.listings if hasattr(market_result, 'listings') else []
+
+            ai_result = await ai_service.analyze_vehicle(
+                vehicle_data=ai_vehicle_data,
+                market_price=market_price,
+                market_price_min=market_price_min,
+                market_listings=market_listings
+            )
+
+            # Save AI results
+            async with get_db() as db:
+                result = await db.session.execute(
+                    select(EventVehicleDataDB).where(EventVehicleDataDB.reference == reference)
+                )
+                vd = result.scalar_one()
+
+                vd.score_oportunidade = ai_result.score_oportunidade
+                vd.score_risco = ai_result.score_risco
+                vd.score_liquidez = ai_result.score_liquidez
+                vd.ai_score = ai_result.score_final
+                vd.ai_recommendation = ai_result.recomendacao
+                vd.ai_summary = ai_result.resumo
+                vd.ai_lance_maximo_sugerido = ai_result.lance_maximo_sugerido
+                vd.ai_pros = json.dumps(ai_result.pros, ensure_ascii=False)
+                vd.ai_cons = json.dumps(ai_result.cons, ensure_ascii=False)
+                vd.ai_red_flags = json.dumps(ai_result.red_flags, ensure_ascii=False)
+                vd.ai_checklist = json.dumps(ai_result.checklist, ensure_ascii=False)
+
+                # Save question results
+                questions_json = [
+                    {
+                        "question_id": q.question_id,
+                        "question": q.question[:500],  # Truncate for storage
+                        "answer": q.answer,
+                        "confidence": q.confidence,
+                        "time_ms": q.time_ms,
+                        "success": q.success
+                    }
+                    for q in ai_result.question_results
+                ]
+                vd.ai_questions_results = json.dumps(questions_json, ensure_ascii=False)
+
+                vd.ai_model_used = ai_result.model_used
+                vd.ai_processing_time_ms = ai_result.total_time_ms
+
+                await db.session.commit()
+
+        except Exception as e:
+            errors.append(f"AI analysis: {str(e)}")
+
+    # 6b. Image Analysis (LLaVA) - PARALLEL PROCESSING
+    image_analyses = []
+    try:
+        from services.ai_analysis_service import EnhancedAIAnalysisService
+        import asyncio
+
+        # Get image URLs from fotos field
+        fotos = event_dict.get('fotos', [])
+        if isinstance(fotos, str):
+            try:
+                fotos = json.loads(fotos)
+            except:
+                fotos = []
+
+        if fotos and len(fotos) > 0:
+            vision_service = EnhancedAIAnalysisService()
+
+            # Prepare list of valid image URLs
+            valid_urls = []
+            for foto in fotos[:10]:  # Analyze up to 10 images
+                if isinstance(foto, dict):
+                    foto_url = foto.get('image') or foto.get('thumbnail')
+                else:
+                    foto_url = foto
+                if foto_url and isinstance(foto_url, str) and foto_url.startswith('http'):
+                    valid_urls.append(foto_url)
+
+            # Analyze all images in PARALLEL
+            async def analyze_single_image(url: str) -> dict:
+                try:
+                    img_analysis = await vision_service.analyze_vehicle_image(url)
+                    return {
+                        "url": url,
+                        "description": img_analysis.description,
+                        "condition": img_analysis.condition,
+                        "issues": img_analysis.issues_found,
+                        "confidence": img_analysis.confidence,
+                        "success": True
+                    }
+                except Exception as img_e:
+                    return {
+                        "url": url,
+                        "error": str(img_e)[:100],
+                        "success": False
+                    }
+
+            # Run all image analyses in parallel
+            if valid_urls:
+                results = await asyncio.gather(*[analyze_single_image(url) for url in valid_urls])
+
+                for result in results:
+                    if result.get("success"):
+                        image_analyses.append({
+                            "url": result["url"],
+                            "description": result["description"],
+                            "condition": result["condition"],
+                            "issues": result["issues"],
+                            "confidence": result["confidence"]
+                        })
+                    else:
+                        errors.append(f"Image analysis ({result['url'][:50]}): {result.get('error', 'Unknown error')}")
+
+            # Save image analyses
+            if image_analyses:
+                async with get_db() as db:
+                    result = await db.session.execute(
+                        select(EventVehicleDataDB).where(EventVehicleDataDB.reference == reference)
+                    )
+                    vd = result.scalar_one()
+                    vd.ai_image_analyses = json.dumps(image_analyses, ensure_ascii=False)
+                    await db.session.commit()
+
+    except Exception as e:
+        errors.append(f"Image analysis: {str(e)}")
+
+    # 7. Mark as completed
+    total_time_ms = int((time.time() - start_time) * 1000)
+
+    async with get_db() as db:
+        result = await db.session.execute(
+            select(EventVehicleDataDB).where(EventVehicleDataDB.reference == reference)
+        )
+        vd = result.scalar_one()
+        vd.status = 'completed'
+        vd.processed_at = datetime.utcnow()
+        vd.error_message = "; ".join(errors) if errors else None
+        await db.session.commit()
+
+    # Build response
+    response = {
+        "reference": reference,
+        "matricula": normalized_plate,
+        "event_titulo": event_dict.get('titulo'),
+        "event_valor_base": event_dict.get('valor_base'),
+        "event_lance_atual": event_dict.get('lance_atual'),
+
+        # Vehicle info (quilometros extracted from description if not in vehicle_info)
+        "veiculo": {
+            "marca": vehicle_info.get('marca'),
+            "modelo": vehicle_info.get('modelo'),
+            "versao": vehicle_info.get('versao'),
+            "ano": vehicle_info.get('ano'),
+            "combustivel": vehicle_info.get('combustivel'),
+            "potencia_cv": vehicle_info.get('potencia_cv'),
+            "cor": vehicle_info.get('cor'),
+            "vin": vehicle_info.get('vin'),
+            "producao_inicio": vehicle_info.get('producao_inicio'),
+            "producao_fim": vehicle_info.get('producao_fim'),
+            "quilometros": quilometros,  # Extracted in step 3.5
+        },
+
+        # Insurance
+        "seguro": {
+            "tem_seguro": insurance_info.get('tem_seguro'),
+            "seguradora": insurance_info.get('seguradora'),
+            "data_fim": insurance_info.get('data_fim'),
+        },
+
+        # Market prices
+        "mercado": {
+            "preco_min": market_result.preco_min if market_result else None,
+            "preco_max": market_result.preco_max if market_result else None,
+            "preco_medio": market_result.preco_medio if market_result else None,
+            "preco_mediana": market_result.preco_mediana if market_result else None,
+            "num_anuncios": market_result.num_anuncios if market_result else 0,
+            "fonte": market_result.fonte if market_result else None,
+            "confianca": market_result.confianca if market_result else None,
+            "listings": market_result.listings[:5] if market_result else [],
+        },
+
+        # Auction history
+        "historico_leiloes": auction_stats,
+
+        # Scores
+        "scores": {
+            "oportunidade": ai_result.score_oportunidade if ai_result else None,
+            "risco": ai_result.score_risco if ai_result else None,
+            "liquidez": ai_result.score_liquidez if ai_result else None,
+            "final": ai_result.score_final if ai_result else None,
+        },
+
+        # AI Analysis
+        "analise": {
+            "recomendacao": ai_result.recomendacao if ai_result else None,
+            "resumo": ai_result.resumo if ai_result else None,
+            "lance_maximo_sugerido": ai_result.lance_maximo_sugerido if ai_result else None,
+            "pros": ai_result.pros if ai_result else [],
+            "cons": ai_result.cons if ai_result else [],
+            "red_flags": ai_result.red_flags if ai_result else [],
+            "checklist_antes_licitar": ai_result.checklist if ai_result else [],
+            "problemas_conhecidos": ai_result.problemas_conhecidos if ai_result else [],
+        },
+
+        # Investment Analysis (programmatic calculations)
+        "investimento": ai_result.investment_analysis if ai_result and ai_result.investment_analysis else None,
+
+        # Image Analysis (LLaVA)
+        "image_analyses": image_analyses,
+
+        # Metadata
+        "status": "completed",
+        "processed_at": datetime.utcnow().isoformat(),
+        "total_processing_time_ms": total_time_ms,
+        "ai_model_used": ai_result.model_used if ai_result else None,
+        "ai_processing_time_ms": ai_result.total_time_ms if ai_result else None,
+        "errors": errors
+    }
+
+    return response
+
+
+# ============== TEST PIPELINE - FIRST VEHICLE ==============
+
+@router.post("/test-pipeline")
+async def test_pipeline_first_vehicle(
+    ai_model: str = Query("llama3.1:8b", description="AI model to use")
+):
+    """
+    Test the AI analysis pipeline on the first available vehicle.
+
+    Finds the first active vehicle with a matricula and runs the complete
+    analyze-v2 pipeline on it. Useful for testing and debugging.
+
+    Returns the complete analysis result.
+    """
+    from database import get_db, EventDB
+    from sqlalchemy import select
+
+    # Find first active vehicle with matricula
+    async with get_db() as db:
+        result = await db.session.execute(
+            select(EventDB)
+            .where(EventDB.tipo_id == 2)  # Vehicles
+            .where(EventDB.terminado == False)
+            .where(EventDB.cancelado == False)
+            .where(EventDB.matricula != None)
+            .where(EventDB.matricula != '')
+            .order_by(EventDB.data_fim.asc())
+            .limit(1)
+        )
+        event = result.scalar_one_or_none()
+
+        if not event:
+            raise HTTPException(
+                status_code=404,
+                detail="No active vehicle with matricula found"
+            )
+
+        reference = event.reference
+
+    # Run the analyze-v2 pipeline
+    from fastapi import Request
+
+    # Call the analyze-v2 endpoint directly
+    return await complete_vehicle_analysis_v2(
+        reference=reference,
+        include_ai=True,
+        ai_model=ai_model
+    )
+
+
+@router.get("/test-pipeline/status")
+async def test_pipeline_status():
+    """
+    Check the status of vehicle analysis - shows counts and recent analyses.
+    """
+    from database import get_db, EventDB, EventVehicleDataDB
+    from sqlalchemy import select, func
+
+    async with get_db() as db:
+        # Count vehicles
+        total_vehicles = await db.session.scalar(
+            select(func.count()).select_from(EventDB)
+            .where(EventDB.tipo_id == 2)
+        )
+
+        active_vehicles = await db.session.scalar(
+            select(func.count()).select_from(EventDB)
+            .where(EventDB.tipo_id == 2)
+            .where(EventDB.terminado == False)
+            .where(EventDB.cancelado == False)
+        )
+
+        with_matricula = await db.session.scalar(
+            select(func.count()).select_from(EventDB)
+            .where(EventDB.tipo_id == 2)
+            .where(EventDB.terminado == False)
+            .where(EventDB.cancelado == False)
+            .where(EventDB.matricula != None)
+            .where(EventDB.matricula != '')
+        )
+
+        # Count analyzed
+        analyzed = await db.session.scalar(
+            select(func.count()).select_from(EventVehicleDataDB)
+            .where(EventVehicleDataDB.ai_score != None)
+        )
+
+        # Recent analyses
+        recent = await db.session.execute(
+            select(EventVehicleDataDB)
+            .where(EventVehicleDataDB.ai_score != None)
+            .order_by(EventVehicleDataDB.processed_at.desc())
+            .limit(5)
+        )
+        recent_analyses = [
+            {
+                "reference": r.reference,
+                "marca": r.marca,
+                "modelo": r.modelo,
+                "ai_score": r.ai_score,
+                "ai_recommendation": r.ai_recommendation,
+                "processed_at": r.processed_at.isoformat() if r.processed_at else None
+            }
+            for r in recent.scalars().all()
+        ]
+
+        return {
+            "vehicles": {
+                "total": total_vehicles,
+                "active": active_vehicles,
+                "with_matricula": with_matricula,
+                "analyzed": analyzed,
+                "pending": with_matricula - analyzed if with_matricula and analyzed else 0
+            },
+            "recent_analyses": recent_analyses
+        }
+
+
+# ============== BATCH ANALYSIS - MULTIPLE VEHICLES ==============
+
+@router.post("/batch-analyze")
+async def batch_analyze_vehicles(
+    count: int = Query(3, ge=1, le=10, description="Number of vehicles to analyze"),
+    ai_model: str = Query("llama3.1:8b", description="AI model to use"),
+    skip_analyzed: bool = Query(True, description="Skip already analyzed vehicles")
+):
+    """
+    Analyze multiple vehicles in batch.
+
+    Finds the first N active vehicles with matricula and runs the complete
+    analyze-v2 pipeline on each. Returns results for all vehicles.
+
+    Args:
+        count: Number of vehicles to analyze (1-10)
+        ai_model: AI model to use for analysis
+        skip_analyzed: Skip vehicles that have already been analyzed
+    """
+    from database import get_db, EventDB, EventVehicleDataDB
+    from sqlalchemy import select
+
+    results = []
+    errors_list = []
+
+    # Find active vehicles with matricula
+    async with get_db() as db:
+        query = (
+            select(EventDB)
+            .where(EventDB.tipo_id == 2)  # Vehicles
+            .where(EventDB.terminado == False)
+            .where(EventDB.cancelado == False)
+            .where(EventDB.matricula != None)
+            .where(EventDB.matricula != '')
+            .order_by(EventDB.data_fim.asc())
+        )
+
+        if skip_analyzed:
+            # Exclude already analyzed vehicles
+            analyzed_refs = select(EventVehicleDataDB.reference).where(
+                EventVehicleDataDB.ai_score != None
+            )
+            query = query.where(~EventDB.reference.in_(analyzed_refs))
+
+        query = query.limit(count)
+        result = await db.session.execute(query)
+        events = result.scalars().all()
+
+        if not events:
+            return {
+                "message": "No vehicles found to analyze",
+                "count_requested": count,
+                "count_found": 0,
+                "results": [],
+                "errors": []
+            }
+
+    # Analyze each vehicle
+    for i, event in enumerate(events):
+        try:
+            print(f"[{i+1}/{len(events)}] Analyzing {event.reference} ({event.matricula})...")
+
+            analysis_result = await complete_vehicle_analysis_v2(
+                reference=event.reference,
+                include_ai=True,
+                ai_model=ai_model
+            )
+
+            results.append({
+                "reference": event.reference,
+                "matricula": event.matricula,
+                "titulo": event.titulo,
+                "status": "completed",
+                "ai_score": analysis_result.get("analise", {}).get("score") if isinstance(analysis_result.get("analise"), dict) else None,
+                "ai_recommendation": analysis_result.get("analise", {}).get("recomendacao") if isinstance(analysis_result.get("analise"), dict) else None,
+                "market_price": analysis_result.get("mercado", {}).get("preco_medio") if isinstance(analysis_result.get("mercado"), dict) else None,
+                "processing_time_ms": analysis_result.get("total_processing_time_ms")
+            })
+
+        except Exception as e:
+            errors_list.append({
+                "reference": event.reference,
+                "matricula": event.matricula,
+                "error": str(e)
+            })
+            results.append({
+                "reference": event.reference,
+                "matricula": event.matricula,
+                "titulo": event.titulo,
+                "status": "failed",
+                "error": str(e)
+            })
+
+    return {
+        "message": f"Batch analysis completed for {len(results)} vehicles",
+        "count_requested": count,
+        "count_found": len(events),
+        "count_success": len([r for r in results if r["status"] == "completed"]),
+        "count_failed": len([r for r in results if r["status"] == "failed"]),
+        "results": results,
+        "errors": errors_list
+    }
