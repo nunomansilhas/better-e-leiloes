@@ -3,9 +3,11 @@ Ollama AI Service for E-Leiloes
 Generates tips and analysis for auction events using local LLM.
 """
 
+import asyncio
 import httpx
 import json
 import os
+import re
 import time
 from typing import Optional, Dict, Any, List
 from dataclasses import dataclass
@@ -15,6 +17,8 @@ from datetime import datetime
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.1:8b")
 OLLAMA_TIMEOUT = int(os.getenv("OLLAMA_TIMEOUT", "120"))  # seconds
+OLLAMA_RETRY_ATTEMPTS = int(os.getenv("OLLAMA_RETRY_ATTEMPTS", "3"))
+OLLAMA_RETRY_DELAY = int(os.getenv("OLLAMA_RETRY_DELAY", "2"))  # seconds
 
 
 @dataclass
@@ -70,55 +74,79 @@ class OllamaService:
         prompt: str,
         model: Optional[str] = None,
         temperature: float = 0.7,
-        max_tokens: int = 2048
+        max_tokens: int = 2048,
+        retry_attempts: int = OLLAMA_RETRY_ATTEMPTS,
+        retry_delay: int = OLLAMA_RETRY_DELAY
     ) -> Dict[str, Any]:
         """
-        Generic generate method for custom prompts.
+        Generic generate method for custom prompts with retry logic.
 
         Args:
             prompt: The prompt to send to Ollama
             model: Optional model override (uses instance model if not specified)
             temperature: Temperature for generation (0.0-1.0)
             max_tokens: Maximum tokens to generate
+            retry_attempts: Number of retry attempts on failure
+            retry_delay: Base delay between retries (exponential backoff)
 
         Returns:
             Dict with 'response' key containing the generated text, or 'error' key on failure
         """
         use_model = model or self.model
+        last_error = None
 
-        try:
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
-                response = await client.post(
-                    f"{self.base_url}/api/generate",
-                    json={
-                        "model": use_model,
-                        "prompt": prompt,
-                        "stream": False,
-                        "options": {
-                            "temperature": temperature,
-                            "num_predict": max_tokens,
+        for attempt in range(retry_attempts):
+            try:
+                async with httpx.AsyncClient(timeout=self.timeout) as client:
+                    response = await client.post(
+                        f"{self.base_url}/api/generate",
+                        json={
+                            "model": use_model,
+                            "prompt": prompt,
+                            "stream": False,
+                            "options": {
+                                "temperature": temperature,
+                                "num_predict": max_tokens,
+                            }
                         }
+                    )
+
+                    if response.status_code != 200:
+                        last_error = f"Ollama API error: {response.status_code} - {response.text}"
+                        if attempt < retry_attempts - 1:
+                            await asyncio.sleep(retry_delay * (2 ** attempt))
+                            continue
+                        return {"error": last_error}
+
+                    data = response.json()
+                    return {
+                        "response": data.get("response", ""),
+                        "model": data.get("model", use_model),
+                        "eval_count": data.get("eval_count", 0),
+                        "prompt_eval_count": data.get("prompt_eval_count", 0),
+                        "total_duration": data.get("total_duration", 0),
                     }
-                )
 
-                if response.status_code != 200:
-                    return {"error": f"Ollama API error: {response.status_code} - {response.text}"}
+            except httpx.ConnectError as e:
+                last_error = f"Cannot connect to Ollama at {self.base_url}. Is it running?"
+                if attempt < retry_attempts - 1:
+                    print(f"[OllamaService] Connection failed (attempt {attempt + 1}/{retry_attempts}), retrying in {retry_delay * (2 ** attempt)}s...")
+                    await asyncio.sleep(retry_delay * (2 ** attempt))
+                    continue
+            except httpx.TimeoutException:
+                last_error = f"Ollama request timed out after {self.timeout}s"
+                if attempt < retry_attempts - 1:
+                    print(f"[OllamaService] Timeout (attempt {attempt + 1}/{retry_attempts}), retrying in {retry_delay * (2 ** attempt)}s...")
+                    await asyncio.sleep(retry_delay * (2 ** attempt))
+                    continue
+            except Exception as e:
+                last_error = str(e)
+                if attempt < retry_attempts - 1:
+                    print(f"[OllamaService] Error (attempt {attempt + 1}/{retry_attempts}): {e}")
+                    await asyncio.sleep(retry_delay * (2 ** attempt))
+                    continue
 
-                data = response.json()
-                return {
-                    "response": data.get("response", ""),
-                    "model": data.get("model", use_model),
-                    "eval_count": data.get("eval_count", 0),
-                    "prompt_eval_count": data.get("prompt_eval_count", 0),
-                    "total_duration": data.get("total_duration", 0),
-                }
-
-        except httpx.ConnectError:
-            return {"error": "Cannot connect to Ollama. Is it running?"}
-        except httpx.TimeoutException:
-            return {"error": f"Ollama request timed out after {self.timeout}s"}
-        except Exception as e:
-            return {"error": str(e)}
+        return {"error": last_error or "Unknown error after retries"}
 
     def _build_property_prompt(self, event: Dict[str, Any]) -> str:
         """Build analysis prompt for property (imovel)"""
@@ -228,9 +256,62 @@ Considera:
 
 Responde APENAS com JSON valido, sem texto adicional."""
 
+    def _extract_json_from_response(self, text: str) -> Dict[str, Any]:
+        """
+        Extract JSON from AI response text.
+        Handles markdown code blocks and other common AI response patterns.
+
+        Args:
+            text: Raw response text from AI
+
+        Returns:
+            Parsed JSON as dictionary
+
+        Raises:
+            ValueError if no valid JSON found
+        """
+        # Pattern 1: Markdown code block with json
+        match = re.search(r'```json\s*(.*?)\s*```', text, re.DOTALL)
+        if match:
+            try:
+                return json.loads(match.group(1).strip())
+            except json.JSONDecodeError:
+                pass
+
+        # Pattern 2: Generic markdown code block
+        match = re.search(r'```\s*(.*?)\s*```', text, re.DOTALL)
+        if match:
+            content = match.group(1).strip()
+            if content.startswith('{'):
+                try:
+                    return json.loads(content)
+                except json.JSONDecodeError:
+                    pass
+
+        # Pattern 3: Find JSON object directly
+        json_start = text.find('{')
+        json_end = text.rfind('}') + 1
+
+        if json_start >= 0 and json_end > json_start:
+            json_str = text[json_start:json_end]
+            try:
+                return json.loads(json_str)
+            except json.JSONDecodeError:
+                # Try to fix common issues
+                # Remove trailing commas before }
+                fixed = re.sub(r',\s*}', '}', json_str)
+                fixed = re.sub(r',\s*]', ']', fixed)
+                try:
+                    return json.loads(fixed)
+                except json.JSONDecodeError:
+                    pass
+
+        raise ValueError(f"No valid JSON found in response: {text[:200]}...")
+
     async def analyze_event(self, event: Dict[str, Any]) -> AiTipResult:
         """
         Analyze an auction event and generate tips.
+        Uses retry logic for robustness.
 
         Args:
             event: Event data dictionary with keys like titulo, tipo_id, subtipo, etc.
@@ -239,9 +320,10 @@ Responde APENAS com JSON valido, sem texto adicional."""
             AiTipResult with the analysis
 
         Raises:
-            Exception if analysis fails
+            Exception if analysis fails after retries
         """
         start_time = time.time()
+        reference = event.get('reference', 'unknown')
 
         # Determine prompt based on event type
         tipo_id = event.get('tipo_id')
@@ -252,44 +334,29 @@ Responde APENAS com JSON valido, sem texto adicional."""
         else:
             raise ValueError(f"Unsupported event type: {tipo_id}")
 
-        # Call Ollama API
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            response = await client.post(
-                f"{self.base_url}/api/generate",
-                json={
-                    "model": self.model,
-                    "prompt": prompt,
-                    "stream": False,
-                    "options": {
-                        "temperature": 0.7,
-                        "num_predict": 1024,
-                    }
-                }
-            )
+        print(f"[OllamaService] Analyzing event {reference} (type: {tipo_id})")
 
-            if response.status_code != 200:
-                raise Exception(f"Ollama API error: {response.status_code} - {response.text}")
+        # Use the generate method with retry logic
+        result = await self.generate(
+            prompt=prompt,
+            temperature=0.7,
+            max_tokens=1024
+        )
 
-            data = response.json()
+        if "error" in result:
+            raise Exception(f"Ollama generation failed: {result['error']}")
 
-        # Parse response
-        response_text = data.get("response", "")
-        tokens_used = data.get("eval_count", 0) + data.get("prompt_eval_count", 0)
+        response_text = result.get("response", "")
+        tokens_used = result.get("eval_count", 0) + result.get("prompt_eval_count", 0)
 
-        # Try to extract JSON from response
+        # Try to extract JSON from response using improved method
         try:
-            # Find JSON in response (might have extra text)
-            json_start = response_text.find('{')
-            json_end = response_text.rfind('}') + 1
-            if json_start >= 0 and json_end > json_start:
-                json_str = response_text[json_start:json_end]
-                result_data = json.loads(json_str)
-            else:
-                raise ValueError("No JSON found in response")
-        except json.JSONDecodeError as e:
+            result_data = self._extract_json_from_response(response_text)
+        except ValueError as e:
             raise Exception(f"Failed to parse AI response as JSON: {e}\nResponse: {response_text[:500]}")
 
         processing_time_ms = int((time.time() - start_time) * 1000)
+        print(f"[OllamaService] Completed analysis for {reference} in {processing_time_ms}ms")
 
         # Validate and extract fields
         return AiTipResult(

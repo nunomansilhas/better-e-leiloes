@@ -405,6 +405,62 @@ async def stop_pipeline():
     return {"status": "stopped", "message": "AI pipeline stopped"}
 
 
+@router.post("/pipeline/reset-stuck")
+async def reset_stuck_tips():
+    """
+    Reset tips stuck in 'processing' status.
+    This can happen if the pipeline crashes or Ollama times out.
+    """
+    from ai_pipeline import get_ai_pipeline_manager
+
+    pipeline = get_ai_pipeline_manager()
+    count = await pipeline._reset_stuck_processing_tips()
+
+    return {
+        "status": "ok",
+        "message": f"Reset {count} stuck tips to 'pending'",
+        "reset_count": count
+    }
+
+
+@router.post("/tips/{reference}/retry")
+async def retry_failed_tip(reference: str, background_tasks: BackgroundTasks):
+    """
+    Retry a failed AI tip analysis.
+    Resets the tip status to 'pending' and queues it for reprocessing.
+    """
+    from database import get_db, EventAiTipDB
+    from sqlalchemy import select
+
+    async with get_db() as db:
+        query = select(EventAiTipDB).where(EventAiTipDB.reference == reference)
+        result = await db.session.execute(query)
+        tip = result.scalar_one_or_none()
+
+        if not tip:
+            raise HTTPException(status_code=404, detail=f"No AI tip found for event {reference}")
+
+        if tip.status == "completed":
+            return {
+                "status": "already_completed",
+                "message": f"Tip for {reference} is already completed"
+            }
+
+        # Reset to pending
+        tip.status = "pending"
+        tip.error_message = None
+        await db.session.commit()
+
+    # Queue for reprocessing
+    background_tasks.add_task(_run_single_analysis, reference)
+
+    return {
+        "status": "queued",
+        "message": f"AI tip {reference} queued for retry",
+        "reference": reference
+    }
+
+
 @router.get("/stats")
 async def get_ai_stats():
     """Get AI tips statistics"""

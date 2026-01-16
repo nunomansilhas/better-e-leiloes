@@ -6,14 +6,17 @@ Focuses on properties (imoveis) and vehicles (veiculos) only.
 
 import asyncio
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
-from sqlalchemy import select, func, or_, and_
+from sqlalchemy import select, func, or_, and_, update
 
 from database import (
     get_db, EventDB, EventAiTipDB, AiPipelineStateDB
 )
 from services.ollama_service import get_ollama_service, OllamaService
+
+# Configuration
+PROCESSING_TIMEOUT_MINUTES = 10  # Tips stuck in 'processing' for longer than this will be reset
 
 
 class AiPipelineManager:
@@ -52,6 +55,43 @@ class AiPipelineManager:
                 )
                 db.session.add(state)
                 await db.session.commit()
+
+    async def _reset_stuck_processing_tips(self) -> int:
+        """
+        Reset tips that are stuck in 'processing' status.
+        This can happen if the pipeline crashes or Ollama times out without proper cleanup.
+
+        Returns:
+            Number of tips reset
+        """
+        timeout_threshold = datetime.utcnow() - timedelta(minutes=PROCESSING_TIMEOUT_MINUTES)
+
+        async with get_db() as db:
+            # Find tips stuck in 'processing' for too long
+            query = select(EventAiTipDB).where(
+                and_(
+                    EventAiTipDB.status == "processing",
+                    or_(
+                        EventAiTipDB.updated_at < timeout_threshold,
+                        EventAiTipDB.updated_at.is_(None)
+                    )
+                )
+            )
+            result = await db.session.execute(query)
+            stuck_tips = result.scalars().all()
+
+            if stuck_tips:
+                print(f"[AI Pipeline] Found {len(stuck_tips)} tips stuck in 'processing' status")
+                for tip in stuck_tips:
+                    print(f"[AI Pipeline] Resetting stuck tip: {tip.reference}")
+                    tip.status = "pending"
+                    tip.error_message = f"Reset from stuck 'processing' status at {datetime.utcnow().isoformat()}"
+                    tip.updated_at = datetime.utcnow()
+
+                await db.session.commit()
+                print(f"[AI Pipeline] Reset {len(stuck_tips)} stuck tips to 'pending'")
+
+            return len(stuck_tips)
 
     async def _update_state(self, **kwargs):
         """Update pipeline state in database"""
@@ -155,7 +195,6 @@ class AiPipelineManager:
         Returns True if successful, False otherwise.
         """
         reference = event["reference"]
-        print(f"[AI Pipeline] Processing event: {reference}")
 
         async with get_db() as db:
             # Get or create tip entry
@@ -177,6 +216,9 @@ class AiPipelineManager:
             else:
                 tip.status = "processing"
 
+            # IMPORTANT: Set updated_at when starting processing
+            # This allows detection of stuck tips
+            tip.updated_at = datetime.utcnow()
             await db.session.commit()
 
             # Update pipeline state
@@ -201,16 +243,15 @@ class AiPipelineManager:
                 tip.model_used = ai_result.model_used
                 tip.status = "completed"
                 tip.processed_at = datetime.utcnow()
+                tip.updated_at = datetime.utcnow()
                 tip.error_message = None
 
                 await db.session.commit()
-
-                print(f"[AI Pipeline] Completed: {reference} ({ai_result.recommendation}, confidence: {ai_result.confidence:.2f})")
                 return True
 
             except Exception as e:
                 error_msg = str(e)[:500]
-                print(f"[AI Pipeline] Failed: {reference} - {error_msg}")
+                print(f"[AI Pipeline] Analysis error for {reference}: {error_msg}")
 
                 tip.status = "failed"
                 tip.error_message = error_msg
@@ -221,9 +262,17 @@ class AiPipelineManager:
 
     async def _run_pipeline(self):
         """Main pipeline loop"""
-        print("[AI Pipeline] Starting...")
+        print("[AI Pipeline] ====================================")
+        print("[AI Pipeline] Starting AI Pipeline...")
+        print("[AI Pipeline] ====================================")
 
         await self._init_pipeline_state()
+
+        # Reset any stuck tips from previous runs
+        stuck_count = await self._reset_stuck_processing_tips()
+        if stuck_count > 0:
+            print(f"[AI Pipeline] Recovered {stuck_count} stuck tips")
+
         await self._update_state(
             is_running=True,
             last_started_at=datetime.utcnow(),
@@ -233,10 +282,13 @@ class AiPipelineManager:
         self.ollama = get_ollama_service()
 
         # Check Ollama health
+        print("[AI Pipeline] Checking Ollama health...")
         health = await self.ollama.check_health()
         if not health.get("healthy"):
             error = health.get("error", "Unknown error")
-            print(f"[AI Pipeline] Ollama not healthy: {error}")
+            print(f"[AI Pipeline] ERROR: Ollama not healthy: {error}")
+            print(f"[AI Pipeline] Tip: Make sure Ollama is running with 'ollama serve'")
+            print(f"[AI Pipeline] Tip: Check if model is installed with 'ollama list'")
             await self._update_state(
                 is_running=False,
                 last_error=f"Ollama not available: {error}"
@@ -244,8 +296,24 @@ class AiPipelineManager:
             self.is_running = False
             return
 
+        model_info = health.get("model", "unknown")
+        model_available = health.get("model_available", False)
+        print(f"[AI Pipeline] Ollama healthy - Model: {model_info}, Available: {model_available}")
+
+        if not model_available:
+            print(f"[AI Pipeline] WARNING: Model '{model_info}' not found!")
+            print(f"[AI Pipeline] Tip: Install with 'ollama pull {model_info}'")
+            await self._update_state(
+                is_running=False,
+                last_error=f"Model {model_info} not available. Run: ollama pull {model_info}"
+            )
+            self.is_running = False
+            return
+
         processed = 0
         failed = 0
+
+        print("[AI Pipeline] Entering main processing loop...")
 
         while not self._stop_requested:
             try:
@@ -257,13 +325,19 @@ class AiPipelineManager:
                     await asyncio.sleep(60)
                     continue
 
+                ref = event.get("reference", "unknown")
+                titulo = event.get("titulo", "")[:50]
+                print(f"[AI Pipeline] Processing: {ref} - {titulo}...")
+
                 # Process the event
                 success = await self._process_event(event)
 
                 if success:
                     processed += 1
+                    print(f"[AI Pipeline] SUCCESS: {ref} (total processed: {processed})")
                 else:
                     failed += 1
+                    print(f"[AI Pipeline] FAILED: {ref} (total failed: {failed})")
 
                 # Update stats
                 await self._update_state(
@@ -275,10 +349,10 @@ class AiPipelineManager:
                 await asyncio.sleep(2)
 
             except asyncio.CancelledError:
-                print("[AI Pipeline] Cancelled")
+                print("[AI Pipeline] Received cancel signal")
                 break
             except Exception as e:
-                print(f"[AI Pipeline] Error: {e}")
+                print(f"[AI Pipeline] ERROR in main loop: {e}")
                 await self._update_state(last_error=str(e)[:500])
                 await asyncio.sleep(30)  # Wait before retrying
 
@@ -290,7 +364,9 @@ class AiPipelineManager:
             last_completed_at=datetime.utcnow()
         )
 
-        print(f"[AI Pipeline] Stopped. Processed: {processed}, Failed: {failed}")
+        print("[AI Pipeline] ====================================")
+        print(f"[AI Pipeline] Pipeline stopped. Processed: {processed}, Failed: {failed}")
+        print("[AI Pipeline] ====================================")
         self.is_running = False
 
     async def start(self):
