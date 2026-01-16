@@ -26,7 +26,7 @@ router = APIRouter(prefix="/api/vehicle", tags=["Vehicle Lookup"])
 def extract_km_from_text(text: str) -> Optional[int]:
     """
     Extract kilometers from text description.
-    Handles formats like: 145000 km, 145.000 km, 145 000 km, 145000km
+    Handles formats like: 145000 km, 145.000 km, 145 000 km, 145000km, KM: 145000
     """
     if not text:
         return None
@@ -34,11 +34,13 @@ def extract_km_from_text(text: str) -> Optional[int]:
     # Normalize text
     text = text.lower()
 
-    # Pattern: number followed by km (with optional spaces/dots/commas)
-    # Examples: 145000 km, 145.000 km, 145 000 km, 145,000 km
+    # Pattern: number followed by km OR km followed by number
+    # Examples: 145000 km, 145.000 km, 145 000 km, 145,000 km, KM: 145000
     patterns = [
         r'(\d{1,3}(?:[.\s]\d{3})+)\s*km',  # 145.000 km, 145 000 km
         r'(\d{4,6})\s*km',  # 145000 km, 145000km
+        r'km[:\s]+(\d{1,3}(?:[.\s]\d{3})+)',  # KM: 145.000, km: 145 000
+        r'km[:\s]+(\d{4,6})',  # KM: 145000, km:145000
         r'quilometr[ao]s?[:\s]+(\d{1,3}(?:[.\s]\d{3})+)',  # quilometros: 145.000
         r'quilometr[ao]s?[:\s]+(\d{4,6})',  # quilometros: 145000
     ]
