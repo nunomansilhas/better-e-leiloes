@@ -52,11 +52,13 @@ async def run_in_proactor(coro_func, *args, **kwargs):
 
 
 # nest_asyncio para nested event loops (APScheduler + Playwright)
-try:
-    import nest_asyncio
-    nest_asyncio.apply()
-except ImportError:
-    pass
+# NOTA: nest_asyncio NÃO funciona com uvloop - só aplicar em Windows
+if sys.platform == 'win32':
+    try:
+        import nest_asyncio
+        nest_asyncio.apply()
+    except ImportError:
+        pass
 from pathlib import Path
 from typing import Dict, Any, Optional, Callable
 from dataclasses import dataclass, asdict
