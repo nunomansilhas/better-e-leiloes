@@ -737,7 +737,7 @@ async def get_vehicle_data(reference: str):
 
 @app.get("/api/events/{reference}")
 async def get_event(reference: str):
-    """Get event details by reference"""
+    """Get event details by reference - returns ALL fields"""
     try:
         async with get_session() as session:
             result = await session.execute(
@@ -748,77 +748,34 @@ async def get_event(reference: str):
             if not event:
                 raise HTTPException(status_code=404, detail="Event not found")
 
-            fotos = None
-            if event.fotos:
-                try:
-                    import json
-                    fotos_data = json.loads(event.fotos)
-                    if isinstance(fotos_data, list):
-                        fotos = [f.get("image") or f.get("url") if isinstance(f, dict) else f for f in fotos_data]
-                except:
-                    pass
+            # Convert SQLAlchemy model to dict with ALL fields
+            import json
+            from sqlalchemy import inspect
 
-            # Helper to safely get attribute with default
-            def safe_get(attr, default=None):
-                return getattr(event, attr, default)
+            data = {}
+            for column in inspect(EventDB).mapper.column_attrs:
+                col_name = column.key
+                value = getattr(event, col_name, None)
 
-            def safe_date(attr):
-                val = getattr(event, attr, None)
-                return val.isoformat() if val else None
+                # Handle datetime serialization
+                if value is not None and hasattr(value, 'isoformat'):
+                    value = value.isoformat()
 
-            # Return dict directly to avoid Pydantic validation issues with None fields
-            return {
-                "reference": event.reference,
-                "titulo": event.titulo,
-                "capa": event.capa,
-                "tipo_id": event.tipo_id,
-                "tipo": event.tipo,
-                "subtipo": event.subtipo,
-                "tipologia": safe_get('tipologia'),
-                "valor_base": event.valor_base,
-                "valor_abertura": safe_get('valor_abertura'),
-                "valor_minimo": safe_get('valor_minimo'),
-                "lance_atual": event.lance_atual or 0,
-                "data_inicio": safe_date('data_inicio'),
-                "data_fim": safe_date('data_fim'),
-                # Location
-                "distrito": event.distrito,
-                "concelho": event.concelho,
-                "freguesia": safe_get('freguesia'),
-                "morada": safe_get('morada'),
-                "morada_cp": safe_get('morada_cp'),
-                "latitude": safe_get('latitude'),
-                "longitude": safe_get('longitude'),
-                # Areas
-                "area_privativa": safe_get('area_privativa'),
-                "area_dependente": safe_get('area_dependente'),
-                "area_total": safe_get('area_total'),
-                # Vehicle
-                "matricula": safe_get('matricula'),
-                # Process
-                "processo_numero": safe_get('processo_numero'),
-                "processo_tribunal": safe_get('processo_tribunal'),
-                "processo_comarca": safe_get('processo_comarca'),
-                # Ceremony
-                "cerimonia_data": safe_date('cerimonia_data'),
-                "cerimonia_local": safe_get('cerimonia_local'),
-                "cerimonia_morada": safe_get('cerimonia_morada'),
-                # Manager
-                "gestor_nome": safe_get('gestor_nome'),
-                "gestor_email": safe_get('gestor_email'),
-                "gestor_telefone": safe_get('gestor_telefone'),
-                "gestor_tipo": safe_get('gestor_tipo'),
-                "gestor_cedula": safe_get('gestor_cedula'),
-                # Content
-                "descricao": safe_get('descricao'),
-                "observacoes": safe_get('observacoes'),
-                "fotos": fotos,
-                # Status
-                "terminado": event.terminado if event.terminado is not None else False,
-                "cancelado": event.cancelado if event.cancelado is not None else False,
-                "iniciado": safe_get('iniciado', False),
-                "ativo": not (event.terminado or event.cancelado)
-            }
+                # Parse JSON fields
+                if col_name == 'fotos' and value:
+                    try:
+                        fotos_data = json.loads(value)
+                        if isinstance(fotos_data, list):
+                            value = fotos_data  # Keep full foto objects with legenda, image, thumbnail
+                    except:
+                        pass
+
+                data[col_name] = value
+
+            # Add computed fields
+            data['ativo'] = not (event.terminado or event.cancelado)
+
+            return data
     except HTTPException:
         raise
     except Exception as e:
