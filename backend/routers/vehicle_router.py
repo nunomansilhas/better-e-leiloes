@@ -1692,8 +1692,8 @@ async def complete_vehicle_analysis_v2(
         if fotos and len(fotos) > 0:
             vision_service = EnhancedAIAnalysisService()
 
-            # Analyze first 3 images max
-            for foto in fotos[:3]:
+            # Analyze up to 10 images for comprehensive analysis
+            for foto in fotos[:10]:
                 # Handle both dict format {"image": "url"} and direct URL string
                 if isinstance(foto, dict):
                     foto_url = foto.get('image') or foto.get('thumbnail')

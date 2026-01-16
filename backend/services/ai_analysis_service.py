@@ -351,16 +351,20 @@ Responde APENAS em JSON:
 
     async def analyze_vehicle_image(self, image_url: str) -> ImageAnalysis:
         """Analyze a vehicle image using LLaVA"""
-        prompt = """Analisa esta imagem de um veículo à venda em leilão.
+        prompt = """Analisa esta imagem de um veículo em leilão. Sê ESPECÍFICO e DETALHADO.
 
-Descreve:
-1. Estado geral visível (excelente/bom/razoável/mau)
-2. Danos ou problemas visíveis
-3. Limpeza e cuidado aparente
-4. Qualquer detalhe relevante para um comprador
+PROCURA E REPORTA:
+1. QUILÓMETROS: Se visível no painel, indica o valor exato (ex: "145.000 km")
+2. DANOS VISÍVEIS: Riscos, amolgadelas, ferrugem, vidros partidos, faróis danificados
+3. INTERIOR: Estado dos bancos, volante, tablier, sujidade, desgaste
+4. PNEUS: Se visíveis, estado aparente (novos/usados/carecas)
+5. MOTOR: Se visível, estado geral, fugas de óleo, sujidade
+6. ALERTAS: Luzes de aviso no painel, símbolos de erro
 
-Responde em JSON:
-{"descricao": "...", "estado": "bom", "problemas": ["risco no para-choques"], "pontos_positivos": ["interior limpo"]}"""
+ESTADO GERAL: excelente/bom/razoável/mau
+
+Responde APENAS em JSON válido:
+{"km_visivel": "145000" ou null, "estado": "bom", "danos": ["risco para-choques traseiro", "amolgadela porta"], "interior": "limpo com desgaste normal", "pneus": "parecem usados", "alertas_painel": [], "observacoes": "texto livre"}"""
 
         try:
             result = await self._analyze_image(image_url, prompt)
@@ -382,15 +386,35 @@ Responde em JSON:
                 if json_start >= 0:
                     data = json.loads(response_text[json_start:json_end])
                 else:
-                    data = {"descricao": response_text, "estado": "unknown", "problemas": []}
+                    data = {"observacoes": response_text, "estado": "unknown", "danos": []}
             except:
-                data = {"descricao": response_text, "estado": "unknown", "problemas": []}
+                data = {"observacoes": response_text, "estado": "unknown", "danos": []}
+
+            # Build comprehensive description from new format
+            desc_parts = []
+            if data.get("km_visivel"):
+                desc_parts.append(f"KM: {data['km_visivel']}")
+            if data.get("estado"):
+                desc_parts.append(f"Estado: {data['estado']}")
+            if data.get("interior"):
+                desc_parts.append(f"Interior: {data['interior']}")
+            if data.get("pneus"):
+                desc_parts.append(f"Pneus: {data['pneus']}")
+            if data.get("danos") and len(data["danos"]) > 0:
+                desc_parts.append(f"Danos: {', '.join(data['danos'])}")
+            if data.get("alertas_painel") and len(data["alertas_painel"]) > 0:
+                desc_parts.append(f"Alertas: {', '.join(data['alertas_painel'])}")
+            if data.get("observacoes"):
+                desc_parts.append(data["observacoes"])
+
+            description = " | ".join(desc_parts) if desc_parts else data.get("descricao", response_text)
+            issues = data.get("danos", []) or data.get("problemas", [])
 
             return ImageAnalysis(
                 image_url=image_url,
-                description=data.get("descricao", ""),
+                description=description,
                 condition=data.get("estado", "unknown"),
-                issues_found=data.get("problemas", []),
+                issues_found=issues,
                 confidence=0.7
             )
 
