@@ -528,9 +528,216 @@ async def list_events(
         return {"events": result_events, "total": len(result_events), "page": offset // limit + 1 if limit > 0 else 1}
 
 
+@app.post("/api/events/batch")
+async def get_events_batch(references: List[str]):
+    """
+    Fetch multiple events by their references.
+    Used by favorites widget to get event data efficiently.
+    """
+    if len(references) > 100:
+        raise HTTPException(status_code=400, detail="Maximum 100 references allowed")
+
+    if not references:
+        return {"events": [], "found": 0, "requested": 0}
+
+    async with get_session() as session:
+        result = await session.execute(
+            select(EventDB).where(EventDB.reference.in_(references))
+        )
+        events = result.scalars().all()
+
+        result_events = []
+        for e in events:
+            fotos = None
+            if e.fotos:
+                try:
+                    fotos_data = json.loads(e.fotos)
+                    if isinstance(fotos_data, list):
+                        fotos = [f.get("image") or f.get("url") if isinstance(f, dict) else f for f in fotos_data]
+                except:
+                    pass
+
+            result_events.append({
+                "reference": e.reference,
+                "titulo": e.titulo,
+                "capa": e.capa,
+                "fotos": fotos,
+                "tipo_id": e.tipo_id,
+                "tipo": e.tipo,
+                "subtipo": e.subtipo,
+                "valor_base": e.valor_base,
+                "lance_atual": e.lance_atual,
+                "data_fim": e.data_fim.isoformat() if e.data_fim else None,
+                "distrito": e.distrito,
+                "terminado": e.terminado,
+                "cancelado": e.cancelado,
+                "ativo": not e.terminado and not e.cancelado
+            })
+
+        return {"events": result_events, "found": len(result_events), "requested": len(references)}
+
+
+@app.get("/api/vehicle-analyses")
+async def list_vehicle_analyses(
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    recommendation: Optional[str] = None
+):
+    """
+    List all vehicle analyses with AI data.
+    Returns vehicles that have been analyzed.
+    """
+    from sqlalchemy import text
+
+    async with get_session() as session:
+        # Build query
+        where_clause = "WHERE ai_score IS NOT NULL"
+        params = {"limit": limit, "offset": offset}
+
+        if recommendation:
+            where_clause += " AND ai_recommendation = :rec"
+            params["rec"] = recommendation
+
+        # Get total count
+        count_result = await session.execute(
+            text(f"SELECT COUNT(*) FROM event_vehicle_data {where_clause}"),
+            params
+        )
+        total = count_result.scalar() or 0
+
+        # Get analyses
+        result = await session.execute(
+            text(f"""
+                SELECT
+                    evd.reference, evd.matricula, evd.event_titulo, evd.event_valor_base, evd.event_lance_atual,
+                    evd.marca, evd.modelo, evd.versao, evd.ano, evd.producao_inicio, evd.producao_fim,
+                    evd.combustivel, evd.potencia_cv,
+                    evd.tem_seguro, evd.market_preco_min, evd.market_preco_medio, evd.desconto_percentagem,
+                    evd.ai_score, evd.ai_recommendation, evd.ai_summary, evd.ai_pros, evd.ai_cons,
+                    evd.processed_at,
+                    e.capa, e.data_fim, e.valor_minimo, e.lance_atual
+                FROM event_vehicle_data evd
+                LEFT JOIN events e ON evd.reference = e.reference
+                {where_clause}
+                ORDER BY evd.ai_score DESC, evd.processed_at DESC
+                LIMIT :limit OFFSET :offset
+            """),
+            params
+        )
+        rows = result.fetchall()
+
+        columns = [
+            'reference', 'matricula', 'event_titulo', 'event_valor_base', 'event_lance_atual',
+            'marca', 'modelo', 'versao', 'ano', 'producao_inicio', 'producao_fim',
+            'combustivel', 'potencia_cv',
+            'tem_seguro', 'market_preco_min', 'market_preco_medio', 'desconto_percentagem',
+            'ai_score', 'ai_recommendation', 'ai_summary', 'ai_pros', 'ai_cons',
+            'processed_at', 'capa', 'data_fim', 'valor_minimo', 'lance_atual_live'
+        ]
+
+        analyses = []
+        for row in rows:
+            data = {}
+            for i, col in enumerate(columns):
+                val = row[i]
+                if val is not None and hasattr(val, '__float__'):
+                    val = float(val)
+                if val is not None and hasattr(val, 'isoformat'):
+                    val = val.isoformat()
+                data[col] = val
+            analyses.append(data)
+
+        # Get stats
+        stats_result = await session.execute(
+            text("""
+                SELECT
+                    ai_recommendation,
+                    COUNT(*) as count
+                FROM event_vehicle_data
+                WHERE ai_score IS NOT NULL
+                GROUP BY ai_recommendation
+            """)
+        )
+        stats_rows = stats_result.fetchall()
+        stats = {row[0]: row[1] for row in stats_rows if row[0]}
+
+        return {
+            "analyses": analyses,
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "stats": {
+                "total": total,
+                "comprar": stats.get('comprar', 0) + stats.get('excelente', 0),
+                "considerar": stats.get('considerar', 0),
+                "cautela": stats.get('cautela', 0),
+                "evitar": stats.get('evitar', 0)
+            }
+        }
+
+
+@app.get("/api/vehicle-data/{reference}")
+async def get_vehicle_data(reference: str):
+    """
+    Get AI analysis and vehicle data for an event.
+    Returns vehicle info, market prices, insurance status, and AI analysis.
+    """
+    from sqlalchemy import text
+
+    async with get_session() as session:
+        # Query the event_vehicle_data table directly
+        result = await session.execute(
+            text("""
+                SELECT
+                    reference, matricula, event_titulo, event_valor_base, event_lance_atual,
+                    marca, modelo, versao, ano, combustivel, potencia_cv, potencia_kw, cor, vin,
+                    tem_seguro, seguradora, seguro_data_fim,
+                    market_preco_min, market_preco_max, market_preco_medio, market_preco_mediana,
+                    market_num_resultados, market_fonte, poupanca_estimada, desconto_percentagem,
+                    score_oportunidade, score_risco, score_liquidez,
+                    ai_score, ai_recommendation, ai_summary, ai_pros, ai_cons,
+                    ai_checklist, ai_red_flags, ai_lance_maximo_sugerido,
+                    ai_model_used, ai_processing_time_ms, processed_at, status
+                FROM event_vehicle_data
+                WHERE reference = :ref
+            """),
+            {"ref": reference}
+        )
+        row = result.fetchone()
+
+        if not row:
+            raise HTTPException(status_code=404, detail="Vehicle data not found for this event")
+
+        # Convert row to dict
+        columns = [
+            'reference', 'matricula', 'event_titulo', 'event_valor_base', 'event_lance_atual',
+            'marca', 'modelo', 'versao', 'ano', 'combustivel', 'potencia_cv', 'potencia_kw', 'cor', 'vin',
+            'tem_seguro', 'seguradora', 'seguro_data_fim',
+            'market_preco_min', 'market_preco_max', 'market_preco_medio', 'market_preco_mediana',
+            'market_num_resultados', 'market_fonte', 'poupanca_estimada', 'desconto_percentagem',
+            'score_oportunidade', 'score_risco', 'score_liquidez',
+            'ai_score', 'ai_recommendation', 'ai_summary', 'ai_pros', 'ai_cons',
+            'ai_checklist', 'ai_red_flags', 'ai_lance_maximo_sugerido',
+            'ai_model_used', 'ai_processing_time_ms', 'processed_at', 'status'
+        ]
+
+        data = {}
+        for i, col in enumerate(columns):
+            val = row[i]
+            # Convert Decimal to float
+            if val is not None and hasattr(val, '__float__'):
+                val = float(val)
+            # Convert datetime to ISO string
+            if val is not None and hasattr(val, 'isoformat'):
+                val = val.isoformat()
+            data[col] = val
+
+        return data
+
+
 @app.get("/api/events/{reference}")
 async def get_event(reference: str):
-    """Get event details by reference"""
+    """Get event details by reference - returns ALL fields"""
     try:
         async with get_session() as session:
             result = await session.execute(
@@ -541,77 +748,34 @@ async def get_event(reference: str):
             if not event:
                 raise HTTPException(status_code=404, detail="Event not found")
 
-            fotos = None
-            if event.fotos:
-                try:
-                    import json
-                    fotos_data = json.loads(event.fotos)
-                    if isinstance(fotos_data, list):
-                        fotos = [f.get("image") or f.get("url") if isinstance(f, dict) else f for f in fotos_data]
-                except:
-                    pass
+            # Convert SQLAlchemy model to dict with ALL fields
+            import json
+            from sqlalchemy import inspect
 
-            # Helper to safely get attribute with default
-            def safe_get(attr, default=None):
-                return getattr(event, attr, default)
+            data = {}
+            for column in inspect(EventDB).mapper.column_attrs:
+                col_name = column.key
+                value = getattr(event, col_name, None)
 
-            def safe_date(attr):
-                val = getattr(event, attr, None)
-                return val.isoformat() if val else None
+                # Handle datetime serialization
+                if value is not None and hasattr(value, 'isoformat'):
+                    value = value.isoformat()
 
-            # Return dict directly to avoid Pydantic validation issues with None fields
-            return {
-                "reference": event.reference,
-                "titulo": event.titulo,
-                "capa": event.capa,
-                "tipo_id": event.tipo_id,
-                "tipo": event.tipo,
-                "subtipo": event.subtipo,
-                "tipologia": safe_get('tipologia'),
-                "valor_base": event.valor_base,
-                "valor_abertura": safe_get('valor_abertura'),
-                "valor_minimo": safe_get('valor_minimo'),
-                "lance_atual": event.lance_atual or 0,
-                "data_inicio": safe_date('data_inicio'),
-                "data_fim": safe_date('data_fim'),
-                # Location
-                "distrito": event.distrito,
-                "concelho": event.concelho,
-                "freguesia": safe_get('freguesia'),
-                "morada": safe_get('morada'),
-                "morada_cp": safe_get('morada_cp'),
-                "latitude": safe_get('latitude'),
-                "longitude": safe_get('longitude'),
-                # Areas
-                "area_privativa": safe_get('area_privativa'),
-                "area_dependente": safe_get('area_dependente'),
-                "area_total": safe_get('area_total'),
-                # Vehicle
-                "matricula": safe_get('matricula'),
-                # Process
-                "processo_numero": safe_get('processo_numero'),
-                "processo_tribunal": safe_get('processo_tribunal'),
-                "processo_comarca": safe_get('processo_comarca'),
-                # Ceremony
-                "cerimonia_data": safe_date('cerimonia_data'),
-                "cerimonia_local": safe_get('cerimonia_local'),
-                "cerimonia_morada": safe_get('cerimonia_morada'),
-                # Manager
-                "gestor_nome": safe_get('gestor_nome'),
-                "gestor_email": safe_get('gestor_email'),
-                "gestor_telefone": safe_get('gestor_telefone'),
-                "gestor_tipo": safe_get('gestor_tipo'),
-                "gestor_cedula": safe_get('gestor_cedula'),
-                # Content
-                "descricao": safe_get('descricao'),
-                "observacoes": safe_get('observacoes'),
-                "fotos": fotos,
-                # Status
-                "terminado": event.terminado if event.terminado is not None else False,
-                "cancelado": event.cancelado if event.cancelado is not None else False,
-                "iniciado": safe_get('iniciado', False),
-                "ativo": not (event.terminado or event.cancelado)
-            }
+                # Parse JSON fields
+                if col_name == 'fotos' and value:
+                    try:
+                        fotos_data = json.loads(value)
+                        if isinstance(fotos_data, list):
+                            value = fotos_data  # Keep full foto objects with legenda, image, thumbnail
+                    except:
+                        pass
+
+                data[col_name] = value
+
+            # Add computed fields
+            data['ativo'] = not (event.terminado or event.cancelado)
+
+            return data
     except HTTPException:
         raise
     except Exception as e:

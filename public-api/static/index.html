@@ -4672,83 +4672,79 @@
             <div class="page-header" style="display: flex; justify-content: space-between; align-items: flex-start;">
                 <div>
                     <h2>AI Assistant</h2>
-                    <p>Analises e recomendacoes automaticas para imoveis e veiculos</p>
+                    <p>Análise inteligente de veículos em leilão</p>
                 </div>
-                <div style="display: flex; gap: 8px; align-items: center;">
-                    <span class="ai-status-indicator" id="ai-status-indicator" style="width: 8px; height: 8px; border-radius: 50%; background: #94a3b8;"></span>
-                    <span style="font-size: 12px; color: #94a3b8;" id="ai-status-text">Offline</span>
-                </div>
+                <button onclick="refreshVehicleAnalyses()" style="padding: 8px 16px; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; border: none; border-radius: 8px; font-size: 12px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                    <span id="ai-refresh-icon" style="font-size: 14px;">↻</span> Atualizar
+                </button>
             </div>
 
-            <!-- AI Stats Cards -->
+            <!-- Stats Cards -->
             <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 24px;">
                 <div class="stats-card">
-                    <div class="stats-card-value" id="ai-stat-total">0</div>
-                    <div class="stats-card-label">Total Analisados</div>
+                    <div class="stats-card-value" id="va-stat-total">0</div>
+                    <div class="stats-card-label">Analisados</div>
                 </div>
-                <div class="stats-card">
-                    <div class="stats-card-value" id="ai-stat-pending">0</div>
-                    <div class="stats-card-label">Pendentes</div>
+                <div class="stats-card" style="border-left: 3px solid #10b981;">
+                    <div class="stats-card-value" style="color: #10b981;" id="va-stat-buy">0</div>
+                    <div class="stats-card-label">Comprar</div>
                 </div>
-                <div class="stats-card">
-                    <div class="stats-card-value" id="ai-stat-buy">0</div>
-                    <div class="stats-card-label" style="color: #10b981;">Recomenda Compra</div>
+                <div class="stats-card" style="border-left: 3px solid #3b82f6;">
+                    <div class="stats-card-value" style="color: #3b82f6;" id="va-stat-consider">0</div>
+                    <div class="stats-card-label">Considerar</div>
                 </div>
-                <div class="stats-card">
-                    <div class="stats-card-value" id="ai-stat-watch">0</div>
-                    <div class="stats-card-label" style="color: #f59e0b;">Acompanhar</div>
+                <div class="stats-card" style="border-left: 3px solid #f59e0b;">
+                    <div class="stats-card-value" style="color: #f59e0b;" id="va-stat-caution">0</div>
+                    <div class="stats-card-label">Cautela</div>
                 </div>
-                <div class="stats-card">
-                    <div class="stats-card-value" id="ai-stat-skip">0</div>
-                    <div class="stats-card-label" style="color: #ef4444;">Evitar</div>
-                </div>
-            </div>
-
-            <!-- Current Processing Status -->
-            <div id="ai-processing-status" style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border: 1px solid #bae6fd; border-radius: 12px; padding: 20px; margin-bottom: 24px; display: none;">
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <div class="loading-spinner" style="width: 20px; height: 20px;"></div>
-                    <div>
-                        <div style="font-weight: 600; color: #0369a1;">A processar evento...</div>
-                        <div style="font-size: 13px; color: #0284c7; margin-top: 4px;" id="ai-current-event">-</div>
-                    </div>
+                <div class="stats-card" style="border-left: 3px solid #ef4444;">
+                    <div class="stats-card-value" style="color: #ef4444;" id="va-stat-avoid">0</div>
+                    <div class="stats-card-label">Evitar</div>
                 </div>
             </div>
 
-            <!-- Search and Filters -->
-            <div style="display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;">
-                <div style="flex: 1; min-width: 250px;">
-                    <input type="text" id="ai-search-input" placeholder="Pesquisar por referencia ou titulo..."
-                        style="width: 100%; padding: 10px 16px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px;"
-                        oninput="debounceAiSearch()">
+            <!-- Filters -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <div style="display: flex; gap: 8px; flex: 1;">
+                    <input type="text" id="va-search" placeholder="Pesquisar marca, modelo, referência..."
+                        style="flex: 1; max-width: 300px; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 12px; background: white;"
+                        oninput="filterVehicleCards()">
+                    <select id="va-filter-rec" onchange="filterVehicleCards()" style="padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 12px; background: white;">
+                        <option value="">Todas Recomendações</option>
+                        <option value="comprar">Comprar</option>
+                        <option value="excelente">Excelente</option>
+                        <option value="considerar">Considerar</option>
+                        <option value="cautela">Cautela</option>
+                        <option value="evitar">Evitar</option>
+                    </select>
+                    <select id="va-sort" onchange="sortVehicleCards()" style="padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 12px; background: white;">
+                        <option value="score-desc">Score ↓</option>
+                        <option value="score-asc">Score ↑</option>
+                        <option value="discount-desc">Desconto ↓</option>
+                        <option value="price-asc">Preço ↑</option>
+                        <option value="date-desc">Mais Recente</option>
+                    </select>
                 </div>
-                <select id="ai-filter-status" onchange="loadAiTips()" style="padding: 10px 16px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; background: white; min-width: 150px;">
-                    <option value="">Todos os estados</option>
-                    <option value="completed">Concluido</option>
-                    <option value="pending">Pendente</option>
-                    <option value="processing">A processar</option>
-                    <option value="failed">Falhado</option>
-                </select>
-                <select id="ai-filter-tipo" onchange="loadAiTips()" style="padding: 10px 16px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; background: white; min-width: 150px;">
-                    <option value="">Todos os tipos</option>
-                    <option value="imoveis">Imoveis</option>
-                    <option value="veiculos">Veiculos</option>
-                </select>
-                <select id="ai-filter-recommendation" onchange="loadAiTips()" style="padding: 10px 16px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; background: white; min-width: 150px;">
-                    <option value="">Todas recomendacoes</option>
-                    <option value="buy">Comprar</option>
-                    <option value="watch">Acompanhar</option>
-                    <option value="skip">Evitar</option>
-                </select>
             </div>
 
-            <!-- AI Tips List -->
-            <div id="ai-tips-list" style="display: flex; flex-direction: column; gap: 16px;">
-                <div class="loading"><div class="loading-spinner"></div></div>
+            <!-- Loading State -->
+            <div id="va-loading" style="text-align: center; padding: 60px 20px;">
+                <div class="loading-spinner" style="margin: 0 auto 16px;"></div>
+                <div style="color: #64748b; font-size: 14px;">A carregar análises...</div>
             </div>
 
-            <!-- Pagination -->
-            <div id="ai-pagination" style="display: flex; justify-content: center; gap: 8px; margin-top: 24px;">
+            <!-- No Data State -->
+            <div id="va-no-data" style="display: none; text-align: center; padding: 60px 20px;">
+                <svg fill="none" stroke="#94a3b8" stroke-width="1.5" viewBox="0 0 24 24" width="64" height="64" style="margin: 0 auto 16px;">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                </svg>
+                <h3 style="color: #64748b; font-weight: 500; margin-bottom: 8px;">Sem análises disponíveis</h3>
+                <p style="color: #94a3b8; font-size: 13px;">Execute a pipeline AI no backend para analisar veículos</p>
+            </div>
+
+            <!-- Vehicle Cards List (Full Width) -->
+            <div id="va-cards-grid" style="display: none; display: flex; flex-direction: column; gap: 16px;">
+                <!-- Cards populated by JS -->
             </div>
         </div>
 
@@ -5390,13 +5386,16 @@
                 let eventsData = {};
 
                 try {
-                    const response = await fetch(`${API_BASE}/api/events?limit=500&active_only=false`);
+                    // Fetch only the events we need using batch endpoint
+                    const response = await fetch(`${API_BASE}/api/events/batch`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(refs)
+                    });
                     const data = await response.json();
                     if (data.events) {
                         data.events.forEach(e => {
-                            if (refs.includes(e.reference)) {
-                                eventsData[e.reference] = e;
-                            }
+                            eventsData[e.reference] = e;
                         });
                     }
                 } catch (err) {
@@ -6287,8 +6286,222 @@
             document.body.style.overflow = '';
             inspectionCurrentEvent = null;
 
+            // Reset to details tab when closing
+            switchInspectionTab('details');
+
             // Restore focus to previous element
             restoreFocus();
+        }
+
+        // ============== AI ANALYSIS TAB ==============
+
+        let currentAiData = null;
+
+        function switchInspectionTab(tab) {
+            const detailsTab = document.getElementById('inspection-details');
+            const aiTab = document.getElementById('inspection-ai-tab');
+            const tabDetails = document.getElementById('tab-details');
+            const tabAi = document.getElementById('tab-ai');
+
+            if (tab === 'details') {
+                detailsTab.style.display = 'block';
+                aiTab.style.display = 'none';
+                tabDetails.style.background = '#3b82f6';
+                tabDetails.style.color = 'white';
+                tabAi.style.background = '#334155';
+                tabAi.style.color = '#94a3b8';
+            } else if (tab === 'ai') {
+                detailsTab.style.display = 'none';
+                aiTab.style.display = 'block';
+                tabDetails.style.background = '#334155';
+                tabDetails.style.color = '#94a3b8';
+                tabAi.style.background = '#8b5cf6';
+                tabAi.style.color = 'white';
+
+                // Load AI data for current event
+                if (inspectionCurrentEvent) {
+                    loadAiAnalysis(inspectionCurrentEvent.reference);
+                }
+            }
+        }
+
+        async function loadAiAnalysis(reference) {
+            const loading = document.getElementById('ai-loading');
+            const noData = document.getElementById('ai-no-data');
+            const content = document.getElementById('ai-content');
+
+            loading.style.display = 'block';
+            noData.style.display = 'none';
+            content.style.display = 'none';
+
+            try {
+                // Try to get vehicle analysis data
+                const response = await fetch(`${API_BASE}/api/vehicle-data/${reference}`);
+
+                if (!response.ok) {
+                    loading.style.display = 'none';
+                    noData.style.display = 'block';
+                    return;
+                }
+
+                const data = await response.json();
+                currentAiData = data;
+
+                // Check if we have AI analysis
+                if (!data.ai_score && !data.ai_recommendation) {
+                    loading.style.display = 'none';
+                    noData.style.display = 'block';
+                    return;
+                }
+
+                // Display AI data
+                displayAiAnalysisTab(data);
+
+                loading.style.display = 'none';
+                content.style.display = 'block';
+
+            } catch (error) {
+                console.error('Error loading AI analysis:', error);
+                loading.style.display = 'none';
+                noData.style.display = 'block';
+            }
+        }
+
+        function displayAiAnalysisTab(data) {
+            const formatPrice = (price) => {
+                if (!price) return '-';
+                return new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(price);
+            };
+
+            // Score
+            const score = data.ai_score || 0;
+            const scoreEl = document.getElementById('ai-score-display');
+            scoreEl.textContent = score.toFixed(1);
+            scoreEl.style.color = score >= 7 ? '#10b981' : score >= 5 ? '#f59e0b' : '#ef4444';
+
+            const scoreFill = document.getElementById('ai-score-fill');
+            scoreFill.style.width = `${score * 10}%`;
+            scoreFill.style.background = score >= 7 ? '#10b981' : score >= 5 ? '#f59e0b' : '#ef4444';
+
+            // Recommendation badge
+            const rec = data.ai_recommendation || 'N/A';
+            const recBadge = document.getElementById('ai-rec-badge');
+            recBadge.textContent = rec.toUpperCase();
+            const recColors = {
+                'comprar': { bg: '#059669', color: 'white' },
+                'excelente': { bg: '#059669', color: 'white' },
+                'considerar': { bg: '#0891b2', color: 'white' },
+                'cautela': { bg: '#d97706', color: 'white' },
+                'evitar': { bg: '#dc2626', color: 'white' }
+            };
+            const recStyle = recColors[rec.toLowerCase()] || { bg: '#64748b', color: 'white' };
+            recBadge.style.background = recStyle.bg;
+            recBadge.style.color = recStyle.color;
+
+            // Summary
+            document.getElementById('ai-summary').textContent = data.ai_summary || 'Sem resumo disponível.';
+
+            // Collected Data (left column)
+            const collectedHtml = `
+                <div style="margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #334155;">
+                    <div style="color: #64748b; font-size: 9px;">VEÍCULO</div>
+                    <div style="font-weight: 600; color: #e2e8f0;">${data.marca || '-'} ${data.modelo || ''}</div>
+                    ${data.versao ? `<div style="color: #94a3b8; font-size: 10px;">${data.versao}</div>` : ''}
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+                    <div>
+                        <div style="color: #64748b; font-size: 9px;">ANO</div>
+                        <div style="font-weight: 500;">${data.ano || '-'}</div>
+                    </div>
+                    <div>
+                        <div style="color: #64748b; font-size: 9px;">COMBUSTÍVEL</div>
+                        <div style="font-weight: 500;">${data.combustivel || '-'}</div>
+                    </div>
+                    <div>
+                        <div style="color: #64748b; font-size: 9px;">POTÊNCIA</div>
+                        <div style="font-weight: 500;">${data.potencia_cv ? data.potencia_cv + ' cv' : '-'}</div>
+                    </div>
+                    <div>
+                        <div style="color: #64748b; font-size: 9px;">SEGURO</div>
+                        <div style="font-weight: 500; color: ${data.tem_seguro ? '#10b981' : '#ef4444'};">${data.tem_seguro ? '✓ Ativo' : '✗ Sem'}</div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('ai-collected-data').innerHTML = collectedHtml;
+
+            // Market Data (right column)
+            const marketHtml = `
+                <div style="margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #334155;">
+                    <div style="color: #64748b; font-size: 9px;">PREÇO MÉDIO MERCADO</div>
+                    <div style="font-size: 16px; font-weight: 700; color: #10b981;">${formatPrice(data.market_preco_medio)}</div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+                    <div>
+                        <div style="color: #64748b; font-size: 9px;">MÍNIMO</div>
+                        <div style="font-weight: 500;">${formatPrice(data.market_preco_min)}</div>
+                    </div>
+                    <div>
+                        <div style="color: #64748b; font-size: 9px;">MÁXIMO</div>
+                        <div style="font-weight: 500;">${formatPrice(data.market_preco_max)}</div>
+                    </div>
+                    <div>
+                        <div style="color: #64748b; font-size: 9px;">ANÚNCIOS</div>
+                        <div style="font-weight: 500;">${data.market_num_resultados || '-'}</div>
+                    </div>
+                    <div>
+                        <div style="color: #64748b; font-size: 9px;">DESCONTO</div>
+                        <div style="font-weight: 600; color: ${(data.desconto_percentagem || 0) > 0 ? '#10b981' : '#ef4444'};">
+                            ${data.desconto_percentagem ? data.desconto_percentagem.toFixed(0) + '%' : '-'}
+                        </div>
+                    </div>
+                </div>
+                ${data.ai_lance_maximo_sugerido ? `
+                    <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #334155;">
+                        <div style="color: #64748b; font-size: 9px;">LANCE MÁXIMO SUGERIDO</div>
+                        <div style="font-size: 14px; font-weight: 700; color: #f59e0b;">${formatPrice(data.ai_lance_maximo_sugerido)}</div>
+                    </div>
+                ` : ''}
+            `;
+            document.getElementById('ai-market-data').innerHTML = marketHtml;
+
+            // Pros
+            let pros = [];
+            try { pros = JSON.parse(data.ai_pros || '[]'); } catch(e) { pros = []; }
+            document.getElementById('ai-pros-list').innerHTML = pros.length > 0
+                ? pros.map(p => `<li>${p}</li>`).join('')
+                : '<li style="opacity: 0.6;">Sem pontos positivos identificados</li>';
+
+            // Cons
+            let cons = [];
+            try { cons = JSON.parse(data.ai_cons || '[]'); } catch(e) { cons = []; }
+            document.getElementById('ai-cons-list').innerHTML = cons.length > 0
+                ? cons.map(c => `<li>${c}</li>`).join('')
+                : '<li style="opacity: 0.6;">Sem pontos negativos identificados</li>';
+
+            // Red flags
+            let redFlags = [];
+            try { redFlags = JSON.parse(data.ai_red_flags || '[]'); } catch(e) { redFlags = []; }
+            const redFlagsSection = document.getElementById('ai-red-flags-section');
+            if (redFlags.length > 0) {
+                redFlagsSection.style.display = 'block';
+                document.getElementById('ai-red-flags-list').innerHTML = redFlags.map(r => `<li>${r}</li>`).join('');
+            } else {
+                redFlagsSection.style.display = 'none';
+            }
+
+            // Checklist
+            let checklist = [];
+            try { checklist = JSON.parse(data.ai_checklist || '[]'); } catch(e) { checklist = []; }
+            document.getElementById('ai-checklist').innerHTML = checklist.length > 0
+                ? checklist.map(c => `<li>${c}</li>`).join('')
+                : '<li>Verificar documentação do veículo</li><li>Confirmar estado mecânico</li><li>Definir lance máximo</li>';
+
+            // Metadata
+            document.getElementById('ai-model-info').textContent = data.ai_model_used || '-';
+            document.getElementById('ai-time-info').textContent = data.ai_processing_time_ms || '-';
+            document.getElementById('ai-date-info').textContent = data.processed_at
+                ? new Date(data.processed_at).toLocaleString('pt-PT')
+                : '-';
         }
 
         function inspectionCarouselPrev() {
@@ -11185,21 +11398,33 @@
                 sharedAudioContext.resume();
             }
 
-            // Create a simple beep sound
+            // Create a subtle electronic "tick" sound - minimalist and non-intrusive
             try {
-                const oscillator = sharedAudioContext.createOscillator();
-                const gainNode = sharedAudioContext.createGain();
+                const now = sharedAudioContext.currentTime;
 
-                oscillator.connect(gainNode);
-                gainNode.connect(sharedAudioContext.destination);
+                // First tick - higher frequency, very short (40ms)
+                const osc1 = sharedAudioContext.createOscillator();
+                const gain1 = sharedAudioContext.createGain();
+                osc1.connect(gain1);
+                gain1.connect(sharedAudioContext.destination);
+                osc1.frequency.value = 1800;
+                osc1.type = 'sine';
+                gain1.gain.setValueAtTime(0.08, now);
+                gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+                osc1.start(now);
+                osc1.stop(now + 0.04);
 
-                oscillator.frequency.value = 800;
-                oscillator.type = 'sine';
-                gainNode.gain.setValueAtTime(0.15, sharedAudioContext.currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, sharedAudioContext.currentTime + 0.3);
-
-                oscillator.start(sharedAudioContext.currentTime);
-                oscillator.stop(sharedAudioContext.currentTime + 0.3);
+                // Second tick - slightly lower, creates depth (40ms, delayed 20ms)
+                const osc2 = sharedAudioContext.createOscillator();
+                const gain2 = sharedAudioContext.createGain();
+                osc2.connect(gain2);
+                gain2.connect(sharedAudioContext.destination);
+                osc2.frequency.value = 1200;
+                osc2.type = 'sine';
+                gain2.gain.setValueAtTime(0.05, now + 0.02);
+                gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+                osc2.start(now + 0.02);
+                osc2.stop(now + 0.06);
             } catch (e) {
                 console.warn('Could not play notification sound:', e);
             }
@@ -12611,28 +12836,292 @@
         let aiCurrentPage = 1;
         let aiSearchTimeout = null;
 
+        // ============== VEHICLE ANALYSIS PAGE (NEW) ==============
+
+        let allVehicleAnalyses = [];
+
         async function loadAiAssistantPage() {
-            await Promise.all([
-                loadAiStats(),
-                loadAiPipelineStatus(),
-                loadAiTips()
-            ]);
+            // Load new vehicle analyses page
+            await loadVehicleAnalyses();
         }
 
-        async function loadAiStats() {
-            try {
-                const response = await fetch('/api/ai/stats');
-                if (!response.ok) throw new Error('Failed to load AI stats');
-                const data = await response.json();
+        async function loadVehicleAnalyses() {
+            const loading = document.getElementById('va-loading');
+            const noData = document.getElementById('va-no-data');
+            const grid = document.getElementById('va-cards-grid');
 
-                document.getElementById('ai-stat-total').textContent = data.total || 0;
-                document.getElementById('ai-stat-pending').textContent = data.by_status?.pending || 0;
-                document.getElementById('ai-stat-buy').textContent = data.by_recommendation?.buy || 0;
-                document.getElementById('ai-stat-watch').textContent = data.by_recommendation?.watch || 0;
-                document.getElementById('ai-stat-skip').textContent = data.by_recommendation?.skip || 0;
+            loading.style.display = 'block';
+            noData.style.display = 'none';
+            grid.style.display = 'none';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/vehicle-analyses?limit=200`);
+                if (!response.ok) throw new Error('Failed to load vehicle analyses');
+
+                const data = await response.json();
+                allVehicleAnalyses = data.analyses || [];
+
+                // Update stats
+                const stats = data.stats || {};
+                document.getElementById('va-stat-total').textContent = stats.total || 0;
+                document.getElementById('va-stat-buy').textContent = stats.comprar || 0;
+                document.getElementById('va-stat-consider').textContent = stats.considerar || 0;
+                document.getElementById('va-stat-caution').textContent = stats.cautela || 0;
+                document.getElementById('va-stat-avoid').textContent = stats.evitar || 0;
+
+                loading.style.display = 'none';
+
+                if (allVehicleAnalyses.length === 0) {
+                    noData.style.display = 'block';
+                    return;
+                }
+
+                renderVehicleCards(allVehicleAnalyses);
+                grid.style.display = 'grid';
+
             } catch (error) {
-                console.error('Error loading AI stats:', error);
+                console.error('Error loading vehicle analyses:', error);
+                loading.style.display = 'none';
+                noData.style.display = 'block';
             }
+        }
+
+        function renderVehicleCards(analyses) {
+            const grid = document.getElementById('va-cards-grid');
+
+            // Helper to build market verification URLs
+            // Uses production year range (producao_inicio) for better search accuracy
+            const buildStandVirtualUrl = (marca, modelo, ano, combustivel, producaoInicio) => {
+                const marcaSlug = (marca || '').toLowerCase().replace(/\s+/g, '-');
+                let modeloSlug = (modelo || '').toLowerCase().replace(/\s+(i{1,3}|iv|v)$/i, '').replace(/\s+/g, '-').split('-')[0];
+                let url = `https://www.standvirtual.com/carros/${marcaSlug}`;
+                if (modeloSlug) url += `/${modeloSlug}`;
+
+                // Use production start year as min, vehicle year as max
+                const anoMin = producaoInicio || (ano ? ano - 1 : null);
+                const anoMax = ano;
+                if (anoMin) url += `/desde-${anoMin}`;
+
+                // Build query params
+                const params = [];
+                if (anoMax) params.push(`search[filter_float_first_registration_year:to]=${anoMax}`);
+                const fuelMap = { 'gasóleo': 'diesel', 'diesel': 'diesel', 'gasolina': 'petrol', 'elétrico': 'electric', 'híbrido': 'hybrid' };
+                const fuel = fuelMap[(combustivel || '').toLowerCase()];
+                if (fuel) params.push(`fuel_type=${fuel}`);
+                if (params.length > 0) url += '?' + params.join('&');
+                return url;
+            };
+
+            const buildAutoUncleUrl = (marca, modelo, ano, producaoInicio) => {
+                const marcaSlug = (marca || '').toLowerCase().replace(/\s+/g, '-');
+                let modeloSlug = (modelo || '').toLowerCase().replace(/\s+/g, '-').split('-')[0];
+                let url = `https://www.autouncle.pt/pt/carros-usados/${marcaSlug}`;
+                if (modeloSlug) url += `/${modeloSlug}`;
+
+                // Use production start year as min, vehicle year as max
+                const anoMin = producaoInicio || (ano ? ano - 1 : null);
+                const anoMax = ano;
+                if (anoMin && anoMax) {
+                    url += `?s[min_year]=${anoMin}&s[max_year]=${anoMax}`;
+                } else if (ano) {
+                    url += `?s[min_year]=${ano-1}&s[max_year]=${ano+1}`;
+                }
+                return url;
+            };
+
+            grid.innerHTML = analyses.map(v => {
+                const score = v.ai_score || 0;
+                const scoreColor = score >= 7 ? '#10b981' : score >= 5 ? '#f59e0b' : '#ef4444';
+                const scoreBg = score >= 7 ? '#ecfdf5' : score >= 5 ? '#fffbeb' : '#fef2f2';
+
+                const rec = (v.ai_recommendation || 'N/A').toLowerCase();
+                const recConfig = {
+                    'comprar': { bg: '#dcfce7', color: '#166534', border: '#86efac', label: 'Comprar' },
+                    'excelente': { bg: '#dcfce7', color: '#166534', border: '#86efac', label: 'Excelente' },
+                    'considerar': { bg: '#dbeafe', color: '#1e40af', border: '#93c5fd', label: 'Considerar' },
+                    'cautela': { bg: '#fef3c7', color: '#92400e', border: '#fcd34d', label: 'Cautela' },
+                    'evitar': { bg: '#fee2e2', color: '#991b1b', border: '#fca5a5', label: 'Evitar' }
+                }[rec] || { bg: '#f1f5f9', color: '#475569', border: '#cbd5e1', label: rec || 'N/A' };
+
+                const formatPrice = (p) => p ? new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(p) : '-';
+                const discount = v.desconto_percentagem ? `${v.desconto_percentagem.toFixed(0)}%` : '-';
+                const discountColor = (v.desconto_percentagem || 0) >= 20 ? '#166534' : (v.desconto_percentagem || 0) > 0 ? '#1e40af' : '#64748b';
+                const poupanca = v.poupanca_estimada ? formatPrice(v.poupanca_estimada) : '-';
+
+                let pros = [];
+                try { pros = JSON.parse(v.ai_pros || '[]'); } catch(e) {}
+                let cons = [];
+                try { cons = JSON.parse(v.ai_cons || '[]'); } catch(e) {}
+
+                const yearKm = [v.ano, v.quilometros ? `${(v.quilometros/1000).toFixed(0)}k km` : null].filter(Boolean).join(' • ');
+
+                // Build verification URLs (using production year range if available)
+                const standVirtualUrl = buildStandVirtualUrl(v.marca, v.modelo, v.ano, v.combustivel, v.producao_inicio);
+                const autoUncleUrl = buildAutoUncleUrl(v.marca, v.modelo, v.ano, v.producao_inicio);
+
+                return `
+                    <div class="va-card" style="background: white; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.04);"
+                         data-recommendation="${rec}" data-score="${score}" data-price="${v.event_valor_base || 0}" data-date="${v.processed_at || ''}">
+
+                        <div style="display: flex; gap: 0;">
+                            <!-- Left: Image -->
+                            <div style="width: 280px; min-height: 220px; flex-shrink: 0; background: url('${v.capa || ''}') center/cover no-repeat, #f1f5f9; position: relative;">
+                                <div style="position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0.3) 0%, transparent 40%, transparent 60%, rgba(0,0,0,0.5) 100%);"></div>
+                                <!-- Reference -->
+                                <div style="position: absolute; top: 12px; left: 12px;">
+                                    <span style="background: rgba(255,255,255,0.95); padding: 5px 12px; border-radius: 6px; font-size: 12px; color: #374151; font-weight: 600;">${v.reference}</span>
+                                </div>
+                                <!-- Score -->
+                                <div style="position: absolute; bottom: 12px; right: 12px; background: ${scoreBg}; padding: 8px 12px; border-radius: 10px; text-align: center;">
+                                    <div style="font-size: 28px; font-weight: 800; color: ${scoreColor}; line-height: 1;">${score.toFixed(1)}</div>
+                                    <div style="font-size: 10px; color: #64748b;">/ 10</div>
+                                </div>
+                                <!-- Discount Badge -->
+                                ${(v.desconto_percentagem || 0) >= 10 ? `
+                                <div style="position: absolute; bottom: 12px; left: 12px; background: #dcfce7; border: 1px solid #86efac; padding: 6px 10px; border-radius: 8px;">
+                                    <span style="font-size: 14px; font-weight: 700; color: #166534;">-${discount}</span>
+                                </div>
+                                ` : ''}
+                            </div>
+
+                            <!-- Middle: Info -->
+                            <div style="flex: 1; padding: 16px; display: flex; flex-direction: column; border-right: 1px solid #e2e8f0;">
+                                <!-- Header Row -->
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                                    <div>
+                                        <div style="font-size: 18px; font-weight: 700; color: #0f172a; margin-bottom: 4px;">${v.marca || '-'} ${v.modelo || ''}</div>
+                                        <div style="font-size: 13px; color: #64748b;">${yearKm || '-'}${v.combustivel ? ' • ' + v.combustivel : ''}${v.potencia_cv ? ' • ' + v.potencia_cv + ' cv' : ''}</div>
+                                    </div>
+                                    <span style="background: ${recConfig.bg}; border: 1px solid ${recConfig.border}; padding: 6px 14px; border-radius: 8px; font-size: 13px; color: ${recConfig.color}; font-weight: 700;">${recConfig.label}</span>
+                                </div>
+
+                                <!-- Prices Grid -->
+                                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 14px; padding: 12px; background: #f8fafc; border-radius: 10px;">
+                                    <div>
+                                        <div style="font-size: 10px; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Valor Base</div>
+                                        <div style="font-size: 16px; font-weight: 700; color: #0f172a;">${formatPrice(v.event_valor_base)}</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-size: 10px; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Valor Mínimo</div>
+                                        <div style="font-size: 16px; font-weight: 700; color: #0f172a;">${formatPrice(v.valor_minimo)}</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-size: 10px; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Lance Atual</div>
+                                        <div style="font-size: 16px; font-weight: 700; color: ${(v.lance_atual_live || v.event_lance_atual) ? '#dc2626' : '#94a3b8'};">${(v.lance_atual_live || v.event_lance_atual) ? formatPrice(v.lance_atual_live || v.event_lance_atual) : '-'}</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-size: 10px; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Mercado Méd</div>
+                                        <div style="font-size: 16px; font-weight: 600; color: #64748b;">${formatPrice(v.market_preco_medio)}</div>
+                                    </div>
+                                </div>
+
+                                <!-- Verify Prices Links -->
+                                <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                                    <a href="${standVirtualUrl}" target="_blank" onclick="event.stopPropagation();" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 12px; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; font-size: 11px; font-weight: 600; color: #c2410c; text-decoration: none; transition: all 0.2s;" onmouseover="this.style.background='#ffedd5'" onmouseout="this.style.background='#fff7ed'">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                                        Stand Virtual
+                                    </a>
+                                    <a href="${autoUncleUrl}" target="_blank" onclick="event.stopPropagation();" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 12px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; font-size: 11px; font-weight: 600; color: #1d4ed8; text-decoration: none; transition: all 0.2s;" onmouseover="this.style.background='#dbeafe'" onmouseout="this.style.background='#eff6ff'">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                                        Auto Uncle
+                                    </a>
+                                </div>
+
+                                <!-- AI Summary -->
+                                <div style="font-size: 13px; color: #475569; line-height: 1.6; flex: 1;">
+                                    ${v.ai_summary || 'Análise AI pendente...'}
+                                </div>
+
+                                <!-- Vehicle Details Row -->
+                                <div style="display: flex; gap: 16px; margin-top: 12px; padding-top: 12px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #64748b;">
+                                    ${v.matricula ? `<span>Matrícula: <strong style="color: #0f172a;">${v.matricula}</strong></span>` : ''}
+                                    ${v.tem_seguro !== null ? `<span>Seguro: <strong style="color: ${v.tem_seguro ? '#166534' : '#991b1b'};">${v.tem_seguro ? 'Sim' : 'Não'}</strong></span>` : ''}
+                                </div>
+                            </div>
+
+                            <!-- Right: Pros/Cons -->
+                            <div style="width: 320px; flex-shrink: 0; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+                                <!-- Pros -->
+                                <div style="flex: 1; background: #f0fdf4; border-radius: 10px; padding: 12px; border: 1px solid #bbf7d0;">
+                                    <div style="font-size: 11px; font-weight: 700; color: #166534; text-transform: uppercase; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                                        <span style="font-size: 14px;">✓</span> Pontos Fortes
+                                    </div>
+                                    <div style="font-size: 12px; color: #166534; line-height: 1.6;">
+                                        ${pros.length > 0 ? pros.map(p => `<div style="margin-bottom: 4px;">• ${p}</div>`).join('') : '<div style="opacity: 0.5;">Sem dados</div>'}
+                                    </div>
+                                </div>
+                                <!-- Cons -->
+                                <div style="flex: 1; background: #fef2f2; border-radius: 10px; padding: 12px; border: 1px solid #fecaca;">
+                                    <div style="font-size: 11px; font-weight: 700; color: #991b1b; text-transform: uppercase; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                                        <span style="font-size: 14px;">✗</span> Pontos Fracos
+                                    </div>
+                                    <div style="font-size: 12px; color: #991b1b; line-height: 1.6;">
+                                        ${cons.length > 0 ? cons.map(c => `<div style="margin-bottom: 4px;">• ${c}</div>`).join('') : '<div style="opacity: 0.5;">Sem dados</div>'}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function filterVehicleCards() {
+            const search = (document.getElementById('va-search')?.value || '').toLowerCase();
+            const recFilter = document.getElementById('va-filter-rec')?.value || '';
+
+            let filtered = allVehicleAnalyses.filter(v => {
+                const matchSearch = !search ||
+                    (v.marca || '').toLowerCase().includes(search) ||
+                    (v.modelo || '').toLowerCase().includes(search) ||
+                    (v.reference || '').toLowerCase().includes(search);
+
+                const matchRec = !recFilter || (v.ai_recommendation || '').toLowerCase() === recFilter;
+
+                return matchSearch && matchRec;
+            });
+
+            renderVehicleCards(filtered);
+            document.getElementById('va-cards-grid').style.display = filtered.length > 0 ? 'grid' : 'none';
+            document.getElementById('va-no-data').style.display = filtered.length === 0 ? 'block' : 'none';
+        }
+
+        function sortVehicleCards() {
+            const sortBy = document.getElementById('va-sort')?.value || 'score-desc';
+            let sorted = [...allVehicleAnalyses];
+
+            switch(sortBy) {
+                case 'score-desc':
+                    sorted.sort((a, b) => (b.ai_score || 0) - (a.ai_score || 0));
+                    break;
+                case 'score-asc':
+                    sorted.sort((a, b) => (a.ai_score || 0) - (b.ai_score || 0));
+                    break;
+                case 'discount-desc':
+                    sorted.sort((a, b) => (b.desconto_percentagem || 0) - (a.desconto_percentagem || 0));
+                    break;
+                case 'price-asc':
+                    sorted.sort((a, b) => (a.event_valor_base || 0) - (b.event_valor_base || 0));
+                    break;
+                case 'date-desc':
+                    sorted.sort((a, b) => new Date(b.processed_at || 0) - new Date(a.processed_at || 0));
+                    break;
+            }
+
+            allVehicleAnalyses = sorted;
+            filterVehicleCards();
+        }
+
+        async function refreshVehicleAnalyses() {
+            const icon = document.getElementById('ai-refresh-icon');
+            icon.style.animation = 'spin 1s linear infinite';
+            await loadVehicleAnalyses();
+            icon.style.animation = '';
+        }
+
+        // Legacy function - keep for compatibility
+        async function loadAiStats() {
+            // Now handled by loadVehicleAnalyses
         }
 
         async function loadAiPipelineStatus() {
@@ -13142,6 +13631,8 @@
                 </button>
                 <div class="inspection-carousel-indicators" id="inspection-indicators"></div>
             </div>
+
+            <!-- Details Content -->
             <div class="inspection-details" id="inspection-details">
                 <!-- Populated by JavaScript -->
             </div>

@@ -561,6 +561,8 @@ class EventVehicleDataDB(Base):
     modelo: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     versao: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     ano: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    producao_inicio: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # Production start year
+    producao_fim: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # Production end year
     combustivel: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     potencia_cv: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     potencia_kw: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
@@ -589,17 +591,38 @@ class EventVehicleDataDB(Base):
     poupanca_estimada: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True)
     desconto_percentagem: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
 
+    # Market price tracking
+    market_preco_fonte: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)  # 'database', 'scraping', 'ai_estimate'
+    market_preco_confianca: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)  # 'baixa', 'media', 'alta'
+    market_data_recolha: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+    # Calculated scores (0-10)
+    score_oportunidade: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    score_risco: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    score_liquidez: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+
     # AI Analysis
     ai_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # 1-10
     ai_recommendation: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)  # comprar/acompanhar/evitar
     ai_summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     ai_pros: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON array
     ai_cons: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON array
+    ai_checklist: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON array - checklist antes de licitar
+    ai_red_flags: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON array - alertas críticos
+    ai_lance_maximo_sugerido: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True)
     ai_questions_results: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON array
     ai_image_analyses: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON array
     ai_model_used: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     ai_tokens_used: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     ai_processing_time_ms: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+
+    # Estimated costs
+    custo_total_estimado: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True)
+    preco_revenda_minimo: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True)
+
+    # Feedback aggregation
+    feedback_score_medio: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    feedback_count: Mapped[int] = mapped_column(Integer, default=0)
 
     # Processing status
     status: Mapped[str] = mapped_column(String(20), default='pending')  # pending, processing, completed, failed
@@ -639,6 +662,126 @@ class AiPipelineStateDB(Base):
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+
+class MarketPricesDB(Base):
+    """
+    Cache of market prices scraped periodically from various sources.
+    Used for instant price lookups without real-time scraping.
+    """
+    __tablename__ = "market_prices"
+    __table_args__ = (
+        Index('idx_market_marca_modelo', 'marca', 'modelo'),
+        Index('idx_market_marca_modelo_ano', 'marca', 'modelo', 'ano'),
+        Index('idx_market_data_recolha', 'data_recolha'),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+
+    # Vehicle identification
+    marca: Mapped[str] = mapped_column(String(100), nullable=False)
+    modelo: Mapped[str] = mapped_column(String(150), nullable=False)
+    variante: Mapped[Optional[str]] = mapped_column(String(150), nullable=True)
+
+    # Characteristics
+    ano: Mapped[int] = mapped_column(Integer, nullable=False)
+    combustivel: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
+    quilometros_min: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    quilometros_max: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+
+    # Aggregated prices
+    preco_min: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True)
+    preco_max: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True)
+    preco_medio: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True)
+    preco_mediana: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True)
+    num_anuncios: Mapped[int] = mapped_column(Integer, default=0)
+
+    # Sample listings (JSON)
+    sample_listings: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Source and freshness
+    fonte: Mapped[str] = mapped_column(String(50), nullable=False)
+    confianca: Mapped[str] = mapped_column(String(20), default='media')
+    data_recolha: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+
+class AuctionHistoryDB(Base):
+    """
+    Historical record of past auctions for comparison.
+    Tracks what similar vehicles sold for.
+    """
+    __tablename__ = "auction_history"
+    __table_args__ = (
+        Index('idx_history_marca_modelo', 'marca', 'modelo'),
+        Index('idx_history_marca_modelo_ano', 'marca', 'modelo', 'ano'),
+        Index('idx_history_data_fim', 'data_fim'),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+
+    # Reference to original event
+    reference: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
+
+    # Vehicle identification
+    marca: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    modelo: Mapped[Optional[str]] = mapped_column(String(150), nullable=True)
+    variante: Mapped[Optional[str]] = mapped_column(String(150), nullable=True)
+    ano: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    combustivel: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
+
+    # Auction values
+    valor_base: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True)
+    valor_venda: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True)
+    vendido: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # Auction dates
+    data_inicio: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    data_fim: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class AnalysisFeedbackDB(Base):
+    """
+    User feedback on analysis quality for continuous improvement.
+    """
+    __tablename__ = "analysis_feedback"
+    __table_args__ = (
+        Index('idx_feedback_reference', 'reference'),
+        Index('idx_feedback_created', 'created_at'),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+
+    # Reference to analysis
+    reference: Mapped[str] = mapped_column(String(50), nullable=False)
+
+    # User ratings (0-10)
+    score_precisao: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    score_utilidade: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+
+    # What was wrong (checkboxes)
+    erro_preco: Mapped[bool] = mapped_column(Boolean, default=False)
+    erro_problemas_modelo: Mapped[bool] = mapped_column(Boolean, default=False)
+    erro_recomendacao: Mapped[bool] = mapped_column(Boolean, default=False)
+    falta_info: Mapped[bool] = mapped_column(Boolean, default=False)
+    outro_erro: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Actual outcome (if user bought)
+    comprou: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
+    preco_compra: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True)
+    satisfacao_compra: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+
+    # Additional feedback
+    comentario: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
 async def init_db():
@@ -753,8 +896,9 @@ class DatabaseManager:
             existing.longitude = event.longitude
             existing.matricula = event.matricula
             existing.osae360 = event.osae360
-            existing.descricao = event.descricao
-            existing.observacoes = event.observacoes
+            # Preserve existing descricao/observacoes if new value is empty (prevents API overwriting HTML-scraped data)
+            existing.descricao = event.descricao if event.descricao else existing.descricao
+            existing.observacoes = event.observacoes if event.observacoes else existing.observacoes
             existing.processo_id = event.processo_id
             existing.processo_numero = event.processo_numero
             existing.processo_comarca = event.processo_comarca
@@ -1012,8 +1156,9 @@ class DatabaseManager:
                     existing.longitude = event.longitude
                     existing.matricula = event.matricula
                     existing.osae360 = event.osae360
-                    existing.descricao = event.descricao
-                    existing.observacoes = event.observacoes
+                    # Preserve existing descricao/observacoes if new value is empty
+                    existing.descricao = event.descricao if event.descricao else existing.descricao
+                    existing.observacoes = event.observacoes if event.observacoes else existing.observacoes
                     existing.processo_id = event.processo_id
                     existing.processo_numero = event.processo_numero
                     existing.processo_comarca = event.processo_comarca
@@ -1144,6 +1289,17 @@ class DatabaseManager:
         event_db = result.scalar_one_or_none()
         return event_db.to_model() if event_db else None
 
+    async def get_events_by_refs(self, references: List[str]) -> List[EventData]:
+        """Fetch multiple events by their references"""
+        if not references:
+            return []
+
+        result = await self.session.execute(
+            select(EventDB).where(EventDB.reference.in_(references))
+        )
+        events_db = result.scalars().all()
+        return [event.to_model() for event in events_db]
+
     async def update_event_fields(self, reference: str, fields: dict) -> bool:
         """
         Update only specific fields of an event (partial update).
@@ -1181,7 +1337,8 @@ class DatabaseManager:
         tipo: Optional[str] = None,  # Legacy: filter by tipo name (Imóvel, Apartamento)
         tipo_evento: Optional[str] = None,  # Legacy: filter by tipo_evento string
         distrito: Optional[str] = None,
-        cancelado: Optional[bool] = None
+        cancelado: Optional[bool] = None,
+        ativo: Optional[bool] = None  # Filter by active status
     ) -> Tuple[List[EventData], int]:
         """Lista eventos com paginação e filtros"""
         query = select(EventDB)
@@ -1207,6 +1364,8 @@ class DatabaseManager:
             query = query.where(EventDB.distrito == distrito)
         if cancelado is not None:
             query = query.where(EventDB.cancelado == cancelado)
+        if ativo is not None:
+            query = query.where(EventDB.ativo == ativo)
 
         # Total count
         count_query = select(func.count()).select_from(query.subquery())
@@ -1236,6 +1395,37 @@ class DatabaseManager:
             .where(EventDB.data_fim > now)
             .where(EventDB.data_fim <= cutoff)
             .where(EventDB.cancelado == False)
+            .order_by(EventDB.data_fim.asc())
+        )
+
+        result = await self.session.execute(query)
+        events_db = result.scalars().all()
+        return [event.to_model() for event in events_db]
+
+    async def get_events_for_monitoring(self, hours_ahead: int = 1, minutes_behind: int = 10) -> List[EventData]:
+        """
+        Get events for X-Monitor: upcoming events AND recently ended events.
+
+        Args:
+            hours_ahead: Include events ending in the next X hours
+            minutes_behind: Include events that ended in the last X minutes
+
+        Returns:
+            List of events (both upcoming and recently ended)
+        """
+        from datetime import timedelta
+
+        now = datetime.utcnow()
+        cutoff_future = now + timedelta(hours=hours_ahead)
+        cutoff_past = now - timedelta(minutes=minutes_behind)
+
+        query = (
+            select(EventDB)
+            .where(EventDB.data_fim.isnot(None))
+            .where(EventDB.data_fim >= cutoff_past)  # Include recently ended
+            .where(EventDB.data_fim <= cutoff_future)
+            .where(EventDB.cancelado == False)
+            .where(EventDB.ativo == True)  # Only active events (not yet marked as finished)
             .order_by(EventDB.data_fim.asc())
         )
 

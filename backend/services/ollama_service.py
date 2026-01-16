@@ -13,7 +13,7 @@ from datetime import datetime
 
 # Ollama configuration
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2:3b")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.1:8b")
 OLLAMA_TIMEOUT = int(os.getenv("OLLAMA_TIMEOUT", "120"))  # seconds
 
 
@@ -64,6 +64,61 @@ class OllamaService:
             return {"healthy": False, "error": "Cannot connect to Ollama. Is it running?"}
         except Exception as e:
             return {"healthy": False, "error": str(e)}
+
+    async def generate(
+        self,
+        prompt: str,
+        model: Optional[str] = None,
+        temperature: float = 0.7,
+        max_tokens: int = 2048
+    ) -> Dict[str, Any]:
+        """
+        Generic generate method for custom prompts.
+
+        Args:
+            prompt: The prompt to send to Ollama
+            model: Optional model override (uses instance model if not specified)
+            temperature: Temperature for generation (0.0-1.0)
+            max_tokens: Maximum tokens to generate
+
+        Returns:
+            Dict with 'response' key containing the generated text, or 'error' key on failure
+        """
+        use_model = model or self.model
+
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.post(
+                    f"{self.base_url}/api/generate",
+                    json={
+                        "model": use_model,
+                        "prompt": prompt,
+                        "stream": False,
+                        "options": {
+                            "temperature": temperature,
+                            "num_predict": max_tokens,
+                        }
+                    }
+                )
+
+                if response.status_code != 200:
+                    return {"error": f"Ollama API error: {response.status_code} - {response.text}"}
+
+                data = response.json()
+                return {
+                    "response": data.get("response", ""),
+                    "model": data.get("model", use_model),
+                    "eval_count": data.get("eval_count", 0),
+                    "prompt_eval_count": data.get("prompt_eval_count", 0),
+                    "total_duration": data.get("total_duration", 0),
+                }
+
+        except httpx.ConnectError:
+            return {"error": "Cannot connect to Ollama. Is it running?"}
+        except httpx.TimeoutException:
+            return {"error": f"Ollama request timed out after {self.timeout}s"}
+        except Exception as e:
+            return {"error": str(e)}
 
     def _build_property_prompt(self, event: Dict[str, Any]) -> str:
         """Build analysis prompt for property (imovel)"""

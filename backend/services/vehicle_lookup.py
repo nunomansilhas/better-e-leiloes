@@ -160,16 +160,17 @@ def extract_vehicle_from_title(title: str) -> Dict[str, Optional[str]]:
     }
 
 
-async def search_standvirtual(marca: str, modelo: str = None, ano: int = None, combustivel: str = None, km: int = None, debug: bool = False) -> Optional[VehicleMarketData]:
+async def search_standvirtual(marca: str, modelo: str = None, ano: int = None, combustivel: str = None, km: int = None, ano_min: int = None, debug: bool = False) -> Optional[VehicleMarketData]:
     """
     Search Standvirtual for similar vehicles.
 
     Args:
         marca: Vehicle brand (e.g., "POLESTAR")
         modelo: Vehicle model (e.g., "POLESTAR 2")
-        ano: Vehicle year (e.g., 2023)
+        ano: Vehicle year / max year (e.g., 2011)
         combustivel: Fuel type (e.g., "ELÉTRICO", "Diesel", "Gasolina")
         km: Current mileage for filtering (+/- 25000 km range)
+        ano_min: Production start year (e.g., 2010 for 508 I)
         debug: Enable debug output
 
     Note: This uses Playwright and should be run locally, not on cloud servers
@@ -205,6 +206,15 @@ async def search_standvirtual(marca: str, modelo: str = None, ano: int = None, c
                 # Remove brand name from modelo if present (e.g., "POLESTAR 2" -> "2")
                 if marca_slug in modelo_clean:
                     modelo_clean = modelo_clean.replace(marca_slug, "").strip()
+
+                # Remove Roman numeral version suffixes (I, II, III, IV, V)
+                modelo_clean = re.sub(r'\s+(i{1,3}|iv|v)$', '', modelo_clean)
+
+                # Remove common suffixes that don't match StandVirtual categories
+                for suffix in [' phase', ' facelift', ' fl', ' restyling']:
+                    if modelo_clean.endswith(suffix):
+                        modelo_clean = modelo_clean[:-len(suffix)]
+
                 # If modelo has multiple parts, create proper slug
                 modelo_slug = modelo_clean.replace(" ", "-").replace(".", "-")
                 modelo_slug = re.sub(r'[^\w-]', '', modelo_slug)  # Remove special chars except -
@@ -212,12 +222,19 @@ async def search_standvirtual(marca: str, modelo: str = None, ano: int = None, c
                 if modelo_slug:
                     url = f"{url}/{modelo_slug}"
 
-            # Add year filter using /desde-{ano} format
-            if ano:
-                url = f"{url}/desde-{ano}"
+            # Add year filter using /desde-{ano_min} format and max year in query
+            # Use production start year (ano_min) for minimum, vehicle year (ano) for maximum
+            year_min = ano_min or ano
+            year_max = ano
+            if year_min:
+                url = f"{url}/desde-{year_min}"
 
             # Build query parameters
             params = []
+
+            # Add max year filter if we have a range
+            if year_max and year_min and year_max != year_min:
+                params.append(f"search[filter_float_first_registration_year:to]={year_max}")
 
             # Map fuel type to StandVirtual parameter values
             if combustivel:
@@ -350,18 +367,30 @@ async def search_standvirtual(marca: str, modelo: str = None, ano: int = None, c
                             if title and len(title) > 3:
                                 break
 
-                    # Get params (year, km, fuel)
+                    # Get params (year, km, fuel) - need ALL params, not just first
                     params_text = ""
                     params_selectors = [
                         '[data-testid="ad-parameters"]',
-                        'ul li',
+                        'ul',  # Get the whole ul, not individual li
                         '[class*="parameter"]',
                     ]
                     for psel in params_selectors:
                         params_el = await listing.query_selector(psel)
                         if params_el:
                             params_text = await params_el.inner_text()
-                            break
+                            if params_text and len(params_text) > 3:
+                                break
+
+                    # If params still empty, try getting all li elements and join them
+                    if not params_text or len(params_text) < 5:
+                        li_elements = await listing.query_selector_all('ul li')
+                        if li_elements:
+                            li_texts = []
+                            for li in li_elements[:5]:  # Max 5 params
+                                li_text = await li.inner_text()
+                                if li_text:
+                                    li_texts.append(li_text.strip())
+                            params_text = ' · '.join(li_texts)
 
                     if price > 500:  # Minimum reasonable price
                         results.append({
@@ -384,6 +413,27 @@ async def search_standvirtual(marca: str, modelo: str = None, ano: int = None, c
 
     if not results:
         return None
+
+    # Filter results to match target model more closely
+    if modelo:
+        # Extract key words from model (e.g., "C4 Grand Picasso" -> ["c4", "grand", "picasso"])
+        modelo_keywords = [w.lower() for w in re.sub(r'[^\w\s]', '', modelo).split() if len(w) > 1]
+        # Remove common words
+        modelo_keywords = [w for w in modelo_keywords if w not in ['de', 'e', 'ou', 'com']]
+
+        if modelo_keywords:
+            filtered_results = []
+            for r in results:
+                title_lower = r.get("titulo", "").lower()
+                # Check if most keywords match (at least 50%)
+                matches = sum(1 for kw in modelo_keywords if kw in title_lower)
+                if matches >= len(modelo_keywords) * 0.5:  # At least 50% of keywords must match
+                    filtered_results.append(r)
+
+            if filtered_results:
+                results = filtered_results
+                if debug:
+                    print(f"  [DEBUG] Filtered to {len(results)} results matching model keywords")
 
     prices = [r["preco"] for r in results]
 
@@ -521,14 +571,24 @@ async def lookup_plate_infomatricula_api(plate: str, debug: bool = False) -> Dic
                         except:
                             pass
 
-                    # Also check markFrom for manufacturing year
-                    if 'ano' not in result:
-                        mark_from = data.get('markFrom')
-                        if mark_from:
-                            try:
+                    # Production year range (markFrom - markTo)
+                    # This helps narrow down market searches
+                    mark_from = data.get('markFrom')
+                    if mark_from:
+                        try:
+                            result['producao_inicio'] = int(mark_from)
+                            # If no plateDate, use markFrom as year
+                            if 'ano' not in result:
                                 result['ano_fabrico'] = int(mark_from)
-                            except:
-                                pass
+                        except:
+                            pass
+
+                    mark_to = data.get('markTo')
+                    if mark_to:
+                        try:
+                            result['producao_fim'] = int(mark_to)
+                        except:
+                            pass
 
                     # Fuel type
                     result['combustivel'] = data.get('fuelType') or data.get('combustivel') or data.get('tipoCombustivel')
@@ -1137,10 +1197,17 @@ async def get_full_vehicle_info(plate: str, include_market: bool = True) -> Vehi
     return result
 
 
-async def search_autouncle(marca: str, modelo: str = None, ano: int = None, debug: bool = False) -> Optional[VehicleMarketData]:
+async def search_autouncle(marca: str, modelo: str = None, ano: int = None, ano_min: int = None, debug: bool = False) -> Optional[VehicleMarketData]:
     """
     Search AutoUncle.pt for vehicle market prices.
     Alternative to Standvirtual that may be more reliable.
+
+    Args:
+        marca: Vehicle brand
+        modelo: Vehicle model
+        ano: Vehicle year / max year
+        ano_min: Production start year
+        debug: Enable debug output
     """
     try:
         from playwright.async_api import async_playwright
@@ -1170,8 +1237,13 @@ async def search_autouncle(marca: str, modelo: str = None, ano: int = None, debu
                 modelo_slug = modelo.lower().replace(" ", "-").split('-')[0]
                 url = f"{url}/{modelo_slug}"
 
-            if ano:
-                url = f"{url}?year_from={ano-2}&year_to={ano+2}"
+            # Use production year range: s[min_year]=X&s[max_year]=Y
+            year_min = ano_min or (ano - 1 if ano else None)
+            year_max = ano
+            if year_min and year_max:
+                url = f"{url}?s[min_year]={year_min}&s[max_year]={year_max}"
+            elif ano:
+                url = f"{url}?s[min_year]={ano-1}&s[max_year]={ano+1}"
 
             if debug:
                 print(f"  [DEBUG] AutoUncle URL: {url}")
@@ -1255,20 +1327,21 @@ async def search_autouncle(marca: str, modelo: str = None, ano: int = None, debu
     )
 
 
-async def get_market_prices(marca: str, modelo: str = None, ano: int = None, combustivel: str = None, km: int = None, debug: bool = False) -> Optional[VehicleMarketData]:
+async def get_market_prices(marca: str, modelo: str = None, ano: int = None, combustivel: str = None, km: int = None, ano_min: int = None, debug: bool = False) -> Optional[VehicleMarketData]:
     """
     Get market prices from multiple sources. Tries StandVirtual first, then AutoUncle.
 
     Args:
         marca: Vehicle brand (e.g., "POLESTAR")
         modelo: Vehicle model (e.g., "POLESTAR 2")
-        ano: Vehicle year (e.g., 2023)
+        ano: Vehicle year (max year, e.g., 2011)
         combustivel: Fuel type (e.g., "ELÉTRICO", "Diesel", "Gasolina")
         km: Current mileage for filtering (+/- 25000 km range)
+        ano_min: Production start year (e.g., 2010 for 508 I)
         debug: Enable debug output
     """
     # Try StandVirtual first (with all filters)
-    result = await search_standvirtual(marca, modelo, ano, combustivel, km, debug)
+    result = await search_standvirtual(marca, modelo, ano, combustivel, km, ano_min, debug)
     if result and result.num_resultados > 0:
         return result
 
@@ -1276,7 +1349,7 @@ async def get_market_prices(marca: str, modelo: str = None, ano: int = None, com
     if debug:
         print("  [DEBUG] StandVirtual sem resultados, tentando AutoUncle...")
 
-    result = await search_autouncle(marca, modelo, ano, debug)
+    result = await search_autouncle(marca, modelo, ano, ano_min, debug)
     if result and result.num_resultados > 0:
         return result
 

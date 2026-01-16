@@ -24,12 +24,15 @@ if sys.platform == 'win32':
         loop = asyncio.ProactorEventLoop()
         asyncio.set_event_loop(loop)
 
-# nest_asyncio permite nested event loops (necessário para Playwright + uvicorn)
-try:
-    import nest_asyncio
-    nest_asyncio.apply()
-except ImportError:
-    pass  # nest_asyncio não instalado, tentar sem
+# nest_asyncio permite nested event loops (necessário para Playwright + APScheduler)
+# NOTA: nest_asyncio NÃO funciona com uvloop - uvicorn usa uvloop por defeito no Linux
+# Só aplicamos nest_asyncio em Windows onde uvloop não é usado
+if sys.platform == 'win32':
+    try:
+        import nest_asyncio
+        nest_asyncio.apply()
+    except ImportError:
+        pass
 
 # CRITICAL: Load .env BEFORE importing database!
 from dotenv import load_dotenv
@@ -869,31 +872,6 @@ async def get_distritos_for_tipo(tipo_id: int):
 # ============== END FILTER OPTIONS ENDPOINTS ==============
 
 
-@app.get("/api/events/{reference}", response_model=EventData)
-async def get_event(reference: str):
-    """
-    Obtém dados de um evento específico por referência.
-    
-    - **reference**: Referência do evento (ex: NP-2024-12345 ou LO-2024-67890)
-    
-    Retorna dados completos incluindo GPS, áreas, tipo, etc.
-    """
-    # Verifica cache primeiro
-    cached = await cache_manager.get(reference)
-    if cached:
-        return cached
-    
-    # Verifica base de dados
-    async with get_db() as db:
-        event = await db.get_event(reference)
-        if event:
-            await cache_manager.set(reference, event)
-            return event
-
-    # Evento não existe - retorna 404 (não faz auto-scraping)
-    raise HTTPException(status_code=404, detail=f"Evento não encontrado: {reference}")
-
-
 @app.get("/api/events", response_model=EventListResponse)
 async def get_events(
     page: int = Query(1, ge=1, description="Número da página"),
@@ -919,13 +897,111 @@ async def get_events(
             tipo_evento=tipo_evento,
             distrito=distrito
         )
-        
+
         return EventListResponse(
             events=events,
             total=total,
             page=page,
             limit=limit,
             pages=(total + limit - 1) // limit
+        )
+
+
+@app.post("/api/events/batch")
+async def get_events_batch(references: List[str]):
+    """
+    Fetch multiple events by their references.
+
+    - **references**: List of event references (max 100)
+
+    Returns list of events that were found.
+    """
+    if len(references) > 100:
+        raise HTTPException(status_code=400, detail="Maximum 100 references allowed")
+
+    async with get_db() as db:
+        events = await db.get_events_by_refs(references)
+        return {"events": events, "found": len(events), "requested": len(references)}
+
+
+@app.get("/api/events/{reference}", response_model=EventData)
+async def get_event(reference: str, skip_cache: bool = False):
+    """
+    Obtém dados de um evento específico por referência.
+
+    - **reference**: Referência do evento (ex: NP-2024-12345 ou LO-2024-67890)
+    - **skip_cache**: Se True, ignora o cache e busca direto da base de dados
+
+    Retorna dados completos incluindo GPS, áreas, tipo, etc.
+    """
+    # Verifica cache primeiro (se não for skip_cache)
+    if not skip_cache:
+        cached = await cache_manager.get(reference)
+        if cached:
+            return cached
+
+    # Verifica base de dados
+    async with get_db() as db:
+        event = await db.get_event(reference)
+        if event:
+            await cache_manager.set(reference, event)
+            return event
+
+    # Evento não existe - retorna 404 (não faz auto-scraping)
+    raise HTTPException(status_code=404, detail=f"Evento não encontrado: {reference}")
+
+
+@app.post("/api/events/{reference}/rescrape")
+async def rescrape_event_html(reference: str):
+    """
+    Força rescrape de um evento via HTML (Playwright).
+
+    Este endpoint usa scraping HTML direto para capturar campos que a API não retorna,
+    como observacoes, onuselimitacoes, etc.
+
+    - **reference**: Referência do evento (ex: LO1428362025)
+
+    ⚠️ Mais lento que o scrape normal, mas captura todos os campos.
+    """
+    try:
+        print(f"🔄 Rescrape HTML iniciado para {reference}")
+
+        # Scrape via HTML para capturar observacoes
+        event = await scraper.scrape_event_html(reference)
+
+        if not event:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Evento {reference} não encontrado"
+            )
+
+        # Guarda na base de dados
+        async with get_db() as db:
+            await db.save_event(event)
+
+        # Atualiza cache
+        await cache_manager.set(reference, event)
+
+        # Log
+        add_dashboard_log(f"🔄 Rescrape HTML: {reference} (observacoes: {'✅' if event.observacoes else '❌'})", "success")
+
+        return {
+            "success": True,
+            "reference": reference,
+            "observacoes": event.observacoes[:200] + "..." if event.observacoes and len(event.observacoes) > 200 else event.observacoes,
+            "descricao": event.descricao[:200] + "..." if event.descricao and len(event.descricao) > 200 else event.descricao,
+            "imagens_count": len(event.imagens) if event.imagens else 0,
+            "message": "Evento rescrapped com sucesso via HTML"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Erro rescrape HTML {reference}: {e}")
+        add_dashboard_log(f"❌ Rescrape HTML falhou: {reference} - {e}", "error")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao rescrape: {str(e)}"
         )
 
 
@@ -1809,8 +1885,9 @@ async def refresh_single_event(reference: str):
         return {
             "success": True,
             "reference": reference,
-            "lance_atual": event.valores.lanceAtual if event.valores else 0,
-            "data_fim": event.datas.dataFim.isoformat() if event.datas and event.datas.dataFim else None
+            "lance_atual": event.lance_atual or 0,
+            "data_fim": event.data_fim.isoformat() if event.data_fim else None,
+            "observacoes": event.observacoes[:200] + "..." if event.observacoes and len(event.observacoes) > 200 else event.observacoes,
         }
 
     except Exception as e:
@@ -1971,34 +2048,170 @@ async def get_volatile_data(reference: str):
         raise HTTPException(status_code=503, detail=f"Failed to fetch from e-leiloes.pt: {str(e)}")
 
 
+@app.get("/api/debug/db-observacoes/{reference}")
+async def debug_db_observacoes(reference: str):
+    """
+    Debug endpoint: Verifica o campo observacoes diretamente na base de dados.
+    """
+    from sqlalchemy import select, text
+    from database import EventDB
+
+    async with get_db() as db:
+        # Query raw SQL to see exactly what's in the database
+        result = await db.session.execute(
+            text("SELECT reference, observacoes, descricao FROM events WHERE reference = :ref"),
+            {"ref": reference}
+        )
+        row = result.fetchone()
+
+        if not row:
+            raise HTTPException(status_code=404, detail=f"Event not found in database: {reference}")
+
+        return {
+            "reference": row[0],
+            "observacoes_raw": row[1],
+            "observacoes_length": len(row[1]) if row[1] else 0,
+            "observacoes_preview": row[1][:500] + "..." if row[1] and len(row[1]) > 500 else row[1],
+            "descricao_length": len(row[2]) if row[2] else 0,
+            "descricao_preview": row[2][:200] + "..." if row[2] and len(row[2]) > 200 else row[2],
+        }
+
+
+@app.get("/api/debug/api-raw/{reference}")
+async def debug_api_raw(reference: str):
+    """
+    Debug endpoint: Mostra a resposta RAW da API do e-leiloes.pt para um evento.
+    Usa Playwright para bypass anti-bot. Útil para debug de campos como observacoes.
+    """
+    import json
+    from playwright.async_api import async_playwright
+
+    browser = None
+    playwright_instance = None
+
+    try:
+        playwright_instance = await async_playwright().start()
+        browser = await playwright_instance.chromium.launch(headless=True)
+        context = await browser.new_context(
+            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        )
+        page = await context.new_page()
+
+        # First visit main site to get session
+        await page.goto("https://www.e-leiloes.pt", wait_until='domcontentloaded', timeout=15000)
+
+        # Then fetch API
+        api_url = f"https://www.e-leiloes.pt/api/eventos/{reference}"
+        response = await page.goto(api_url, wait_until='domcontentloaded', timeout=15000)
+
+        if response.status != 200:
+            raise HTTPException(status_code=response.status, detail=f"API returned {response.status}")
+
+        body = await page.query_selector('body')
+        json_str = await body.inner_text()
+        data = json.loads(json_str)
+
+        item = data.get('item', {})
+
+        # Campos importantes para debug
+        return {
+            "reference": reference,
+            "api_url": api_url,
+            "campos_observacoes": {
+                "observacoes": item.get('observacoes'),
+                "observacao": item.get('observacao'),
+                "obs": item.get('obs'),
+                "notas": item.get('notas'),
+                "notasVeiculo": item.get('notasVeiculo'),
+                "observacoesVeiculo": item.get('observacoesVeiculo'),
+            },
+            "campos_descricao": {
+                "descricao": item.get('descricao'),
+                "descricaoVerba": item.get('descricaoVerba'),
+                "descricaoEvento": item.get('descricaoEvento'),
+            },
+            "todos_campos_com_obs_ou_nota": {
+                k: v for k, v in item.items()
+                if 'obs' in k.lower() or 'nota' in k.lower() or 'descri' in k.lower()
+            },
+            "item_keys": list(item.keys()) if item else [],
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+    finally:
+        if browser:
+            await browser.close()
+        if playwright_instance:
+            await playwright_instance.stop()
+
+
 @app.get("/api/test/eventos-mais-recentes")
 async def test_eventos_mais_recentes():
     """
     Test endpoint to check EventosMaisRecentes API response.
+    Uses Playwright to bypass anti-bot protection.
     """
-    import httpx
+    import json
+    from playwright.async_api import async_playwright
+
+    browser = None
+    playwright_instance = None
 
     try:
-        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True, verify=False) as client:
-            api_url = "https://www.e-leiloes.pt/api/EventosMaisRecentes/"
+        playwright_instance = await async_playwright().start()
+        browser = await playwright_instance.chromium.launch(headless=True)
+        context = await browser.new_context(
+            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            ignore_https_errors=True
+        )
+        page = await context.new_page()
 
-            headers = {
-                'Accept': 'application/json, text/plain, */*',
-                'Accept-Language': 'pt-PT,pt;q=0.9,en;q=0.8',
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Referer': 'https://www.e-leiloes.pt/',
-                'Origin': 'https://www.e-leiloes.pt'
-            }
+        # Visit main site first to establish session
+        await page.goto("https://www.e-leiloes.pt", wait_until='domcontentloaded', timeout=30000)
+        await asyncio.sleep(1)
 
-            response = await client.get(api_url, headers=headers)
+        # Now fetch the EventosMaisRecentes API
+        api_url = "https://www.e-leiloes.pt/api/EventosMaisRecentes/"
+        response = await page.goto(api_url, wait_until='domcontentloaded', timeout=15000)
+
+        status_code = response.status if response else 0
+
+        if status_code == 200:
+            body = await page.query_selector('body')
+            json_str = await body.inner_text() if body else ''
+            data = json.loads(json_str)
+
+            await page.close()
+            await context.close()
 
             return {
-                "status_code": response.status_code,
-                "headers": dict(response.headers),
-                "data": response.json() if response.status_code == 200 else response.text[:500]
+                "status_code": status_code,
+                "event_count": len(data) if isinstance(data, list) else len(data.get('items', data.get('eventos', []))),
+                "data": data
+            }
+        else:
+            content = await page.content()
+            await page.close()
+            await context.close()
+
+            return {
+                "status_code": status_code,
+                "error": content[:500]
             }
     except Exception as e:
         return {"error": str(e)}
+    finally:
+        try:
+            if browser:
+                await browser.close()
+        except:
+            pass
+        try:
+            if playwright_instance:
+                await playwright_instance.stop()
+        except:
+            pass
 
 
 @app.post("/api/db/fix-nulls")
