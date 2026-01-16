@@ -232,19 +232,29 @@ Considera valores típicos em Portugal.""",
         "template": """Com base nestes dados do veículo em leilão:
 
 VEÍCULO: {marca} {modelo} ({ano}, {combustivel})
-VALOR BASE: {valor_base}€
+QUILÓMETROS: {quilometros} km
+VALOR BASE LEILÃO: {valor_base}€
 LANCE ATUAL: {lance_atual}€
-DESCONTO ATUAL: {desconto_percentagem}%
-PREÇO MERCADO ESTIMADO: {preco_mercado}€
+
+COMPARAÇÃO COM MERCADO:
+- Preço mínimo mercado: {preco_mercado_min}€
+- Preço médio mercado: {preco_mercado}€
+- Desconto vs mercado: {desconto_percentagem}%
+
+ANÚNCIOS SIMILARES NO MERCADO:
+{market_listings}
+
 TEM SEGURO: {tem_seguro}
 
 PROBLEMAS MENCIONADOS NA DESCRIÇÃO:
 {problemas_conhecidos}
 
-ANÁLISE ADICIONAL DA DESCRIÇÃO:
-{analise_descricao}
-
-Dá a tua recomendação final.
+REGRAS OBRIGATÓRIAS PARA RECOMENDAÇÃO:
+1. Se KM > 300.000: Máximo "cautela", considerar "evitar"
+2. Se KM > 200.000: Máximo "considerar"
+3. Se preço leilão > preço mínimo mercado para carros com MENOS km: "evitar" ou "cautela"
+4. Se carro similar no mercado tem metade dos km pelo mesmo preço: "evitar"
+5. "comprar" ou "excelente" SÓ se: preço < mínimo mercado E km razoáveis (<150k)
 
 RESPONDE APENAS EM JSON COM ESTE FORMATO EXATO (sem texto adicional):
 {{
@@ -255,19 +265,20 @@ RESPONDE APENAS EM JSON COM ESTE FORMATO EXATO (sem texto adicional):
         "final": número 0-10
     }},
     "recomendacao": "evitar|cautela|considerar|comprar|excelente",
-    "resumo": "2-3 frases resumindo a análise",
+    "resumo": "2-3 frases resumindo a análise DE FORMA DIRETA - menciona KM se relevante",
     "lance_maximo_sugerido": número em euros,
     "pros": ["máximo 5 pontos positivos"],
-    "cons": ["máximo 5 pontos negativos"],
-    "red_flags": ["alertas críticos se existirem"],
+    "cons": ["máximo 5 pontos negativos - INCLUIR KM ELEVADOS SE >150k"],
+    "red_flags": ["alertas críticos - KM >200k DEVE aparecer aqui"],
     "checklist_antes_licitar": [
         "ação 1 a fazer antes de licitar",
         "ação 2",
         "..."
-    ]
+    ],
+    "comparacao_mercado": "frase comparando com anúncios similares"
 }}
 
-Sê objetivo e conservador nas recomendações.""",
+Sê DIRETO e REALISTA. Um carro de 460.000 km NÃO é um bom investimento.""",
         "default_output": {
             "scores": {
                 "oportunidade": 5,
@@ -305,14 +316,18 @@ class AIQuestionsService:
         self,
         vehicle_data: Dict[str, Any],
         market_price: Optional[float] = None,
+        market_price_min: Optional[float] = None,
+        market_listings: Optional[List[Dict]] = None,
         skip_questions: Optional[List[str]] = None
     ) -> VehicleAnalysisResult:
         """
         Run complete vehicle analysis with all questions.
 
         Args:
-            vehicle_data: Dict with vehicle info (marca, modelo, ano, etc.)
-            market_price: Optional market price for comparison
+            vehicle_data: Dict with vehicle info (marca, modelo, ano, quilometros, etc.)
+            market_price: Average market price for comparison
+            market_price_min: Minimum market price for comparison
+            market_listings: List of similar vehicles on market with km and price
             skip_questions: List of question IDs to skip
 
         Returns:
@@ -327,8 +342,8 @@ class AIQuestionsService:
         result.model_used = self.model
         start_time = datetime.now()
 
-        # Prepare base context
-        context = self._prepare_context(vehicle_data, market_price)
+        # Prepare base context with market data for comparison
+        context = self._prepare_context(vehicle_data, market_price, market_price_min, market_listings)
 
         # Track intermediate results for final recommendation
         problemas_conhecidos = []
@@ -406,19 +421,36 @@ class AIQuestionsService:
     def _prepare_context(
         self,
         vehicle_data: Dict[str, Any],
-        market_price: Optional[float] = None
+        market_price: Optional[float] = None,
+        market_price_min: Optional[float] = None,
+        market_listings: Optional[List[Dict]] = None
     ) -> Dict[str, Any]:
         """Prepare context dict for question templates"""
         valor_base = vehicle_data.get("valor_base") or 0
         lance_atual = vehicle_data.get("lance_atual") or valor_base
 
-        # Calculate discount
+        # Calculate discount vs market price
         desconto = 0
-        if valor_base and lance_atual and valor_base > 0:
-            desconto = round(((valor_base - lance_atual) / valor_base) * 100, 1)
+        if market_price and valor_base and market_price > 0:
+            desconto = round(((market_price - valor_base) / market_price) * 100, 1)
 
         descricao = vehicle_data.get("descricao") or "Sem descrição disponível"
         descricao_curta = descricao[:500] + "..." if len(descricao) > 500 else descricao
+
+        # Format market listings for AI context
+        listings_text = "Sem anúncios disponíveis para comparação"
+        if market_listings and len(market_listings) > 0:
+            listings_parts = []
+            for i, listing in enumerate(market_listings[:5], 1):  # Top 5 listings
+                km = listing.get('km', 'N/A')
+                price = listing.get('preco', listing.get('price', 'N/A'))
+                year = listing.get('ano', listing.get('year', 'N/A'))
+                title = listing.get('titulo', listing.get('title', ''))[:50]
+                listings_parts.append(f"{i}. {title} - {year}, {km} km, {price}€")
+            listings_text = "\n".join(listings_parts)
+
+        # Get quilometros
+        quilometros = vehicle_data.get("quilometros") or vehicle_data.get("km") or "Desconhecido"
 
         return {
             "marca": vehicle_data.get("marca") or "Desconhecida",
@@ -427,6 +459,7 @@ class AIQuestionsService:
             "ano": vehicle_data.get("ano") or "Desconhecido",
             "combustivel": vehicle_data.get("combustivel") or "Desconhecido",
             "potencia": vehicle_data.get("potencia_cv") or "Desconhecida",
+            "quilometros": quilometros,
             "titulo": vehicle_data.get("titulo") or "",
             "descricao": descricao,
             "descricao_curta": descricao_curta,
@@ -434,6 +467,8 @@ class AIQuestionsService:
             "lance_atual": lance_atual,
             "desconto_percentagem": desconto,
             "preco_mercado": market_price or "Desconhecido",
+            "preco_mercado_min": market_price_min or "Desconhecido",
+            "market_listings": listings_text,
             "tem_seguro": "Sim" if vehicle_data.get("tem_seguro") else "Não/Desconhecido",
         }
 

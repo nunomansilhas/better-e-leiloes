@@ -1620,7 +1620,7 @@ async def complete_vehicle_analysis_v2(
         try:
             ai_service = get_ai_questions_service(model=ai_model)
 
-            # Prepare vehicle data for AI
+            # Prepare vehicle data for AI - include all available info
             ai_vehicle_data = {
                 **vehicle_info,
                 'titulo': event_dict.get('titulo'),
@@ -1628,11 +1628,22 @@ async def complete_vehicle_analysis_v2(
                 'valor_base': event_dict.get('valor_base'),
                 'lance_atual': event_dict.get('lance_atual'),
                 'tem_seguro': insurance_info.get('tem_seguro'),
+                # Add quilometros from description if not in vehicle_info
+                'quilometros': vehicle_info.get('quilometros') or event_dict.get('quilometros'),
             }
+
+            # Get market listings for comparison
+            market_listings = []
+            market_price_min = None
+            if market_result:
+                market_price_min = market_result.preco_min
+                market_listings = market_result.listings if hasattr(market_result, 'listings') else []
 
             ai_result = await ai_service.analyze_vehicle(
                 vehicle_data=ai_vehicle_data,
-                market_price=market_price
+                market_price=market_price,
+                market_price_min=market_price_min,
+                market_listings=market_listings
             )
 
             # Save AI results
