@@ -51,6 +51,19 @@ async def run_in_proactor(coro_func, *args, **kwargs):
     return await main_loop.run_in_executor(get_proactor_executor(), thread_target)
 
 
+async def scrape_refs_with_new_scraper(references: list):
+    """
+    Helper function that creates a fresh scraper and scrapes references.
+    This ensures the browser is initialized in the correct thread/loop.
+    """
+    from scraper import EventScraper
+    scraper = EventScraper()
+    try:
+        return await scraper.scrape_details_via_api(references)
+    finally:
+        await scraper.close()
+
+
 # nest_asyncio para nested event loops (APScheduler + Playwright)
 # NOTA: nest_asyncio NÃO funciona com uvloop - só aplicar em Windows
 if sys.platform == 'win32':
@@ -1476,7 +1489,8 @@ class AutoPipelinesManager:
                 if new_ids:
                     print(f"  🆕 {len(new_ids)} novos IDs, a obter dados via API...")
                     new_refs = [item['reference'] for item in new_ids]
-                    events = await run_in_proactor(scraper.scrape_details_via_api, new_refs)
+                    # Use helper that creates fresh scraper in correct thread/loop
+                    events = await run_in_proactor(scrape_refs_with_new_scraper, new_refs)
 
                     # Process notifications for new events
                     from notification_engine import process_new_events_batch
