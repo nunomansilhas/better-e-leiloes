@@ -161,37 +161,73 @@ class EnhancedAIAnalysisService:
 
     async def _analyze_image(self, image_url: str, prompt: str) -> Dict[str, Any]:
         """Analyze an image using LLaVA"""
+        import asyncio
         start_time = time.time()
 
         # Download image and convert to base64
         # Note: verify=False needed for e-leiloes.pt SSL certificate issues
-        async with httpx.AsyncClient(timeout=30, verify=False) as client:
-            img_response = await client.get(image_url)
-            if img_response.status_code != 200:
-                return {"error": f"Failed to download image: {img_response.status_code}"}
+        image_base64 = None
+        max_retries = 3
 
-            image_base64 = base64.b64encode(img_response.content).decode('utf-8')
+        for attempt in range(max_retries):
+            try:
+                async with httpx.AsyncClient(timeout=60, verify=False) as client:
+                    img_response = await client.get(image_url, follow_redirects=True)
+                    if img_response.status_code != 200:
+                        return {"error": f"Failed to download image: HTTP {img_response.status_code}"}
+                    image_base64 = base64.b64encode(img_response.content).decode('utf-8')
+                    break  # Success
+            except httpx.ConnectError as e:
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(1)  # Wait before retry
+                    continue
+                return {"error": f"Cannot connect to image server: {str(e)[:100]}"}
+            except httpx.TimeoutException:
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(1)
+                    continue
+                return {"error": "Image download timeout"}
+            except Exception as e:
+                return {"error": f"Image download error: {str(e)[:100]}"}
 
-        # Send to LLaVA
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            response = await client.post(
-                f"{self.base_url}/api/generate",
-                json={
-                    "model": self.vision_model,
-                    "prompt": prompt,
-                    "images": [image_base64],
-                    "stream": False,
-                    "options": {
-                        "temperature": 0.5,
-                        "num_predict": 512,
-                    }
-                }
-            )
+        if not image_base64:
+            return {"error": "Failed to download image after retries"}
 
-            if response.status_code != 200:
-                return {"error": f"LLaVA error: {response.status_code}"}
+        # Send to LLaVA with retry
+        for attempt in range(max_retries):
+            try:
+                async with httpx.AsyncClient(timeout=self.timeout) as client:
+                    response = await client.post(
+                        f"{self.base_url}/api/generate",
+                        json={
+                            "model": self.vision_model,
+                            "prompt": prompt,
+                            "images": [image_base64],
+                            "stream": False,
+                            "options": {
+                                "temperature": 0.5,
+                                "num_predict": 512,
+                            }
+                        }
+                    )
 
-            data = response.json()
+                    if response.status_code != 200:
+                        return {"error": f"LLaVA error: HTTP {response.status_code}"}
+
+                    data = response.json()
+                    break  # Success
+            except httpx.ConnectError as e:
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(2)
+                    continue
+                return {"error": f"Cannot connect to Ollama at {self.base_url}: {str(e)[:100]}"}
+            except httpx.TimeoutException:
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(2)
+                    continue
+                return {"error": f"Ollama timeout ({self.timeout}s)"}
+            except Exception as e:
+                return {"error": f"Ollama error: {str(e)[:100]}"}
 
         return {
             "response": data.get("response", ""),
