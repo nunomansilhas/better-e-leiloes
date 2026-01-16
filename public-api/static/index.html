@@ -61,6 +61,86 @@
             transition: background 0.3s ease, color 0.3s ease;
         }
 
+        /* ============ ENTRANCE ANIMATIONS ============ */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes fadeInScale {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .animate-fade-in-up {
+            animation: fadeInUp 0.4s ease-out forwards;
+        }
+
+        .animate-fade-in-left {
+            animation: fadeInLeft 0.3s ease-out forwards;
+        }
+
+        .animate-fade-in-scale {
+            animation: fadeInScale 0.3s ease-out forwards;
+        }
+
+        .animate-slide-in-right {
+            animation: slideInRight 0.3s ease-out forwards;
+        }
+
+        .animate-pulse {
+            animation: pulse 0.3s ease-in-out;
+        }
+
+        /* Staggered animation delays for lists */
+        .stagger-1 { animation-delay: 0.05s; }
+        .stagger-2 { animation-delay: 0.1s; }
+        .stagger-3 { animation-delay: 0.15s; }
+        .stagger-4 { animation-delay: 0.2s; }
+        .stagger-5 { animation-delay: 0.25s; }
+        .stagger-6 { animation-delay: 0.3s; }
+        .stagger-7 { animation-delay: 0.35s; }
+        .stagger-8 { animation-delay: 0.4s; }
+
         /* ============ DARK MODE OVERRIDES ============ */
         [data-theme="dark"] .main-content {
             background: var(--bg-primary);
@@ -3561,6 +3641,12 @@
                 <span>Notificações</span>
                 <span class="nav-badge" id="nav-alerts-badge" style="display: none;">0</span>
             </div>
+            <div class="nav-item" onclick="showPage('ai-assistant')" data-page="ai-assistant">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                </svg>
+                <span>AI Assistant</span>
+            </div>
             <!-- Scraping & Sync removed for public API -->
         </nav>
 
@@ -3884,7 +3970,7 @@
                 </div>
 
                 <!-- New Events Banner -->
-                <div style="background: white; border-radius: 12px; padding: 12px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid #e5e7eb; grid-column: span 2; overflow: hidden;">
+                <div style="background: white; border-radius: 12px; padding: 12px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid #e5e7eb; overflow: hidden;">
                     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <span style="font-weight: 600; color: #1e293b; font-size: 13px;">Novos Eventos</span>
@@ -3901,14 +3987,20 @@
                 </div>
 
                 <!-- Meus Favoritos / Eventos com Notificações -->
-                <div style="background: white; border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); grid-column: span 2;">
+                <div style="background: white; border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); overflow: hidden;">
                     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <span style="font-size: 16px;">🔔</span>
                             <span style="font-weight: 600; color: #1e293b; font-size: 14px;">Meus Favoritos</span>
                             <span id="favorites-count" style="background: #dbeafe; color: #2563eb; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px;">0</span>
                         </div>
-                        <button onclick="showPage('alertas')" style="padding: 4px 8px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer; font-size: 10px; color: #64748b; transition: all 0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#f8fafc'">Gerir Alertas</button>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <div style="display: flex; gap: 6px;">
+                                <button onclick="scrollFavorites('left')" style="background: #f1f5f9; border: 1px solid #e2e8f0; width: 24px; height: 24px; border-radius: 6px; color: #64748b; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">‹</button>
+                                <button onclick="scrollFavorites('right')" style="background: #f1f5f9; border: 1px solid #e2e8f0; width: 24px; height: 24px; border-radius: 6px; color: #64748b; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">›</button>
+                            </div>
+                            <button onclick="showPage('favoritos')" style="padding: 4px 8px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer; font-size: 10px; color: #64748b; transition: all 0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#f8fafc'">Ver todos</button>
+                        </div>
                     </div>
                     <div id="favorites-widget-content" style="display: flex; gap: 10px; overflow-x: auto; scroll-behavior: smooth; padding: 4px 0; scrollbar-width: none; -ms-overflow-style: none;">
                         <div style="text-align: center; padding: 20px; color: #94a3b8; width: 100%;">
@@ -3928,6 +4020,18 @@
                 <div>
                     <h2>Todos os Eventos</h2>
                     <p>Todos os eventos disponíveis em leilão</p>
+                </div>
+                <div class="keyboard-hints" style="display: flex; gap: 8px; align-items: center; background: #f1f5f9; padding: 6px 12px; border-radius: 8px; font-size: 11px; color: #64748b;">
+                    <span style="font-weight: 500;">Atalhos:</span>
+                    <kbd style="background: white; padding: 2px 6px; border-radius: 4px; border: 1px solid #e2e8f0; font-family: monospace;">J</kbd>
+                    <kbd style="background: white; padding: 2px 6px; border-radius: 4px; border: 1px solid #e2e8f0; font-family: monospace;">K</kbd>
+                    <span>navegar</span>
+                    <kbd style="background: white; padding: 2px 6px; border-radius: 4px; border: 1px solid #e2e8f0; font-family: monospace;">Enter</kbd>
+                    <span>abrir</span>
+                    <kbd style="background: white; padding: 2px 6px; border-radius: 4px; border: 1px solid #e2e8f0; font-family: monospace;">F</kbd>
+                    <span>favorito</span>
+                    <kbd style="background: white; padding: 2px 6px; border-radius: 4px; border: 1px solid #e2e8f0; font-family: monospace;">Esc</kbd>
+                    <span>fechar</span>
                 </div>
             </div>
 
@@ -3968,8 +4072,14 @@
                             <option value="valorBase_desc">Valor base (alto)</option>
                             <option value="lanceAtual_desc">Lance atual (alto)</option>
                         </select>
-                        <select class="filter-select" id="distrito-eventos" title="Distrito">
+                        <select class="filter-select" id="distrito-eventos" title="Distrito" onchange="onDistritoChange('eventos')">
                             <option value="">Todos os distritos</option>
+                        </select>
+                        <select class="filter-select" id="concelho-eventos" title="Concelho" onchange="onConcelhoChange('eventos')" disabled>
+                            <option value="">Todos os concelhos</option>
+                        </select>
+                        <select class="filter-select" id="freguesia-eventos" title="Freguesia" disabled>
+                            <option value="">Todas as freguesias</option>
                         </select>
                     </div>
                     <div class="filters-buttons">
@@ -4557,6 +4667,87 @@
             </div>
         </div>
 
+        <!-- ========== AI ASSISTANT PAGE ========== -->
+        <div id="ai-assistant" class="page">
+            <div class="page-header" style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div>
+                    <h2>AI Assistant</h2>
+                    <p>Análise inteligente de veículos em leilão</p>
+                </div>
+                <button onclick="refreshVehicleAnalyses()" style="padding: 8px 16px; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; border: none; border-radius: 8px; font-size: 12px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                    <span id="ai-refresh-icon" style="font-size: 14px;">↻</span> Atualizar
+                </button>
+            </div>
+
+            <!-- Stats Cards -->
+            <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 24px;">
+                <div class="stats-card">
+                    <div class="stats-card-value" id="va-stat-total">0</div>
+                    <div class="stats-card-label">Analisados</div>
+                </div>
+                <div class="stats-card" style="border-left: 3px solid #10b981;">
+                    <div class="stats-card-value" style="color: #10b981;" id="va-stat-buy">0</div>
+                    <div class="stats-card-label">Comprar</div>
+                </div>
+                <div class="stats-card" style="border-left: 3px solid #3b82f6;">
+                    <div class="stats-card-value" style="color: #3b82f6;" id="va-stat-consider">0</div>
+                    <div class="stats-card-label">Considerar</div>
+                </div>
+                <div class="stats-card" style="border-left: 3px solid #f59e0b;">
+                    <div class="stats-card-value" style="color: #f59e0b;" id="va-stat-caution">0</div>
+                    <div class="stats-card-label">Cautela</div>
+                </div>
+                <div class="stats-card" style="border-left: 3px solid #ef4444;">
+                    <div class="stats-card-value" style="color: #ef4444;" id="va-stat-avoid">0</div>
+                    <div class="stats-card-label">Evitar</div>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <div style="display: flex; gap: 8px; flex: 1;">
+                    <input type="text" id="va-search" placeholder="Pesquisar marca, modelo, referência..."
+                        style="flex: 1; max-width: 300px; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 12px; background: white;"
+                        oninput="filterVehicleCards()">
+                    <select id="va-filter-rec" onchange="filterVehicleCards()" style="padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 12px; background: white;">
+                        <option value="">Todas Recomendações</option>
+                        <option value="comprar">Comprar</option>
+                        <option value="excelente">Excelente</option>
+                        <option value="considerar">Considerar</option>
+                        <option value="cautela">Cautela</option>
+                        <option value="evitar">Evitar</option>
+                    </select>
+                    <select id="va-sort" onchange="sortVehicleCards()" style="padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 12px; background: white;">
+                        <option value="score-desc">Score ↓</option>
+                        <option value="score-asc">Score ↑</option>
+                        <option value="discount-desc">Desconto ↓</option>
+                        <option value="price-asc">Preço ↑</option>
+                        <option value="date-desc">Mais Recente</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Loading State -->
+            <div id="va-loading" style="text-align: center; padding: 60px 20px;">
+                <div class="loading-spinner" style="margin: 0 auto 16px;"></div>
+                <div style="color: #64748b; font-size: 14px;">A carregar análises...</div>
+            </div>
+
+            <!-- No Data State -->
+            <div id="va-no-data" style="display: none; text-align: center; padding: 60px 20px;">
+                <svg fill="none" stroke="#94a3b8" stroke-width="1.5" viewBox="0 0 24 24" width="64" height="64" style="margin: 0 auto 16px;">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                </svg>
+                <h3 style="color: #64748b; font-weight: 500; margin-bottom: 8px;">Sem análises disponíveis</h3>
+                <p style="color: #94a3b8; font-size: 13px;">Execute a pipeline AI no backend para analisar veículos</p>
+            </div>
+
+            <!-- Vehicle Cards List (Full Width) -->
+            <div id="va-cards-grid" style="display: none; display: flex; flex-direction: column; gap: 16px;">
+                <!-- Cards populated by JS -->
+            </div>
+        </div>
+
         <!-- ========== FAVORITOS PAGE ========== -->
         <div id="favoritos" class="page">
             <div class="page-header" style="display: flex; justify-content: space-between; align-items: flex-start;">
@@ -4607,16 +4798,30 @@
                         <option value="price_desc">Preço: maior</option>
                     </select>
                 </div>
-                <button onclick="checkFavoritesPrices()" style="padding: 8px 16px; background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; font-size: 12px; color: #166534; cursor: pointer; display: flex; align-items: center; gap: 6px;">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="14" height="14">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                    </svg>
-                    Atualizar Preços
-                </button>
+                <div style="display: flex; gap: 8px;">
+                    <button onclick="checkFavoritesPrices()" style="padding: 8px 16px; background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; font-size: 12px; color: #166534; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="14" height="14">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                        Atualizar Preços
+                    </button>
+                    <button onclick="removeEndedFavorites()" style="padding: 8px 16px; background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px; font-size: 12px; color: #92400e; cursor: pointer; display: flex; align-items: center; gap: 6px;" title="Remover favoritos de eventos já terminados">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="14" height="14">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        Limpar Terminados
+                    </button>
+                    <button onclick="removeAllFavorites()" style="padding: 8px 16px; background: #fee2e2; border: 1px solid #fca5a5; border-radius: 8px; font-size: 12px; color: #dc2626; cursor: pointer; display: flex; align-items: center; gap: 6px;" title="Remover todos os favoritos">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="14" height="14">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                        </svg>
+                        Eliminar Todos
+                    </button>
+                </div>
             </div>
 
             <!-- Favorites List -->
-            <div id="favoritos-list" style="display: flex; flex-direction: column; gap: 12px;">
+            <div id="favoritos-list" style="display: flex; flex-direction: column; gap: 12px; overflow: hidden;">
                 <div class="loading"><div class="loading-spinner"></div><div class="loading-text">A carregar favoritos...</div></div>
             </div>
 
@@ -4986,6 +5191,40 @@
             menuBtn.classList.remove('active');
         }
 
+        // ============== FAVORITES CACHE (from /api/favorites) ==============
+        // Must be declared before FAVORITES object which uses getFavoritesFromCache
+        let favoritesCache = null;
+        let favoritesCacheTime = 0;
+        const FAVORITES_CACHE_TTL = 60000; // 1 minute cache
+
+        async function getFavoritesFromCache(forceRefresh = false) {
+            const now = Date.now();
+            if (!forceRefresh && favoritesCache && (now - favoritesCacheTime) < FAVORITES_CACHE_TTL) {
+                return favoritesCache;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/favorites`);
+                favoritesCache = await response.json();
+                favoritesCacheTime = now;
+                return favoritesCache;
+            } catch (error) {
+                console.error('Error fetching favorites:', error);
+                return favoritesCache || [];
+            }
+        }
+
+        function updateFavoritesCacheEntry(reference, add) {
+            if (!favoritesCache) return;
+            if (add) {
+                if (!favoritesCache.some(f => f.event_reference === reference)) {
+                    favoritesCache.push({ event_reference: reference });
+                }
+            } else {
+                favoritesCache = favoritesCache.filter(f => f.event_reference !== reference);
+            }
+        }
+
         // ============== FAVORITES MANAGEMENT (uses notification rules from DB) ==============
 
         const FAVORITES = {
@@ -4995,6 +5234,7 @@
             _cacheTTL: 60000, // 60 seconds (WebSocket handles real-time updates)
             _allRulesCache: [], // Cache for all rules (used by updateNotificationIcons)
             _pendingRequest: null, // Prevent duplicate simultaneous requests
+            _previousWidgetRefs: new Set(), // Track displayed favorites for animation
 
             async getAll() {
                 // Use cache if fresh
@@ -5051,14 +5291,20 @@
                         body: JSON.stringify(ruleData)
                     });
                     if (response.ok) {
-                        // Optimistically add to cache immediately
+                        // Optimistically add to ALL caches immediately
                         if (!this._cache.some(r => r.event_reference === reference)) {
                             this._cache.push({ event_reference: reference, active: true });
                         }
+                        if (favoritesCache && !favoritesCache.some(f => f.event_reference === reference)) {
+                            favoritesCache.push({ event_reference: reference });
+                        }
+                        // Update buttons IMMEDIATELY after cache update (sync)
+                        updateEndingSoonFavoriteButtons();
                         this._cacheTime = 0; // Mark for refresh on next getAll
                         if (typeof invalidateRulesCountCache === 'function') invalidateRulesCountCache();
                         this.updateWidget();
                         updateNotificationIcons();
+                        debouncedUpdateFavoriteStars();
                         showToast('Favorito adicionado', `${reference} foi adicionado aos favoritos`, 'success');
                     }
                 } catch (err) {
@@ -5076,12 +5322,18 @@
                             method: 'DELETE'
                         });
                         if (response.ok) {
-                            // Optimistically remove from cache immediately
+                            // Optimistically remove from ALL caches immediately
                             this._cache = this._cache.filter(r => r.event_reference !== reference);
+                            if (favoritesCache) {
+                                favoritesCache = favoritesCache.filter(f => f.event_reference !== reference);
+                            }
+                            // Update buttons IMMEDIATELY after cache update (sync)
+                            updateEndingSoonFavoriteButtons();
                             this._cacheTime = 0; // Mark for refresh on next getAll
                             if (typeof invalidateRulesCountCache === 'function') invalidateRulesCountCache();
                             this.updateWidget();
                             updateNotificationIcons();
+                            debouncedUpdateFavoriteStars();
                             showToast('Favorito removido', `${reference} foi removido dos favoritos`, 'info');
                         }
                     }
@@ -5113,7 +5365,8 @@
                 const container = document.getElementById('favorites-widget-content');
                 if (!container) return;
 
-                const favorites = await this.getAll();
+                // Use /api/favorites endpoint (not notification-rules)
+                const favorites = await getFavoritesFromCache();
                 const count = document.getElementById('favorites-count');
                 if (count) count.textContent = favorites.length;
 
@@ -5133,18 +5386,47 @@
                 let eventsData = {};
 
                 try {
-                    const response = await fetch(`${API_BASE}/api/events?limit=500&active_only=false`);
+                    // Fetch only the events we need using batch endpoint
+                    const response = await fetch(`${API_BASE}/api/events/batch`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(refs)
+                    });
                     const data = await response.json();
                     if (data.events) {
                         data.events.forEach(e => {
-                            if (refs.includes(e.reference)) {
-                                eventsData[e.reference] = e;
-                            }
+                            eventsData[e.reference] = e;
                         });
                     }
                 } catch (err) {
                     console.error('Error fetching favorites data:', err);
                 }
+
+                // Sort favorites by data_fim (soonest ending first, ended ones at the end)
+                favorites.sort((a, b) => {
+                    const eventA = eventsData[a.event_reference];
+                    const eventB = eventsData[b.event_reference];
+                    const now = new Date();
+                    const dateA = eventA?.data_fim ? new Date(eventA.data_fim) : null;
+                    const dateB = eventB?.data_fim ? new Date(eventB.data_fim) : null;
+
+                    // Events without dates go to the end
+                    if (!dateA && !dateB) return 0;
+                    if (!dateA) return 1;
+                    if (!dateB) return -1;
+
+                    // Ended events go after active ones
+                    const endedA = dateA < now;
+                    const endedB = dateB < now;
+                    if (endedA && !endedB) return 1;
+                    if (!endedA && endedB) return -1;
+
+                    // Both active or both ended: sort by date (soonest first for active, most recent first for ended)
+                    if (endedA && endedB) {
+                        return dateB - dateA; // Most recently ended first
+                    }
+                    return dateA - dateB; // Soonest ending first
+                });
 
                 // Build carousel cards similar to "Novos Eventos"
                 container.innerHTML = favorites.map(fav => {
@@ -5162,47 +5444,139 @@
 
                     const tipoEmoji = {1: '🏠', 2: '🚗', 3: '🔧', 4: '🪑', 5: '⚙️', 6: '📜'}[event.tipo_id] || '📦';
                     const lance = event.lance_atual ? `€${Number(event.lance_atual).toLocaleString('pt-PT')}` : '-';
-                    const dataFim = event.data_fim ? getTimeLeftShort(new Date(event.data_fim)) : '-';
-                    const isActive = event.ativo !== false && !event.terminado;
+                    const endDate = event.data_fim ? new Date(event.data_fim) : null;
+                    const hasEnded = endDate && endDate < new Date();
+                    const dataFim = endDate ? getTimeLeftShort(endDate) : '-';
+                    const isActive = event.ativo !== false && !event.terminado && !hasEnded;
                     const capa = event.capa || '';
                     const titulo = event.titulo || event.reference;
+                    const greyFilter = isActive ? '' : 'filter: grayscale(100%); opacity: 0.7;';
 
                     return `
-                        <div style="min-width: 200px; max-width: 200px; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid ${isActive ? '#e2e8f0' : '#fecaca'}; cursor: pointer; transition: all 0.2s;" onclick="openEventModal('${event.reference}')" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)'" onmouseout="this.style.transform='none'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.1)'">
+                        <div style="min-width: 200px; max-width: 200px; background: ${isActive ? 'white' : '#f8fafc'}; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid ${isActive ? '#e2e8f0' : '#d1d5db'}; cursor: pointer; transition: all 0.2s; ${greyFilter}" onclick="openInspectionModal('${event.reference}')" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)'" onmouseout="this.style.transform='none'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.1)'">
                             <div style="height: 100px; background: ${capa ? `url('${capa}') center/cover` : 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)'}; position: relative;">
                                 <div style="position: absolute; top: 6px; left: 6px; background: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; display: flex; align-items: center; gap: 4px;">
                                     ${tipoEmoji} ${event.reference}
                                 </div>
-                                <div style="position: absolute; top: 6px; right: 6px; background: ${isActive ? '#3b82f6' : '#ef4444'}; color: white; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 600;">
+                                <div style="position: absolute; top: 6px; right: 6px; background: ${isActive ? '#3b82f6' : '#6b7280'}; color: white; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 600;">
                                     ${isActive ? dataFim : 'Terminado'}
                                 </div>
                                 <button onclick="event.stopPropagation(); FAVORITES.remove('${event.reference}');" style="position: absolute; bottom: 6px; right: 6px; background: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.2);" title="Remover dos favoritos">🔔</button>
                             </div>
                             <div style="padding: 8px;">
-                                <div style="font-size: 10px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${titulo.substring(0, 40)}${titulo.length > 40 ? '...' : ''}</div>
-                                <div style="font-size: 13px; font-weight: 700; color: #1e293b; margin-top: 4px;">${lance}</div>
+                                <div style="font-size: 10px; color: ${isActive ? '#64748b' : '#9ca3af'}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${titulo.substring(0, 40)}${titulo.length > 40 ? '...' : ''}</div>
+                                <div style="font-size: 13px; font-weight: 700; color: ${isActive ? '#1e293b' : '#6b7280'}; margin-top: 4px;">${lance}</div>
                             </div>
                         </div>
                     `;
                 }).join('');
+
+                // Identify new favorites for animation
+                const currentRefs = new Set(favorites.map(f => f.event_reference));
+                const newRefs = favorites.filter(f => !this._previousWidgetRefs.has(f.event_reference)).map(f => f.event_reference);
+                const isFirstLoad = this._previousWidgetRefs.size === 0;
+
+                // Only animate on first load or when new favorites are added
+                if (isFirstLoad || newRefs.length > 0) {
+                    requestAnimationFrame(() => {
+                        const cards = container.children;
+                        Array.from(cards).forEach((card, i) => {
+                            // Get reference from card's onclick attribute or data
+                            const cardRef = favorites[i]?.event_reference;
+                            const isNew = isFirstLoad || newRefs.includes(cardRef);
+
+                            if (isNew) {
+                                card.style.opacity = '0';
+                                card.style.transform = 'translateY(15px)';
+                                setTimeout(() => {
+                                    card.style.transition = 'opacity 0.35s ease-out, transform 0.35s ease-out';
+                                    card.style.opacity = '1';
+                                    card.style.transform = 'translateY(0)';
+                                }, i * 60);
+                            }
+                        });
+                    });
+                }
+
+                // Update tracking
+                this._previousWidgetRefs = currentRefs;
             }
         };
 
         async function toggleFavorite(reference, eventData = {}) {
-            await FAVORITES.toggle(reference, eventData);
-            // Icons are updated by updateNotificationIcons() called in FAVORITES.add/remove
-            // Also update the star buttons in "A Terminar em Breve" (cache is updated optimistically)
-            updateEndingSoonFavoriteButtons();
+            // Get the button that was clicked for optimistic UI
+            const btn = document.querySelector(`button[data-favorite-ref="${reference}"]`);
+
+            // Check current state from cache (no API call - instant)
+            const favorites = await getFavoritesFromCache(false);
+            const isFav = favorites.some(f => f.event_reference === reference);
+
+            // OPTIMISTIC UI: Update button immediately
+            if (btn) {
+                btn.innerHTML = isFav ? '☆' : '⭐';
+                btn.style.color = isFav ? '#cbd5e1' : '#f59e0b';
+                btn.title = isFav ? 'Adicionar aos favoritos' : 'Remover dos favoritos';
+            }
+
+            // Update cache optimistically
+            if (isFav) {
+                // Remove from cache
+                if (favoritesCache) {
+                    favoritesCache = favoritesCache.filter(f => f.event_reference !== reference);
+                }
+            } else {
+                // Add to cache
+                if (favoritesCache && !favoritesCache.some(f => f.event_reference === reference)) {
+                    favoritesCache.push({ event_reference: reference });
+                }
+            }
+
+            // Update badge immediately with new count
+            const newCount = favoritesCache ? favoritesCache.length : 0;
+            updateFavoritesBadge(newCount, true);
+
+            // Now make the actual API call (in background)
+            try {
+                if (isFav) {
+                    await removeFavoriteQuiet(reference);
+                    showToast('Favorito removido', `${reference} removido`, 'info');
+                } else {
+                    await addToFavorites(reference, eventData);
+                    showToast('Favorito adicionado', `${reference} adicionado`, 'success');
+                }
+
+                // Refresh widget after API success
+                FAVORITES.updateWidget();
+
+            } catch (error) {
+                // REVERT on error
+                console.error('Error toggling favorite:', error);
+                showToast('Erro', 'Não foi possível atualizar favorito', 'error');
+
+                // Revert button state
+                if (btn) {
+                    btn.innerHTML = isFav ? '⭐' : '☆';
+                    btn.style.color = isFav ? '#f59e0b' : '#cbd5e1';
+                    btn.title = isFav ? 'Remover dos favoritos' : 'Adicionar aos favoritos';
+                }
+
+                // Revert cache
+                favoritesCache = null; // Force refresh on next access
+                await getFavoritesFromCache(true);
+                updateFavoritesBadge(favoritesCache?.length || 0, false);
+            }
         }
 
         // Update favorite star buttons in the "A Terminar em Breve" section
-        function updateEndingSoonFavoriteButtons() {
+        async function updateEndingSoonFavoriteButtons() {
             const buttons = document.querySelectorAll('button[data-favorite-ref]');
-            console.log('[FAV] Updating buttons:', buttons.length, 'Cache:', FAVORITES._cache.map(r => r.event_reference));
+            // Use favoritesCache (from /api/favorites) - same as updateFavoriteStars
+            const favorites = await getFavoritesFromCache();
+            const favReferences = new Set(favorites.map(f => f.event_reference));
+
             buttons.forEach(btn => {
                 const ref = btn.dataset.favoriteRef;
-                const isFav = FAVORITES.isFavoriteSync(ref);
-                console.log('[FAV] Button ref:', ref, 'isFav:', isFav);
+                const isFav = favReferences.has(ref);
                 btn.innerHTML = isFav ? '⭐' : '☆';
                 btn.style.color = isFav ? '#f59e0b' : '#cbd5e1';
                 btn.title = isFav ? 'Remover dos favoritos' : 'Adicionar aos favoritos';
@@ -5899,6 +6273,11 @@
 
             modal.classList.add('active');
             document.body.style.overflow = 'hidden';
+
+            // Add focus trap and ARIA attributes for accessibility
+            modal.setAttribute('role', 'dialog');
+            modal.setAttribute('aria-modal', 'true');
+            setTimeout(() => trapFocusInModal(modal), 100);
         }
 
         function closeInspectionModal() {
@@ -5906,6 +6285,223 @@
             modal.classList.remove('active');
             document.body.style.overflow = '';
             inspectionCurrentEvent = null;
+
+            // Reset to details tab when closing
+            switchInspectionTab('details');
+
+            // Restore focus to previous element
+            restoreFocus();
+        }
+
+        // ============== AI ANALYSIS TAB ==============
+
+        let currentAiData = null;
+
+        function switchInspectionTab(tab) {
+            const detailsTab = document.getElementById('inspection-details');
+            const aiTab = document.getElementById('inspection-ai-tab');
+            const tabDetails = document.getElementById('tab-details');
+            const tabAi = document.getElementById('tab-ai');
+
+            if (tab === 'details') {
+                detailsTab.style.display = 'block';
+                aiTab.style.display = 'none';
+                tabDetails.style.background = '#3b82f6';
+                tabDetails.style.color = 'white';
+                tabAi.style.background = '#334155';
+                tabAi.style.color = '#94a3b8';
+            } else if (tab === 'ai') {
+                detailsTab.style.display = 'none';
+                aiTab.style.display = 'block';
+                tabDetails.style.background = '#334155';
+                tabDetails.style.color = '#94a3b8';
+                tabAi.style.background = '#8b5cf6';
+                tabAi.style.color = 'white';
+
+                // Load AI data for current event
+                if (inspectionCurrentEvent) {
+                    loadAiAnalysis(inspectionCurrentEvent.reference);
+                }
+            }
+        }
+
+        async function loadAiAnalysis(reference) {
+            const loading = document.getElementById('ai-loading');
+            const noData = document.getElementById('ai-no-data');
+            const content = document.getElementById('ai-content');
+
+            loading.style.display = 'block';
+            noData.style.display = 'none';
+            content.style.display = 'none';
+
+            try {
+                // Try to get vehicle analysis data
+                const response = await fetch(`${API_BASE}/api/vehicle-data/${reference}`);
+
+                if (!response.ok) {
+                    loading.style.display = 'none';
+                    noData.style.display = 'block';
+                    return;
+                }
+
+                const data = await response.json();
+                currentAiData = data;
+
+                // Check if we have AI analysis
+                if (!data.ai_score && !data.ai_recommendation) {
+                    loading.style.display = 'none';
+                    noData.style.display = 'block';
+                    return;
+                }
+
+                // Display AI data
+                displayAiAnalysisTab(data);
+
+                loading.style.display = 'none';
+                content.style.display = 'block';
+
+            } catch (error) {
+                console.error('Error loading AI analysis:', error);
+                loading.style.display = 'none';
+                noData.style.display = 'block';
+            }
+        }
+
+        function displayAiAnalysisTab(data) {
+            const formatPrice = (price) => {
+                if (!price) return '-';
+                return new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(price);
+            };
+
+            // Score
+            const score = data.ai_score || 0;
+            const scoreEl = document.getElementById('ai-score-display');
+            scoreEl.textContent = score.toFixed(1);
+            scoreEl.style.color = score >= 7 ? '#10b981' : score >= 5 ? '#f59e0b' : '#ef4444';
+
+            const scoreFill = document.getElementById('ai-score-fill');
+            scoreFill.style.width = `${score * 10}%`;
+            scoreFill.style.background = score >= 7 ? '#10b981' : score >= 5 ? '#f59e0b' : '#ef4444';
+
+            // Recommendation badge
+            const rec = data.ai_recommendation || 'N/A';
+            const recBadge = document.getElementById('ai-rec-badge');
+            recBadge.textContent = rec.toUpperCase();
+            const recColors = {
+                'comprar': { bg: '#059669', color: 'white' },
+                'excelente': { bg: '#059669', color: 'white' },
+                'considerar': { bg: '#0891b2', color: 'white' },
+                'cautela': { bg: '#d97706', color: 'white' },
+                'evitar': { bg: '#dc2626', color: 'white' }
+            };
+            const recStyle = recColors[rec.toLowerCase()] || { bg: '#64748b', color: 'white' };
+            recBadge.style.background = recStyle.bg;
+            recBadge.style.color = recStyle.color;
+
+            // Summary
+            document.getElementById('ai-summary').textContent = data.ai_summary || 'Sem resumo disponível.';
+
+            // Collected Data (left column)
+            const collectedHtml = `
+                <div style="margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #334155;">
+                    <div style="color: #64748b; font-size: 9px;">VEÍCULO</div>
+                    <div style="font-weight: 600; color: #e2e8f0;">${data.marca || '-'} ${data.modelo || ''}</div>
+                    ${data.versao ? `<div style="color: #94a3b8; font-size: 10px;">${data.versao}</div>` : ''}
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+                    <div>
+                        <div style="color: #64748b; font-size: 9px;">ANO</div>
+                        <div style="font-weight: 500;">${data.ano || '-'}</div>
+                    </div>
+                    <div>
+                        <div style="color: #64748b; font-size: 9px;">COMBUSTÍVEL</div>
+                        <div style="font-weight: 500;">${data.combustivel || '-'}</div>
+                    </div>
+                    <div>
+                        <div style="color: #64748b; font-size: 9px;">POTÊNCIA</div>
+                        <div style="font-weight: 500;">${data.potencia_cv ? data.potencia_cv + ' cv' : '-'}</div>
+                    </div>
+                    <div>
+                        <div style="color: #64748b; font-size: 9px;">SEGURO</div>
+                        <div style="font-weight: 500; color: ${data.tem_seguro ? '#10b981' : '#ef4444'};">${data.tem_seguro ? '✓ Ativo' : '✗ Sem'}</div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('ai-collected-data').innerHTML = collectedHtml;
+
+            // Market Data (right column)
+            const marketHtml = `
+                <div style="margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #334155;">
+                    <div style="color: #64748b; font-size: 9px;">PREÇO MÉDIO MERCADO</div>
+                    <div style="font-size: 16px; font-weight: 700; color: #10b981;">${formatPrice(data.market_preco_medio)}</div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+                    <div>
+                        <div style="color: #64748b; font-size: 9px;">MÍNIMO</div>
+                        <div style="font-weight: 500;">${formatPrice(data.market_preco_min)}</div>
+                    </div>
+                    <div>
+                        <div style="color: #64748b; font-size: 9px;">MÁXIMO</div>
+                        <div style="font-weight: 500;">${formatPrice(data.market_preco_max)}</div>
+                    </div>
+                    <div>
+                        <div style="color: #64748b; font-size: 9px;">ANÚNCIOS</div>
+                        <div style="font-weight: 500;">${data.market_num_resultados || '-'}</div>
+                    </div>
+                    <div>
+                        <div style="color: #64748b; font-size: 9px;">DESCONTO</div>
+                        <div style="font-weight: 600; color: ${(data.desconto_percentagem || 0) > 0 ? '#10b981' : '#ef4444'};">
+                            ${data.desconto_percentagem ? data.desconto_percentagem.toFixed(0) + '%' : '-'}
+                        </div>
+                    </div>
+                </div>
+                ${data.ai_lance_maximo_sugerido ? `
+                    <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #334155;">
+                        <div style="color: #64748b; font-size: 9px;">LANCE MÁXIMO SUGERIDO</div>
+                        <div style="font-size: 14px; font-weight: 700; color: #f59e0b;">${formatPrice(data.ai_lance_maximo_sugerido)}</div>
+                    </div>
+                ` : ''}
+            `;
+            document.getElementById('ai-market-data').innerHTML = marketHtml;
+
+            // Pros
+            let pros = [];
+            try { pros = JSON.parse(data.ai_pros || '[]'); } catch(e) { pros = []; }
+            document.getElementById('ai-pros-list').innerHTML = pros.length > 0
+                ? pros.map(p => `<li>${p}</li>`).join('')
+                : '<li style="opacity: 0.6;">Sem pontos positivos identificados</li>';
+
+            // Cons
+            let cons = [];
+            try { cons = JSON.parse(data.ai_cons || '[]'); } catch(e) { cons = []; }
+            document.getElementById('ai-cons-list').innerHTML = cons.length > 0
+                ? cons.map(c => `<li>${c}</li>`).join('')
+                : '<li style="opacity: 0.6;">Sem pontos negativos identificados</li>';
+
+            // Red flags
+            let redFlags = [];
+            try { redFlags = JSON.parse(data.ai_red_flags || '[]'); } catch(e) { redFlags = []; }
+            const redFlagsSection = document.getElementById('ai-red-flags-section');
+            if (redFlags.length > 0) {
+                redFlagsSection.style.display = 'block';
+                document.getElementById('ai-red-flags-list').innerHTML = redFlags.map(r => `<li>${r}</li>`).join('');
+            } else {
+                redFlagsSection.style.display = 'none';
+            }
+
+            // Checklist
+            let checklist = [];
+            try { checklist = JSON.parse(data.ai_checklist || '[]'); } catch(e) { checklist = []; }
+            document.getElementById('ai-checklist').innerHTML = checklist.length > 0
+                ? checklist.map(c => `<li>${c}</li>`).join('')
+                : '<li>Verificar documentação do veículo</li><li>Confirmar estado mecânico</li><li>Definir lance máximo</li>';
+
+            // Metadata
+            document.getElementById('ai-model-info').textContent = data.ai_model_used || '-';
+            document.getElementById('ai-time-info').textContent = data.ai_processing_time_ms || '-';
+            document.getElementById('ai-date-info').textContent = data.processed_at
+                ? new Date(data.processed_at).toLocaleString('pt-PT')
+                : '-';
         }
 
         function inspectionCarouselPrev() {
@@ -6243,6 +6839,8 @@
                 loadAllEvents();
             } else if (['imoveis', 'veiculos', 'direitos', 'equipamentos', 'mobiliario', 'maquinas'].includes(pageId)) {
                 loadEvents(pageId);
+            } else if (pageId === 'ai-assistant') {
+                loadAiAssistantPage();
             }
 
             // Reset type filter when changing page
@@ -6482,6 +7080,7 @@
 
             // Pre-load favorites cache for sync checks during render
             await FAVORITES.getAll();
+            await getFavoritesFromCache(); // Also load favoritesCache for star buttons
 
             // Separate active and terminated events
             const activeEvents = endingSoonEvents.filter(e => !e.terminado);
@@ -6561,6 +7160,9 @@
 
             // Initial timer update
             updateEndingSoonTimers();
+
+            // Update favorite star buttons with correct state from favoritesCache
+            await updateEndingSoonFavoriteButtons();
 
             // Setup chart tooltip positioning
             setupChartTooltips();
@@ -6880,13 +7482,9 @@
                 }
             }
 
-            // Valor mínimo line (always show if valid)
+            // Valor mínimo line (always show if valid) - price shown in legend only
             if (vMinimo > 0 && vMinimoY >= padT - 5 && vMinimoY <= padT + chartH + 5) {
                 svg += `<line x1="${padL}" y1="${vMinimoY}" x2="${width - padR}" y2="${vMinimoY}" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="5,3" opacity="0.8"/>`;
-                if (isModal) {
-                    const minLabel = vMinimo >= 1000 ? Math.round(vMinimo / 1000) + 'k' : Math.round(vMinimo);
-                    svg += `<text x="${padL - 8}" y="${vMinimoY + 3}" font-size="9" fill="#f59e0b" text-anchor="end" font-weight="500">${minLabel}€</text>`;
-                }
             }
 
             svg += `<path d="${areaD}" fill="url(#${uid}-grad)"/>`;
@@ -7046,6 +7644,7 @@
         let recentBidsInterval = null;
         let recentBidsData = [];
         let recentBidsSort = { column: 'timestamp', direction: 'desc' };
+        let previousBidRefs = new Set(); // Track previous bids for animation
 
         async function loadRecentBidsWidget() {
             const container = document.getElementById('dash-recent-bids');
@@ -7197,7 +7796,30 @@
                 html += inactiveBids.map(renderBid).join('');
             }
 
+            // Track which bids are new
+            const currentRefs = new Set(recentBidsData.map(b => b.reference));
+            const newRefs = [...currentRefs].filter(ref => !previousBidRefs.has(ref));
+
             container.innerHTML = html;
+
+            // Animate new bids with slide-in effect
+            if (newRefs.length > 0 && previousBidRefs.size > 0) {
+                newRefs.forEach((ref, i) => {
+                    const row = container.querySelector(`[data-ref="${ref}"]`);
+                    if (row) {
+                        row.style.opacity = '0';
+                        row.style.transform = 'translateX(-20px)';
+                        setTimeout(() => {
+                            row.style.transition = 'opacity 0.4s ease-out, transform 0.4s ease-out';
+                            row.style.opacity = '1';
+                            row.style.transform = 'translateX(0)';
+                        }, i * 80);
+                    }
+                });
+            }
+
+            // Update previous refs
+            previousBidRefs = currentRefs;
 
             // Setup linked hover between tables
             setupLinkedHover();
@@ -7329,6 +7951,13 @@
 
         function scrollNewEvents(direction) {
             const track = document.getElementById('new-events-track');
+            if (!track) return;
+            const scrollAmount = 300;
+            track.scrollBy({ left: direction === 'right' ? scrollAmount : -scrollAmount, behavior: 'smooth' });
+        }
+
+        function scrollFavorites(direction) {
+            const track = document.getElementById('favorites-widget-content');
             if (!track) return;
             const scrollAmount = 300;
             track.scrollBy({ left: direction === 'right' ? scrollAmount : -scrollAmount, behavior: 'smooth' });
@@ -7479,11 +8108,44 @@
 
                 // Already sorted by scraped_at DESC from API
 
-                // Add cards (without animation for initial load)
-                events.forEach(e => {
+                // Identify which events are new (not seen before)
+                const currentRefs = new Set(events.map(e => e.reference));
+                const newRefs = events.filter(e => !previousNewEventRefs.has(e.reference)).map(e => e.reference);
+                const isFirstLoad = previousNewEventRefs.size === 0;
+
+                // Add cards - only animate if new or first load
+                events.forEach((e, i) => {
                     const card = createNewEventCard(e, false);
-                    track.appendChild(card);
+                    const isNewCard = newRefs.includes(e.reference);
+
+                    // Only animate new cards (not on every refresh)
+                    if (isNewCard && !isFirstLoad) {
+                        card.style.opacity = '0';
+                        card.style.transform = 'translateX(20px)';
+                        track.appendChild(card);
+                        setTimeout(() => {
+                            card.style.transition = 'opacity 0.35s ease-out, transform 0.35s ease-out';
+                            card.style.opacity = '1';
+                            card.style.transform = 'translateX(0)';
+                        }, i * 50);
+                    } else if (isFirstLoad) {
+                        // First load: stagger animation for all
+                        card.style.opacity = '0';
+                        card.style.transform = 'translateX(20px)';
+                        track.appendChild(card);
+                        setTimeout(() => {
+                            card.style.transition = 'opacity 0.35s ease-out, transform 0.35s ease-out';
+                            card.style.opacity = '1';
+                            card.style.transform = 'translateX(0)';
+                        }, i * 50);
+                    } else {
+                        // Existing card on refresh: no animation
+                        track.appendChild(card);
+                    }
                 });
+
+                // Update tracking
+                previousNewEventRefs = currentRefs;
 
                 // Update count
                 if (countBadge) countBadge.textContent = events.length;
@@ -7497,6 +8159,7 @@
         }
 
         // Load dashboard widgets on page load and refresh periodically
+        let previousNewEventRefs = new Set(); // Track previously displayed events
         loadDashboardWidgets();
         setInterval(loadDashboardWidgets, 60000); // Refresh every minute
 
@@ -7705,6 +8368,8 @@
                 const tipoId = document.getElementById('tipo-eventos')?.value || '';
                 const sortBy = document.getElementById('sort-eventos')?.value || '';
                 const distrito = document.getElementById('distrito-eventos')?.value || '';
+                const concelho = document.getElementById('concelho-eventos')?.value || '';
+                const freguesia = document.getElementById('freguesia-eventos')?.value || '';
 
                 // Apply filters
                 let events = [...allEventsCached];
@@ -7715,7 +8380,9 @@
                         e.reference.toLowerCase().includes(searchLower) ||
                         (e.detalhes?.tipo && e.detalhes.tipo.toLowerCase().includes(searchLower)) ||
                         (e.detalhes?.subtipo && e.detalhes.subtipo.toLowerCase().includes(searchLower)) ||
-                        (e.detalhes?.distrito && e.detalhes.distrito.toLowerCase().includes(searchLower))
+                        (e.detalhes?.distrito && e.detalhes.distrito.toLowerCase().includes(searchLower)) ||
+                        (e.detalhes?.concelho && e.detalhes.concelho.toLowerCase().includes(searchLower)) ||
+                        (e.detalhes?.freguesia && e.detalhes.freguesia.toLowerCase().includes(searchLower))
                     );
                 }
                 if (tipoId) {
@@ -7726,6 +8393,12 @@
                 }
                 if (distrito) {
                     events = events.filter(e => e.detalhes?.distrito === distrito);
+                }
+                if (concelho) {
+                    events = events.filter(e => e.detalhes?.concelho === concelho);
+                }
+                if (freguesia) {
+                    events = events.filter(e => e.detalhes?.freguesia === freguesia);
                 }
 
                 // Sort
@@ -7756,9 +8429,10 @@
                 if (pageEvents.length === 0) {
                     content.innerHTML = '<div style="text-align: center; padding: 40px; color: #94a3b8;">Nenhum evento encontrado</div>';
                 } else {
-                    const cardsHTML = pageEvents.map(e => createEventCardHTML(e)).join('');
+                    const cardsHTML = pageEvents.map((e, i) => createEventCardHTML(e, i)).join('');
                     content.innerHTML = `<div class="events-grid">${cardsHTML}</div>`;
                     setupCarouselDelegation(content, pageEvents);
+                    animateCards(content);
                 }
 
                 // Update pagination
@@ -7792,6 +8466,10 @@
                 // Update notification icons after events are loaded
                 updateNotificationIcons();
 
+                // Update favorite star button states
+                console.log('[loadAllEvents] Calling updateFavoriteStars');
+                await updateFavoriteStars();
+
             } catch (error) {
                 console.error('Erro ao carregar eventos:', error);
                 content.innerHTML = '<div style="text-align: center; padding: 40px; color: #ef4444;">Erro ao carregar eventos</div>';
@@ -7818,7 +8496,7 @@
 
             const debouncedSearch = debounce(() => loadAllEvents(1), 300);
 
-            ['search-eventos', 'tipo-eventos', 'sort-eventos', 'distrito-eventos'].forEach(id => {
+            ['search-eventos', 'tipo-eventos', 'sort-eventos', 'freguesia-eventos'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) {
                     el.addEventListener('change', () => loadAllEvents(1));
@@ -7827,6 +8505,7 @@
                     }
                 }
             });
+            // Note: distrito-eventos and concelho-eventos have onchange handlers in HTML
         }
 
         function clearFiltersEventos() {
@@ -7834,6 +8513,96 @@
             document.getElementById('tipo-eventos').value = '';
             document.getElementById('sort-eventos').value = '';
             document.getElementById('distrito-eventos').value = '';
+
+            // Clear and disable cascading filters
+            const concelhoSelect = document.getElementById('concelho-eventos');
+            const freguesiaSelect = document.getElementById('freguesia-eventos');
+            if (concelhoSelect) {
+                concelhoSelect.value = '';
+                concelhoSelect.innerHTML = '<option value="">Todos os concelhos</option>';
+                concelhoSelect.disabled = true;
+            }
+            if (freguesiaSelect) {
+                freguesiaSelect.value = '';
+                freguesiaSelect.innerHTML = '<option value="">Todas as freguesias</option>';
+                freguesiaSelect.disabled = true;
+            }
+
+            // Reset type badges
+            document.querySelectorAll('#eventos .type-badge').forEach(b => b.classList.remove('active'));
+            activeTypeFilter = null;
+
+            loadAllEvents(1);
+        }
+
+        // Cascading filter: when distrito changes, load concelhos
+        function onDistritoChange(page) {
+            const distritoSelect = document.getElementById(`distrito-${page}`);
+            const concelhoSelect = document.getElementById(`concelho-${page}`);
+            const freguesiaSelect = document.getElementById(`freguesia-${page}`);
+
+            if (!concelhoSelect) return;
+
+            const distrito = distritoSelect?.value || '';
+
+            // Reset concelho and freguesia
+            concelhoSelect.innerHTML = '<option value="">Todos os concelhos</option>';
+            freguesiaSelect.innerHTML = '<option value="">Todas as freguesias</option>';
+            freguesiaSelect.disabled = true;
+
+            if (!distrito) {
+                concelhoSelect.disabled = true;
+                loadAllEvents(1);
+                return;
+            }
+
+            // Get unique concelhos for this distrito from cached events
+            const concelhos = [...new Set(
+                allEventsCached
+                    .filter(e => e.detalhes?.distrito === distrito && e.detalhes?.concelho)
+                    .map(e => e.detalhes.concelho)
+            )].sort();
+
+            concelhoSelect.innerHTML = '<option value="">Todos os concelhos</option>' +
+                concelhos.map(c => `<option value="${c}">${c}</option>`).join('');
+            concelhoSelect.disabled = concelhos.length === 0;
+
+            loadAllEvents(1);
+        }
+
+        // Cascading filter: when concelho changes, load freguesias
+        function onConcelhoChange(page) {
+            const distritoSelect = document.getElementById(`distrito-${page}`);
+            const concelhoSelect = document.getElementById(`concelho-${page}`);
+            const freguesiaSelect = document.getElementById(`freguesia-${page}`);
+
+            if (!freguesiaSelect) return;
+
+            const distrito = distritoSelect?.value || '';
+            const concelho = concelhoSelect?.value || '';
+
+            // Reset freguesia
+            freguesiaSelect.innerHTML = '<option value="">Todas as freguesias</option>';
+
+            if (!concelho) {
+                freguesiaSelect.disabled = true;
+                loadAllEvents(1);
+                return;
+            }
+
+            // Get unique freguesias for this concelho from cached events
+            const freguesias = [...new Set(
+                allEventsCached
+                    .filter(e => e.detalhes?.distrito === distrito &&
+                                 e.detalhes?.concelho === concelho &&
+                                 e.detalhes?.freguesia)
+                    .map(e => e.detalhes.freguesia)
+            )].sort();
+
+            freguesiaSelect.innerHTML = '<option value="">Todas as freguesias</option>' +
+                freguesias.map(f => `<option value="${f}">${f}</option>`).join('');
+            freguesiaSelect.disabled = freguesias.length === 0;
+
             loadAllEvents(1);
         }
 
@@ -8001,16 +8770,19 @@
                 }
 
                 // Batch render all cards using innerHTML for performance
-                const cardsHTML = pageEvents.map(event => createEventCardHTML(event)).join('');
+                const cardsHTML = pageEvents.map((event, i) => createEventCardHTML(event, i)).join('');
                 content.innerHTML = `<div class="events-grid">${cardsHTML}</div>`;
 
                 // Setup event delegation for carousels after DOM is ready
                 setupCarouselDelegation(content, pageEvents);
+                animateCards(content);
 
                 updatePagination(type);
 
-                // Update favorite star button states
-                updateFavoriteStars();
+                // Update favorite star button states (await to ensure cache is loaded)
+                console.log('[loadEvents] About to call updateFavoriteStars, cards rendered:', pageEvents.length);
+                await updateFavoriteStars();
+                console.log('[loadEvents] updateFavoriteStars completed');
 
             } catch (error) {
                 console.error('Erro ao carregar eventos:', error);
@@ -8103,6 +8875,20 @@
                 maximumFractionDigits: 2
             }).format(price);
         };
+
+        // Animate cards with staggered entrance
+        function animateCards(container, selector = '.event-card') {
+            const cards = container.querySelectorAll(selector);
+            cards.forEach((card, i) => {
+                card.style.opacity = '0';
+                card.style.transform = 'translateY(20px)';
+                setTimeout(() => {
+                    card.style.transition = 'opacity 0.4s ease-out, transform 0.4s ease-out';
+                    card.style.opacity = '1';
+                    card.style.transform = 'translateY(0)';
+                }, i * 50); // 50ms delay between each card
+            });
+        }
 
         const cardTipoInfo = {
             1: { name: 'Imóvel', class: 'imovel', icon: '<path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>' },
@@ -10570,43 +11356,90 @@
             }
         }
 
+        // Shared AudioContext for notifications (avoids browser autoplay policy issues)
+        let sharedAudioContext = null;
+        let audioContextUnlocked = false;
+
+        // Unlock audio on first user interaction
+        function unlockAudioContext() {
+            if (audioContextUnlocked) return;
+
+            try {
+                sharedAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+                // Resume if suspended (browser autoplay policy)
+                if (sharedAudioContext.state === 'suspended') {
+                    sharedAudioContext.resume();
+                }
+                audioContextUnlocked = true;
+                console.log('🔊 Audio context unlocked');
+            } catch (e) {
+                console.warn('Audio context not supported');
+            }
+        }
+
+        // Unlock audio on various user interactions
+        ['click', 'touchstart', 'keydown'].forEach(event => {
+            document.addEventListener(event, unlockAudioContext, { once: true });
+        });
+
         function playNotificationSound() {
             // Skip sound if muted
             if (notificationsMuted) return;
 
-            // Create a simple beep sound
+            // Ensure audio context is ready
+            if (!sharedAudioContext || sharedAudioContext.state === 'closed') {
+                unlockAudioContext();
+            }
+
+            if (!sharedAudioContext) return;
+
+            // Resume if suspended
+            if (sharedAudioContext.state === 'suspended') {
+                sharedAudioContext.resume();
+            }
+
+            // Create a subtle electronic "tick" sound - minimalist and non-intrusive
             try {
-                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                const oscillator = audioContext.createOscillator();
-                const gainNode = audioContext.createGain();
+                const now = sharedAudioContext.currentTime;
 
-                oscillator.connect(gainNode);
-                gainNode.connect(audioContext.destination);
+                // First tick - higher frequency, very short (40ms)
+                const osc1 = sharedAudioContext.createOscillator();
+                const gain1 = sharedAudioContext.createGain();
+                osc1.connect(gain1);
+                gain1.connect(sharedAudioContext.destination);
+                osc1.frequency.value = 1800;
+                osc1.type = 'sine';
+                gain1.gain.setValueAtTime(0.08, now);
+                gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+                osc1.start(now);
+                osc1.stop(now + 0.04);
 
-                oscillator.frequency.value = 800;
-                oscillator.type = 'sine';
-                gainNode.gain.value = 0.1;
-
-                oscillator.start();
-                setTimeout(() => {
-                    oscillator.stop();
-                    audioContext.close();
-                }, 200);
+                // Second tick - slightly lower, creates depth (40ms, delayed 20ms)
+                const osc2 = sharedAudioContext.createOscillator();
+                const gain2 = sharedAudioContext.createGain();
+                osc2.connect(gain2);
+                gain2.connect(sharedAudioContext.destination);
+                osc2.frequency.value = 1200;
+                osc2.type = 'sine';
+                gain2.gain.setValueAtTime(0.05, now + 0.02);
+                gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+                osc2.start(now + 0.02);
+                osc2.stop(now + 0.06);
             } catch (e) {
-                // Audio not supported or blocked
+                console.warn('Could not play notification sound:', e);
             }
         }
 
         // ============== END WEBSOCKET ==============
 
         // Update auth status and theme on page load
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
             initTheme();
             updateAuthStatus(!!API_AUTH.secretKey);
-            FAVORITES.updateWidget();
 
-            // Pre-load favorites cache immediately (non-blocking)
-            getFavoritesFromCache();
+            // Pre-load favorites cache first, then update widget
+            await getFavoritesFromCache();
+            FAVORITES.updateWidget();
 
             // Connect to WebSocket for real-time notifications
             connectNotificationWebSocket();
@@ -10614,7 +11447,376 @@
             // Check for price changes on watched events every 2 minutes (fallback if WebSocket fails)
             checkForPriceChanges();
             setInterval(() => checkForPriceChanges(), 2 * 60 * 1000);
+
+            // Initialize keyboard navigation
+            initKeyboardNavigation();
         });
+
+        // ============== IMPROVEMENTS: Fetch with Timeout & Retry ==============
+
+        // Store active intervals for cleanup
+        const activeIntervals = new Set();
+
+        // Fetch with timeout and automatic retry
+        async function fetchWithTimeout(url, options = {}, timeout = 15000, retries = 2) {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+            const fetchOptions = {
+                ...options,
+                signal: controller.signal
+            };
+
+            for (let attempt = 0; attempt <= retries; attempt++) {
+                try {
+                    const response = await fetch(url, fetchOptions);
+                    clearTimeout(timeoutId);
+
+                    if (!response.ok && response.status >= 500) {
+                        throw new Error(`Server error: ${response.status}`);
+                    }
+
+                    return response;
+                } catch (error) {
+                    clearTimeout(timeoutId);
+
+                    if (error.name === 'AbortError') {
+                        if (attempt < retries) {
+                            const delay = Math.pow(2, attempt) * 1000; // Exponential backoff
+                            await new Promise(r => setTimeout(r, delay));
+                            continue;
+                        }
+                        showToast('Timeout', 'O servidor demorou muito a responder. Tente novamente.', 'error');
+                        throw new Error('Request timeout');
+                    }
+
+                    if (attempt < retries) {
+                        const delay = Math.pow(2, attempt) * 1000;
+                        await new Promise(r => setTimeout(r, delay));
+                        continue;
+                    }
+
+                    showToast('Erro de Rede', 'Não foi possível conectar ao servidor. Verifique a sua ligação.', 'error');
+                    throw error;
+                }
+            }
+        }
+
+        // ============== IMPROVEMENTS: Keyboard Navigation ==============
+
+        let selectedEventIndex = -1;
+        let lastKeyboardPage = null;
+
+        function initKeyboardNavigation() {
+            document.addEventListener('keydown', handleGlobalKeyboard);
+
+            // Track focused element for focus trap
+            document.addEventListener('focusin', trackFocus);
+        }
+
+        function handleGlobalKeyboard(e) {
+            // Don't handle if typing in input/textarea
+            if (e.target.matches('input, textarea, select, [contenteditable]')) {
+                // But allow Escape to blur
+                if (e.key === 'Escape') {
+                    e.target.blur();
+                }
+                return;
+            }
+
+            // Escape - close any open modal
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                closeAnyOpenModal();
+                return;
+            }
+
+            // Only enable J/K navigation on events page
+            const currentPage = document.querySelector('.page.active')?.id;
+            if (currentPage !== 'page-eventos') return;
+
+            const cards = document.querySelectorAll('.event-card');
+            if (cards.length === 0) return;
+
+            // Reset selection if page changed
+            if (lastKeyboardPage !== currentPage) {
+                selectedEventIndex = -1;
+                lastKeyboardPage = currentPage;
+            }
+
+            // J - next event
+            if (e.key === 'j' || e.key === 'J') {
+                e.preventDefault();
+                selectedEventIndex = Math.min(selectedEventIndex + 1, cards.length - 1);
+                highlightSelectedCard(cards);
+            }
+
+            // K - previous event
+            if (e.key === 'k' || e.key === 'K') {
+                e.preventDefault();
+                selectedEventIndex = Math.max(selectedEventIndex - 1, 0);
+                highlightSelectedCard(cards);
+            }
+
+            // Enter - open selected event
+            if (e.key === 'Enter' && selectedEventIndex >= 0) {
+                e.preventDefault();
+                const card = cards[selectedEventIndex];
+                if (card) card.click();
+            }
+
+            // F - toggle favorite on selected event
+            if ((e.key === 'f' || e.key === 'F') && selectedEventIndex >= 0) {
+                e.preventDefault();
+                const card = cards[selectedEventIndex];
+                const favBtn = card?.querySelector('.card-favorite-btn');
+                if (favBtn) favBtn.click();
+            }
+        }
+
+        function highlightSelectedCard(cards) {
+            // Remove previous highlight
+            cards.forEach(c => c.style.outline = '');
+
+            // Add highlight to selected
+            if (selectedEventIndex >= 0 && cards[selectedEventIndex]) {
+                const card = cards[selectedEventIndex];
+                card.style.outline = '3px solid #3b82f6';
+                card.style.outlineOffset = '2px';
+                card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+
+        function closeAnyOpenModal() {
+            // Close inspection modal
+            const inspectionModal = document.getElementById('inspection-modal');
+            if (inspectionModal?.classList.contains('active')) {
+                closeInspectionModal();
+                return;
+            }
+
+            // Close price chart modal
+            const priceModal = document.getElementById('price-chart-modal');
+            if (priceModal) {
+                priceModal.remove();
+                return;
+            }
+
+            // Close generic modal
+            const genericModal = document.getElementById('generic-modal');
+            if (genericModal?.style.display === 'flex') {
+                closeModal();
+                return;
+            }
+
+            // Close create rule modal
+            const ruleModal = document.getElementById('create-rule-modal');
+            if (ruleModal?.style.display === 'flex') {
+                closeCreateRuleModal();
+                return;
+            }
+
+            // Close delete confirm modal
+            const deleteModal = document.getElementById('delete-confirm-modal');
+            if (deleteModal?.style.display === 'flex') {
+                deleteModal.style.display = 'none';
+                return;
+            }
+
+            // Close any other modal with .modal-backdrop or similar
+            document.querySelectorAll('[style*="position: fixed"][style*="z-index: 999"]').forEach(el => {
+                if (el.style.display !== 'none') {
+                    el.remove();
+                }
+            });
+        }
+
+        // ============== IMPROVEMENTS: Focus Trap for Modals ==============
+
+        let lastFocusedElement = null;
+
+        function trackFocus(e) {
+            if (!e.target.closest('.inspection-modal, #generic-modal, #create-rule-modal, #delete-confirm-modal, #price-chart-modal')) {
+                lastFocusedElement = e.target;
+            }
+        }
+
+        function trapFocusInModal(modalElement) {
+            const focusableElements = modalElement.querySelectorAll(
+                'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+            );
+
+            if (focusableElements.length === 0) return;
+
+            const firstFocusable = focusableElements[0];
+            const lastFocusable = focusableElements[focusableElements.length - 1];
+
+            // Focus first element
+            firstFocusable.focus();
+
+            // Trap focus within modal
+            modalElement.addEventListener('keydown', function trapHandler(e) {
+                if (e.key !== 'Tab') return;
+
+                if (e.shiftKey) {
+                    if (document.activeElement === firstFocusable) {
+                        e.preventDefault();
+                        lastFocusable.focus();
+                    }
+                } else {
+                    if (document.activeElement === lastFocusable) {
+                        e.preventDefault();
+                        firstFocusable.focus();
+                    }
+                }
+            });
+        }
+
+        function restoreFocus() {
+            if (lastFocusedElement && document.body.contains(lastFocusedElement)) {
+                lastFocusedElement.focus();
+            }
+        }
+
+        // ============== IMPROVEMENTS: Memory Leak Prevention ==============
+
+        // Track intervals for cleanup
+        function createTrackedInterval(callback, delay) {
+            const intervalId = setInterval(callback, delay);
+            activeIntervals.add(intervalId);
+            return intervalId;
+        }
+
+        function clearTrackedInterval(intervalId) {
+            clearInterval(intervalId);
+            activeIntervals.delete(intervalId);
+        }
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            // Clear all tracked intervals
+            activeIntervals.forEach(id => clearInterval(id));
+            activeIntervals.clear();
+
+            // Clear specific known intervals
+            if (typeof recentBidsInterval !== 'undefined' && recentBidsInterval) {
+                clearInterval(recentBidsInterval);
+            }
+            if (typeof consolePollingInterval !== 'undefined' && consolePollingInterval) {
+                clearInterval(consolePollingInterval);
+            }
+
+            // Disconnect WebSocket
+            if (typeof notificationSocket !== 'undefined' && notificationSocket) {
+                notificationSocket.close();
+            }
+        });
+
+        // ============== IMPROVEMENTS: Favorites Cache Sync ==============
+
+        // Sync all favorites caches after mutation
+        async function syncAllFavoritesCaches() {
+            try {
+                // Invalidate all caches
+                favoritesCache = null;
+                favoritesCacheTime = 0;
+                FAVORITES._cacheTime = 0;
+                if (typeof FAVORITES_CACHE !== 'undefined') {
+                    FAVORITES_CACHE.cacheTime = 0;
+                }
+
+                // Refresh from API
+                await getFavoritesFromCache(true);
+                await FAVORITES.getAll();
+
+                // Update UI
+                updateEndingSoonFavoriteButtons();
+                if (typeof updateFavoriteStars === 'function') {
+                    updateFavoriteStars();
+                }
+                updateNotificationIcons();
+                FAVORITES.updateWidget();
+
+                console.log('✅ All favorites caches synced');
+            } catch (error) {
+                console.error('Error syncing favorites caches:', error);
+            }
+        }
+
+        // ============== IMPROVEMENTS: Loading States for Buttons ==============
+
+        function setButtonLoading(button, loading = true) {
+            if (!button) return;
+
+            if (loading) {
+                button.dataset.originalText = button.innerHTML;
+                button.disabled = true;
+                button.style.opacity = '0.7';
+                button.innerHTML = `
+                    <svg class="spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 1s linear infinite;">
+                        <path d="M12 2v4m0 12v4m-8-10h4m12 0h4"/>
+                    </svg>
+                `;
+            } else {
+                button.disabled = false;
+                button.style.opacity = '1';
+                if (button.dataset.originalText) {
+                    button.innerHTML = button.dataset.originalText;
+                    delete button.dataset.originalText;
+                }
+            }
+        }
+
+        // Add spin animation if not exists
+        if (!document.getElementById('spin-animation-style')) {
+            const style = document.createElement('style');
+            style.id = 'spin-animation-style';
+            style.textContent = `
+                @keyframes spin {
+                    from { transform: rotate(0deg); }
+                    to { transform: rotate(360deg); }
+                }
+                .spin { animation: spin 1s linear infinite; }
+            `;
+            document.head.appendChild(style);
+        }
+
+        // ============== IMPROVEMENTS: Lazy Loading for Images ==============
+        // Note: imageObserver already exists for carousel images (data-bg)
+        // This function is for regular <img> tags with data-src attribute
+
+        // Function to setup lazy loading on images (uses existing imageObserver if available)
+        function setupLazyImages(container = document) {
+            container.querySelectorAll('img[data-src]').forEach(img => {
+                // Use native lazy loading as fallback
+                if ('loading' in HTMLImageElement.prototype) {
+                    img.src = img.dataset.src;
+                    img.loading = 'lazy';
+                    img.removeAttribute('data-src');
+                }
+            });
+        }
+
+        // ============== IMPROVEMENTS: Debounced API Calls ==============
+
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        // Debounced version of updateFavoriteStars
+        const debouncedUpdateFavoriteStars = debounce(() => {
+            if (typeof updateFavoriteStars === 'function') {
+                updateFavoriteStars();
+            }
+        }, 300);
 
         // ============== End Security Key Management ==============
 
@@ -11070,7 +12272,7 @@
             }
 
             return `
-                <div class="favorite-card" style="background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; display: flex; gap: 16px; transition: all 0.2s; cursor: pointer; ${isEnded ? 'opacity: 0.7;' : ''}" onclick="openInspectionModal('${fav.event_reference}')" onmouseover="this.style.borderColor='#3b82f6';this.style.boxShadow='0 4px 12px rgba(59,130,246,0.15)'" onmouseout="this.style.borderColor='#e2e8f0';this.style.boxShadow='none'">
+                <div class="favorite-card" data-reference="${fav.event_reference}" style="background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; display: flex; gap: 16px; transition: all 0.2s; cursor: pointer; ${isEnded ? 'opacity: 0.7;' : ''}" onclick="openInspectionModal('${fav.event_reference}')" onmouseover="this.style.borderColor='#3b82f6';this.style.boxShadow='0 4px 12px rgba(59,130,246,0.15)'" onmouseout="this.style.borderColor='#e2e8f0';this.style.boxShadow='none'">
                     <!-- Event Image -->
                     <div style="width: 100px; height: 80px; border-radius: 8px; overflow: hidden; flex-shrink: 0; background: #f1f5f9;">
                         ${event.capa ? `<img src="${event.capa}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.parentElement.innerHTML='<div style=\\'width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:10px;\\'>Sem imagem</div>'">` : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:10px;">Sem imagem</div>'}
@@ -11165,13 +12367,49 @@
             document.getElementById('favoritos-total-count').textContent = favorites.length;
         }
 
-        // Update favorites badge in sidebar
-        function updateFavoritesBadge(count) {
+        // Update favorites badge in sidebar with animation
+        function updateFavoritesBadge(count, animate = true) {
             const badge = document.getElementById('nav-favorites-badge');
+            const dashboardCount = document.getElementById('favorites-count');
+
+            // Update sidebar badge
             if (badge) {
+                const oldCount = parseInt(badge.textContent) || 0;
                 badge.textContent = count;
                 badge.style.display = count > 0 ? 'inline' : 'none';
+
+                // Animate if count increased
+                if (animate && count > oldCount) {
+                    animateBadge(badge);
+                }
             }
+
+            // Update dashboard count
+            if (dashboardCount) {
+                const oldCount = parseInt(dashboardCount.textContent) || 0;
+                dashboardCount.textContent = count;
+
+                // Animate if count changed
+                if (animate && count !== oldCount) {
+                    animateBadge(dashboardCount);
+                }
+            }
+        }
+
+        // Animate badge with pulse effect
+        function animateBadge(element) {
+            element.style.transition = 'transform 0.2s ease, background-color 0.2s ease';
+            element.style.transform = 'scale(1.3)';
+            element.style.backgroundColor = '#22c55e';
+
+            setTimeout(() => {
+                element.style.transform = 'scale(1)';
+                element.style.backgroundColor = '';
+            }, 200);
+
+            setTimeout(() => {
+                element.style.transition = '';
+            }, 400);
         }
 
         // Add event to favorites
@@ -11193,6 +12431,14 @@
 
                 if (response.ok) {
                     addLog(`Evento ${reference} adicionado aos favoritos`, 'success');
+                    // Update FAVORITES cache for sync checks
+                    if (!FAVORITES._cache.some(r => r.event_reference === reference)) {
+                        FAVORITES._cache.push({ event_reference: reference, active: true });
+                    }
+                    // Update favoritesCache (don't invalidate - keep optimistic update)
+                    if (favoritesCache && !favoritesCache.some(f => f.event_reference === reference)) {
+                        favoritesCache.push({ event_reference: reference });
+                    }
                     // Update badge
                     const countResp = await fetch(`${API_BASE}/api/favorites/count`);
                     const countData = await countResp.json();
@@ -11206,22 +12452,145 @@
             return false;
         }
 
-        // Remove from favorites
+        // Remove from favorites (no confirmation, smooth animation)
         async function removeFavorite(reference) {
-            if (!confirm('Remover este evento dos favoritos?')) return;
+            // Find the card element
+            const card = document.querySelector(`.favorite-card[data-reference="${reference}"]`);
 
+            // Animate removal immediately (optimistic)
+            if (card) {
+                card.style.transform = 'translateX(100%)';
+                card.style.opacity = '0';
+                card.style.maxHeight = card.offsetHeight + 'px';
+
+                setTimeout(() => {
+                    card.style.maxHeight = '0';
+                    card.style.padding = '0';
+                    card.style.margin = '0';
+                    card.style.border = 'none';
+                }, 200);
+
+                setTimeout(() => {
+                    card.remove();
+                    // Update stats after removal
+                    updateFavoritosStatsAfterRemoval();
+                }, 400);
+            }
+
+            // Update caches immediately
+            FAVORITES._cache = FAVORITES._cache.filter(r => r.event_reference !== reference);
+            if (favoritesCache) {
+                favoritesCache = favoritesCache.filter(f => f.event_reference !== reference);
+            }
+
+            // Update other UI elements
+            updateEndingSoonFavoriteButtons();
+            FAVORITES.updateWidget();
+            updateFavoritesBadge(favoritesCache?.length || 0, true);
+
+            // API call in background
             try {
-                const response = await authFetch(`${API_BASE}/api/favorites/${reference}`, {
-                    method: 'DELETE'
-                });
-
-                if (response.ok) {
-                    addLog(`Evento ${reference} removido dos favoritos`, 'info');
-                    loadFavoritosPage();
-                }
+                await authFetch(`${API_BASE}/api/favorites/${reference}`, { method: 'DELETE' });
             } catch (error) {
                 console.error('Erro ao remover favorito:', error);
+                showToast('Erro', 'Não foi possível remover do servidor', 'error');
+                // Reload to restore state on error
+                loadFavoritosPage();
             }
+        }
+
+        // Update stats after card removal without full reload
+        function updateFavoritosStatsAfterRemoval() {
+            const totalEl = document.getElementById('fav-stat-total');
+            const countEl = document.getElementById('favoritos-total-count');
+            const cards = document.querySelectorAll('.favorite-card');
+            const count = cards.length;
+
+            if (totalEl) totalEl.textContent = count;
+            if (countEl) countEl.textContent = count;
+
+            // Show empty state if no cards left
+            if (count === 0) {
+                const emptyEl = document.getElementById('favoritos-empty');
+                const listEl = document.getElementById('favoritos-list');
+                if (emptyEl) emptyEl.style.display = 'block';
+                if (listEl) listEl.innerHTML = '';
+            }
+        }
+
+        // Remove all ended favorites
+        async function removeEndedFavorites() {
+            const favorites = await getFavoritesFromCache(true);
+            const now = new Date();
+
+            const endedFavorites = favorites.filter(f => {
+                const endDate = f.event?.data_fim ? new Date(f.event.data_fim) : null;
+                return endDate && endDate < now;
+            });
+
+            if (endedFavorites.length === 0) {
+                showToast('Info', 'Não há favoritos terminados para remover', 'info');
+                return;
+            }
+
+            showToast('A processar', `A remover ${endedFavorites.length} favoritos terminados...`, 'info');
+
+            let removed = 0;
+            for (const fav of endedFavorites) {
+                try {
+                    await authFetch(`${API_BASE}/api/favorites/${fav.event_reference}`, { method: 'DELETE' });
+                    removed++;
+                } catch (e) {
+                    console.error('Error removing:', fav.event_reference, e);
+                }
+            }
+
+            // Refresh everything
+            favoritesCache = null;
+            await getFavoritesFromCache(true);
+            loadFavoritosPage();
+            updateEndingSoonFavoriteButtons();
+            FAVORITES.updateWidget();
+            updateFavoritesBadge(favoritesCache?.length || 0, true);
+
+            showToast('Concluído', `${removed} favoritos terminados removidos`, 'success');
+        }
+
+        // Remove all favorites
+        async function removeAllFavorites() {
+            const favorites = await getFavoritesFromCache(true);
+
+            if (favorites.length === 0) {
+                showToast('Info', 'Não há favoritos para remover', 'info');
+                return;
+            }
+
+            if (!confirm(`Tem a certeza que deseja remover TODOS os ${favorites.length} favoritos?\n\nEsta ação não pode ser revertida.`)) {
+                return;
+            }
+
+            showToast('A processar', `A remover ${favorites.length} favoritos...`, 'info');
+
+            let removed = 0;
+            for (const fav of favorites) {
+                try {
+                    await authFetch(`${API_BASE}/api/favorites/${fav.event_reference}`, { method: 'DELETE' });
+                    removed++;
+                } catch (e) {
+                    console.error('Error removing:', fav.event_reference, e);
+                }
+            }
+
+            // Refresh everything
+            favoritesCache = null;
+            FAVORITES._cache = [];
+            await getFavoritesFromCache(true);
+            loadFavoritosPage();
+            updateEndingSoonFavoriteButtons();
+            FAVORITES.updateWidget();
+            updateFavoritesBadge(0, true);
+
+            showToast('Concluído', `${removed} favoritos removidos`, 'success');
         }
 
         // Toggle favorite notification setting
@@ -11254,23 +12623,20 @@
             }
         }
 
-        // Toggle favorite (for star button)
-        async function toggleFavorite(reference, eventData = {}) {
-            const isFav = await isFavorited(reference);
-            if (isFav) {
-                await removeFavoriteQuiet(reference);
-            } else {
-                await addToFavorites(reference, eventData);
-            }
-            // Update UI
-            updateFavoriteStars();
-        }
+        // NOTE: toggleFavorite is defined earlier (line ~5291) - uses FAVORITES.toggle()
+        // This duplicate was removed to avoid overwriting the more complete version
 
         // Remove without confirm (for toggle)
         async function removeFavoriteQuiet(reference) {
             try {
                 await authFetch(`${API_BASE}/api/favorites/${reference}`, { method: 'DELETE' });
                 addLog(`Evento ${reference} removido dos favoritos`, 'info');
+                // Update FAVORITES cache for sync checks
+                FAVORITES._cache = FAVORITES._cache.filter(r => r.event_reference !== reference);
+                // Update favoritesCache (don't invalidate - keep optimistic update)
+                if (favoritesCache) {
+                    favoritesCache = favoritesCache.filter(f => f.event_reference !== reference);
+                }
                 const countResp = await fetch(`${API_BASE}/api/favorites/count`);
                 const countData = await countResp.json();
                 updateFavoritesBadge(countData.count);
@@ -11279,51 +12645,22 @@
             }
         }
 
-        // Favorites cache to avoid repeated API calls
-        let favoritesCache = null;
-        let favoritesCacheTime = 0;
-        const FAVORITES_CACHE_TTL = 60000; // 1 minute cache
-
-        async function getFavoritesFromCache(forceRefresh = false) {
-            const now = Date.now();
-            if (!forceRefresh && favoritesCache && (now - favoritesCacheTime) < FAVORITES_CACHE_TTL) {
-                return favoritesCache;
-            }
-
-            try {
-                const response = await fetch(`${API_BASE}/api/favorites`);
-                favoritesCache = await response.json();
-                favoritesCacheTime = now;
-                return favoritesCache;
-            } catch (error) {
-                console.error('Error fetching favorites:', error);
-                return favoritesCache || [];
-            }
-        }
-
-        function updateFavoritesCacheEntry(reference, add) {
-            if (!favoritesCache) return;
-            if (add) {
-                if (!favoritesCache.some(f => f.event_reference === reference)) {
-                    favoritesCache.push({ event_reference: reference });
-                }
-            } else {
-                favoritesCache = favoritesCache.filter(f => f.event_reference !== reference);
-            }
-        }
-
         // Update favorite star icons across the UI
         async function updateFavoriteStars() {
             try {
                 const favorites = await getFavoritesFromCache();
                 const favReferences = new Set(favorites.map(f => f.event_reference));
+                console.log('[updateFavoriteStars] Favorites:', favorites.length, 'refs:', [...favReferences]);
 
                 // Update all star buttons
-                document.querySelectorAll('.card-favorite-btn').forEach(btn => {
+                const buttons = document.querySelectorAll('.card-favorite-btn');
+                console.log('[updateFavoriteStars] Found buttons:', buttons.length);
+                buttons.forEach(btn => {
                     const ref = btn.id.replace('fav-event-', '');
                     const isFav = favReferences.has(ref);
                     const svg = btn.querySelector('.star-icon');
                     if (isFav) {
+                        console.log('[updateFavoriteStars] Setting favorite:', ref);
                         btn.classList.add('is-favorite');
                         svg.setAttribute('fill', '#f59e0b');
                         svg.setAttribute('stroke', '#f59e0b');
@@ -11493,6 +12830,507 @@
 
         // Initialize mute UI on load
         document.addEventListener('DOMContentLoaded', updateMuteUI);
+
+        // ============== AI ASSISTANT FUNCTIONS ==============
+
+        let aiCurrentPage = 1;
+        let aiSearchTimeout = null;
+
+        // ============== VEHICLE ANALYSIS PAGE (NEW) ==============
+
+        let allVehicleAnalyses = [];
+
+        async function loadAiAssistantPage() {
+            // Load new vehicle analyses page
+            await loadVehicleAnalyses();
+        }
+
+        async function loadVehicleAnalyses() {
+            const loading = document.getElementById('va-loading');
+            const noData = document.getElementById('va-no-data');
+            const grid = document.getElementById('va-cards-grid');
+
+            loading.style.display = 'block';
+            noData.style.display = 'none';
+            grid.style.display = 'none';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/vehicle-analyses?limit=200`);
+                if (!response.ok) throw new Error('Failed to load vehicle analyses');
+
+                const data = await response.json();
+                allVehicleAnalyses = data.analyses || [];
+
+                // Update stats
+                const stats = data.stats || {};
+                document.getElementById('va-stat-total').textContent = stats.total || 0;
+                document.getElementById('va-stat-buy').textContent = stats.comprar || 0;
+                document.getElementById('va-stat-consider').textContent = stats.considerar || 0;
+                document.getElementById('va-stat-caution').textContent = stats.cautela || 0;
+                document.getElementById('va-stat-avoid').textContent = stats.evitar || 0;
+
+                loading.style.display = 'none';
+
+                if (allVehicleAnalyses.length === 0) {
+                    noData.style.display = 'block';
+                    return;
+                }
+
+                renderVehicleCards(allVehicleAnalyses);
+                grid.style.display = 'grid';
+
+            } catch (error) {
+                console.error('Error loading vehicle analyses:', error);
+                loading.style.display = 'none';
+                noData.style.display = 'block';
+            }
+        }
+
+        function renderVehicleCards(analyses) {
+            const grid = document.getElementById('va-cards-grid');
+
+            // Helper to build market verification URLs
+            // Uses production year range (producao_inicio) for better search accuracy
+            const buildStandVirtualUrl = (marca, modelo, ano, combustivel, producaoInicio) => {
+                const marcaSlug = (marca || '').toLowerCase().replace(/\s+/g, '-');
+                let modeloSlug = (modelo || '').toLowerCase().replace(/\s+(i{1,3}|iv|v)$/i, '').replace(/\s+/g, '-').split('-')[0];
+                let url = `https://www.standvirtual.com/carros/${marcaSlug}`;
+                if (modeloSlug) url += `/${modeloSlug}`;
+
+                // Use production start year as min, vehicle year as max
+                const anoMin = producaoInicio || (ano ? ano - 1 : null);
+                const anoMax = ano;
+                if (anoMin) url += `/desde-${anoMin}`;
+
+                // Build query params
+                const params = [];
+                if (anoMax) params.push(`search[filter_float_first_registration_year:to]=${anoMax}`);
+                const fuelMap = { 'gasóleo': 'diesel', 'diesel': 'diesel', 'gasolina': 'petrol', 'elétrico': 'electric', 'híbrido': 'hybrid' };
+                const fuel = fuelMap[(combustivel || '').toLowerCase()];
+                if (fuel) params.push(`fuel_type=${fuel}`);
+                if (params.length > 0) url += '?' + params.join('&');
+                return url;
+            };
+
+            const buildAutoUncleUrl = (marca, modelo, ano, producaoInicio) => {
+                const marcaSlug = (marca || '').toLowerCase().replace(/\s+/g, '-');
+                let modeloSlug = (modelo || '').toLowerCase().replace(/\s+/g, '-').split('-')[0];
+                let url = `https://www.autouncle.pt/pt/carros-usados/${marcaSlug}`;
+                if (modeloSlug) url += `/${modeloSlug}`;
+
+                // Use production start year as min, vehicle year as max
+                const anoMin = producaoInicio || (ano ? ano - 1 : null);
+                const anoMax = ano;
+                if (anoMin && anoMax) {
+                    url += `?s[min_year]=${anoMin}&s[max_year]=${anoMax}`;
+                } else if (ano) {
+                    url += `?s[min_year]=${ano-1}&s[max_year]=${ano+1}`;
+                }
+                return url;
+            };
+
+            grid.innerHTML = analyses.map(v => {
+                const score = v.ai_score || 0;
+                const scoreColor = score >= 7 ? '#10b981' : score >= 5 ? '#f59e0b' : '#ef4444';
+                const scoreBg = score >= 7 ? '#ecfdf5' : score >= 5 ? '#fffbeb' : '#fef2f2';
+
+                const rec = (v.ai_recommendation || 'N/A').toLowerCase();
+                const recConfig = {
+                    'comprar': { bg: '#dcfce7', color: '#166534', border: '#86efac', label: 'Comprar' },
+                    'excelente': { bg: '#dcfce7', color: '#166534', border: '#86efac', label: 'Excelente' },
+                    'considerar': { bg: '#dbeafe', color: '#1e40af', border: '#93c5fd', label: 'Considerar' },
+                    'cautela': { bg: '#fef3c7', color: '#92400e', border: '#fcd34d', label: 'Cautela' },
+                    'evitar': { bg: '#fee2e2', color: '#991b1b', border: '#fca5a5', label: 'Evitar' }
+                }[rec] || { bg: '#f1f5f9', color: '#475569', border: '#cbd5e1', label: rec || 'N/A' };
+
+                const formatPrice = (p) => p ? new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(p) : '-';
+                const discount = v.desconto_percentagem ? `${v.desconto_percentagem.toFixed(0)}%` : '-';
+                const discountColor = (v.desconto_percentagem || 0) >= 20 ? '#166534' : (v.desconto_percentagem || 0) > 0 ? '#1e40af' : '#64748b';
+                const poupanca = v.poupanca_estimada ? formatPrice(v.poupanca_estimada) : '-';
+
+                let pros = [];
+                try { pros = JSON.parse(v.ai_pros || '[]'); } catch(e) {}
+                let cons = [];
+                try { cons = JSON.parse(v.ai_cons || '[]'); } catch(e) {}
+
+                const yearKm = [v.ano, v.quilometros ? `${(v.quilometros/1000).toFixed(0)}k km` : null].filter(Boolean).join(' • ');
+
+                // Build verification URLs (using production year range if available)
+                const standVirtualUrl = buildStandVirtualUrl(v.marca, v.modelo, v.ano, v.combustivel, v.producao_inicio);
+                const autoUncleUrl = buildAutoUncleUrl(v.marca, v.modelo, v.ano, v.producao_inicio);
+
+                return `
+                    <div class="va-card" style="background: white; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.04);"
+                         data-recommendation="${rec}" data-score="${score}" data-price="${v.event_valor_base || 0}" data-date="${v.processed_at || ''}">
+
+                        <div style="display: flex; gap: 0;">
+                            <!-- Left: Image -->
+                            <div style="width: 280px; min-height: 220px; flex-shrink: 0; background: url('${v.capa || ''}') center/cover no-repeat, #f1f5f9; position: relative;">
+                                <div style="position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0.3) 0%, transparent 40%, transparent 60%, rgba(0,0,0,0.5) 100%);"></div>
+                                <!-- Reference -->
+                                <div style="position: absolute; top: 12px; left: 12px;">
+                                    <span style="background: rgba(255,255,255,0.95); padding: 5px 12px; border-radius: 6px; font-size: 12px; color: #374151; font-weight: 600;">${v.reference}</span>
+                                </div>
+                                <!-- Score -->
+                                <div style="position: absolute; bottom: 12px; right: 12px; background: ${scoreBg}; padding: 8px 12px; border-radius: 10px; text-align: center;">
+                                    <div style="font-size: 28px; font-weight: 800; color: ${scoreColor}; line-height: 1;">${score.toFixed(1)}</div>
+                                    <div style="font-size: 10px; color: #64748b;">/ 10</div>
+                                </div>
+                                <!-- Discount Badge -->
+                                ${(v.desconto_percentagem || 0) >= 10 ? `
+                                <div style="position: absolute; bottom: 12px; left: 12px; background: #dcfce7; border: 1px solid #86efac; padding: 6px 10px; border-radius: 8px;">
+                                    <span style="font-size: 14px; font-weight: 700; color: #166534;">-${discount}</span>
+                                </div>
+                                ` : ''}
+                            </div>
+
+                            <!-- Middle: Info -->
+                            <div style="flex: 1; padding: 16px; display: flex; flex-direction: column; border-right: 1px solid #e2e8f0;">
+                                <!-- Header Row -->
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                                    <div>
+                                        <div style="font-size: 18px; font-weight: 700; color: #0f172a; margin-bottom: 4px;">${v.marca || '-'} ${v.modelo || ''}</div>
+                                        <div style="font-size: 13px; color: #64748b;">${yearKm || '-'}${v.combustivel ? ' • ' + v.combustivel : ''}${v.potencia_cv ? ' • ' + v.potencia_cv + ' cv' : ''}</div>
+                                    </div>
+                                    <span style="background: ${recConfig.bg}; border: 1px solid ${recConfig.border}; padding: 6px 14px; border-radius: 8px; font-size: 13px; color: ${recConfig.color}; font-weight: 700;">${recConfig.label}</span>
+                                </div>
+
+                                <!-- Prices Grid -->
+                                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 14px; padding: 12px; background: #f8fafc; border-radius: 10px;">
+                                    <div>
+                                        <div style="font-size: 10px; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Valor Base</div>
+                                        <div style="font-size: 16px; font-weight: 700; color: #0f172a;">${formatPrice(v.event_valor_base)}</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-size: 10px; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Valor Mínimo</div>
+                                        <div style="font-size: 16px; font-weight: 700; color: #0f172a;">${formatPrice(v.valor_minimo)}</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-size: 10px; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Lance Atual</div>
+                                        <div style="font-size: 16px; font-weight: 700; color: ${(v.lance_atual_live || v.event_lance_atual) ? '#dc2626' : '#94a3b8'};">${(v.lance_atual_live || v.event_lance_atual) ? formatPrice(v.lance_atual_live || v.event_lance_atual) : '-'}</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-size: 10px; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Mercado Méd</div>
+                                        <div style="font-size: 16px; font-weight: 600; color: #64748b;">${formatPrice(v.market_preco_medio)}</div>
+                                    </div>
+                                </div>
+
+                                <!-- Verify Prices Links -->
+                                <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                                    <a href="${standVirtualUrl}" target="_blank" onclick="event.stopPropagation();" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 12px; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; font-size: 11px; font-weight: 600; color: #c2410c; text-decoration: none; transition: all 0.2s;" onmouseover="this.style.background='#ffedd5'" onmouseout="this.style.background='#fff7ed'">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                                        Stand Virtual
+                                    </a>
+                                    <a href="${autoUncleUrl}" target="_blank" onclick="event.stopPropagation();" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 12px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; font-size: 11px; font-weight: 600; color: #1d4ed8; text-decoration: none; transition: all 0.2s;" onmouseover="this.style.background='#dbeafe'" onmouseout="this.style.background='#eff6ff'">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                                        Auto Uncle
+                                    </a>
+                                </div>
+
+                                <!-- AI Summary -->
+                                <div style="font-size: 13px; color: #475569; line-height: 1.6; flex: 1;">
+                                    ${v.ai_summary || 'Análise AI pendente...'}
+                                </div>
+
+                                <!-- Vehicle Details Row -->
+                                <div style="display: flex; gap: 16px; margin-top: 12px; padding-top: 12px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #64748b;">
+                                    ${v.matricula ? `<span>Matrícula: <strong style="color: #0f172a;">${v.matricula}</strong></span>` : ''}
+                                    ${v.tem_seguro !== null ? `<span>Seguro: <strong style="color: ${v.tem_seguro ? '#166534' : '#991b1b'};">${v.tem_seguro ? 'Sim' : 'Não'}</strong></span>` : ''}
+                                </div>
+                            </div>
+
+                            <!-- Right: Pros/Cons -->
+                            <div style="width: 320px; flex-shrink: 0; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+                                <!-- Pros -->
+                                <div style="flex: 1; background: #f0fdf4; border-radius: 10px; padding: 12px; border: 1px solid #bbf7d0;">
+                                    <div style="font-size: 11px; font-weight: 700; color: #166534; text-transform: uppercase; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                                        <span style="font-size: 14px;">✓</span> Pontos Fortes
+                                    </div>
+                                    <div style="font-size: 12px; color: #166534; line-height: 1.6;">
+                                        ${pros.length > 0 ? pros.map(p => `<div style="margin-bottom: 4px;">• ${p}</div>`).join('') : '<div style="opacity: 0.5;">Sem dados</div>'}
+                                    </div>
+                                </div>
+                                <!-- Cons -->
+                                <div style="flex: 1; background: #fef2f2; border-radius: 10px; padding: 12px; border: 1px solid #fecaca;">
+                                    <div style="font-size: 11px; font-weight: 700; color: #991b1b; text-transform: uppercase; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                                        <span style="font-size: 14px;">✗</span> Pontos Fracos
+                                    </div>
+                                    <div style="font-size: 12px; color: #991b1b; line-height: 1.6;">
+                                        ${cons.length > 0 ? cons.map(c => `<div style="margin-bottom: 4px;">• ${c}</div>`).join('') : '<div style="opacity: 0.5;">Sem dados</div>'}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function filterVehicleCards() {
+            const search = (document.getElementById('va-search')?.value || '').toLowerCase();
+            const recFilter = document.getElementById('va-filter-rec')?.value || '';
+
+            let filtered = allVehicleAnalyses.filter(v => {
+                const matchSearch = !search ||
+                    (v.marca || '').toLowerCase().includes(search) ||
+                    (v.modelo || '').toLowerCase().includes(search) ||
+                    (v.reference || '').toLowerCase().includes(search);
+
+                const matchRec = !recFilter || (v.ai_recommendation || '').toLowerCase() === recFilter;
+
+                return matchSearch && matchRec;
+            });
+
+            renderVehicleCards(filtered);
+            document.getElementById('va-cards-grid').style.display = filtered.length > 0 ? 'grid' : 'none';
+            document.getElementById('va-no-data').style.display = filtered.length === 0 ? 'block' : 'none';
+        }
+
+        function sortVehicleCards() {
+            const sortBy = document.getElementById('va-sort')?.value || 'score-desc';
+            let sorted = [...allVehicleAnalyses];
+
+            switch(sortBy) {
+                case 'score-desc':
+                    sorted.sort((a, b) => (b.ai_score || 0) - (a.ai_score || 0));
+                    break;
+                case 'score-asc':
+                    sorted.sort((a, b) => (a.ai_score || 0) - (b.ai_score || 0));
+                    break;
+                case 'discount-desc':
+                    sorted.sort((a, b) => (b.desconto_percentagem || 0) - (a.desconto_percentagem || 0));
+                    break;
+                case 'price-asc':
+                    sorted.sort((a, b) => (a.event_valor_base || 0) - (b.event_valor_base || 0));
+                    break;
+                case 'date-desc':
+                    sorted.sort((a, b) => new Date(b.processed_at || 0) - new Date(a.processed_at || 0));
+                    break;
+            }
+
+            allVehicleAnalyses = sorted;
+            filterVehicleCards();
+        }
+
+        async function refreshVehicleAnalyses() {
+            const icon = document.getElementById('ai-refresh-icon');
+            icon.style.animation = 'spin 1s linear infinite';
+            await loadVehicleAnalyses();
+            icon.style.animation = '';
+        }
+
+        // Legacy function - keep for compatibility
+        async function loadAiStats() {
+            // Now handled by loadVehicleAnalyses
+        }
+
+        async function loadAiPipelineStatus() {
+            try {
+                const response = await fetch('/api/ai/pipeline/status');
+                if (!response.ok) throw new Error('Failed to load pipeline status');
+                const data = await response.json();
+
+                const statusIndicator = document.getElementById('ai-status-indicator');
+                const statusText = document.getElementById('ai-status-text');
+                const processingStatus = document.getElementById('ai-processing-status');
+                const currentEvent = document.getElementById('ai-current-event');
+
+                if (data.is_running) {
+                    statusIndicator.style.background = '#10b981';
+                    statusText.textContent = 'A processar';
+                    statusText.style.color = '#10b981';
+                    processingStatus.style.display = 'block';
+                    currentEvent.textContent = data.current_event_titulo || data.current_reference || '-';
+                } else {
+                    statusIndicator.style.background = '#94a3b8';
+                    statusText.textContent = 'Parado';
+                    statusText.style.color = '#94a3b8';
+                    processingStatus.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Error loading AI pipeline status:', error);
+            }
+        }
+
+        async function loadAiTips(page = 1) {
+            aiCurrentPage = page;
+            const list = document.getElementById('ai-tips-list');
+            list.innerHTML = '<div class="loading"><div class="loading-spinner"></div></div>';
+
+            try {
+                const search = document.getElementById('ai-search-input')?.value || '';
+                const status = document.getElementById('ai-filter-status')?.value || '';
+                const tipo = document.getElementById('ai-filter-tipo')?.value || '';
+
+                const params = new URLSearchParams({
+                    page: page,
+                    page_size: 10
+                });
+                if (search) params.append('search', search);
+                if (status) params.append('status', status);
+                if (tipo) params.append('tipo', tipo);
+
+                const response = await fetch(`/api/ai/tips?${params}`);
+                if (!response.ok) throw new Error('Failed to load AI tips');
+                const data = await response.json();
+
+                if (data.tips.length === 0) {
+                    list.innerHTML = `
+                        <div style="text-align: center; padding: 60px 20px; color: #94a3b8;">
+                            <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" width="48" height="48" style="margin: 0 auto 16px; opacity: 0.5;">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                            </svg>
+                            <p style="font-size: 15px; margin-bottom: 8px;">Nenhuma analise encontrada</p>
+                            <p style="font-size: 13px;">As analises de AI aparecerao aqui quando o pipeline estiver ativo</p>
+                        </div>
+                    `;
+                    document.getElementById('ai-pagination').innerHTML = '';
+                    return;
+                }
+
+                list.innerHTML = data.tips.map(tip => renderAiTipCard(tip)).join('');
+                renderAiPagination(data.page, data.total, data.page_size);
+            } catch (error) {
+                console.error('Error loading AI tips:', error);
+                list.innerHTML = '<div style="text-align: center; padding: 40px; color: #ef4444;">Erro ao carregar analises</div>';
+            }
+        }
+
+        function renderAiTipCard(tip) {
+            const recommendationColors = {
+                'buy': { bg: '#dcfce7', border: '#86efac', text: '#15803d', label: 'Comprar' },
+                'watch': { bg: '#fef3c7', border: '#fcd34d', text: '#b45309', label: 'Acompanhar' },
+                'skip': { bg: '#fee2e2', border: '#fca5a5', text: '#dc2626', label: 'Evitar' }
+            };
+
+            const statusColors = {
+                'completed': { bg: '#dcfce7', text: '#15803d', label: 'Concluido' },
+                'pending': { bg: '#e0f2fe', text: '#0369a1', label: 'Pendente' },
+                'processing': { bg: '#fef3c7', text: '#b45309', label: 'A processar' },
+                'failed': { bg: '#fee2e2', text: '#dc2626', label: 'Falhado' }
+            };
+
+            const rec = recommendationColors[tip.tip_recommendation] || { bg: '#f1f5f9', border: '#e2e8f0', text: '#64748b', label: '-' };
+            const stat = statusColors[tip.status] || statusColors['pending'];
+
+            const confidence = tip.tip_confidence ? Math.round(tip.tip_confidence * 100) : null;
+            const valorBase = tip.event_valor_base ? tip.event_valor_base.toLocaleString('pt-PT') + ' EUR' : '-';
+
+            let prosConsHtml = '';
+            if (tip.status === 'completed' && (tip.tip_pros?.length || tip.tip_cons?.length)) {
+                prosConsHtml = `
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;">
+                        <div>
+                            <div style="font-weight: 600; color: #10b981; margin-bottom: 8px; font-size: 12px;">VANTAGENS</div>
+                            <ul style="margin: 0; padding-left: 16px; font-size: 13px; color: #374151;">
+                                ${(tip.tip_pros || []).map(p => `<li style="margin-bottom: 4px;">${p}</li>`).join('')}
+                            </ul>
+                        </div>
+                        <div>
+                            <div style="font-weight: 600; color: #ef4444; margin-bottom: 8px; font-size: 12px;">DESVANTAGENS</div>
+                            <ul style="margin: 0; padding-left: 16px; font-size: 13px; color: #374151;">
+                                ${(tip.tip_cons || []).map(c => `<li style="margin-bottom: 4px;">${c}</li>`).join('')}
+                            </ul>
+                        </div>
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="ai-tip-card" style="background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; transition: all 0.2s;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                        <div>
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                <span style="font-size: 12px; font-weight: 600; color: #64748b; font-family: monospace;">${tip.reference}</span>
+                                <span style="background: ${stat.bg}; color: ${stat.text}; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500;">${stat.label}</span>
+                            </div>
+                            <h3 style="font-size: 16px; font-weight: 600; color: #1e293b; margin: 0; line-height: 1.4;">${tip.event_titulo || 'Sem titulo'}</h3>
+                        </div>
+                        ${tip.status === 'completed' ? `
+                            <div style="background: ${rec.bg}; border: 1px solid ${rec.border}; border-radius: 8px; padding: 8px 16px; text-align: center;">
+                                <div style="font-size: 14px; font-weight: 700; color: ${rec.text};">${rec.label}</div>
+                                ${confidence ? `<div style="font-size: 11px; color: ${rec.text}; opacity: 0.8;">${confidence}% conf.</div>` : ''}
+                            </div>
+                        ` : ''}
+                    </div>
+
+                    <div style="display: flex; gap: 16px; font-size: 13px; color: #64748b; margin-bottom: 12px;">
+                        <span>${tip.event_tipo || '-'} / ${tip.event_subtipo || '-'}</span>
+                        <span>${tip.event_distrito || '-'}</span>
+                        <span style="font-weight: 600; color: #1e293b;">${valorBase}</span>
+                    </div>
+
+                    ${tip.status === 'completed' && tip.tip_summary ? `
+                        <div style="background: #f8fafc; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
+                            <p style="margin: 0; font-size: 14px; color: #374151; line-height: 1.6;">${tip.tip_summary}</p>
+                        </div>
+                    ` : ''}
+
+                    ${tip.status === 'failed' && tip.error_message ? `
+                        <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 12px;">
+                            <p style="margin: 0; font-size: 13px; color: #dc2626;">${tip.error_message}</p>
+                        </div>
+                    ` : ''}
+
+                    ${prosConsHtml}
+
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; padding-top: 12px; border-top: 1px solid #f1f5f9;">
+                        <div style="font-size: 12px; color: #94a3b8;">
+                            ${tip.processed_at ? `Analisado: ${new Date(tip.processed_at).toLocaleString('pt-PT')}` : `Criado: ${new Date(tip.created_at).toLocaleString('pt-PT')}`}
+                            ${tip.model_used ? ` | ${tip.model_used}` : ''}
+                        </div>
+                        <button onclick="viewEventDetails('${tip.reference}')" style="background: #3b82f6; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer;">
+                            Ver Evento
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderAiPagination(currentPage, total, pageSize) {
+            const totalPages = Math.ceil(total / pageSize);
+            const pagination = document.getElementById('ai-pagination');
+
+            if (totalPages <= 1) {
+                pagination.innerHTML = '';
+                return;
+            }
+
+            let html = '';
+
+            // Previous button
+            if (currentPage > 1) {
+                html += `<button onclick="loadAiTips(${currentPage - 1})" style="padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px; background: white; cursor: pointer;">Anterior</button>`;
+            }
+
+            // Page numbers
+            const startPage = Math.max(1, currentPage - 2);
+            const endPage = Math.min(totalPages, currentPage + 2);
+
+            for (let i = startPage; i <= endPage; i++) {
+                const isActive = i === currentPage;
+                html += `<button onclick="loadAiTips(${i})" style="padding: 8px 12px; border: 1px solid ${isActive ? '#3b82f6' : '#e2e8f0'}; border-radius: 6px; background: ${isActive ? '#3b82f6' : 'white'}; color: ${isActive ? 'white' : '#374151'}; cursor: pointer;">${i}</button>`;
+            }
+
+            // Next button
+            if (currentPage < totalPages) {
+                html += `<button onclick="loadAiTips(${currentPage + 1})" style="padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px; background: white; cursor: pointer;">Seguinte</button>`;
+            }
+
+            pagination.innerHTML = html;
+        }
+
+        function debounceAiSearch() {
+            clearTimeout(aiSearchTimeout);
+            aiSearchTimeout = setTimeout(() => {
+                loadAiTips(1);
+            }, 300);
+        }
+
+        function viewEventDetails(reference) {
+            // Open event in e-leiloes
+            window.open(`https://e-leiloes.pt/evento/${reference}`, '_blank');
+        }
 
         // ============== TOAST NOTIFICATION SYSTEM ==============
 
@@ -11765,34 +13603,36 @@
     </div>
 
     <!-- Inspection Modal -->
-    <div class="inspection-modal" id="inspection-modal">
-        <button class="inspection-close" onclick="closeInspectionModal()">
-            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+    <div class="inspection-modal" id="inspection-modal" role="dialog" aria-modal="true" aria-labelledby="inspection-title">
+        <button class="inspection-close" onclick="closeInspectionModal()" aria-label="Fechar modal">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
             </svg>
         </button>
         <div class="inspection-content">
             <!-- Loading Overlay -->
-            <div class="modal-loading-overlay" id="modal-loading-overlay">
-                <div class="modal-loading-spinner"></div>
+            <div class="modal-loading-overlay" id="modal-loading-overlay" role="status" aria-live="polite">
+                <div class="modal-loading-spinner" aria-hidden="true"></div>
                 <div class="modal-loading-text" id="modal-loading-text">A processar...</div>
                 <div class="modal-loading-subtext" id="modal-loading-subtext">Aguarde enquanto atualizamos os dados</div>
             </div>
-            <div class="inspection-carousel" id="inspection-carousel">
-                <div class="inspection-carousel-counter" id="inspection-counter">1 / 1</div>
+            <div class="inspection-carousel" id="inspection-carousel" role="region" aria-label="Galeria de imagens">
+                <div class="inspection-carousel-counter" id="inspection-counter" aria-live="polite">1 / 1</div>
                 <div class="inspection-carousel-images" id="inspection-images"></div>
-                <button class="inspection-carousel-nav prev" onclick="inspectionCarouselPrev()">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <button class="inspection-carousel-nav prev" onclick="inspectionCarouselPrev()" aria-label="Imagem anterior">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
                     </svg>
                 </button>
-                <button class="inspection-carousel-nav next" onclick="inspectionCarouselNext()">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <button class="inspection-carousel-nav next" onclick="inspectionCarouselNext()" aria-label="Próxima imagem">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
                     </svg>
                 </button>
                 <div class="inspection-carousel-indicators" id="inspection-indicators"></div>
             </div>
+
+            <!-- Details Content -->
             <div class="inspection-details" id="inspection-details">
                 <!-- Populated by JavaScript -->
             </div>

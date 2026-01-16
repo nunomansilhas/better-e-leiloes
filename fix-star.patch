@@ -1,0 +1,32 @@
+diff --git a/public-api/static/index.html b/public-api/static/index.html
+index 9e9f3d51..078d2341 100644
+--- a/public-api/static/index.html
++++ b/public-api/static/index.html
+@@ -11195,6 +11195,10 @@
+ 
+                 if (response.ok) {
+                     addLog(`Evento ${reference} adicionado aos favoritos`, 'success');
++                    // Update FAVORITES cache for sync checks
++                    if (!FAVORITES._cache.some(r => r.event_reference === reference)) {
++                        FAVORITES._cache.push({ event_reference: reference, active: true });
++                    }
+                     // Update badge
+                     const countResp = await fetch(`${API_BASE}/api/favorites/count`);
+                     const countData = await countResp.json();
+@@ -11266,6 +11270,7 @@
+             }
+             // Update UI
+             updateFavoriteStars();
++            updateEndingSoonFavoriteButtons();
+         }
+ 
+         // Remove without confirm (for toggle)
+@@ -11273,6 +11278,8 @@
+             try {
+                 await authFetch(`${API_BASE}/api/favorites/${reference}`, { method: 'DELETE' });
+                 addLog(`Evento ${reference} removido dos favoritos`, 'info');
++                // Update FAVORITES cache for sync checks
++                FAVORITES._cache = FAVORITES._cache.filter(r => r.event_reference !== reference);
+                 const countResp = await fetch(`${API_BASE}/api/favorites/count`);
+                 const countData = await countResp.json();
+                 updateFavoritesBadge(countData.count);
