@@ -14,8 +14,50 @@ from fastapi import APIRouter, HTTPException, Query, BackgroundTasks
 from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime
+import re
 
 router = APIRouter(prefix="/api/vehicle", tags=["Vehicle Lookup"])
+
+
+# =============================================================================
+# HELPER FUNCTIONS
+# =============================================================================
+
+def extract_km_from_text(text: str) -> Optional[int]:
+    """
+    Extract kilometers from text description.
+    Handles formats like: 145000 km, 145.000 km, 145 000 km, 145000km
+    """
+    if not text:
+        return None
+
+    # Normalize text
+    text = text.lower()
+
+    # Pattern: number followed by km (with optional spaces/dots/commas)
+    # Examples: 145000 km, 145.000 km, 145 000 km, 145,000 km
+    patterns = [
+        r'(\d{1,3}(?:[.\s]\d{3})+)\s*km',  # 145.000 km, 145 000 km
+        r'(\d{4,6})\s*km',  # 145000 km, 145000km
+        r'quilometr[ao]s?[:\s]+(\d{1,3}(?:[.\s]\d{3})+)',  # quilometros: 145.000
+        r'quilometr[ao]s?[:\s]+(\d{4,6})',  # quilometros: 145000
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, text)
+        if match:
+            km_str = match.group(1)
+            # Remove dots, spaces, commas - keep only digits
+            km_str = re.sub(r'[.\s,]', '', km_str)
+            try:
+                km = int(km_str)
+                # Sanity check: must be between 0 and 2,000,000 km
+                if 0 < km < 2000000:
+                    return km
+            except ValueError:
+                continue
+
+    return None
 
 
 # Response models
@@ -1557,6 +1599,11 @@ async def complete_vehicle_analysis_v2(
     except Exception as e:
         errors.append(f"Insurance: {str(e)}")
 
+    # 3.5 Extract KM from description (used in response and AI analysis)
+    descricao_text = event_dict.get('descricao') or ''
+    titulo_text = event_dict.get('titulo') or ''
+    quilometros = vehicle_info.get('quilometros') or event_dict.get('quilometros') or extract_km_from_text(descricao_text) or extract_km_from_text(titulo_text)
+
     # 4. Get market price (hybrid approach)
     market_price = None
     market_result = None
@@ -1622,16 +1669,17 @@ async def complete_vehicle_analysis_v2(
 
             # Prepare vehicle data for AI - include all available info
             # IMPORTANT: valor_minimo is the real minimum price (not valor_base)
+            # KM was already extracted in step 3.5
+
             ai_vehicle_data = {
                 **vehicle_info,
-                'titulo': event_dict.get('titulo'),
-                'descricao': event_dict.get('descricao'),
+                'titulo': titulo_text,
+                'descricao': descricao_text,
                 'valor_base': event_dict.get('valor_base'),
                 'valor_minimo': event_dict.get('valor_minimo'),  # Critical for investment analysis
                 'lance_atual': event_dict.get('lance_atual'),
                 'tem_seguro': insurance_info.get('tem_seguro'),
-                # Add quilometros from description if not in vehicle_info
-                'quilometros': vehicle_info.get('quilometros') or event_dict.get('quilometros'),
+                'quilometros': quilometros,
             }
 
             # Get market listings for comparison
@@ -1760,7 +1808,7 @@ async def complete_vehicle_analysis_v2(
         "event_valor_base": event_dict.get('valor_base'),
         "event_lance_atual": event_dict.get('lance_atual'),
 
-        # Vehicle info
+        # Vehicle info (quilometros extracted from description if not in vehicle_info)
         "veiculo": {
             "marca": vehicle_info.get('marca'),
             "modelo": vehicle_info.get('modelo'),
@@ -1772,6 +1820,7 @@ async def complete_vehicle_analysis_v2(
             "vin": vehicle_info.get('vin'),
             "producao_inicio": vehicle_info.get('producao_inicio'),
             "producao_fim": vehicle_info.get('producao_fim'),
+            "quilometros": quilometros,  # Extracted in step 3.5
         },
 
         # Insurance
@@ -1815,6 +1864,9 @@ async def complete_vehicle_analysis_v2(
             "checklist_antes_licitar": ai_result.checklist if ai_result else [],
             "problemas_conhecidos": ai_result.problemas_conhecidos if ai_result else [],
         },
+
+        # Investment Analysis (programmatic calculations)
+        "investimento": ai_result.investment_analysis if ai_result and ai_result.investment_analysis else None,
 
         # Image Analysis (LLaVA)
         "image_analyses": image_analyses,
