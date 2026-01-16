@@ -237,6 +237,59 @@ Considera valores típicos em Portugal.""",
 # INVESTMENT ANALYSIS - PROGRAMMATIC CALCULATIONS (NOT AI)
 # =============================================================================
 
+def _extract_km_from_listing(listing: Dict[str, Any]) -> Optional[int]:
+    """
+    Extract km from a market listing.
+    Listings have: titulo, preco, params (string like "2020 · 145 000 km · Gasóleo")
+    """
+    import re
+
+    # First try direct km field
+    if listing.get('km'):
+        try:
+            km_val = int(str(listing['km']).replace(".", "").replace(",", "").replace(" ", ""))
+            if 0 < km_val < 1000000:
+                return km_val
+        except:
+            pass
+
+    # Try to extract from params string
+    params = listing.get('params', '') or ''
+    if params:
+        # Patterns: "145 000 km", "145.000 km", "145000 km"
+        patterns = [
+            r'(\d{1,3}(?:\s?\d{3})+)\s*km',  # "145 000 km" or "145000 km"
+            r'(\d{1,3}(?:[.\s]\d{3})+)\s*km',  # "145.000 km"
+            r'(\d{4,6})\s*km',  # "145000 km"
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, params, re.IGNORECASE)
+            if match:
+                try:
+                    km_str = match.group(1).replace(".", "").replace(",", "").replace(" ", "")
+                    km_val = int(km_str)
+                    if 0 < km_val < 1000000:
+                        return km_val
+                except:
+                    continue
+
+    # Try to extract from titulo
+    titulo = listing.get('titulo', '') or ''
+    if titulo:
+        for pattern in [r'(\d{1,3}(?:\s?\d{3})+)\s*km', r'(\d{4,6})\s*km']:
+            match = re.search(pattern, titulo, re.IGNORECASE)
+            if match:
+                try:
+                    km_str = match.group(1).replace(".", "").replace(",", "").replace(" ", "")
+                    km_val = int(km_str)
+                    if 0 < km_val < 1000000:
+                        return km_val
+                except:
+                    continue
+
+    return None
+
+
 def calculate_investment_analysis(
     vehicle_data: Dict[str, Any],
     market_price: Optional[float] = None,
@@ -410,14 +463,9 @@ def calculate_investment_analysis(
     if market_listings:
         market_kms = []
         for listing in market_listings:
-            listing_km = listing.get('km')
+            listing_km = _extract_km_from_listing(listing)
             if listing_km:
-                try:
-                    l_km = int(str(listing_km).replace(".", "").replace(",", "").replace(" ", ""))
-                    if 0 < l_km < 1000000:  # Sanity check
-                        market_kms.append(l_km)
-                except (ValueError, TypeError):
-                    continue
+                market_kms.append(listing_km)
 
         if market_kms:
             km_mercado_medio = round(sum(market_kms) / len(market_kms))
@@ -429,12 +477,12 @@ def calculate_investment_analysis(
 
     if market_listings and km:
         for listing in market_listings:
-            listing_km = listing.get('km')
+            listing_km = _extract_km_from_listing(listing)
             listing_price = listing.get('preco') or listing.get('price')
 
             if listing_km and listing_price:
                 try:
-                    l_km = int(str(listing_km).replace(".", "").replace(",", "").replace(" ", ""))
+                    l_km = listing_km  # Already extracted as int
                     l_price = float(str(listing_price).replace(".", "").replace(",", ".").replace("€", "").replace(" ", ""))
 
                     # If market has LESS km for similar or lower price = bad for auction
