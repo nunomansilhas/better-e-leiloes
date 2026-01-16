@@ -160,6 +160,105 @@ class EventScraper:
             return events[0]
         raise Exception(f"Evento {reference} não encontrado na API")
 
+    async def scrape_event_html(self, reference: str) -> EventData:
+        """
+        Scrape de um evento via HTML direto (mais lento, mas captura observacoes).
+        Usa Playwright para navegar até à página e extrair todos os campos.
+
+        Args:
+            reference: Referência do evento (ex: LO1428362025)
+
+        Returns:
+            EventData completo incluindo observacoes
+        """
+        await self.init_browser()
+
+        url = f"https://www.e-leiloes.pt/evento/{reference}"
+        print(f"🌐 HTML Scrape: {reference} via {url}")
+
+        context = await self.browser.new_context(
+            user_agent=self.user_agent,
+            viewport={'width': 1920, 'height': 1080},
+            ignore_https_errors=True
+        )
+
+        page = await context.new_page()
+
+        try:
+            # Navega para página do evento
+            await page.goto(url, wait_until="networkidle", timeout=30000)
+            await asyncio.sleep(2)
+
+            # Extrai datas do evento
+            data_inicio, data_fim = await self._extract_dates(page)
+
+            # Extrai localização
+            gps, distrito, concelho, freguesia = await self._extract_localizacao(page)
+
+            # Detalhes - extrai AMBOS os tipos para deteção automática
+            detalhes_imovel = await self._extract_imovel_details(page, distrito, concelho, freguesia)
+            detalhes_movel = await self._extract_movel_details(page, distrito, concelho, freguesia)
+
+            # DETECÇÃO AUTOMÁTICA: Se tem matrícula → é móvel
+            is_movel = (
+                detalhes_movel.matricula is not None or
+                "veículo" in (detalhes_movel.tipo or "").lower() or
+                "veiculo" in (detalhes_movel.tipo or "").lower() or
+                "ligeiro" in (detalhes_movel.tipo or "").lower() or
+                "pesado" in (detalhes_movel.tipo or "").lower() or
+                "motociclo" in (detalhes_movel.tipo or "").lower()
+            )
+
+            detalhes = detalhes_movel if is_movel else detalhes_imovel
+            tipo_evento = "veiculos" if is_movel else "imoveis"
+            detalhes.tipo = tipo_evento
+            if is_movel:
+                gps = None
+
+            # Extrai valores da página
+            valores = await self._extract_valores_from_page(page)
+
+            # Extrai todas as secções HTML - INCLUINDO OBSERVACOES
+            imagens = await self._extract_gallery(page)
+            descricao = await self._extract_descricao(page)
+            observacoes = await self._extract_observacoes(page)
+            onuselimitacoes = await self._extract_onus_limitacoes(page)
+            descricao_predial = await self._extract_descricao_predial(page)
+            cerimonia = await self._extract_cerimonia(page)
+            agente = await self._extract_agente(page)
+            dados_processo = await self._extract_dados_processo(page)
+
+            print(f"  ✅ Descricao: {'sim' if descricao else 'não'}")
+            print(f"  ✅ Observacoes: {'sim' if observacoes else 'não'}")
+            print(f"  ✅ Imagens: {len(imagens) if imagens else 0}")
+
+            return EventData(
+                reference=reference,
+                tipoEvento=tipo_evento,
+                valores=valores,
+                gps=gps,
+                detalhes=detalhes,
+                dataInicio=data_inicio,
+                dataFim=data_fim,
+                imagens=imagens,
+                descricao=descricao,
+                observacoes=observacoes,
+                onuselimitacoes=onuselimitacoes,
+                descricaoPredial=descricao_predial,
+                cerimoniaEncerramento=cerimonia,
+                agenteExecucao=agente,
+                dadosProcesso=dados_processo,
+                scraped_at=datetime.utcnow()
+            )
+
+        except Exception as e:
+            print(f"❌ Erro HTML scrape {reference}: {e}")
+            raise Exception(f"Erro ao scrape HTML de {reference}: {str(e)}")
+
+        finally:
+            await page.close()
+            await context.close()
+
     async def _scrape_event_details(self, preview: dict, tipo_evento: str) -> EventData:
         """
         FASE 2: Entra na página individual para extrair detalhes completos

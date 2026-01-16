@@ -946,6 +946,60 @@ async def get_event(reference: str):
     raise HTTPException(status_code=404, detail=f"Evento não encontrado: {reference}")
 
 
+@app.post("/api/events/{reference}/rescrape")
+async def rescrape_event_html(reference: str):
+    """
+    Força rescrape de um evento via HTML (Playwright).
+
+    Este endpoint usa scraping HTML direto para capturar campos que a API não retorna,
+    como observacoes, onuselimitacoes, etc.
+
+    - **reference**: Referência do evento (ex: LO1428362025)
+
+    ⚠️ Mais lento que o scrape normal, mas captura todos os campos.
+    """
+    try:
+        print(f"🔄 Rescrape HTML iniciado para {reference}")
+
+        # Scrape via HTML para capturar observacoes
+        event = await scraper.scrape_event_html(reference)
+
+        if not event:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Evento {reference} não encontrado"
+            )
+
+        # Guarda na base de dados
+        async with get_db() as db:
+            await db.save_event(event)
+
+        # Atualiza cache
+        await cache_manager.set(reference, event)
+
+        # Log
+        add_dashboard_log(f"🔄 Rescrape HTML: {reference} (observacoes: {'✅' if event.observacoes else '❌'})", "success")
+
+        return {
+            "success": True,
+            "reference": reference,
+            "observacoes": event.observacoes[:200] + "..." if event.observacoes and len(event.observacoes) > 200 else event.observacoes,
+            "descricao": event.descricao[:200] + "..." if event.descricao and len(event.descricao) > 200 else event.descricao,
+            "imagens_count": len(event.imagens) if event.imagens else 0,
+            "message": "Evento rescrapped com sucesso via HTML"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Erro rescrape HTML {reference}: {e}")
+        add_dashboard_log(f"❌ Rescrape HTML falhou: {reference} - {e}", "error")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao rescrape: {str(e)}"
+        )
+
+
 @app.post("/api/scrape/event/{reference}")
 async def trigger_scrape_event(reference: str, background_tasks: BackgroundTasks):
     """
