@@ -1934,3 +1934,107 @@ async def test_pipeline_status():
             },
             "recent_analyses": recent_analyses
         }
+
+
+# ============== BATCH ANALYSIS - MULTIPLE VEHICLES ==============
+
+@router.post("/batch-analyze")
+async def batch_analyze_vehicles(
+    count: int = Query(3, ge=1, le=10, description="Number of vehicles to analyze"),
+    ai_model: str = Query("llama3.1:8b", description="AI model to use"),
+    skip_analyzed: bool = Query(True, description="Skip already analyzed vehicles")
+):
+    """
+    Analyze multiple vehicles in batch.
+
+    Finds the first N active vehicles with matricula and runs the complete
+    analyze-v2 pipeline on each. Returns results for all vehicles.
+
+    Args:
+        count: Number of vehicles to analyze (1-10)
+        ai_model: AI model to use for analysis
+        skip_analyzed: Skip vehicles that have already been analyzed
+    """
+    from database import get_db, EventDB, EventVehicleDataDB
+    from sqlalchemy import select
+
+    results = []
+    errors_list = []
+
+    # Find active vehicles with matricula
+    async with get_db() as db:
+        query = (
+            select(EventDB)
+            .where(EventDB.tipo_id == 2)  # Vehicles
+            .where(EventDB.terminado == False)
+            .where(EventDB.cancelado == False)
+            .where(EventDB.matricula != None)
+            .where(EventDB.matricula != '')
+            .order_by(EventDB.data_fim.asc())
+        )
+
+        if skip_analyzed:
+            # Exclude already analyzed vehicles
+            analyzed_refs = select(EventVehicleDataDB.reference).where(
+                EventVehicleDataDB.ai_score != None
+            )
+            query = query.where(~EventDB.reference.in_(analyzed_refs))
+
+        query = query.limit(count)
+        result = await db.session.execute(query)
+        events = result.scalars().all()
+
+        if not events:
+            return {
+                "message": "No vehicles found to analyze",
+                "count_requested": count,
+                "count_found": 0,
+                "results": [],
+                "errors": []
+            }
+
+    # Analyze each vehicle
+    for i, event in enumerate(events):
+        try:
+            print(f"[{i+1}/{len(events)}] Analyzing {event.reference} ({event.matricula})...")
+
+            analysis_result = await complete_vehicle_analysis_v2(
+                reference=event.reference,
+                include_ai=True,
+                ai_model=ai_model
+            )
+
+            results.append({
+                "reference": event.reference,
+                "matricula": event.matricula,
+                "titulo": event.titulo,
+                "status": "completed",
+                "ai_score": analysis_result.get("analise", {}).get("score") if isinstance(analysis_result.get("analise"), dict) else None,
+                "ai_recommendation": analysis_result.get("analise", {}).get("recomendacao") if isinstance(analysis_result.get("analise"), dict) else None,
+                "market_price": analysis_result.get("mercado", {}).get("preco_medio") if isinstance(analysis_result.get("mercado"), dict) else None,
+                "processing_time_ms": analysis_result.get("total_processing_time_ms")
+            })
+
+        except Exception as e:
+            errors_list.append({
+                "reference": event.reference,
+                "matricula": event.matricula,
+                "error": str(e)
+            })
+            results.append({
+                "reference": event.reference,
+                "matricula": event.matricula,
+                "titulo": event.titulo,
+                "status": "failed",
+                "error": str(e)
+            })
+
+    return {
+        "message": f"Batch analysis completed for {len(results)} vehicles",
+        "count_requested": count,
+        "count_found": len(events),
+        "count_success": len([r for r in results if r["status"] == "completed"]),
+        "count_failed": len([r for r in results if r["status"] == "failed"]),
+        "results": results,
+        "errors": errors_list
+    }
