@@ -1695,7 +1695,8 @@ class AutoPipelinesManager:
 
         async def run_zwatch_pipeline():
             """Z-Watch: Monitoriza EventosMaisRecentes API para novos eventos"""
-            import httpx
+            import json
+            from playwright.async_api import async_playwright
             from scraper import EventScraper
             from database import get_db
             from cache import CacheManager
@@ -1707,6 +1708,8 @@ class AutoPipelinesManager:
 
             scraper = None
             cache_manager = None
+            browser = None
+            playwright_instance = None
 
             try:
                 # Z-Watch is lightweight - runs independently without locks
@@ -1721,98 +1724,117 @@ class AutoPipelinesManager:
                 cache_manager = CacheManager()
                 new_count = 0
 
-                # Call the EventosMaisRecentes API
-                async with httpx.AsyncClient(timeout=15.0, follow_redirects=True, verify=False) as client:
-                    api_url = "https://www.e-leiloes.pt/api/EventosMaisRecentes/"
+                # Use Playwright to access the API (httpx gets blocked by anti-bot)
+                playwright_instance = await async_playwright().start()
+                browser = await playwright_instance.chromium.launch(headless=True)
+                context = await browser.new_context(
+                    user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    ignore_https_errors=True
+                )
+                page = await context.new_page()
 
-                    # Try with browser-like headers
-                    headers = {
-                        'Accept': 'application/json, text/plain, */*',
-                        'Accept-Language': 'pt-PT,pt;q=0.9,en;q=0.8',
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                        'Referer': 'https://www.e-leiloes.pt/',
-                        'Origin': 'https://www.e-leiloes.pt'
-                    }
+                # Visit main site first to establish session
+                await page.goto("https://www.e-leiloes.pt", wait_until='domcontentloaded', timeout=30000)
+                await asyncio.sleep(1)
 
-                    response = await client.get(api_url, headers=headers)
+                # Now fetch the EventosMaisRecentes API
+                api_url = "https://www.e-leiloes.pt/api/EventosMaisRecentes/"
+                response = await page.goto(api_url, wait_until='domcontentloaded', timeout=15000)
 
-                    if response.status_code != 200:
-                        print(f"  ⚠️ EventosMaisRecentes API returned {response.status_code}")
-                        return
+                if not response or response.status != 200:
+                    status = response.status if response else 'None'
+                    print(f"  ⚠️ EventosMaisRecentes API returned {status}")
+                    return
 
-                    data = response.json()
+                # Parse JSON from page body
+                body = await page.query_selector('body')
+                json_str = await body.inner_text() if body else ''
+                data = json.loads(json_str)
 
-                    # The API returns a list of recent events
-                    events_list = data if isinstance(data, list) else data.get('items', data.get('eventos', []))
+                # The API returns a list of recent events
+                events_list = data if isinstance(data, list) else data.get('items', data.get('eventos', []))
 
-                    if not events_list:
-                        print(f"  ✓ Nenhum evento na resposta")
-                        return
+                # Close the page/context after getting data
+                await page.close()
+                await context.close()
 
-                    print(f"  📊 {len(events_list)} eventos na API")
+                if not events_list:
+                    print(f"  ✓ Nenhum evento na resposta")
+                    return
 
-                    # Extract references and check which are new
-                    new_refs = []
-                    async with get_db() as db:
-                        for item in events_list:
-                            # Try different field names for reference
-                            ref = item.get('reference') or item.get('referencia') or item.get('id') or item.get('codigo')
-                            if ref:
-                                existing = await db.get_event(ref)
-                                if not existing:
-                                    new_refs.append(ref)
+                print(f"  📊 {len(events_list)} eventos na API")
 
-                    if not new_refs:
-                        print(f"  ✓ Nenhum evento novo")
-                        return
+                # Extract references and check which are new
+                new_refs = []
+                async with get_db() as db:
+                    for item in events_list:
+                        # Try different field names for reference
+                        ref = item.get('reference') or item.get('referencia') or item.get('id') or item.get('codigo')
+                        if ref:
+                            existing = await db.get_event(ref)
+                            if not existing:
+                                new_refs.append(ref)
 
-                    print(f"  🆕 {len(new_refs)} eventos novos encontrados!")
+                if not new_refs:
+                    print(f"  ✓ Nenhum evento novo")
+                    return
 
-                    # Scrape details for new events (use run_in_proactor for Windows)
-                    events = await run_in_proactor(scraper.scrape_details_via_api, new_refs)
+                print(f"  🆕 {len(new_refs)} eventos novos encontrados!")
 
-                    # Process notifications for new events
-                    from notification_engine import process_new_events_batch
-                    from main import broadcast_new_event
+                # Scrape details for new events (use run_in_proactor for Windows)
+                events = await run_in_proactor(scraper.scrape_details_via_api, new_refs)
 
-                    async with get_db() as db:
-                        for event in events:
-                            await db.save_event(event)
-                            await cache_manager.set(event.reference, event)
-                            new_count += 1
+                # Process notifications for new events
+                from notification_engine import process_new_events_batch
+                from main import broadcast_new_event
 
-                            # Broadcast new event to SSE clients
-                            await broadcast_new_event({
-                                "reference": event.reference,
-                                "titulo": event.titulo,
-                                "tipo": event.tipo,
-                                "capa": event.capa,
-                                "distrito": event.distrito,
-                                "concelho": event.concelho,
-                                "valor_minimo": event.valor_minimo,
-                                "lance_atual": event.lance_atual,
-                                "valor_base": event.valor_base,
-                                "data_fim": event.data_fim.isoformat() if event.data_fim else None,
-                                "data_inicio": event.data_inicio.isoformat() if event.data_inicio else None,
-                                "timestamp": datetime.now().isoformat()
-                            })
+                async with get_db() as db:
+                    for event in events:
+                        await db.save_event(event)
+                        await cache_manager.set(event.reference, event)
+                        new_count += 1
 
-                            print(f"    ✨ Novo: {event.reference} - {event.titulo[:50]}...")
+                        # Broadcast new event to SSE clients
+                        await broadcast_new_event({
+                            "reference": event.reference,
+                            "titulo": event.titulo,
+                            "tipo": event.tipo,
+                            "capa": event.capa,
+                            "distrito": event.distrito,
+                            "concelho": event.concelho,
+                            "valor_minimo": event.valor_minimo,
+                            "lance_atual": event.lance_atual,
+                            "valor_base": event.valor_base,
+                            "data_fim": event.data_fim.isoformat() if event.data_fim else None,
+                            "data_inicio": event.data_inicio.isoformat() if event.data_inicio else None,
+                            "timestamp": datetime.now().isoformat()
+                        })
 
-                        # Check notification rules for new events
-                        notifications_count = await process_new_events_batch(events, db)
+                        print(f"    ✨ Novo: {event.reference} - {event.titulo[:50]}...")
 
-                        if notifications_count > 0:
-                            print(f"  🔔 {notifications_count} notificações criadas")
+                    # Check notification rules for new events
+                    notifications_count = await process_new_events_batch(events, db)
 
-                    print(f"  ✅ Z-Watch: {new_count} novos eventos adicionados")
+                    if notifications_count > 0:
+                        print(f"  🔔 {notifications_count} notificações criadas")
 
-            except httpx.RequestError as e:
-                print(f"  ❌ Z-Watch erro de rede: {str(e)[:50]}")
+                print(f"  ✅ Z-Watch: {new_count} novos eventos adicionados")
+
             except Exception as e:
                 print(f"  ❌ Z-Watch erro: {str(e)[:100]}")
             finally:
-                # Close resources safely (don't let errors here block the rest)
+                # Close Playwright resources safely
+                try:
+                    if browser:
+                        await browser.close()
+                except:
+                    pass
+                try:
+                    if playwright_instance:
+                        await playwright_instance.stop()
+                except:
+                    pass
+                # Close other resources safely
                 try:
                     if scraper:
                         await run_in_proactor(scraper.close)

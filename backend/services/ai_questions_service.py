@@ -62,6 +62,9 @@ class VehicleAnalysisResult:
     total_time_ms: int = 0
     total_tokens: int = 0
 
+    # Investment analysis (programmatic calculation, not AI)
+    investment_analysis: Optional[Dict[str, Any]] = None
+
 
 # =============================================================================
 # STRUCTURED QUESTIONS WITH JSON SCHEMAS
@@ -225,81 +228,344 @@ Considera valores típicos em Portugal.""",
             "preco_revenda_minimo_lucro": 0
         }
     },
-    {
-        "id": "final_recommendation",
-        "name": "Recomendação Final",
-        "description": "Gera a recomendação final com scores e checklist",
-        "template": """Com base nestes dados do veículo em leilão:
+    # NOTE: final_recommendation is now calculated programmatically
+    # See _calculate_investment_analysis() method
+]
 
-VEÍCULO: {marca} {modelo} ({ano}, {combustivel})
-QUILÓMETROS: {quilometros} km
-VALOR BASE LEILÃO: {valor_base}€
-LANCE ATUAL: {lance_atual}€
 
-COMPARAÇÃO COM MERCADO:
-- Preço mínimo mercado: {preco_mercado_min}€
-- Preço médio mercado: {preco_mercado}€
-- Desconto vs mercado: {desconto_percentagem}%
+# =============================================================================
+# INVESTMENT ANALYSIS - PROGRAMMATIC CALCULATIONS (NOT AI)
+# =============================================================================
 
-ANÚNCIOS SIMILARES NO MERCADO:
-{market_listings}
+def calculate_investment_analysis(
+    vehicle_data: Dict[str, Any],
+    market_price: Optional[float] = None,
+    market_price_min: Optional[float] = None,
+    market_listings: Optional[List[Dict]] = None,
+    problemas_conhecidos: Optional[List[Dict]] = None
+) -> Dict[str, Any]:
+    """
+    Calculate investment analysis using HARD RULES - no AI hallucinations.
 
-TEM SEGURO: {tem_seguro}
+    This function determines recommendation based on:
+    1. KM thresholds (hard limits)
+    2. KM/year usage (15k-20k normal, >30k heavy use)
+    3. Price vs market comparison (uses valor_minimo, not valor_base)
+    4. KM comparison with market listings
+    5. Known issues from description
+    """
+    # Extract data
+    km_raw = vehicle_data.get("quilometros") or vehicle_data.get("km")
+    try:
+        km = int(str(km_raw).replace(".", "").replace(",", "").replace(" ", "")) if km_raw else None
+    except (ValueError, TypeError):
+        km = None
 
-PROBLEMAS MENCIONADOS NA DESCRIÇÃO:
-{problemas_conhecidos}
+    # IMPORTANT: Use valor_minimo for pricing (not valor_base)
+    # - In LO (Leilão Online): valor_minimo is the minimum mandatory bid
+    # - In NP (Negociação Particular): there's negotiation room
+    valor_base = float(vehicle_data.get("valor_base") or 0)
+    valor_minimo = float(vehicle_data.get("valor_minimo") or valor_base)
+    lance_atual = float(vehicle_data.get("lance_atual") or valor_minimo)
 
-REGRAS OBRIGATÓRIAS PARA RECOMENDAÇÃO:
-1. Se KM > 300.000: Máximo "cautela", considerar "evitar"
-2. Se KM > 200.000: Máximo "considerar"
-3. Se preço leilão > preço mínimo mercado para carros com MENOS km: "evitar" ou "cautela"
-4. Se carro similar no mercado tem metade dos km pelo mesmo preço: "evitar"
-5. "comprar" ou "excelente" SÓ se: preço < mínimo mercado E km razoáveis (<150k)
+    # Use valor_minimo as reference price (what you'll actually pay minimum)
+    preco_leilao = lance_atual if lance_atual > valor_minimo else valor_minimo
 
-RESPONDE APENAS EM JSON COM ESTE FORMATO EXATO (sem texto adicional):
-{{
-    "scores": {{
-        "oportunidade": número 0-10,
-        "risco": número 0-10,
-        "liquidez": número 0-10,
-        "final": número 0-10
-    }},
-    "recomendacao": "evitar|cautela|considerar|comprar|excelente",
-    "resumo": "2-3 frases resumindo a análise DE FORMA DIRETA - menciona KM se relevante",
-    "lance_maximo_sugerido": número em euros,
-    "pros": ["máximo 5 pontos positivos"],
-    "cons": ["máximo 5 pontos negativos - INCLUIR KM ELEVADOS SE >150k"],
-    "red_flags": ["alertas críticos - KM >200k DEVE aparecer aqui"],
-    "checklist_antes_licitar": [
-        "ação 1 a fazer antes de licitar",
-        "ação 2",
-        "..."
-    ],
-    "comparacao_mercado": "frase comparando com anúncios similares"
-}}
+    ano_raw = vehicle_data.get("ano")
+    try:
+        ano = int(ano_raw) if ano_raw else None
+    except (ValueError, TypeError):
+        ano = None
 
-Sê DIRETO e REALISTA. Um carro de 460.000 km NÃO é um bom investimento.""",
-        "default_output": {
-            "scores": {
-                "oportunidade": 5,
-                "risco": 5,
-                "liquidez": 5,
-                "final": 5
-            },
-            "recomendacao": "cautela",
-            "resumo": "Análise inconclusiva. Recomenda-se cautela.",
-            "lance_maximo_sugerido": None,
-            "pros": [],
-            "cons": [],
-            "red_flags": [],
-            "checklist_antes_licitar": [
-                "Verificar fotos do veículo",
-                "Pesquisar problemas comuns do modelo",
-                "Definir lance máximo"
-            ]
+    marca = vehicle_data.get("marca", "").upper()
+    modelo = vehicle_data.get("modelo", "")
+    combustivel = vehicle_data.get("combustivel", "")
+
+    # Initialize scores and flags
+    red_flags = []
+    cons = []
+    pros = []
+
+    # Calculate age
+    current_year = 2026
+    idade = current_year - ano if ano else None
+
+    # =================================================================
+    # KM ANALYSIS - ABSOLUTE + ANNUAL USAGE
+    # Portugal average: 15,000-20,000 km/year
+    # >30,000 km/year = heavy use (taxi, commercial)
+    # =================================================================
+    km_score = 10  # Start with perfect score
+    km_status = "desconhecido"
+    km_medio_esperado = None
+    km_por_ano = None
+    km_uso_classificacao = None
+
+    if km is not None and idade and idade > 0:
+        # Calculate km/year (important indicator of use intensity)
+        km_por_ano = round(km / idade)
+        km_medio_esperado = idade * 15000  # Expected based on 15k/year average
+
+        # Classify annual usage (source: Portuguese car market standards)
+        if km_por_ano < 10000:
+            km_uso_classificacao = "uso_reduzido"  # Weekend car, garage kept
+            pros.append(f"Uso reduzido ({km_por_ano:,} km/ano) - bem conservado")
+        elif km_por_ano <= 20000:
+            km_uso_classificacao = "uso_normal"  # Normal daily use
+        elif km_por_ano <= 30000:
+            km_uso_classificacao = "uso_intensivo"  # Intensive use
+            cons.append(f"Uso intensivo ({km_por_ano:,} km/ano)")
+        else:
+            km_uso_classificacao = "uso_profissional"  # Taxi, commercial
+            red_flags.append(f"🟠 Uso profissional ({km_por_ano:,} km/ano) - desgaste acelerado")
+            cons.append(f"Uso muito intensivo ({km_por_ano:,} km/ano) - possível táxi/comercial")
+
+    elif km is not None:
+        # No age info, use absolute thresholds only
+        km_medio_esperado = None
+
+    # ABSOLUTE KM thresholds (regardless of age)
+    if km is not None:
+        if km > 400000:
+            km_score = 0
+            km_status = "critico"
+            red_flags.append(f"⛔ {km:,} km - Quilometragem CRÍTICA, fim de vida útil")
+            cons.append(f"Quilometragem extremamente elevada ({km:,} km)")
+        elif km > 300000:
+            km_score = 2
+            km_status = "muito_alto"
+            red_flags.append(f"🔴 {km:,} km - Quilometragem MUITO ALTA, revenda impossível")
+            cons.append(f"Quilometragem muito elevada ({km:,} km)")
+        elif km > 200000:
+            km_score = 4
+            km_status = "alto"
+            red_flags.append(f"🟠 {km:,} km - Quilometragem elevada, revenda difícil")
+            cons.append(f"Quilometragem elevada ({km:,} km)")
+        elif km > 150000:
+            km_score = 6
+            km_status = "acima_media"
+            cons.append(f"Quilometragem acima da média ({km:,} km)")
+        elif km > 100000:
+            km_score = 8
+            km_status = "normal"
+            # Only add as pro if below expected for age
+            if km_medio_esperado and km < km_medio_esperado * 0.9:
+                pros.append(f"Quilometragem abaixo da média para a idade ({km:,} km)")
+        else:
+            km_score = 10
+            km_status = "baixo"
+            pros.append(f"Quilometragem baixa ({km:,} km)")
+
+        # Adjust score based on annual usage intensity
+        if km_uso_classificacao == "uso_profissional":
+            km_score = max(0, km_score - 2)
+        elif km_uso_classificacao == "uso_intensivo":
+            km_score = max(0, km_score - 1)
+        elif km_uso_classificacao == "uso_reduzido":
+            km_score = min(10, km_score + 1)
+    else:
+        red_flags.append("⚠️ Quilometragem desconhecida - RISCO ELEVADO")
+        km_score = 3
+
+    # =================================================================
+    # PRICE vs MARKET ANALYSIS
+    # =================================================================
+    price_score = 5  # Default neutral
+    desconto_mercado = 0
+    margem_lucro = 0
+
+    # Calculate total acquisition cost (Portugal)
+    comissao_leilao = preco_leilao * 0.10  # 10% commission
+    custos_transferencia = 250
+    custos_inspecao = 30
+    custo_reparacoes_estimado = 500 if km and km > 200000 else 300
+
+    custo_total = preco_leilao + comissao_leilao + custos_transferencia + custos_inspecao + custo_reparacoes_estimado
+
+    if market_price and market_price > 0:
+        desconto_mercado = round(((market_price - custo_total) / market_price) * 100, 1)
+        margem_lucro = market_price - custo_total
+
+        if desconto_mercado > 40:
+            price_score = 10
+            pros.append(f"Desconto de {desconto_mercado}% vs mercado")
+        elif desconto_mercado > 25:
+            price_score = 8
+            pros.append(f"Bom desconto de {desconto_mercado}% vs mercado")
+        elif desconto_mercado > 10:
+            price_score = 6
+        elif desconto_mercado > 0:
+            price_score = 4
+        else:
+            price_score = 2
+            cons.append(f"Preço total ({custo_total:,.0f}€) acima do mercado ({market_price:,.0f}€)")
+
+    # =================================================================
+    # COMPARE WITH MARKET LISTINGS (KM comparison)
+    # =================================================================
+    market_comparison = None
+    better_options_count = 0
+
+    if market_listings and km:
+        for listing in market_listings:
+            listing_km = listing.get('km')
+            listing_price = listing.get('preco') or listing.get('price')
+
+            if listing_km and listing_price:
+                try:
+                    l_km = int(str(listing_km).replace(".", "").replace(",", "").replace(" ", ""))
+                    l_price = float(str(listing_price).replace(".", "").replace(",", ".").replace("€", "").replace(" ", ""))
+
+                    # If market has LESS km for similar or lower price = bad for auction
+                    if l_km < km and l_price <= custo_total * 1.1:
+                        better_options_count += 1
+
+                    # If market has HALF the km for same price = very bad
+                    if l_km < km * 0.6 and l_price <= custo_total * 1.05:
+                        if not market_comparison:
+                            market_comparison = f"Existem carros no mercado com {l_km:,} km por {l_price:,.0f}€"
+                            red_flags.append(f"❌ Mercado tem opções com metade dos km pelo mesmo preço")
+                except (ValueError, TypeError):
+                    continue
+
+    if better_options_count >= 2:
+        price_score = max(0, price_score - 3)
+        cons.append(f"{better_options_count} opções melhores disponíveis no mercado")
+
+    # =================================================================
+    # KNOWN ISSUES PENALTY
+    # =================================================================
+    issues_penalty = 0
+    if problemas_conhecidos:
+        high_severity = sum(1 for p in problemas_conhecidos if p.get('gravidade') == 'alta')
+        medium_severity = sum(1 for p in problemas_conhecidos if p.get('gravidade') == 'media')
+
+        issues_penalty = high_severity * 2 + medium_severity * 1
+
+        if high_severity > 0:
+            red_flags.append(f"🔴 {high_severity} problemas graves mencionados na descrição")
+        if medium_severity > 0:
+            cons.append(f"{medium_severity} problemas médios mencionados")
+
+    # =================================================================
+    # FINAL SCORE & RECOMMENDATION (HARD RULES)
+    # =================================================================
+
+    # Weighted score calculation
+    score_oportunidade = round((price_score * 0.6 + km_score * 0.4), 1)
+    score_risco = round(10 - (len(red_flags) * 2 + issues_penalty), 1)
+    score_risco = max(0, min(10, score_risco))
+
+    # Liquidity based on brand/model popularity in Portugal
+    popular_brands = ["VOLKSWAGEN", "PEUGEOT", "RENAULT", "BMW", "MERCEDES", "AUDI", "TOYOTA", "SEAT"]
+    score_liquidez = 7 if marca in popular_brands else 5
+    if km and km > 200000:
+        score_liquidez = max(2, score_liquidez - 3)
+
+    # Final score
+    score_final = round((score_oportunidade * 0.4 + (10 - score_risco) * 0.3 + score_liquidez * 0.3), 1)
+    score_final = max(0, min(10, score_final))
+
+    # RECOMMENDATION - HARD RULES (no AI judgment)
+    if km and km > 400000:
+        recomendacao = "evitar"
+        resumo = f"Quilometragem crítica ({km:,} km). Veículo em fim de vida útil."
+    elif km and km > 300000:
+        recomendacao = "evitar"
+        resumo = f"Quilometragem muito elevada ({km:,} km). Risco de reparações elevado, revenda muito difícil."
+    elif km and km > 200000:
+        max_rec = "cautela"
+        if desconto_mercado > 40 and better_options_count == 0:
+            recomendacao = "cautela"
+            resumo = f"Bom desconto ({desconto_mercado}%) mas {km:,} km limitam o valor de revenda."
+        else:
+            recomendacao = "evitar"
+            resumo = f"Quilometragem elevada ({km:,} km) sem desconto compensatório."
+    elif better_options_count >= 3:
+        recomendacao = "evitar"
+        resumo = f"Existem {better_options_count} opções melhores no mercado com menos km."
+    elif desconto_mercado < 0:
+        recomendacao = "evitar"
+        resumo = f"Custo total ({custo_total:,.0f}€) excede preço de mercado ({market_price:,.0f}€)."
+    elif desconto_mercado < 15:
+        recomendacao = "cautela"
+        resumo = f"Desconto de apenas {desconto_mercado}% pode não compensar riscos de leilão."
+    elif desconto_mercado >= 30 and (km is None or km < 150000):
+        recomendacao = "comprar"
+        resumo = f"Bom desconto de {desconto_mercado}% com quilometragem aceitável."
+    elif desconto_mercado >= 40 and (km is None or km < 100000):
+        recomendacao = "excelente"
+        resumo = f"Excelente oportunidade: {desconto_mercado}% desconto, baixa quilometragem."
+    else:
+        recomendacao = "considerar"
+        resumo = f"Oportunidade moderada com {desconto_mercado}% desconto."
+
+    # Add issues to summary if any
+    if len(red_flags) > 0:
+        resumo += f" ATENÇÃO: {len(red_flags)} alertas."
+
+    # Lance máximo sugerido (to get 20% margin)
+    lance_maximo = None
+    if market_price and market_price > 0:
+        margem_desejada = 0.20  # 20% profit margin
+        lance_maximo = (market_price * (1 - margem_desejada)) - comissao_leilao - custos_transferencia - custos_inspecao - custo_reparacoes_estimado
+        lance_maximo = max(0, round(lance_maximo, 0))
+
+    # Checklist
+    checklist = [
+        "Verificar histórico de manutenção se disponível",
+        "Pesquisar problemas comuns deste modelo",
+        "Confirmar valor real de mercado em StandVirtual",
+    ]
+    if km and km > 150000:
+        checklist.append("Orçamentar substituição da correia de distribuição")
+    if not km:
+        checklist.insert(0, "⚠️ VERIFICAR QUILOMETRAGEM - não disponível no anúncio")
+
+    return {
+        "scores": {
+            "oportunidade": score_oportunidade,
+            "risco": score_risco,
+            "liquidez": score_liquidez,
+            "final": score_final
+        },
+        "recomendacao": recomendacao,
+        "resumo": resumo,
+        "lance_maximo_sugerido": lance_maximo,
+        "pros": pros[:5],
+        "cons": cons[:5],
+        "red_flags": red_flags,
+        "checklist_antes_licitar": checklist,
+        "custos": {
+            "preco_leilao": preco_leilao,
+            "comissao_leilao": comissao_leilao,
+            "transferencia": custos_transferencia,
+            "inspecao": custos_inspecao,
+            "reparacoes_estimadas": custo_reparacoes_estimado,
+            "custo_total": custo_total
+        },
+        "mercado": {
+            "preco_medio": market_price,
+            "preco_minimo": market_price_min,
+            "desconto_percentagem": desconto_mercado,
+            "margem_lucro_estimada": margem_lucro,
+            "opcoes_melhores": better_options_count
+        },
+        "km_analysis": {
+            "km": km,
+            "km_status": km_status,
+            "km_esperado_idade": km_medio_esperado,
+            "km_por_ano": km_por_ano,
+            "km_uso_classificacao": km_uso_classificacao,
+            "km_score": km_score
+        },
+        "leilao": {
+            "valor_base": valor_base,
+            "valor_minimo": valor_minimo,
+            "lance_atual": lance_atual,
+            "preco_referencia": preco_leilao  # The actual price to use for calculations
         }
     }
-]
 
 
 class AIQuestionsService:
@@ -382,36 +648,39 @@ class AIQuestionsService:
                     costs = q_result.answer.get("custos", {})
                     result.pros.append(f"Custo total estimado: {q_result.answer.get('custo_total_estimado', 0)}€")
 
-        # Now run final recommendation with all context
+        # IMPORTANT: Use PROGRAMMATIC calculation for final recommendation
+        # This avoids AI hallucinations like "Peugeot é ponto forte"
         if "final_recommendation" not in skip_questions:
-            final_context = context.copy()
-            final_context["problemas_conhecidos"] = json.dumps(problemas_conhecidos, ensure_ascii=False)
-            final_context["analise_descricao"] = json.dumps(analise_descricao, ensure_ascii=False)
+            log_info("Calculating investment analysis (programmatic - no AI)")
 
-            final_question = next(q for q in QUESTIONS if q["id"] == "final_recommendation")
-            final_result = await self._ask_question(
-                ollama=ollama,
-                question=final_question,
-                context=final_context
+            # Run programmatic investment analysis
+            investment_analysis = calculate_investment_analysis(
+                vehicle_data=vehicle_data,
+                market_price=market_price,
+                market_price_min=market_price_min,
+                market_listings=market_listings,
+                problemas_conhecidos=problemas_conhecidos
             )
 
-            result.question_results.append(final_result)
+            # Apply results to VehicleAnalysisResult
+            scores = investment_analysis.get("scores", {})
+            result.score_oportunidade = scores.get("oportunidade", 5)
+            result.score_risco = scores.get("risco", 5)
+            result.score_liquidez = scores.get("liquidez", 5)
+            result.score_final = scores.get("final", 5)
 
-            if final_result.success:
-                scores = final_result.answer.get("scores", {})
-                result.score_oportunidade = scores.get("oportunidade", 5)
-                result.score_risco = scores.get("risco", 5)
-                result.score_liquidez = scores.get("liquidez", 5)
-                result.score_final = scores.get("final", 5)
+            result.recomendacao = investment_analysis.get("recomendacao", "cautela")
+            result.resumo = investment_analysis.get("resumo", "")
+            result.lance_maximo_sugerido = investment_analysis.get("lance_maximo_sugerido")
 
-                result.recomendacao = final_result.answer.get("recomendacao", "cautela")
-                result.resumo = final_result.answer.get("resumo", "")
-                result.lance_maximo_sugerido = final_result.answer.get("lance_maximo_sugerido")
+            # Merge pros/cons/red_flags (keeping any from AI description analysis)
+            result.pros = investment_analysis.get("pros", [])
+            result.cons = investment_analysis.get("cons", [])
+            result.red_flags.extend(investment_analysis.get("red_flags", []))
+            result.checklist = investment_analysis.get("checklist_antes_licitar", [])
 
-                result.pros = final_result.answer.get("pros", [])
-                result.cons = final_result.answer.get("cons", [])
-                result.red_flags.extend(final_result.answer.get("red_flags", []))
-                result.checklist = final_result.answer.get("checklist_antes_licitar", [])
+            # Store additional investment data for the result
+            result.investment_analysis = investment_analysis
 
         # Calculate totals
         result.total_time_ms = int((datetime.now() - start_time).total_seconds() * 1000)

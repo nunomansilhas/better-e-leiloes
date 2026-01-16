@@ -1621,11 +1621,13 @@ async def complete_vehicle_analysis_v2(
             ai_service = get_ai_questions_service(model=ai_model)
 
             # Prepare vehicle data for AI - include all available info
+            # IMPORTANT: valor_minimo is the real minimum price (not valor_base)
             ai_vehicle_data = {
                 **vehicle_info,
                 'titulo': event_dict.get('titulo'),
                 'descricao': event_dict.get('descricao'),
                 'valor_base': event_dict.get('valor_base'),
+                'valor_minimo': event_dict.get('valor_minimo'),  # Critical for investment analysis
                 'lance_atual': event_dict.get('lance_atual'),
                 'tem_seguro': insurance_info.get('tem_seguro'),
                 # Add quilometros from description if not in vehicle_info
