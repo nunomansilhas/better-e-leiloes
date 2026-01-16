@@ -466,43 +466,41 @@ def calculate_investment_analysis(
     score_final = round((score_oportunidade * 0.4 + (10 - score_risco) * 0.3 + score_liquidez * 0.3), 1)
     score_final = max(0, min(10, score_final))
 
-    # RECOMMENDATION - HARD RULES (no AI judgment)
-    if km and km > 400000:
-        recomendacao = "evitar"
-        resumo = f"Quilometragem crítica ({km:,} km). Veículo em fim de vida útil."
-    elif km and km > 300000:
-        recomendacao = "evitar"
-        resumo = f"Quilometragem muito elevada ({km:,} km). Risco de reparações elevado, revenda muito difícil."
-    elif km and km > 200000:
-        max_rec = "cautela"
-        if desconto_mercado > 40 and better_options_count == 0:
-            recomendacao = "cautela"
-            resumo = f"Bom desconto ({desconto_mercado}%) mas {km:,} km limitam o valor de revenda."
-        else:
-            recomendacao = "evitar"
-            resumo = f"Quilometragem elevada ({km:,} km) sem desconto compensatório."
-    elif better_options_count >= 3:
-        recomendacao = "evitar"
-        resumo = f"Existem {better_options_count} opções melhores no mercado com menos km."
-    elif desconto_mercado < 0:
-        recomendacao = "evitar"
-        resumo = f"Custo total ({custo_total:,.0f}€) excede preço de mercado ({market_price:,.0f}€)."
-    elif desconto_mercado < 15:
-        recomendacao = "cautela"
-        resumo = f"Desconto de apenas {desconto_mercado}% pode não compensar riscos de leilão."
-    elif desconto_mercado >= 30 and (km is None or km < 150000):
-        recomendacao = "comprar"
-        resumo = f"Bom desconto de {desconto_mercado}% com quilometragem aceitável."
-    elif desconto_mercado >= 40 and (km is None or km < 100000):
-        recomendacao = "excelente"
-        resumo = f"Excelente oportunidade: {desconto_mercado}% desconto, baixa quilometragem."
-    else:
-        recomendacao = "considerar"
-        resumo = f"Oportunidade moderada com {desconto_mercado}% desconto."
+    # =================================================================
+    # SUMMARY - Data-based, no recommendation (user preference)
+    # Recommendation will be based on scores threshold later
+    # =================================================================
+    recomendacao = None  # Disabled for now - user wants data-driven approach
 
-    # Add issues to summary if any
+    # Build factual summary
+    resumo_parts = []
+
+    if km:
+        if km > 300000:
+            resumo_parts.append(f"KM crítico: {km:,}")
+        elif km > 200000:
+            resumo_parts.append(f"KM elevado: {km:,}")
+        elif km > 150000:
+            resumo_parts.append(f"KM: {km:,}")
+        else:
+            resumo_parts.append(f"KM: {km:,}")
+
+        if km_por_ano:
+            resumo_parts.append(f"({km_por_ano:,}/ano)")
+    else:
+        resumo_parts.append("KM: desconhecido")
+
+    if market_price:
+        resumo_parts.append(f"Desconto: {desconto_mercado}%")
+        resumo_parts.append(f"Margem: {margem_lucro:,.0f}€")
+
+    if better_options_count > 0:
+        resumo_parts.append(f"Alternativas mercado: {better_options_count}")
+
+    resumo = " | ".join(resumo_parts)
+
     if len(red_flags) > 0:
-        resumo += f" ATENÇÃO: {len(red_flags)} alertas."
+        resumo += f" | ⚠️ {len(red_flags)} alertas"
 
     # Lance máximo sugerido (to get 20% margin)
     lance_maximo = None

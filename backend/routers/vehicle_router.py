@@ -1602,7 +1602,46 @@ async def complete_vehicle_analysis_v2(
     # 3.5 Extract KM from description (used in response and AI analysis)
     descricao_text = event_dict.get('descricao') or ''
     titulo_text = event_dict.get('titulo') or ''
-    quilometros = vehicle_info.get('quilometros') or event_dict.get('quilometros') or extract_km_from_text(descricao_text) or extract_km_from_text(titulo_text)
+    observacoes_text = event_dict.get('observacoes') or ''
+
+    # Try to extract KM from multiple sources
+    quilometros = (
+        vehicle_info.get('quilometros') or
+        event_dict.get('quilometros') or
+        extract_km_from_text(descricao_text) or
+        extract_km_from_text(titulo_text) or
+        extract_km_from_text(observacoes_text)
+    )
+
+    # 3.6 Quick image scan for KM if not found yet (before full analysis)
+    if not quilometros:
+        fotos = event_dict.get('fotos', [])
+        if isinstance(fotos, str):
+            try:
+                fotos = json.loads(fotos)
+            except:
+                fotos = []
+
+        # Check first 3 images for dashboard/KM
+        if fotos:
+            try:
+                from services.ai_analysis_service import EnhancedAIAnalysisService
+                vision_service = EnhancedAIAnalysisService()
+
+                for foto in fotos[:3]:
+                    foto_url = foto.get('image') if isinstance(foto, dict) else foto
+                    if foto_url and isinstance(foto_url, str) and foto_url.startswith('http'):
+                        try:
+                            img_analysis = await vision_service.analyze_vehicle_image(foto_url)
+                            # Try to extract KM from image analysis
+                            km_from_image = extract_km_from_text(img_analysis.description or '')
+                            if km_from_image:
+                                quilometros = km_from_image
+                                break
+                        except:
+                            pass
+            except:
+                pass
 
     # 4. Get market price (hybrid approach)
     market_price = None
