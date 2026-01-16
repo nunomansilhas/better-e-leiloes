@@ -1819,8 +1819,8 @@ class AutoPipelinesManager:
 
                 print(f"  🆕 {len(new_refs)} eventos novos encontrados!")
 
-                # Scrape details for new events (use run_in_proactor for Windows)
-                events = await run_in_proactor(scraper.scrape_details_via_api, new_refs)
+                # Scrape details for new events (use helper that creates fresh scraper)
+                events = await run_in_proactor(scrape_refs_with_new_scraper, new_refs)
 
                 # Process notifications for new events
                 from notification_engine import process_new_events_batch
