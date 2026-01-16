@@ -925,18 +925,20 @@ async def get_events_batch(references: List[str]):
 
 
 @app.get("/api/events/{reference}", response_model=EventData)
-async def get_event(reference: str):
+async def get_event(reference: str, skip_cache: bool = False):
     """
     Obtém dados de um evento específico por referência.
 
     - **reference**: Referência do evento (ex: NP-2024-12345 ou LO-2024-67890)
+    - **skip_cache**: Se True, ignora o cache e busca direto da base de dados
 
     Retorna dados completos incluindo GPS, áreas, tipo, etc.
     """
-    # Verifica cache primeiro
-    cached = await cache_manager.get(reference)
-    if cached:
-        return cached
+    # Verifica cache primeiro (se não for skip_cache)
+    if not skip_cache:
+        cached = await cache_manager.get(reference)
+        if cached:
+            return cached
 
     # Verifica base de dados
     async with get_db() as db:
@@ -2044,6 +2046,35 @@ async def get_volatile_data(reference: str):
             raise HTTPException(status_code=404, detail=f"Event not found: {reference}")
     except httpx.RequestError as e:
         raise HTTPException(status_code=503, detail=f"Failed to fetch from e-leiloes.pt: {str(e)}")
+
+
+@app.get("/api/debug/db-observacoes/{reference}")
+async def debug_db_observacoes(reference: str):
+    """
+    Debug endpoint: Verifica o campo observacoes diretamente na base de dados.
+    """
+    from sqlalchemy import select, text
+    from database import EventDB
+
+    async with get_db() as db:
+        # Query raw SQL to see exactly what's in the database
+        result = await db.session.execute(
+            text("SELECT reference, observacoes, descricao FROM events WHERE reference = :ref"),
+            {"ref": reference}
+        )
+        row = result.fetchone()
+
+        if not row:
+            raise HTTPException(status_code=404, detail=f"Event not found in database: {reference}")
+
+        return {
+            "reference": row[0],
+            "observacoes_raw": row[1],
+            "observacoes_length": len(row[1]) if row[1] else 0,
+            "observacoes_preview": row[1][:500] + "..." if row[1] and len(row[1]) > 500 else row[1],
+            "descricao_length": len(row[2]) if row[2] else 0,
+            "descricao_preview": row[2][:200] + "..." if row[2] and len(row[2]) > 200 else row[2],
+        }
 
 
 @app.get("/api/debug/api-raw/{reference}")
