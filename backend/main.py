@@ -24,12 +24,15 @@ if sys.platform == 'win32':
         loop = asyncio.ProactorEventLoop()
         asyncio.set_event_loop(loop)
 
-# nest_asyncio permite nested event loops (necessário para Playwright + uvicorn)
-try:
-    import nest_asyncio
-    nest_asyncio.apply()
-except ImportError:
-    pass  # nest_asyncio não instalado, tentar sem
+# nest_asyncio permite nested event loops (necessário para Playwright + APScheduler)
+# NOTA: nest_asyncio NÃO funciona com uvloop - uvicorn usa uvloop por defeito no Linux
+# Só aplicamos nest_asyncio em Windows onde uvloop não é usado
+if sys.platform == 'win32':
+    try:
+        import nest_asyncio
+        nest_asyncio.apply()
+    except ImportError:
+        pass
 
 # CRITICAL: Load .env BEFORE importing database!
 from dotenv import load_dotenv

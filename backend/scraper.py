@@ -17,11 +17,13 @@ if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
 # nest_asyncio para nested event loops (APScheduler + Playwright)
-try:
-    import nest_asyncio
-    nest_asyncio.apply()
-except ImportError:
-    pass
+# NOTA: nest_asyncio NÃO funciona com uvloop - só aplicar em Windows
+if sys.platform == 'win32':
+    try:
+        import nest_asyncio
+        nest_asyncio.apply()
+    except ImportError:
+        pass
 
 
 # Thread pool para executar operações Playwright no Windows
