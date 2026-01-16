@@ -1749,10 +1749,32 @@ class AutoPipelinesManager:
                 # Parse JSON from page body
                 body = await page.query_selector('body')
                 json_str = await body.inner_text() if body else ''
+
+                # Debug: show what we got
+                print(f"  📝 API response length: {len(json_str)} chars")
+                if len(json_str) < 500:
+                    print(f"  📝 Response: {json_str[:500]}")
+
                 data = json.loads(json_str)
 
-                # The API returns a list of recent events
-                events_list = data if isinstance(data, list) else data.get('items', data.get('eventos', []))
+                # Debug: show structure
+                if isinstance(data, dict):
+                    print(f"  📝 Response keys: {list(data.keys())[:10]}")
+
+                # The API returns a list of recent events - try multiple field names
+                events_list = []
+                if isinstance(data, list):
+                    events_list = data
+                elif isinstance(data, dict):
+                    # Try different possible field names
+                    for key in ['items', 'eventos', 'events', 'data', 'results', 'lista']:
+                        if key in data and isinstance(data[key], list):
+                            events_list = data[key]
+                            print(f"  📝 Found events in field: {key}")
+                            break
+                    # If still empty, check if data itself contains event-like items
+                    if not events_list and 'reference' in data or 'referencia' in data:
+                        events_list = [data]  # Single event response
 
                 # Close the page/context after getting data
                 await page.close()
