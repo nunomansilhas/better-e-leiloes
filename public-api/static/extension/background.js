@@ -1,4 +1,4 @@
-// Better E-Leiloes - Background Service Worker
+// Martelo - Background Service Worker
 
 // Set default settings on install
 chrome.runtime.onInstalled.addListener((details) => {
@@ -8,7 +8,7 @@ chrome.runtime.onInstalled.addListener((details) => {
             dashboardUrl: 'https://martelo.pt/dashboard.html',
             enableEnrichment: true
         });
-        console.log('Better E-Leiloes: Default settings initialized');
+        console.log('Martelo: Default settings initialized');
     }
 });
 

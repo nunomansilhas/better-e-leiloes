@@ -1,4 +1,4 @@
-// Better E-Leiloes - Chrome Extension Content Script
+// Martelo - Chrome Extension Content Script
 // Version 1.0.0 - Based on Tampermonkey script v11.2
 
 (function() {
@@ -20,7 +20,7 @@
         if (result.apiBase) CONFIG.API_BASE = result.apiBase;
         if (result.dashboardUrl) CONFIG.DASHBOARD_URL = result.dashboardUrl;
         if (result.enableEnrichment !== undefined) CONFIG.ENABLE_API_ENRICHMENT = result.enableEnrichment;
-        console.log('Better E-Leiloes: Config loaded', CONFIG);
+        console.log('Martelo: Config loaded', CONFIG);
     });
 
     // ====================================
@@ -93,9 +93,9 @@
             return null;
         } catch (error) {
             if (error.name === 'AbortError') {
-                console.error(`Better E-Leiloes: API timeout for ${reference}`);
+                console.error(`Martelo: API timeout for ${reference}`);
             } else {
-                console.error(`Better E-Leiloes: API error for ${reference}:`, error);
+                console.error(`Martelo: API error for ${reference}:`, error);
             }
             return null;
         }
@@ -123,7 +123,7 @@
             }
             return null;
         } catch (error) {
-            console.error(`Better E-Leiloes: Scrape error for ${reference}:`, error);
+            console.error(`Martelo: Scrape error for ${reference}:`, error);
             return null;
         }
     }
@@ -219,7 +219,7 @@
         const btn = document.createElement('button');
         btn.className = 'p-button p-component p-button-icon-only p-button-base fixed fadein animation-duration-400 right-0 z-999 better-dashboard-btn';
         btn.type = 'button';
-        btn.title = 'Better E-Leiloes Dashboard';
+        btn.title = 'Martelo Dashboard';
         btn.style.cssText = 'margin-right: 5px; bottom: 137px; background: #3b82f6; border-color: #3b82f6;';
         btn.innerHTML = `
             <span class="p-button-icon pi pi-home" data-pc-section="icon"></span>
@@ -440,7 +440,7 @@
             }, true);
 
         } catch (error) {
-            console.error(`Better E-Leiloes: Error enhancing card for ${reference}:`, error);
+            console.error(`Martelo: Error enhancing card for ${reference}:`, error);
         }
     }
 
@@ -533,7 +533,7 @@
     }
 
     function init() {
-        console.log('Better E-Leiloes Extension v1.0.0 - Loaded');
+        console.log('Martelo Extension v1.0.0 - Loaded');
 
         integrateWithNativeFloatingButtons();
         enhanceAllCards();
@@ -542,7 +542,7 @@
 
         observer.observe(document.body, { childList: true, subtree: true });
 
-        console.log('Better E-Leiloes Extension active!');
+        console.log('Martelo Extension active!');
     }
 
     if (document.readyState === 'loading') {

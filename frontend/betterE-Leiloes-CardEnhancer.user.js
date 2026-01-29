@@ -1,21 +1,23 @@
 // ==UserScript==
-// @name         Better E-Leilões - Card Enhancer
-// @namespace    http://tampermonkey.net/
-// @version      11.2
-// @description  v11.2 - Added API timeouts (3s get, 10s scrape) for faster fallback
+// @name         Martelo - E-Leilões Enhanced
+// @namespace    https://martelo.pt
+// @version      2.0.0
+// @description  Melhora a experiência no e-leiloes.pt com cards melhorados, carrossel de imagens e dados enriquecidos.
 // @author       Nuno Mansilhas
 // @match        https://e-leiloes.pt/*
 // @match        https://www.e-leiloes.pt/*
 // @match        http://e-leiloes.pt/*
 // @match        http://www.e-leiloes.pt/*
-// @icon         https://www.e-leiloes.pt/favicon.ico
+// @icon         https://martelo.pt/extension/icons/icon48.png
 // @grant        GM_xmlhttpRequest
 // @connect      localhost
 // @connect      127.0.0.1
+// @connect      martelo.pt
 // @connect      e-leiloes.pt
 // @connect      www.e-leiloes.pt
-// @updateURL    https://raw.githubusercontent.com/nunomansilhas/better-e-leiloes/main/betterE-Leiloes-CardEnhancer.user.js
-// @downloadURL  https://raw.githubusercontent.com/nunomansilhas/better-e-leiloes/main/betterE-Leiloes-CardEnhancer.user.js
+// @updateURL    https://raw.githubusercontent.com/nunomansilhas/better-e-leiloes/main/frontend/betterE-Leiloes-CardEnhancer.user.js
+// @downloadURL  https://raw.githubusercontent.com/nunomansilhas/better-e-leiloes/main/frontend/betterE-Leiloes-CardEnhancer.user.js
+// @homepageURL  https://martelo.pt
 // ==/UserScript==
 
 (function() {
@@ -26,10 +28,10 @@
     // ====================================
 
     const CONFIG = {
-        API_BASE: 'http://localhost:8000/api',
-        DASHBOARD_URL: 'http://localhost:8000',
+        API_BASE: 'https://martelo.pt/api',
+        DASHBOARD_URL: 'https://martelo.pt/dashboard.html',
         ENABLE_API_ENRICHMENT: true,
-        MAX_CAROUSEL_IMAGES: 10  // Increased to show more images
+        MAX_CAROUSEL_IMAGES: 10
     };
 
     // ====================================
