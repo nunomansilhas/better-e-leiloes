@@ -1562,3 +1562,116 @@ body {
 [data-theme="light"] .footer-signature a:hover {
     color: #52525b;
 }
+
+/* ============================================ */
+/* ADDITIONAL FIXES - LIGHT MODE               */
+/* ============================================ */
+
+/* Fix hero card values - orange/yellow on white */
+[data-theme="light"] .card-value {
+    color: #18181b;
+}
+
+[data-theme="light"] .card-value.orange {
+    color: #d97706; /* Darker orange for contrast */
+}
+
+[data-theme="light"] .card-value.green {
+    color: #16a34a; /* Darker green for contrast */
+}
+
+[data-theme="light"] .value-box .value-amount {
+    color: #18181b;
+}
+
+/* Fix hero card background and content */
+[data-theme="light"] .card-image {
+    background: #e2e8f0;
+}
+
+[data-theme="light"] .card-countdown {
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.15), rgba(245, 158, 11, 0.1));
+}
+
+[data-theme="light"] .card-countdown span {
+    color: #92400e;
+}
+
+/* ============================================ */
+/* ADDITIONAL FIXES - DARK MODE                */
+/* ============================================ */
+
+/* Ensure install cards are dark in dark mode */
+[data-theme="dark"] .install-card,
+:root:not([data-theme="light"]) .install-card {
+    background: #18181b;
+    border-color: rgba(255,255,255,0.06);
+}
+
+[data-theme="dark"] .install-card h3,
+:root:not([data-theme="light"]) .install-card h3 {
+    color: #fafafa;
+}
+
+[data-theme="dark"] .install-card p,
+:root:not([data-theme="light"]) .install-card p {
+    color: #a1a1aa;
+}
+
+[data-theme="dark"] .install-card ol li,
+:root:not([data-theme="light"]) .install-card ol li {
+    color: #a1a1aa;
+}
+
+[data-theme="dark"] .install-icon,
+:root:not([data-theme="light"]) .install-icon {
+    background: rgba(255,255,255,0.05);
+}
+
+/* Fix "Brevemente" disabled button in dark mode */
+[data-theme="dark"] .install-card.disabled .btn,
+:root:not([data-theme="light"]) .install-card.disabled .btn {
+    background: rgba(255,255,255,0.05);
+    color: #52525b;
+    border-color: rgba(255,255,255,0.1);
+}
+
+/* Fix "Instalar agora" button in dark mode */
+[data-theme="dark"] .install-card .btn-primary,
+:root:not([data-theme="light"]) .install-card .btn-primary {
+    background: #ffffff;
+    color: #0a0a0b;
+}
+
+[data-theme="dark"] .install-card .btn-primary:hover,
+:root:not([data-theme="light"]) .install-card .btn-primary:hover {
+    background: #e4e4e7;
+}
+
+/* ============================================ */
+/* BUTTON CONSISTENCY FIXES                    */
+/* ============================================ */
+
+[data-theme="light"] .btn-primary {
+    background: #18181b;
+    color: #ffffff;
+}
+
+[data-theme="light"] .btn-primary:hover {
+    background: #27272a;
+}
+
+[data-theme="light"] .install-card .btn-primary {
+    background: #18181b;
+    color: #ffffff;
+}
+
+[data-theme="light"] .install-card .btn-primary:hover {
+    background: #27272a;
+}
+
+[data-theme="light"] .install-card.disabled .btn {
+    background: #f4f4f5;
+    color: #a1a1aa;
+    border-color: rgba(0,0,0,0.08);
+}
