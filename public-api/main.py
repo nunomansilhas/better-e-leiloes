@@ -300,7 +300,7 @@ app.add_middleware(
 
 # ============ API Routes ============
 
-@app.get("/api/health")
+@app.get("/health")
 async def health_check():
     """Health check endpoint"""
     return {
@@ -310,7 +310,7 @@ async def health_check():
     }
 
 
-@app.get("/api/stats", response_model=StatsResponse)
+@app.get("/stats", response_model=StatsResponse)
 async def get_stats():
     """Get general statistics"""
     async with get_session() as session:
@@ -365,7 +365,7 @@ async def get_stats():
         )
 
 
-@app.get("/api/dashboard/quick-stats")
+@app.get("/dashboard/quick-stats")
 async def get_dashboard_quick_stats():
     """Get optimized stats for dashboard - fast SQL queries instead of loading all events"""
     async with get_session() as session:
@@ -432,7 +432,7 @@ async def get_dashboard_quick_stats():
         }
 
 
-@app.get("/api/events")
+@app.get("/events")
 async def list_events(
     limit: int = Query(100, le=100000),
     offset: int = Query(0, ge=0),
@@ -528,7 +528,7 @@ async def list_events(
         return {"events": result_events, "total": len(result_events), "page": offset // limit + 1 if limit > 0 else 1}
 
 
-@app.post("/api/events/batch")
+@app.post("/events/batch")
 async def get_events_batch(references: List[str]):
     """
     Fetch multiple events by their references.
@@ -577,7 +577,7 @@ async def get_events_batch(references: List[str]):
         return {"events": result_events, "found": len(result_events), "requested": len(references)}
 
 
-@app.get("/api/vehicle-analyses")
+@app.get("/vehicle-analyses")
 async def list_vehicle_analyses(
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
@@ -676,7 +676,7 @@ async def list_vehicle_analyses(
         }
 
 
-@app.get("/api/vehicle-data/{reference}")
+@app.get("/vehicle-data/{reference}")
 async def get_vehicle_data(reference: str):
     """
     Get AI analysis and vehicle data for an event.
@@ -735,7 +735,7 @@ async def get_vehicle_data(reference: str):
         return data
 
 
-@app.get("/api/events/{reference}")
+@app.get("/events/{reference}")
 async def get_event(reference: str):
     """Get event details by reference - returns ALL fields"""
     try:
@@ -783,7 +783,7 @@ async def get_event(reference: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/api/ending-soon", response_model=List[EventSummary])
+@app.get("/ending-soon", response_model=List[EventSummary])
 async def get_ending_soon(
     hours: int = Query(24, le=72),
     limit: int = Query(50, le=200),
@@ -814,7 +814,7 @@ async def get_ending_soon(
         return [EventSummary.model_validate(e) for e in events]
 
 
-@app.get("/api/price-history/{reference}")
+@app.get("/price-history/{reference}")
 async def get_price_history(reference: str, limit: int = Query(500, le=1000)):
     """Get price history for an event - returns all bids"""
     try:
@@ -846,7 +846,7 @@ async def get_price_history(reference: str, limit: int = Query(500, le=1000)):
         return []
 
 
-@app.get("/api/distritos")
+@app.get("/distritos")
 async def list_distritos():
     """List all distritos with event counts"""
     async with get_session() as session:
@@ -865,7 +865,7 @@ async def list_distritos():
         return [{"distrito": d, "count": c} for d, c in result.all()]
 
 
-@app.get("/api/tipos")
+@app.get("/tipos")
 async def list_tipos():
     """List event types with counts"""
     tipo_names = {
@@ -890,7 +890,7 @@ async def list_tipos():
         ]
 
 
-@app.get("/api/filters/subtypes/{tipo_id}")
+@app.get("/filters/subtypes/{tipo_id}")
 async def get_subtypes(tipo_id: int):
     """Get subtypes for a specific tipo_id"""
     async with get_session() as session:
@@ -915,7 +915,7 @@ async def get_subtypes(tipo_id: int):
 
 # ============ Dashboard Endpoints (compatibility with original frontend) ============
 
-@app.get("/api/dashboard/ending-soon")
+@app.get("/dashboard/ending-soon")
 async def dashboard_ending_soon(hours: int = 24, limit: int = 1000, include_terminated: bool = True, terminated_hours: int = 120):
     """Get events ending soon + recently terminated events.
     - hours: look ahead for active events (default 24h)
@@ -976,13 +976,13 @@ async def dashboard_ending_soon(hours: int = 24, limit: int = 1000, include_term
         return result_list
 
 
-@app.get("/api/dashboard/price-history/{reference}")
+@app.get("/dashboard/price-history/{reference}")
 async def dashboard_price_history(reference: str):
     """Alias for price-history endpoint"""
     return await get_price_history(reference, limit=500)
 
 
-@app.get("/api/dashboard/recent-bids")
+@app.get("/dashboard/recent-bids")
 async def dashboard_recent_bids(limit: int = 30, hours: int = 120):
     """Get recent bid activity with price changes from price_history table.
     Shows only the most recent bid per event, limited to last N hours (default 120h = 5 days).
@@ -1108,7 +1108,7 @@ async def dashboard_recent_bids(limit: int = 30, hours: int = 120):
         return result
 
 
-@app.get("/api/dashboard/stats-by-distrito")
+@app.get("/dashboard/stats-by-distrito")
 async def dashboard_stats_by_distrito(limit: int = 5):
     """Get stats grouped by distrito with breakdown by type"""
     async with get_session() as session:
@@ -1143,7 +1143,7 @@ async def dashboard_stats_by_distrito(limit: int = 5):
         return sorted_distritos
 
 
-@app.get("/api/dashboard/recent-events")
+@app.get("/dashboard/recent-events")
 async def dashboard_recent_events(limit: int = 20, days: int = 7):
     """Get recently added events"""
     async with get_session() as session:
@@ -1169,7 +1169,7 @@ async def dashboard_recent_events(limit: int = 20, days: int = 7):
         ]
 
 
-@app.get("/api/db/stats")
+@app.get("/db/stats")
 async def db_stats():
     """Get database statistics"""
     async with get_session() as session:
@@ -1191,7 +1191,7 @@ async def db_stats():
         }
 
 
-@app.get("/api/volatile/{reference}")
+@app.get("/volatile/{reference}")
 async def get_volatile_data(reference: str):
     """Get volatile/real-time data for an event"""
     async with get_session() as session:
@@ -1212,7 +1212,7 @@ async def get_volatile_data(reference: str):
 # ============ Refresh Queue Endpoints ============
 # Frontend creates refresh requests (state=0), Backend processes them
 
-@app.post("/api/refresh/{reference}")
+@app.post("/refresh/{reference}")
 async def queue_refresh_request(reference: str, refresh_type: str = "price"):
     """
     Queue a refresh request for the backend to process.
@@ -1243,7 +1243,7 @@ async def queue_refresh_request(reference: str, refresh_type: str = "price"):
         return {"success": False, "message": str(e)}
 
 
-@app.get("/api/refresh/status/{request_id}")
+@app.get("/refresh/status/{request_id}")
 async def get_refresh_status(request_id: int):
     """
     Check the status of a refresh request.
@@ -1274,7 +1274,7 @@ async def get_refresh_status(request_id: int):
         return {"success": False, "message": str(e), "state": -1}
 
 
-@app.get("/api/refresh/stats")
+@app.get("/refresh/stats")
 async def get_refresh_stats():
     """Get refresh request statistics - counts completed refreshes (state=2)"""
     try:
@@ -1319,7 +1319,7 @@ async def get_refresh_stats():
 # ============ Stub Endpoints (for dashboard compatibility) ============
 # These endpoints return empty/disabled responses for admin-only features
 
-@app.get("/api/auto-pipelines/status")
+@app.get("/auto-pipelines/status")
 async def auto_pipelines_status():
     """Returns pipeline status and event urgency counts from database"""
     try:
@@ -1424,7 +1424,7 @@ async def websocket_notifications(websocket: WebSocket):
 
 # ============ Notifications System ============
 
-@app.get("/api/notifications/count")
+@app.get("/notifications/count")
 async def notifications_count():
     """Get count of unread notifications"""
     async with get_session() as session:
@@ -1437,7 +1437,7 @@ async def notifications_count():
         return {"count": total, "unread": unread}
 
 
-@app.get("/api/notifications")
+@app.get("/notifications")
 async def notifications_list(limit: int = 50, offset: int = 0):
     """Get list of notifications"""
     async with get_session() as session:
@@ -1464,7 +1464,7 @@ async def notifications_list(limit: int = 50, offset: int = 0):
         ]
 
 
-@app.put("/api/notifications/{notification_id}/read")
+@app.put("/notifications/{notification_id}/read")
 async def mark_notification_read(notification_id: int, read: bool = True):
     """Mark notification as read/unread"""
     async with get_session() as session:
@@ -1476,7 +1476,7 @@ async def mark_notification_read(notification_id: int, read: bool = True):
         return {"success": True}
 
 
-@app.post("/api/notifications/read-all")
+@app.post("/notifications/read-all")
 async def mark_all_notifications_read():
     """Mark all notifications as read"""
     async with get_session() as session:
@@ -1488,7 +1488,7 @@ async def mark_all_notifications_read():
         return {"success": True}
 
 
-@app.delete("/api/notifications/delete-all")
+@app.delete("/notifications/delete-all")
 async def delete_all_notifications():
     """Delete all notifications"""
     async with get_session() as session:
@@ -1511,7 +1511,7 @@ def parse_json_field(value):
         return [v.strip() for v in value.split(",") if v.strip()]
 
 
-@app.get("/api/notification-rules")
+@app.get("/notification-rules")
 async def get_notification_rules():
     """Get all notification rules"""
     async with get_session() as session:
@@ -1537,7 +1537,7 @@ async def get_notification_rules():
         ]
 
 
-@app.post("/api/notification-rules")
+@app.post("/notification-rules")
 async def create_notification_rule(rule: NotificationRuleCreate):
     """Create a new notification rule"""
     print(f"📝 Creating rule: {rule}")  # Debug log
@@ -1567,7 +1567,7 @@ async def create_notification_rule(rule: NotificationRuleCreate):
         return {"id": db_rule.id, "success": True}
 
 
-@app.delete("/api/notification-rules/{rule_id}")
+@app.delete("/notification-rules/{rule_id}")
 async def delete_notification_rule(rule_id: int):
     """Delete a notification rule"""
     async with get_session() as session:
@@ -1579,7 +1579,7 @@ async def delete_notification_rule(rule_id: int):
         return {"success": True}
 
 
-@app.put("/api/notification-rules/{rule_id}")
+@app.put("/notification-rules/{rule_id}")
 async def update_notification_rule(rule_id: int, active: bool):
     """Enable/disable a notification rule"""
     async with get_session() as session:
@@ -1592,7 +1592,7 @@ async def update_notification_rule(rule_id: int, active: bool):
         return {"success": True}
 
 
-@app.post("/api/notifications/check-prices")
+@app.post("/notifications/check-prices")
 async def check_price_changes():
     """Check for price changes on watched events and create notifications"""
     notifications_created = 0
@@ -1643,7 +1643,7 @@ async def check_price_changes():
 
 # ============ FAVORITES ENDPOINTS ============
 
-@app.get("/api/favorites")
+@app.get("/favorites")
 async def get_favorites():
     """Get all favorites with current event data"""
     async with get_session() as session:
@@ -1708,7 +1708,7 @@ async def get_favorites():
         return enriched
 
 
-@app.get("/api/favorites/count")
+@app.get("/favorites/count")
 async def get_favorites_count():
     """Get count of favorites"""
     async with get_session() as session:
@@ -1716,7 +1716,7 @@ async def get_favorites_count():
         return {"count": total}
 
 
-@app.get("/api/favorites/{reference}")
+@app.get("/favorites/{reference}")
 async def get_favorite(reference: str):
     """Check if event is favorited and get its data"""
     async with get_session() as session:
@@ -1737,7 +1737,7 @@ async def get_favorite(reference: str):
         }
 
 
-@app.post("/api/favorites")
+@app.post("/favorites")
 async def add_favorite(data: dict):
     """Add event to favorites"""
     reference = data.get("event_reference") or data.get("reference")
@@ -1784,7 +1784,7 @@ async def add_favorite(data: dict):
         return {"id": favorite.id, "message": "Favorite added"}
 
 
-@app.delete("/api/favorites/{reference}")
+@app.delete("/favorites/{reference}")
 async def remove_favorite(reference: str):
     """Remove event from favorites"""
     async with get_session() as session:
@@ -1800,7 +1800,7 @@ async def remove_favorite(reference: str):
         return {"message": "Favorite removed"}
 
 
-@app.put("/api/favorites/{reference}")
+@app.put("/favorites/{reference}")
 async def update_favorite(reference: str, data: dict):
     """Update favorite notification preferences"""
     async with get_session() as session:
@@ -1828,7 +1828,7 @@ async def update_favorite(reference: str, data: dict):
         return {"message": "Favorite updated"}
 
 
-@app.post("/api/favorites/check-prices")
+@app.post("/favorites/check-prices")
 async def check_favorites_prices():
     """Check for price changes on favorited events and create notifications"""
     notifications_created = 0
@@ -1888,25 +1888,25 @@ async def check_favorites_prices():
     return {"notifications_created": notifications_created}
 
 
-@app.get("/api/scrape/status")
+@app.get("/scrape/status")
 async def scrape_status():
     """Stub: Scraping not available on public API"""
     return {"running": False, "status": "disabled"}
 
 
-@app.get("/api/pipeline/status")
+@app.get("/pipeline/status")
 async def pipeline_status():
     """Stub: Pipeline status not available on public API"""
     return {"running": False, "stage": None, "progress": 0}
 
 
-@app.get("/api/logs")
+@app.get("/logs")
 async def get_logs():
     """Stub: Logs not available on public API"""
     return []
 
 
-@app.get("/api/live/events")
+@app.get("/live/events")
 async def live_events_stub():
     """Stub: SSE not available on public API - returns empty"""
     from fastapi.responses import PlainTextResponse
@@ -1962,7 +1962,7 @@ class AiPipelineStatusResponse(BaseModel):
     last_completed_at: Optional[datetime] = None
 
 
-@app.get("/api/ai/tips", response_model=AiTipListResponse)
+@app.get("/ai/tips", response_model=AiTipListResponse)
 async def list_ai_tips(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
@@ -2041,7 +2041,7 @@ async def list_ai_tips(
         )
 
 
-@app.get("/api/ai/tips/{reference}", response_model=AiTipResponse)
+@app.get("/ai/tips/{reference}", response_model=AiTipResponse)
 async def get_ai_tip(reference: str):
     """Get AI tip for a specific event"""
     async with get_session() as session:
@@ -2075,7 +2075,7 @@ async def get_ai_tip(reference: str):
         )
 
 
-@app.get("/api/ai/pipeline/status", response_model=AiPipelineStatusResponse)
+@app.get("/ai/pipeline/status", response_model=AiPipelineStatusResponse)
 async def get_ai_pipeline_status():
     """Get AI pipeline processing status"""
     async with get_session() as session:
@@ -2113,7 +2113,7 @@ async def get_ai_pipeline_status():
             )
 
 
-@app.get("/api/ai/stats")
+@app.get("/ai/stats")
 async def get_ai_stats():
     """Get AI tips statistics"""
     async with get_session() as session:
