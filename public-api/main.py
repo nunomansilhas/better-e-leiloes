@@ -341,6 +341,42 @@ async def get_stats():
         )
 
 
+@app.get("/stats/landing")
+async def get_landing_stats():
+    """Get statistics for landing page: total active events and total value in auction"""
+    with get_session() as session:
+        # Active events (not terminated and not cancelled)
+        active_events = session.scalar(
+            select(func.count()).select_from(EventDB).where(
+                and_(EventDB.terminado == 0, EventDB.cancelado == 0)
+            )
+        ) or 0
+
+        # Sum of valor_minimo for all active events
+        total_value = session.scalar(
+            select(func.sum(EventDB.valor_minimo)).where(
+                and_(EventDB.terminado == 0, EventDB.cancelado == 0)
+            )
+        ) or 0
+
+        # Format value for display
+        def format_value(value: float) -> str:
+            if value >= 1_000_000_000:
+                return f"€{value / 1_000_000_000:.1f}B"
+            elif value >= 1_000_000:
+                return f"€{value / 1_000_000:.0f}M"
+            elif value >= 1_000:
+                return f"€{value / 1_000:.0f}K"
+            else:
+                return f"€{value:.0f}"
+
+        return {
+            "active_events": active_events,
+            "total_value": float(total_value),
+            "total_value_formatted": format_value(float(total_value))
+        }
+
+
 @app.get("/dashboard/quick-stats")
 async def get_dashboard_quick_stats():
     """Get optimized stats for dashboard - fast SQL queries instead of loading all events"""
