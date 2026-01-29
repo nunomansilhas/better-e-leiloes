@@ -699,6 +699,187 @@
             margin-top: 4px;
         }
 
+        /* Section tag */
+        .section-tag {
+            display: inline-block;
+            background: rgba(34, 197, 94, 0.1);
+            color: #22c55e;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 6px 14px;
+            border-radius: 100px;
+            margin-bottom: 16px;
+            letter-spacing: 0.5px;
+        }
+
+        .section-tag.purple {
+            background: rgba(139, 92, 246, 0.1);
+            color: #a78bfa;
+        }
+
+        /* Card 6 - Actions */
+        .bento-actions {
+            grid-column: span 8;
+        }
+
+        .actions-preview {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .action-pill {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.08);
+            padding: 10px 16px;
+            border-radius: 100px;
+            font-size: 0.8rem;
+            color: #a1a1aa;
+        }
+
+        /* ============================================ */
+        /* DASHBOARD SECTION                            */
+        /* ============================================ */
+
+        .bento-dashboard-section {
+            padding-top: 40px;
+        }
+
+        .bento-all-auctions {
+            grid-column: span 7;
+        }
+
+        .bento-filters {
+            grid-column: span 5;
+        }
+
+        .filters-preview {
+            margin-top: 20px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .filter-chip {
+            background: rgba(139, 92, 246, 0.1);
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            color: #a78bfa;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+        }
+
+        .bento-my-favorites {
+            grid-column: span 4;
+        }
+
+        .my-fav-list {
+            margin-top: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .my-fav-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 12px;
+            background: rgba(255,255,255,0.02);
+            border-radius: 8px;
+            font-size: 0.8rem;
+        }
+
+        .my-fav-price {
+            color: #22c55e;
+            font-weight: 600;
+            font-family: 'SF Mono', monospace;
+        }
+
+        .bento-export {
+            grid-column: span 4;
+        }
+
+        .export-buttons {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .export-btn {
+            flex: 1;
+            padding: 12px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 10px;
+            text-align: center;
+            font-size: 0.85rem;
+            color: #a1a1aa;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .export-btn:hover {
+            background: rgba(255,255,255,0.06);
+            color: white;
+        }
+
+        .bento-alerts {
+            grid-column: span 4;
+        }
+
+        .alert-preview {
+            margin-top: 16px;
+        }
+
+        .alert-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px;
+            background: rgba(251, 191, 36, 0.08);
+            border: 1px solid rgba(251, 191, 36, 0.15);
+            border-radius: 10px;
+            font-size: 0.85rem;
+            color: #fbbf24;
+        }
+
+        .alert-icon {
+            font-size: 1.1rem;
+        }
+
+        .bento-history {
+            grid-column: span 6;
+        }
+
+        .history-chart {
+            margin-top: 20px;
+            display: flex;
+            align-items: flex-end;
+            gap: 8px;
+            height: 80px;
+        }
+
+        .chart-bar {
+            flex: 1;
+            background: rgba(255,255,255,0.08);
+            border-radius: 4px 4px 0 0;
+            transition: all 0.3s;
+        }
+
+        .chart-bar.active {
+            background: linear-gradient(180deg, #22c55e, #16a34a);
+        }
+
+        .chart-bar:hover {
+            background: rgba(255,255,255,0.15);
+        }
+
+        .chart-bar.active:hover {
+            background: linear-gradient(180deg, #4ade80, #22c55e);
+        }
+
         /* ============================================ */
         /* INSTALL SECTION                              */
         /* ============================================ */
@@ -888,7 +1069,15 @@
             .bento-prices { grid-column: span 3; }
             .bento-gps { grid-column: span 3; }
             .bento-favorites { grid-column: span 3; }
-            .bento-dashboard { grid-column: span 6; }
+            .bento-actions { grid-column: span 6; }
+
+            /* Dashboard section */
+            .bento-all-auctions { grid-column: span 6; }
+            .bento-filters { grid-column: span 6; }
+            .bento-my-favorites { grid-column: span 3; }
+            .bento-export { grid-column: span 3; }
+            .bento-alerts { grid-column: span 3; }
+            .bento-history { grid-column: span 6; }
         }
 
         @media (max-width: 768px) {
@@ -938,7 +1127,13 @@
             .bento-prices,
             .bento-gps,
             .bento-favorites,
-            .bento-dashboard {
+            .bento-actions,
+            .bento-all-auctions,
+            .bento-filters,
+            .bento-my-favorites,
+            .bento-export,
+            .bento-alerts,
+            .bento-history {
                 grid-column: span 1;
             }
 
@@ -1066,11 +1261,12 @@
         </div>
     </section>
 
-    <!-- Bento Grid Features -->
+    <!-- Script Features -->
     <section class="bento" id="features">
         <div class="bento-header">
-            <h2>O que faz</h2>
-            <p>Funcionalidades que transformam a experiência</p>
+            <div class="section-tag">🐒 Userscript</div>
+            <h2>No e-leiloes.pt</h2>
+            <p>Melhora os cards diretamente no site original</p>
         </div>
         <div class="bento-grid">
             <!-- Card 1 - Carrossel -->
@@ -1089,7 +1285,7 @@
             <!-- Card 2 - Countdown -->
             <div class="bento-card bento-countdown">
                 <h3>⏱️ Countdown preciso</h3>
-                <p>Tempo restante ao segundo. Nunca mais perdes um leilão por não saberes quando acaba.</p>
+                <p>Tempo restante ao segundo. Nunca mais perdes um leilão.</p>
                 <div class="countdown-display">
                     <div class="countdown-boxes">
                         <div class="countdown-box">
@@ -1114,28 +1310,28 @@
 
             <!-- Card 3 - Preços -->
             <div class="bento-card bento-prices">
-                <h3>💰 Preços de mercado</h3>
-                <p>Compara com valor real estimado</p>
+                <h3>💰 Preços enriquecidos</h3>
+                <p>Valor base, lance atual e desconto calculado</p>
                 <div class="price-comparison">
                     <div class="price-row">
-                        <span class="label">Mercado</span>
-                        <span class="value dim">€220.000</span>
+                        <span class="label">Base</span>
+                        <span class="value dim">€150.000</span>
                     </div>
                     <div class="price-row">
                         <span class="label">Lance</span>
                         <span class="value">€125.000</span>
                     </div>
                     <div class="price-row">
-                        <span class="label">Poupas</span>
-                        <span class="value green">€95.000</span>
+                        <span class="label">Desconto</span>
+                        <span class="value green">-17%</span>
                     </div>
                 </div>
             </div>
 
             <!-- Card 4 - GPS -->
             <div class="bento-card bento-gps">
-                <h3>📍 Mapas integrados</h3>
-                <p>Abre direções com um clique</p>
+                <h3>📍 Abrir no mapa</h3>
+                <p>Localização com um clique</p>
                 <div class="gps-buttons">
                     <div class="gps-btn">
                         <span>🗺️</span> Maps
@@ -1148,8 +1344,8 @@
 
             <!-- Card 5 - Favoritos -->
             <div class="bento-card bento-favorites">
-                <h3>❤️ Lista de favoritos</h3>
-                <p>Guarda e acompanha leilões</p>
+                <h3>❤️ Guardar favoritos</h3>
+                <p>Marca leilões para acompanhar</p>
                 <div class="fav-preview">
                     <div class="fav-item">🏠</div>
                     <div class="fav-item">🚗</div>
@@ -1158,10 +1354,31 @@
                 </div>
             </div>
 
-            <!-- Card 6 - Dashboard -->
-            <div class="bento-card bento-dashboard">
-                <h3>📊 Dashboard completo</h3>
-                <p>Pesquisa, filtra, ordena. Tudo num sítio só. Exporta para Excel.</p>
+            <!-- Card 6 - Quick Actions -->
+            <div class="bento-card bento-actions">
+                <h3>⚡ Ações rápidas</h3>
+                <p>Botões de ação em cada card</p>
+                <div class="actions-preview">
+                    <div class="action-pill">📋 Copiar link</div>
+                    <div class="action-pill">📤 Partilhar</div>
+                    <div class="action-pill">🔔 Notificar</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Dashboard Features -->
+    <section class="bento bento-dashboard-section" id="dashboard-features">
+        <div class="bento-header">
+            <div class="section-tag purple">📊 Dashboard</div>
+            <h2>Em martelo.pt</h2>
+            <p>Central de controlo para todos os leilões</p>
+        </div>
+        <div class="bento-grid">
+            <!-- Dashboard Card 1 - Todos os leilões -->
+            <div class="bento-card bento-all-auctions">
+                <h3>🏛️ Todos os leilões</h3>
+                <p>Acesso a todos os leilões ativos do e-leiloes.pt num só lugar, sem paginação infinita.</p>
                 <div class="dashboard-preview">
                     <div class="dash-stat">
                         <div class="num">2.847</div>
@@ -1171,10 +1388,74 @@
                         <div class="num">€45M</div>
                         <div class="label">Em leilão</div>
                     </div>
-                    <div class="dash-stat">
-                        <div class="num">12</div>
-                        <div class="label">Favoritos</div>
+                </div>
+            </div>
+
+            <!-- Dashboard Card 2 - Filtros -->
+            <div class="bento-card bento-filters">
+                <h3>🔍 Filtros avançados</h3>
+                <p>Pesquisa por distrito, tipo, preço, data de fim. Encontra o que procuras em segundos.</p>
+                <div class="filters-preview">
+                    <div class="filter-chip">Lisboa</div>
+                    <div class="filter-chip">Apartamento</div>
+                    <div class="filter-chip">&lt;€100k</div>
+                    <div class="filter-chip">+</div>
+                </div>
+            </div>
+
+            <!-- Dashboard Card 3 - Meus favoritos -->
+            <div class="bento-card bento-my-favorites">
+                <h3>⭐ Meus favoritos</h3>
+                <p>Todos os leilões que guardaste, sincronizados do script.</p>
+                <div class="my-fav-list">
+                    <div class="my-fav-row">
+                        <span>🏠 T3 Lisboa</span>
+                        <span class="my-fav-price">€125k</span>
                     </div>
+                    <div class="my-fav-row">
+                        <span>🚗 BMW 320d</span>
+                        <span class="my-fav-price">€8.5k</span>
+                    </div>
+                    <div class="my-fav-row">
+                        <span>🏢 Loja Porto</span>
+                        <span class="my-fav-price">€45k</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard Card 4 - Export -->
+            <div class="bento-card bento-export">
+                <h3>📥 Exportar dados</h3>
+                <p>Download em Excel ou CSV para análise</p>
+                <div class="export-buttons">
+                    <div class="export-btn">📊 Excel</div>
+                    <div class="export-btn">📄 CSV</div>
+                </div>
+            </div>
+
+            <!-- Dashboard Card 5 - Alertas -->
+            <div class="bento-card bento-alerts">
+                <h3>🔔 Alertas de preço</h3>
+                <p>Notificações quando o preço baixa nos teus favoritos</p>
+                <div class="alert-preview">
+                    <div class="alert-item">
+                        <span class="alert-icon">📉</span>
+                        <span>T3 Lisboa baixou €5.000</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard Card 6 - Histórico -->
+            <div class="bento-card bento-history">
+                <h3>📈 Histórico de preços</h3>
+                <p>Vê a evolução dos lances ao longo do tempo</p>
+                <div class="history-chart">
+                    <div class="chart-bar" style="height: 40%"></div>
+                    <div class="chart-bar" style="height: 55%"></div>
+                    <div class="chart-bar" style="height: 45%"></div>
+                    <div class="chart-bar" style="height: 70%"></div>
+                    <div class="chart-bar" style="height: 60%"></div>
+                    <div class="chart-bar active" style="height: 85%"></div>
                 </div>
             </div>
         </div>
