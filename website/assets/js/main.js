@@ -91,6 +91,33 @@ function animateCarousel() {
 }
 
 // ============================================
+// MOBILE MENU TOGGLE
+// ============================================
+
+function initMobileMenu() {
+    const menuBtn = document.querySelector('.mobile-menu-btn');
+    const navLinks = document.querySelector('.nav-links');
+    if (!menuBtn || !navLinks) return;
+
+    menuBtn.addEventListener('click', () => {
+        const isOpen = navLinks.classList.toggle('active');
+        menuBtn.classList.toggle('active', isOpen);
+        menuBtn.textContent = isOpen ? '✕' : '☰';
+        document.body.style.overflow = isOpen ? 'hidden' : '';
+    });
+
+    // Close menu when clicking a link
+    navLinks.querySelectorAll('a').forEach(link => {
+        link.addEventListener('click', () => {
+            navLinks.classList.remove('active');
+            menuBtn.classList.remove('active');
+            menuBtn.textContent = '☰';
+            document.body.style.overflow = '';
+        });
+    });
+}
+
+// ============================================
 // SMOOTH SCROLL
 // ============================================
 
@@ -150,6 +177,7 @@ function updateFooterYear() {
 // ============================================
 
 document.addEventListener('DOMContentLoaded', () => {
+    initMobileMenu();
     initBackToTop();
     initSmoothScroll();
     updateFooterYear();
