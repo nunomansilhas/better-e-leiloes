@@ -5836,38 +5836,168 @@
             });
         }
 
-        // ============== PRICE CHANGE CHECKER ==============
+        // ============== NOTIFICATION POLLING SYSTEM ==============
+        // Since WebSockets don't work on cPanel/Passenger, we use polling instead
 
-        // Check for price changes on watched events and create notifications
+        // Polling configuration
+        const NOTIFICATION_POLLING = {
+            badgeInterval: 30 * 1000,      // Check badge count every 30 seconds
+            priceCheckInterval: 60 * 1000, // Check price changes every 60 seconds
+            lastSeenNotificationId: 0,     // Track last notification to detect new ones
+            isPolling: false,
+            intervals: []
+        };
+
+        // Start notification polling (called on page load)
+        function startNotificationPolling() {
+            if (NOTIFICATION_POLLING.isPolling) return;
+            NOTIFICATION_POLLING.isPolling = true;
+
+            console.log('🔔 Starting notification polling (WebSockets disabled)');
+
+            // Initial checks
+            updateNotificationBadge();
+            checkForPriceChanges();
+            checkForFavoritesPriceChanges();
+
+            // Badge polling - fast (30s)
+            const badgeInterval = setInterval(() => {
+                pollNotifications();
+            }, NOTIFICATION_POLLING.badgeInterval);
+            NOTIFICATION_POLLING.intervals.push(badgeInterval);
+
+            // Price check polling - slower (60s)
+            const priceInterval = setInterval(() => {
+                checkForPriceChanges();
+                checkForFavoritesPriceChanges();
+            }, NOTIFICATION_POLLING.priceCheckInterval);
+            NOTIFICATION_POLLING.intervals.push(priceInterval);
+        }
+
+        // Stop notification polling
+        function stopNotificationPolling() {
+            NOTIFICATION_POLLING.intervals.forEach(id => clearInterval(id));
+            NOTIFICATION_POLLING.intervals = [];
+            NOTIFICATION_POLLING.isPolling = false;
+            console.log('🔔 Stopped notification polling');
+        }
+
+        // Poll for new notifications and update badge
+        async function pollNotifications() {
+            try {
+                // Get current notification count
+                const countResponse = await fetch(`${API_BASE}/notifications/count`);
+                const countData = await countResponse.json();
+
+                // Update badge
+                const badge = document.getElementById('nav-alerts-badge');
+                if (badge) {
+                    if (countData.unread > 0) {
+                        badge.textContent = countData.unread > 99 ? '99+' : countData.unread;
+                        badge.style.display = 'inline';
+                    } else {
+                        badge.style.display = 'none';
+                    }
+                }
+
+                // Check for NEW notifications (ones we haven't seen yet)
+                if (NOTIFICATION_POLLING.lastSeenNotificationId > 0) {
+                    const notifsResponse = await fetch(`${API_BASE}/notifications?limit=5`);
+                    const notifications = await notifsResponse.json();
+
+                    // Find notifications newer than what we've seen
+                    const newNotifs = notifications.filter(n =>
+                        n.id > NOTIFICATION_POLLING.lastSeenNotificationId && !n.read
+                    );
+
+                    // Show toasts for new notifications
+                    newNotifs.slice(0, 3).forEach(n => {
+                        showNotificationToast(n);
+                    });
+
+                    // Update last seen ID
+                    if (notifications.length > 0) {
+                        NOTIFICATION_POLLING.lastSeenNotificationId = Math.max(
+                            NOTIFICATION_POLLING.lastSeenNotificationId,
+                            ...notifications.map(n => n.id)
+                        );
+                    }
+                } else {
+                    // First run - just get the latest ID without showing toasts
+                    const notifsResponse = await fetch(`${API_BASE}/notifications?limit=1`);
+                    const notifications = await notifsResponse.json();
+                    if (notifications.length > 0) {
+                        NOTIFICATION_POLLING.lastSeenNotificationId = notifications[0].id;
+                    }
+                }
+            } catch (err) {
+                // Silent fail - don't spam console on network errors
+            }
+        }
+
+        // Show toast for a notification
+        function showNotificationToast(n) {
+            if (notificationsMuted) return;
+
+            if (n.notification_type === 'price_change' || n.notification_type === 'favorite_price_change') {
+                const diff = (n.preco_atual || 0) - (n.preco_anterior || 0);
+                const diffStr = diff > 0
+                    ? `+€${diff.toLocaleString('pt-PT')}`
+                    : `-€${Math.abs(diff).toLocaleString('pt-PT')}`;
+                showToast(
+                    `💰 Preço alterado: ${n.event_reference}`,
+                    `Novo lance: €${(n.preco_atual || 0).toLocaleString('pt-PT')} (${diffStr})`,
+                    'warning',
+                    8000
+                );
+                playNotificationSound();
+            } else if (n.notification_type === 'ending_soon') {
+                showToast(
+                    `⏰ A terminar em breve`,
+                    `${n.event_reference}: ${n.message || 'Leilão a terminar'}`,
+                    'info',
+                    6000
+                );
+                playNotificationSound();
+            } else if (n.notification_type === 'new_event') {
+                showToast(
+                    `🆕 Novo evento`,
+                    `${n.event_reference}: ${n.message || 'Novo leilão adicionado'}`,
+                    'info',
+                    5000
+                );
+            }
+        }
+
+        // Check for price changes on watched events (notification rules)
         async function checkForPriceChanges() {
             try {
-                // Call the backend to check for price changes and create notifications
                 const response = await fetch(`${API_BASE}/notifications/check-prices`, { method: 'POST' });
                 const result = await response.json();
 
                 if (result.notifications_created > 0) {
-                    // Fetch and show new notifications
-                    const notifsResponse = await fetch(`${API_BASE}/notifications?limit=10`);
-                    const notifications = await notifsResponse.json();
-
-                    // Show toasts for unread notifications
-                    const unreadNotifs = notifications.filter(n => !n.read && n.notification_type === 'price_change');
-                    unreadNotifs.slice(0, 3).forEach(n => {
-                        const diff = n.preco_atual - n.preco_anterior;
-                        const diffStr = diff > 0 ? `+€${diff.toLocaleString('pt-PT')}` : `-€${Math.abs(diff).toLocaleString('pt-PT')}`;
-                        showToast(
-                            `💰 Preço alterado: ${n.event_reference}`,
-                            `Novo lance: €${n.preco_atual.toLocaleString('pt-PT')} (${diffStr})`,
-                            'warning',
-                            8000
-                        );
-                    });
-
-                    // Update notification badge
-                    updateNotificationBadge();
+                    console.log(`🔔 ${result.notifications_created} new price change notification(s)`);
+                    // Polling will pick up new notifications and show toasts
+                    pollNotifications();
                 }
             } catch (err) {
-                console.error('Error checking for price changes:', err);
+                // Silent fail
+            }
+        }
+
+        // Check for price changes on favorited events
+        async function checkForFavoritesPriceChanges() {
+            try {
+                const response = await fetch(`${API_BASE}/favorites/check-prices`, { method: 'POST' });
+                const result = await response.json();
+
+                if (result.notifications_created > 0) {
+                    console.log(`🔔 ${result.notifications_created} new favorite price change notification(s)`);
+                    // Polling will pick up new notifications and show toasts
+                    pollNotifications();
+                }
+            } catch (err) {
+                // Silent fail
             }
         }
 
@@ -11700,12 +11830,9 @@
             await getFavoritesFromCache();
             FAVORITES.updateWidget();
 
-            // Connect to WebSocket for real-time notifications
-            connectNotificationWebSocket();
-
-            // Check for price changes on watched events every 2 minutes (fallback if WebSocket fails)
-            checkForPriceChanges();
-            setInterval(() => checkForPriceChanges(), 2 * 60 * 1000);
+            // Start notification polling (WebSockets don't work on cPanel)
+            // This replaces the WebSocket connection with periodic HTTP polling
+            startNotificationPolling();
 
             // Initialize keyboard navigation
             initKeyboardNavigation();
