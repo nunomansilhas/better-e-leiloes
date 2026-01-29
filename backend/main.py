@@ -1831,6 +1831,16 @@ async def get_stats():
         return stats
 
 
+@app.get("/api/stats/landing")
+async def get_landing_stats():
+    """
+    Estatísticas para o landing page: total de eventos ativos e valor total em leilão.
+    """
+    async with get_db() as db:
+        stats = await db.get_landing_stats()
+        return stats
+
+
 @app.get("/api/db/stats")
 async def get_db_extended_stats():
     """

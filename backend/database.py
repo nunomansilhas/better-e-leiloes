@@ -1466,6 +1466,41 @@ class DatabaseManager:
             "by_type_id": tipos
         }
 
+    async def get_landing_stats(self) -> dict:
+        """Estatísticas para landing page: eventos ativos e valor total em leilão"""
+        # Eventos ativos (não terminados e não cancelados)
+        active_result = await self.session.execute(
+            select(func.count(EventDB.reference))
+            .where(EventDB.terminado == False)
+            .where(EventDB.cancelado == False)
+        )
+        active_events = active_result.scalar() or 0
+
+        # Soma do valor_minimo de todos os eventos ativos
+        total_value_result = await self.session.execute(
+            select(func.sum(EventDB.valor_minimo))
+            .where(EventDB.terminado == False)
+            .where(EventDB.cancelado == False)
+        )
+        total_value = total_value_result.scalar() or 0
+
+        return {
+            "active_events": active_events,
+            "total_value": float(total_value),
+            "total_value_formatted": self._format_value(float(total_value))
+        }
+
+    def _format_value(self, value: float) -> str:
+        """Formatar valor em euros para display (ex: €45M, €1.2B)"""
+        if value >= 1_000_000_000:
+            return f"€{value / 1_000_000_000:.1f}B"
+        elif value >= 1_000_000:
+            return f"€{value / 1_000_000:.0f}M"
+        elif value >= 1_000:
+            return f"€{value / 1_000:.0f}K"
+        else:
+            return f"€{value:.0f}"
+
     async def get_all_references(self) -> List[str]:
         """Retorna todas as referências de eventos"""
         result = await self.session.execute(select(EventDB.reference))

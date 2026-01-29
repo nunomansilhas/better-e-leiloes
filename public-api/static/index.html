@@ -1404,11 +1404,11 @@
                 <p>Acesso a todos os leilões ativos do e-leiloes.pt num só lugar, sem paginação infinita.</p>
                 <div class="dashboard-preview">
                     <div class="dash-stat">
-                        <div class="num">2.847</div>
+                        <div class="num" id="stat-active-events">...</div>
                         <div class="label">Leilões ativos</div>
                     </div>
                     <div class="dash-stat">
-                        <div class="num">€45M</div>
+                        <div class="num" id="stat-total-value">...</div>
                         <div class="label">Em leilão</div>
                     </div>
                 </div>
@@ -1568,6 +1568,28 @@
                 }
             });
         });
+
+        // Fetch real stats from API
+        async function loadLandingStats() {
+            try {
+                const response = await fetch('/api/stats/landing');
+                if (response.ok) {
+                    const data = await response.json();
+
+                    // Format number with dot as thousands separator (Portuguese format)
+                    const formatNumber = (num) => num.toLocaleString('pt-PT');
+
+                    document.getElementById('stat-active-events').textContent = formatNumber(data.active_events);
+                    document.getElementById('stat-total-value').textContent = data.total_value_formatted;
+                }
+            } catch (error) {
+                console.log('Stats not available');
+                // Fallback values
+                document.getElementById('stat-active-events').textContent = '---';
+                document.getElementById('stat-total-value').textContent = '---';
+            }
+        }
+        loadLandingStats();
     </script>
 </body>
 </html>
