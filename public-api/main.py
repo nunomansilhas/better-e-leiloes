@@ -8,8 +8,6 @@ import json
 import asyncio
 from fastapi import FastAPI, Query, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
 from datetime import datetime, timedelta
 from typing import Optional, List, Union, Any
 from pydantic import BaseModel
@@ -2156,20 +2154,15 @@ async def get_ai_stats():
         }
 
 
-# ============ Static Files ============
-
-static_path = os.path.join(os.path.dirname(__file__), "static")
-if os.path.exists(static_path):
-    app.mount("/static", StaticFiles(directory=static_path), name="static")
-
-
 @app.get("/")
 async def root():
-    """Serve the main frontend"""
-    index_path = os.path.join(static_path, "index.html")
-    if os.path.exists(index_path):
-        return FileResponse(index_path)
-    return {"message": "E-Leiloes Public API", "docs": "/docs"}
+    """API root - returns API info"""
+    return {
+        "name": "E-Leiloes Public API",
+        "version": "1.0.0",
+        "status": "online",
+        "docs": "/docs"
+    }
 
 
 # ============ Run ============
