@@ -5117,10 +5117,10 @@
     </div>
 
     <script>
-        // Dynamic API base - works from any host/port
-        const API_BASE = window.location.origin;
+        // API base - since we're served from /api/, use relative paths
+        const API_BASE = '';
         // Backend URL for scraping/refresh operations (defaults to same origin, configure if different)
-        const BACKEND_URL = window.BACKEND_URL || API_BASE;
+        const BACKEND_URL = window.BACKEND_URL || window.location.origin;
 
         // ============== THEME MANAGEMENT ==============
 
@@ -5204,7 +5204,7 @@
             }
 
             try {
-                const response = await fetch(`${API_BASE}/api/favorites`);
+                const response = await fetch(`${API_BASE}/favorites`);
                 favoritesCache = await response.json();
                 favoritesCacheTime = now;
                 return favoritesCache;
@@ -5251,7 +5251,7 @@
                 // Make request and store promise
                 this._pendingRequest = (async () => {
                     try {
-                        const response = await fetch(`${API_BASE}/api/notification-rules`);
+                        const response = await fetch(`${API_BASE}/notification-rules`);
                         const rules = await response.json();
                         this._allRulesCache = Array.isArray(rules) ? rules : [];
                         // Filter only event-specific rules (favorites)
@@ -5285,7 +5285,7 @@
                         event_reference: reference,
                         active: true
                     };
-                    const response = await fetch(`${API_BASE}/api/notification-rules`, {
+                    const response = await fetch(`${API_BASE}/notification-rules`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(ruleData)
@@ -5318,7 +5318,7 @@
                     const rules = await this.getAll();
                     const rule = rules.find(r => r.event_reference === reference);
                     if (rule) {
-                        const response = await fetch(`${API_BASE}/api/notification-rules/${rule.id}`, {
+                        const response = await fetch(`${API_BASE}/notification-rules/${rule.id}`, {
                             method: 'DELETE'
                         });
                         if (response.ok) {
@@ -5387,7 +5387,7 @@
 
                 try {
                     // Fetch only the events we need using batch endpoint
-                    const response = await fetch(`${API_BASE}/api/events/batch`, {
+                    const response = await fetch(`${API_BASE}/events/batch`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(refs)
@@ -5589,12 +5589,12 @@
         async function checkForPriceChanges() {
             try {
                 // Call the backend to check for price changes and create notifications
-                const response = await fetch(`${API_BASE}/api/notifications/check-prices`, { method: 'POST' });
+                const response = await fetch(`${API_BASE}/notifications/check-prices`, { method: 'POST' });
                 const result = await response.json();
 
                 if (result.notifications_created > 0) {
                     // Fetch and show new notifications
-                    const notifsResponse = await fetch(`${API_BASE}/api/notifications?limit=10`);
+                    const notifsResponse = await fetch(`${API_BASE}/notifications?limit=10`);
                     const notifications = await notifsResponse.json();
 
                     // Show toasts for unread notifications
@@ -5857,7 +5857,7 @@
             // If not found in loaded events, fetch from API (always fetch to get full fotos)
             if (!event || !event.imagens || event.imagens.length === 0) {
                 try {
-                    const response = await fetch(`${API_BASE}/api/events/${reference}`);
+                    const response = await fetch(`${API_BASE}/events/${reference}`);
                     if (!response.ok) throw new Error('Event not found');
                     const apiEvent = await response.json();
 
@@ -6336,7 +6336,7 @@
 
             try {
                 // Try to get vehicle analysis data
-                const response = await fetch(`${API_BASE}/api/vehicle-data/${reference}`);
+                const response = await fetch(`${API_BASE}/vehicle-data/${reference}`);
 
                 if (!response.ok) {
                     loading.style.display = 'none';
@@ -6549,7 +6549,7 @@
                 showModalLoading('⏳ Na fila...', 'Pedido de atualização enviado');
 
                 // Step 1: Queue the refresh request (full type)
-                const queueResponse = await fetch(`${API_BASE}/api/refresh/${reference}?refresh_type=full`, { method: 'POST' });
+                const queueResponse = await fetch(`${API_BASE}/refresh/${reference}?refresh_type=full`, { method: 'POST' });
                 if (!queueResponse.ok) throw new Error('Failed to queue request');
 
                 const queueData = await queueResponse.json();
@@ -6563,7 +6563,7 @@
                 for (let i = 0; i < maxAttempts; i++) {
                     await new Promise(r => setTimeout(r, 1000));
 
-                    const statusResponse = await fetch(`${API_BASE}/api/refresh/status/${requestId}`);
+                    const statusResponse = await fetch(`${API_BASE}/refresh/status/${requestId}`);
                     if (!statusResponse.ok) continue;
 
                     const status = await statusResponse.json();
@@ -6577,7 +6577,7 @@
                         updateModalLoading('✅ Concluído!', 'A carregar dados atualizados...');
 
                         // Completed - reload the event data from DB and re-open modal
-                        const response = await fetch(`${API_BASE}/api/events/${reference}?t=${Date.now()}`);
+                        const response = await fetch(`${API_BASE}/events/${reference}?t=${Date.now()}`);
                         if (response.ok) {
                             const apiEvent = await response.json();
 
@@ -6650,7 +6650,7 @@
                 }
 
                 // Step 1: Queue the refresh request
-                const queueResponse = await fetch(`${API_BASE}/api/refresh/${reference}`, { method: 'POST' });
+                const queueResponse = await fetch(`${API_BASE}/refresh/${reference}`, { method: 'POST' });
                 if (!queueResponse.ok) throw new Error('Failed to queue request');
 
                 const queueData = await queueResponse.json();
@@ -6667,7 +6667,7 @@
                 for (let i = 0; i < maxAttempts; i++) {
                     await new Promise(r => setTimeout(r, 1000)); // Wait 1 second
 
-                    const statusResponse = await fetch(`${API_BASE}/api/refresh/status/${requestId}`);
+                    const statusResponse = await fetch(`${API_BASE}/refresh/status/${requestId}`);
                     if (!statusResponse.ok) continue;
 
                     const status = await statusResponse.json();
@@ -6693,7 +6693,7 @@
                         // Error
                         showToast('Erro', status.result_message || 'Falha no refresh', 'error');
                         // Show current DB value
-                        const volatileRes = await fetch(`${API_BASE}/api/volatile/${reference}`);
+                        const volatileRes = await fetch(`${API_BASE}/volatile/${reference}`);
                         if (volatileRes.ok && priceElement) {
                             const data = await volatileRes.json();
                             const formatted = new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(data.lance_atual || 0);
@@ -6706,7 +6706,7 @@
 
                 // Timeout - show current DB value
                 showToast('Timeout', 'Demorou demasiado tempo', 'warning');
-                const volatileRes = await fetch(`${API_BASE}/api/volatile/${reference}`);
+                const volatileRes = await fetch(`${API_BASE}/volatile/${reference}`);
                 if (volatileRes.ok && priceElement) {
                     const data = await volatileRes.json();
                     const formatted = new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(data.lance_atual || 0);
@@ -6718,7 +6718,7 @@
                 showToast('Erro', 'Não foi possível atualizar o lance', 'error');
                 // Show current value from DB
                 if (priceElement) {
-                    const volatileRes = await fetch(`${API_BASE}/api/volatile/${reference}`);
+                    const volatileRes = await fetch(`${API_BASE}/volatile/${reference}`);
                     if (volatileRes.ok) {
                         const data = await volatileRes.json();
                         const formatted = new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(data.lance_atual || 0);
@@ -6908,7 +6908,7 @@
         async function updateDashboardStats() {
             try {
                 // Use optimized quick-stats endpoint (SQL COUNT queries, much faster!)
-                const response = await fetch(`${API_BASE}/api/dashboard/quick-stats`);
+                const response = await fetch(`${API_BASE}/dashboard/quick-stats`);
                 const stats = await response.json();
 
                 // Helper to update stat with animation on change
@@ -6969,7 +6969,7 @@
             if (!container) return;
 
             try {
-                const response = await fetch(`${API_BASE}/api/dashboard/ending-soon?hours=24&limit=1000&include_terminated=true&terminated_hours=120`);
+                const response = await fetch(`${API_BASE}/dashboard/ending-soon?hours=24&limit=1000&include_terminated=true&terminated_hours=120`);
                 endingSoonEventsAll = await response.json();
 
                 if (endingSoonEventsAll.length === 0) {
@@ -7258,7 +7258,7 @@
                         renderPriceChart(tooltip, cached.history, cached.vBase, cached.vAbertura, cached.vMinimo, cached.vAtual);
                     } else {
                         try {
-                            const response = await fetch(`${API_BASE}/api/dashboard/price-history/${ref}`);
+                            const response = await fetch(`${API_BASE}/dashboard/price-history/${ref}`);
                             const history = await response.json();
                             chartDataCache[ref] = { history, vBase, vAbertura, vMinimo, vAtual };
                             // Only render if still hovering this button
@@ -7294,7 +7294,7 @@
         async function showPriceChart(ref) {
             // Fetch event data to get price values
             try {
-                const response = await fetch(`${API_BASE}/api/event/${ref}`);
+                const response = await fetch(`${API_BASE}/event/${ref}`);
                 if (response.ok) {
                     const event = await response.json();
                     const dataset = {
@@ -7352,7 +7352,7 @@
             document.body.appendChild(modal);
 
             // Always fetch fresh data for modal (ignore stale cache)
-            const fetchUrl = `${API_BASE}/api/dashboard/price-history/${ref}`;
+            const fetchUrl = `${API_BASE}/dashboard/price-history/${ref}`;
             console.log(`[Chart Modal] Fetching from: ${fetchUrl}`);
             fetch(fetchUrl)
                 .then(r => {
@@ -7651,7 +7651,7 @@
             if (!container) return;
 
             try {
-                const response = await fetch(`${API_BASE}/api/dashboard/recent-bids?limit=30`);
+                const response = await fetch(`${API_BASE}/dashboard/recent-bids?limit=30`);
                 const bids = await response.json();
 
                 if (bids.length === 0) {
@@ -7851,7 +7851,7 @@
             if (!container) return;
 
             try {
-                const response = await fetch(`${API_BASE}/api/dashboard/stats-by-distrito?limit=5`);
+                const response = await fetch(`${API_BASE}/dashboard/stats-by-distrito?limit=5`);
                 const districts = await response.json();
 
                 if (districts.length === 0) {
@@ -8092,7 +8092,7 @@
             if (!track) return;
 
             try {
-                const response = await fetch(`${API_BASE}/api/dashboard/recent-events?limit=20&days=7`);
+                const response = await fetch(`${API_BASE}/dashboard/recent-events?limit=20&days=7`);
                 if (!response.ok) throw new Error('Failed to load events');
 
                 const events = await response.json();
@@ -8277,7 +8277,7 @@
 
         async function updateScraperStatus() {
             try {
-                const response = await fetch(`${API_BASE}/api/scrape/status`);
+                const response = await fetch(`${API_BASE}/scrape/status`);
                 if (!response.ok) return; // Silently fail if endpoint doesn't exist
 
                 const status = await response.json();
@@ -8350,7 +8350,7 @@
             try {
                 // Load ALL events if not cached
                 if (allEventsCached.length === 0) {
-                    const response = await fetch(`${API_BASE}/api/events?limit=5000`);
+                    const response = await fetch(`${API_BASE}/events?limit=5000`);
                     const data = await response.json();
                     allEventsCached = normalizeEvents(data.events);
 
@@ -8619,7 +8619,7 @@
             try {
                 // Load ALL events if not already loaded
                 if (allLoadedEvents[type].length === 0) {
-                    let url = `${API_BASE}/api/events?limit=5000`;
+                    let url = `${API_BASE}/events?limit=5000`;
                     url += `&tipo_evento=${type}`;
 
                     const response = await fetch(url);
@@ -9247,7 +9247,7 @@
                 }
 
                 // Step 1: Queue the refresh request
-                const queueResponse = await fetch(`${API_BASE}/api/refresh/${reference}?refresh_type=full`, { method: 'POST' });
+                const queueResponse = await fetch(`${API_BASE}/refresh/${reference}?refresh_type=full`, { method: 'POST' });
                 if (!queueResponse.ok) throw new Error('Failed to queue');
 
                 const queueData = await queueResponse.json();
@@ -9265,14 +9265,14 @@
                 for (let i = 0; i < maxAttempts; i++) {
                     await new Promise(r => setTimeout(r, 1000));
 
-                    const statusResponse = await fetch(`${API_BASE}/api/refresh/status/${requestId}`);
+                    const statusResponse = await fetch(`${API_BASE}/refresh/status/${requestId}`);
                     if (!statusResponse.ok) continue;
 
                     const status = await statusResponse.json();
 
                     if (status.state === 2) {
                         // Completed - fetch updated data from our DB
-                        const response = await fetch(`${API_BASE}/api/events/${reference}?t=${Date.now()}`);
+                        const response = await fetch(`${API_BASE}/events/${reference}?t=${Date.now()}`);
                         if (!response.ok) throw new Error('Failed to fetch updated event');
 
                         const apiEvent = await response.json();
@@ -9357,7 +9357,7 @@
             // Fetch all events if not cached
             if (allEventsCache.length === 0) {
                 try {
-                    const response = await fetch(`${API_BASE}/api/events?limit=1000&tipo_evento=imovel`);
+                    const response = await fetch(`${API_BASE}/events?limit=1000&tipo_evento=imovel`);
                     const data = await response.json();
                     allEventsCache = data.events;
                 } catch (error) {
@@ -9406,7 +9406,7 @@
             // Fetch all events if not cached
             if (allEventsCache.length === 0) {
                 try {
-                    const response = await fetch(`${API_BASE}/api/events?limit=1000&tipo_evento=imovel`);
+                    const response = await fetch(`${API_BASE}/events?limit=1000&tipo_evento=imovel`);
                     const data = await response.json();
                     allEventsCache = data.events;
                 } catch (error) {
@@ -9637,7 +9637,7 @@
         // Refresh DB stats
         async function refreshDbStats(silent = false) {
             try {
-                const response = await fetch(`${API_BASE}/api/db/stats`);
+                const response = await fetch(`${API_BASE}/db/stats`);
                 const data = await response.json();
 
                 const setEl = (id, val) => {
@@ -9667,7 +9667,7 @@
             showMaintenanceProgress('A corrigir valores NULL...');
 
             try {
-                const response = await authFetch(`${API_BASE}/api/db/fix-nulls`, { method: 'POST' });
+                const response = await authFetch(`${API_BASE}/db/fix-nulls`, { method: 'POST' });
                 const data = await response.json();
 
                 hideMaintenanceProgress();
@@ -9688,7 +9688,7 @@
             showMaintenanceProgress('A iniciar atualização de preços...');
 
             try {
-                const response = await authFetch(`${API_BASE}/api/db/update-prices`, { method: 'POST' });
+                const response = await authFetch(`${API_BASE}/db/update-prices`, { method: 'POST' });
                 const data = await response.json();
 
                 addLog(`💰 ${data.message}`, 'info');
@@ -9784,7 +9784,7 @@
                 result.className = 'stage-result loading';
                 result.textContent = 'A processar...';
 
-                let url = `${API_BASE}/api/scrape/stage1/ids?`;
+                let url = `${API_BASE}/scrape/stage1/ids?`;
                 if (tipo) url += `tipo=${tipo}&`;
                 if (pages) url += `max_pages=${pages}`;
 
@@ -9839,7 +9839,7 @@
                     btn.textContent = '🧠 A identificar novos...';
 
                     // Chama endpoint de smart scraping
-                    const smartUrl = `${API_BASE}/api/scrape/smart/new-events`;
+                    const smartUrl = `${API_BASE}/scrape/smart/new-events`;
                     const smartResponse = await authFetch(smartUrl, { method: 'POST' });
                     const smartData = await smartResponse.json();
 
@@ -9865,7 +9865,7 @@
                 }
 
                 btn.textContent = '⏳ A extrair detalhes...';
-                const url = `${API_BASE}/api/scrape/stage2/details?` + references.map(ref => `references=${encodeURIComponent(ref)}`).join('&');
+                const url = `${API_BASE}/scrape/stage2/details?` + references.map(ref => `references=${encodeURIComponent(ref)}`).join('&');
 
                 const response = await authFetch(url, { method: 'POST' });
                 const data = await response.json();
@@ -9916,7 +9916,7 @@
                     const idsText = document.getElementById('stage3-ids').value;
                     references = idsText.split(',').map(s => s.trim()).filter(s => s);
                 } else if (source === 'missing') {
-                    const eventsResponse = await fetch(`${API_BASE}/api/events?limit=5000`);
+                    const eventsResponse = await fetch(`${API_BASE}/events?limit=5000`);
                     const eventsData = await eventsResponse.json();
                     references = eventsData.events.filter(e => !e.imagens || e.imagens.length === 0).map(e => e.reference);
                 }
@@ -9926,7 +9926,7 @@
                     return;
                 }
 
-                const url = `${API_BASE}/api/scrape/stage3/images?` + references.map(ref => `references=${encodeURIComponent(ref)}`).join('&');
+                const url = `${API_BASE}/scrape/stage3/images?` + references.map(ref => `references=${encodeURIComponent(ref)}`).join('&');
 
                 const response = await authFetch(url, { method: 'POST' });
                 const data = await response.json();
@@ -9971,14 +9971,14 @@
 
                 switch(type) {
                     case 'ids':
-                        url = `${API_BASE}/api/scrape/stage1/ids?`;
+                        url = `${API_BASE}/scrape/stage1/ids?`;
                         if (tipo) url += `tipo=${tipo}&`;
                         if (pages) url += `max_pages=${pages}`;
                         message = '🔍 Stage 1: A obter IDs...';
                         break;
 
                     case 'recheck':
-                        url = `${API_BASE}/api/scrape/smart/new-events?`;
+                        url = `${API_BASE}/scrape/smart/new-events?`;
                         if (tipo) url += `tipo=${tipo}&`;
                         if (pages) url += `max_pages=${pages}`;
                         message = '🔄 Smart Scraping: A verificar novos eventos...';
@@ -9986,7 +9986,7 @@
 
                     case 'content':
                         // Get all references from DB first (no limit - fetch all)
-                        const refsResponse = await fetch(`${API_BASE}/api/events?limit=100000`);
+                        const refsResponse = await fetch(`${API_BASE}/events?limit=100000`);
                         const refsData = await refsResponse.json();
                         const references = refsData.events.map(e => e.reference);
 
@@ -9995,13 +9995,13 @@
                             return;
                         }
 
-                        url = `${API_BASE}/api/scrape/stage2/details?save_to_db=true&` + references.map(ref => `references=${encodeURIComponent(ref)}`).join('&');
+                        url = `${API_BASE}/scrape/stage2/details?save_to_db=true&` + references.map(ref => `references=${encodeURIComponent(ref)}`).join('&');
                         message = `📋 Stage 2: A extrair detalhes de ${references.length} eventos...`;
                         break;
 
                     case 'images':
                         // Get all references from DB first (no limit - fetch all)
-                        const imgRefsResponse = await fetch(`${API_BASE}/api/events?limit=100000`);
+                        const imgRefsResponse = await fetch(`${API_BASE}/events?limit=100000`);
                         const imgRefsData = await imgRefsResponse.json();
                         const imgReferences = imgRefsData.events.map(e => e.reference);
 
@@ -10010,7 +10010,7 @@
                             return;
                         }
 
-                        url = `${API_BASE}/api/scrape/stage3/images?` + imgReferences.map(ref => `references=${encodeURIComponent(ref)}`).join('&');
+                        url = `${API_BASE}/scrape/stage3/images?` + imgReferences.map(ref => `references=${encodeURIComponent(ref)}`).join('&');
                         message = `🖼️ Stage 3: A fazer download de imagens de ${imgReferences.length} eventos...`;
                         break;
 
@@ -10061,7 +10061,7 @@
 
             try {
                 // Call backend kill endpoint to stop pipeline
-                const response = await fetch(`${API_BASE}/api/pipeline/kill`, {
+                const response = await fetch(`${API_BASE}/pipeline/kill`, {
                     method: 'POST'
                 });
                 const data = await response.json();
@@ -10138,7 +10138,7 @@
                 }
 
                 // Build URL - always use API endpoint
-                let url = `${API_BASE}/api/pipeline/api?`;
+                let url = `${API_BASE}/pipeline/api?`;
                 if (tipo) url += `tipo=${tipo}&`;
                 if (pages) url += `max_pages=${pages}`;
 
@@ -10222,7 +10222,7 @@
         // Verificar estado da pipeline ao carregar a página
         async function checkPipelineStatusOnLoad() {
             try {
-                const response = await fetch(`${API_BASE}/api/pipeline/status`);
+                const response = await fetch(`${API_BASE}/pipeline/status`);
                 if (response.ok) {
                     const state = await response.json();
                     if (state.active) {
@@ -10273,7 +10273,7 @@
             // Fazer polling a cada 500ms
             pipelinePollingInterval = setInterval(async () => {
                 try {
-                    const response = await fetch(`${API_BASE}/api/pipeline/status`);
+                    const response = await fetch(`${API_BASE}/pipeline/status`);
                     if (response.ok) {
                         const state = await response.json();
                         updatePipelineFromState(state);
@@ -10394,7 +10394,7 @@
         // Pipeline X Countdown Functions
         async function updatePipelineXCacheInfo() {
             try {
-                const response = await fetch(`${API_BASE}/api/auto-pipelines/prices/cache-info`);
+                const response = await fetch(`${API_BASE}/auto-pipelines/prices/cache-info`);
                 if (response.ok) {
                     const data = await response.json();
                     pipelineXCachedEvents = data.cached_events || 0;
@@ -10561,7 +10561,7 @@
 
         async function loadAutoPipelinesStatus() {
             try {
-                const response = await fetch(`${API_BASE}/api/auto-pipelines/status`);
+                const response = await fetch(`${API_BASE}/auto-pipelines/status`);
                 if (response.ok) {
                     const data = await response.json();
 
@@ -10646,7 +10646,7 @@
             try {
                 addLog(`${enabled ? '🟢' : '🔴'} ${name}: ${enabled ? 'Ativada' : 'Desativada'}`, 'info');
 
-                const response = await fetch(`${API_BASE}/api/auto-pipelines/${type}/toggle?enabled=${enabled}`, {
+                const response = await fetch(`${API_BASE}/auto-pipelines/${type}/toggle?enabled=${enabled}`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'}
                 });
@@ -10742,7 +10742,7 @@
             consolePollingInterval = setInterval(async () => {
                 try {
                     // Fetch logs from backend (we'll create this endpoint)
-                    const response = await fetch(`${API_BASE}/api/logs`, { method: 'GET' });
+                    const response = await fetch(`${API_BASE}/logs`, { method: 'GET' });
                     if (response.ok) {
                         const data = await response.json();
                         if (data.logs && data.logs.length > 0) {
@@ -10852,7 +10852,7 @@
             confirmBtn.textContent = '⏳ A processar...';
 
             try {
-                const response = await fetch(`${API_BASE}/api/database`, {
+                const response = await fetch(`${API_BASE}/database`, {
                     method: 'DELETE'
                 });
 
@@ -11063,7 +11063,7 @@
             if (!container) return;
 
             try {
-                const response = await fetch(`${API_BASE}/api/notifications?limit=50`);
+                const response = await fetch(`${API_BASE}/notifications?limit=50`);
                 const notifications = await response.json();
 
                 // Update unread count
@@ -11149,7 +11149,7 @@
         // Delete all notifications
         async function deleteAllNotifications() {
             try {
-                await fetch(`${API_BASE}/api/notifications/delete-all`, { method: 'DELETE' });
+                await fetch(`${API_BASE}/notifications/delete-all`, { method: 'DELETE' });
                 loadNotifications();
                 updateNotificationBadge();
                 showToast('Notificações limpas', 'Todas as notificações foram eliminadas', 'success');
@@ -11170,7 +11170,7 @@
         async function exportAllData() {
             try {
                 showToast('A exportar...', 'Preparando dados para download', 'info');
-                const response = await fetch(`${API_BASE}/api/events?limit=100000`);
+                const response = await fetch(`${API_BASE}/events?limit=100000`);
                 if (!response.ok) throw new Error('Erro ao obter dados');
 
                 const data = await response.json();
@@ -11825,7 +11825,7 @@
             if (!confirm('Tem certeza que deseja limpar o cache?\n\nIsto pode temporariamente afetar a performance.')) return;
 
             try {
-                const response = await authFetch(`${API_BASE}/api/cache/clear`, { method: 'POST' });
+                const response = await authFetch(`${API_BASE}/cache/clear`, { method: 'POST' });
                 if (response.ok) {
                     showToast('Cache limpo', 'O cache foi limpo com sucesso', 'success');
                 } else {
@@ -11883,7 +11883,7 @@
 
                 if (existingRule) {
                     // Rule EXISTS - DELETE it (toggle off)
-                    const deleteResponse = await fetch(`${API_BASE}/api/notification-rules/${existingRule.id}`, { method: 'DELETE' });
+                    const deleteResponse = await fetch(`${API_BASE}/notification-rules/${existingRule.id}`, { method: 'DELETE' });
                     if (deleteResponse.ok) {
                         FAVORITES._cacheTime = 0; // Invalidate cache
                         if (btn) btn.classList.remove('active');
@@ -11898,7 +11898,7 @@
                         active: true
                     };
 
-                    const createResponse = await fetch(`${API_BASE}/api/notification-rules`, {
+                    const createResponse = await fetch(`${API_BASE}/notification-rules`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(ruleData)
@@ -11942,7 +11942,7 @@
         async function updateNotificationBadge() {
             try {
                 // Fetch unread count (this is fast, always do it)
-                const countResponse = await fetch(`${API_BASE}/api/notifications/count`);
+                const countResponse = await fetch(`${API_BASE}/notifications/count`);
                 const countData = await countResponse.json();
 
                 // Update nav badge
@@ -12048,7 +12048,7 @@
             console.log('📝 Creating rule:', JSON.stringify(rule, null, 2));
 
             try {
-                const response = await fetch(`${API_BASE}/api/notification-rules`, {
+                const response = await fetch(`${API_BASE}/notification-rules`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(rule)
@@ -12072,7 +12072,7 @@
         // Toggle rule active state
         async function toggleRule(ruleId, active) {
             try {
-                const response = await fetch(`${API_BASE}/api/notification-rules/${ruleId}?active=${active}`, {
+                const response = await fetch(`${API_BASE}/notification-rules/${ruleId}?active=${active}`, {
                     method: 'PUT'
                 });
 
@@ -12089,7 +12089,7 @@
             if (!confirm('Tem certeza que deseja eliminar esta regra?')) return;
 
             try {
-                const response = await fetch(`${API_BASE}/api/notification-rules/${ruleId}`, {
+                const response = await fetch(`${API_BASE}/notification-rules/${ruleId}`, {
                     method: 'DELETE'
                 });
 
@@ -12105,7 +12105,7 @@
         // Mark notification as read or unread
         async function markNotificationRead(notifId, read = true) {
             try {
-                await fetch(`${API_BASE}/api/notifications/${notifId}/read?read=${read}`, { method: 'PUT' });
+                await fetch(`${API_BASE}/notifications/${notifId}/read?read=${read}`, { method: 'PUT' });
                 loadNotifications();
                 updateNotificationBadge();
             } catch (error) {
@@ -12116,7 +12116,7 @@
         // Mark all notifications as read
         async function markAllNotificationsRead() {
             try {
-                await authFetch(`${API_BASE}/api/notifications/read-all`, { method: 'POST' });
+                await authFetch(`${API_BASE}/notifications/read-all`, { method: 'POST' });
                 loadNotifications();
                 updateNotificationBadge();
                 addLog('Todas as notificações marcadas como lidas', 'info');
@@ -12145,7 +12145,7 @@
             emptyEl.style.display = 'none';
 
             try {
-                const response = await fetch(`${API_BASE}/api/favorites`);
+                const response = await fetch(`${API_BASE}/favorites`);
                 const favorites = await response.json();
 
                 FAVORITES_CACHE.data = favorites;
@@ -12415,7 +12415,7 @@
         // Add event to favorites
         async function addToFavorites(reference, eventData = {}) {
             try {
-                const response = await authFetch(`${API_BASE}/api/favorites`, {
+                const response = await authFetch(`${API_BASE}/favorites`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -12440,7 +12440,7 @@
                         favoritesCache.push({ event_reference: reference });
                     }
                     // Update badge
-                    const countResp = await fetch(`${API_BASE}/api/favorites/count`);
+                    const countResp = await fetch(`${API_BASE}/favorites/count`);
                     const countData = await countResp.json();
                     updateFavoritesBadge(countData.count);
                     return true;
@@ -12490,7 +12490,7 @@
 
             // API call in background
             try {
-                await authFetch(`${API_BASE}/api/favorites/${reference}`, { method: 'DELETE' });
+                await authFetch(`${API_BASE}/favorites/${reference}`, { method: 'DELETE' });
             } catch (error) {
                 console.error('Erro ao remover favorito:', error);
                 showToast('Erro', 'Não foi possível remover do servidor', 'error');
@@ -12538,7 +12538,7 @@
             let removed = 0;
             for (const fav of endedFavorites) {
                 try {
-                    await authFetch(`${API_BASE}/api/favorites/${fav.event_reference}`, { method: 'DELETE' });
+                    await authFetch(`${API_BASE}/favorites/${fav.event_reference}`, { method: 'DELETE' });
                     removed++;
                 } catch (e) {
                     console.error('Error removing:', fav.event_reference, e);
@@ -12574,7 +12574,7 @@
             let removed = 0;
             for (const fav of favorites) {
                 try {
-                    await authFetch(`${API_BASE}/api/favorites/${fav.event_reference}`, { method: 'DELETE' });
+                    await authFetch(`${API_BASE}/favorites/${fav.event_reference}`, { method: 'DELETE' });
                     removed++;
                 } catch (e) {
                     console.error('Error removing:', fav.event_reference, e);
@@ -12600,7 +12600,7 @@
                 if (type === 'price') body.notify_price_change = value;
                 if (type === 'ending') body.notify_ending_soon = value;
 
-                await authFetch(`${API_BASE}/api/favorites/${reference}`, {
+                await authFetch(`${API_BASE}/favorites/${reference}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(body)
@@ -12615,7 +12615,7 @@
         // Check if event is favorited
         async function isFavorited(reference) {
             try {
-                const response = await fetch(`${API_BASE}/api/favorites/${reference}`);
+                const response = await fetch(`${API_BASE}/favorites/${reference}`);
                 const data = await response.json();
                 return data.is_favorite;
             } catch (error) {
@@ -12629,7 +12629,7 @@
         // Remove without confirm (for toggle)
         async function removeFavoriteQuiet(reference) {
             try {
-                await authFetch(`${API_BASE}/api/favorites/${reference}`, { method: 'DELETE' });
+                await authFetch(`${API_BASE}/favorites/${reference}`, { method: 'DELETE' });
                 addLog(`Evento ${reference} removido dos favoritos`, 'info');
                 // Update FAVORITES cache for sync checks
                 FAVORITES._cache = FAVORITES._cache.filter(r => r.event_reference !== reference);
@@ -12637,7 +12637,7 @@
                 if (favoritesCache) {
                     favoritesCache = favoritesCache.filter(f => f.event_reference !== reference);
                 }
-                const countResp = await fetch(`${API_BASE}/api/favorites/count`);
+                const countResp = await fetch(`${API_BASE}/favorites/count`);
                 const countData = await countResp.json();
                 updateFavoritesBadge(countData.count);
             } catch (error) {
@@ -12736,7 +12736,7 @@
             }
 
             try {
-                const response = await authFetch(`${API_BASE}/api/favorites/check-prices`, {
+                const response = await authFetch(`${API_BASE}/favorites/check-prices`, {
                     method: 'POST'
                 });
                 const data = await response.json();
@@ -12764,7 +12764,7 @@
         // Initial favorites badge load
         (async function() {
             try {
-                const response = await fetch(`${API_BASE}/api/favorites/count`);
+                const response = await fetch(`${API_BASE}/favorites/count`);
                 const data = await response.json();
                 updateFavoritesBadge(data.count);
             } catch (e) {}
@@ -12855,7 +12855,7 @@
             grid.style.display = 'none';
 
             try {
-                const response = await fetch(`${API_BASE}/api/vehicle-analyses?limit=200`);
+                const response = await fetch(`${API_BASE}/vehicle-analyses?limit=200`);
                 if (!response.ok) throw new Error('Failed to load vehicle analyses');
 
                 const data = await response.json();
@@ -13436,13 +13436,13 @@
 
                         if (tipos.length === 0) {
                             // No more tipos - delete the rule
-                            await fetch(`${API_BASE}/api/notification-rules/${quickNotificationRule.id}`, {
+                            await fetch(`${API_BASE}/notification-rules/${quickNotificationRule.id}`, {
                                 method: 'DELETE'
                             });
                             quickNotificationRule = null;
                         } else {
                             // Update rule with new tipos
-                            await fetch(`${API_BASE}/api/notification-rules/${quickNotificationRule.id}`, {
+                            await fetch(`${API_BASE}/notification-rules/${quickNotificationRule.id}`, {
                                 method: 'PUT',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ tipos: tipos })
@@ -13453,7 +13453,7 @@
                     } else {
                         // Add tipo to array
                         tipos.push(tipo);
-                        await fetch(`${API_BASE}/api/notification-rules/${quickNotificationRule.id}`, {
+                        await fetch(`${API_BASE}/notification-rules/${quickNotificationRule.id}`, {
                             method: 'PUT',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ tipos: tipos })
@@ -13464,7 +13464,7 @@
                 } else {
                     // Create new rule with this tipo
                     console.log('Creating new Quick Notifications rule for:', tipo);
-                    const response = await fetch(`${API_BASE}/api/notification-rules`, {
+                    const response = await fetch(`${API_BASE}/notification-rules`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -13514,7 +13514,7 @@
             if (!select) return;
 
             try {
-                const response = await fetch(`${API_BASE}/api/filters/subtypes/${tipoId}`);
+                const response = await fetch(`${API_BASE}/filters/subtypes/${tipoId}`);
                 const subtypes = await response.json();
 
                 const currentValue = select.value;
