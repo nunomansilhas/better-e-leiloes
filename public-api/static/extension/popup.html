@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Better E-Leiloes</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            width: 320px;
+            background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
+            color: white;
+        }
+
+        .header {
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .logo {
+            width: 48px;
+            height: 48px;
+            margin-bottom: 10px;
+            border-radius: 12px;
+        }
+
+        h1 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .version {
+            font-size: 11px;
+            opacity: 0.7;
+        }
+
+        .content {
+            padding: 16px;
+        }
+
+        .status {
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #22c55e;
+            box-shadow: 0 0 8px #22c55e;
+        }
+
+        .status-dot.inactive {
+            background: #ef4444;
+            box-shadow: 0 0 8px #ef4444;
+        }
+
+        .status-text {
+            font-size: 13px;
+        }
+
+        .settings {
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 16px;
+        }
+
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .setting-row:last-child {
+            border-bottom: none;
+        }
+
+        .setting-label {
+            font-size: 12px;
+        }
+
+        .toggle {
+            position: relative;
+            width: 40px;
+            height: 22px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 11px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .toggle.active {
+            background: #22c55e;
+        }
+
+        .toggle::after {
+            content: '';
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            background: white;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.3s;
+        }
+
+        .toggle.active::after {
+            transform: translateX(18px);
+        }
+
+        .input-row {
+            margin-top: 12px;
+        }
+
+        .input-row label {
+            display: block;
+            font-size: 11px;
+            margin-bottom: 4px;
+            opacity: 0.8;
+        }
+
+        .input-row input {
+            width: 100%;
+            padding: 8px 10px;
+            border: none;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.15);
+            color: white;
+            font-size: 12px;
+        }
+
+        .input-row input::placeholder {
+            color: rgba(255,255,255,0.5);
+        }
+
+        .input-row input:focus {
+            outline: none;
+            background: rgba(255,255,255,0.25);
+        }
+
+        .buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2563eb;
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.1);
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .footer {
+            padding: 12px;
+            text-align: center;
+            font-size: 10px;
+            opacity: 0.6;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .footer a {
+            color: white;
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <img src="icons/icon48.png" alt="Logo" class="logo">
+        <h1>Better E-Leiloes</h1>
+        <div class="version">v1.0.0</div>
+    </div>
+
+    <div class="content">
+        <div class="status">
+            <div class="status-dot" id="status-dot"></div>
+            <span class="status-text" id="status-text">Extensão ativa</span>
+        </div>
+
+        <div class="settings">
+            <div class="setting-row">
+                <span class="setting-label">Enriquecimento via API</span>
+                <div class="toggle active" id="toggle-enrichment"></div>
+            </div>
+
+            <div class="input-row">
+                <label>URL da API</label>
+                <input type="text" id="api-base" placeholder="https://martelo.pt/api">
+            </div>
+
+            <div class="input-row">
+                <label>URL do Dashboard</label>
+                <input type="text" id="dashboard-url" placeholder="https://martelo.pt/dashboard.html">
+            </div>
+        </div>
+
+        <div class="buttons">
+            <button class="btn btn-primary" id="btn-dashboard">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                    <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                </svg>
+                Abrir Dashboard
+            </button>
+            <button class="btn btn-secondary" id="btn-save">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                    <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                    <polyline points="7 3 7 8 15 8"></polyline>
+                </svg>
+                Guardar Configurações
+            </button>
+        </div>
+    </div>
+
+    <div class="footer">
+        Desenvolvido por <a href="https://github.com/nunomansilhas" target="_blank">Nuno Mansilhas</a>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+</html>
