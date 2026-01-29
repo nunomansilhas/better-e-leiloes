@@ -1572,7 +1572,7 @@
         // Fetch real stats from API
         async function loadLandingStats() {
             try {
-                const response = await fetch('/api/stats/landing');
+                const response = await fetch('/public-api/stats/landing');
                 if (response.ok) {
                     const data = await response.json();
 
