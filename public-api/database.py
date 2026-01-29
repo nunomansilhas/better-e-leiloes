@@ -1,34 +1,39 @@
 """
 Database layer for Public API - Read-Only
 Connects to remote MySQL on cPanel
+Uses SYNCHRONOUS connections for Passenger/WSGI compatibility
 """
 
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy import String, Float, DateTime, Text, Integer, Boolean, Numeric, Index
+from sqlalchemy import create_engine, String, Float, DateTime, Text, Integer, Boolean, Numeric, Index
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker, Session
 from typing import Optional
 from datetime import datetime
-from contextlib import asynccontextmanager
+from contextlib import contextmanager
 import os
 
-# Database URL from environment
-DATABASE_URL = os.getenv("DATABASE_URL")
+# Database URL from environment - convert aiomysql to pymysql if needed
+DATABASE_URL = os.getenv("DATABASE_URL", "")
 
 if not DATABASE_URL:
     raise ValueError(
         "DATABASE_URL not configured!\n"
-        "Set in .env: DATABASE_URL=mysql+aiomysql://user:password@host:3306/database"
+        "Set in .env: DATABASE_URL=mysql+pymysql://user:password@host:3306/database"
     )
 
-# SQLAlchemy setup - read-only, optimized for queries
-engine = create_async_engine(
+# Convert aiomysql URL to pymysql for sync compatibility
+if "aiomysql" in DATABASE_URL:
+    DATABASE_URL = DATABASE_URL.replace("aiomysql", "pymysql")
+
+# SQLAlchemy setup - SYNCHRONOUS for Passenger/WSGI compatibility
+engine = create_engine(
     DATABASE_URL,
     echo=False,
     pool_size=5,
     max_overflow=10,
-    pool_recycle=3600
+    pool_recycle=3600,
+    pool_pre_ping=True  # Check connection health before use
 )
-async_session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+sync_session_maker = sessionmaker(engine, class_=Session, expire_on_commit=False)
 
 
 class Base(DeclarativeBase):
@@ -345,18 +350,20 @@ class AiPipelineStateDB(Base):
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
 
-@asynccontextmanager
-async def get_session():
-    """Get async database session"""
-    async with async_session_maker() as session:
-        try:
-            yield session
-        finally:
-            await session.close()
+@contextmanager
+def get_session():
+    """Get database session - SYNCHRONOUS for Passenger/WSGI compatibility"""
+    session = sync_session_maker()
+    try:
+        yield session
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
 
 
-async def init_db():
-    """Initialize database connection and create notification tables if needed"""
-    async with engine.begin() as conn:
-        # Create notification tables if they don't exist
-        await conn.run_sync(Base.metadata.create_all)
+def init_db():
+    """Initialize database connection and create tables if needed"""
+    Base.metadata.create_all(engine)

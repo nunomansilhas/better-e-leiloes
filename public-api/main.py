@@ -201,8 +201,8 @@ async def poll_notifications():
 
     # Get initial last notification ID
     try:
-        async with get_session() as session:
-            result = await session.scalar(
+        with get_session() as session:
+            result = session.scalar(
                 select(func.max(NotificationDB.id))
             )
             last_id = result or 0
@@ -217,9 +217,9 @@ async def poll_notifications():
             if ws_manager.connection_count == 0:
                 continue  # No clients connected, skip polling
 
-            async with get_session() as session:
+            with get_session() as session:
                 # Get new notifications since last check
-                result = await session.execute(
+                result = session.execute(
                     select(NotificationDB)
                     .where(NotificationDB.id > ws_manager._last_notification_id)
                     .order_by(NotificationDB.id)
@@ -255,35 +255,13 @@ async def poll_notifications():
             await asyncio.sleep(5)  # Wait longer on error
 
 
-_poll_task = None
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    global _poll_task
-    await init_db()
-    print("✅ Connected to database")
-
-    # Start notification polling background task
-    _poll_task = asyncio.create_task(poll_notifications())
-    print("🔔 Started notification polling task")
-
-    yield
-
-    # Stop polling task on shutdown
-    if _poll_task:
-        _poll_task.cancel()
-        try:
-            await _poll_task
-        except asyncio.CancelledError:
-            pass
-    print("🛑 Stopped notification polling task")
-
+# Note: No lifespan context manager - database initializes lazily on first request
+# This is required for Passenger/WSGI compatibility (avoids event loop conflicts)
 
 app = FastAPI(
     title="E-Leiloes Public API",
     description="Read-only API for public auction data",
-    version="1.0.0",
-    lifespan=lifespan
+    version="1.0.0"
 )
 
 # CORS - allow all origins for public API
@@ -311,17 +289,17 @@ async def health_check():
 @app.get("/stats", response_model=StatsResponse)
 async def get_stats():
     """Get general statistics"""
-    async with get_session() as session:
+    with get_session() as session:
         now = datetime.utcnow()
         soon = now + timedelta(hours=24)
 
-        total = await session.scalar(select(func.count()).select_from(EventDB))
-        active = await session.scalar(
+        total = session.scalar(select(func.count()).select_from(EventDB))
+        active = session.scalar(
             select(func.count()).select_from(EventDB).where(
                 and_(EventDB.terminado == 0, EventDB.cancelado == 0)
             )
         )
-        ending_soon = await session.scalar(
+        ending_soon = session.scalar(
             select(func.count()).select_from(EventDB).where(
                 and_(
                     EventDB.terminado == 0,
@@ -332,14 +310,14 @@ async def get_stats():
             )
         )
 
-        type_query = await session.execute(
+        type_query = session.execute(
             select(EventDB.tipo_id, func.count())
             .where(and_(EventDB.terminado == 0, EventDB.cancelado == 0))
             .group_by(EventDB.tipo_id)
         )
         by_type = {str(t or 0): c for t, c in type_query.all()}
 
-        distrito_query = await session.execute(
+        distrito_query = session.execute(
             select(EventDB.distrito, func.count())
             .where(
                 and_(
@@ -366,7 +344,7 @@ async def get_stats():
 @app.get("/dashboard/quick-stats")
 async def get_dashboard_quick_stats():
     """Get optimized stats for dashboard - fast SQL queries instead of loading all events"""
-    async with get_session() as session:
+    with get_session() as session:
         # Map tipo_id to tipo_evento name
         tipo_map = {
             1: 'imoveis', 2: 'veiculos', 3: 'direitos',
@@ -377,24 +355,24 @@ async def get_dashboard_quick_stats():
         active_cond = and_(EventDB.terminado == 0, EventDB.cancelado == 0)
 
         # Total active events
-        total_active = await session.scalar(
+        total_active = session.scalar(
             select(func.count()).select_from(EventDB).where(active_cond)
         ) or 0
 
         # Total inactive/terminated
-        total_inactive = await session.scalar(
+        total_inactive = session.scalar(
             select(func.count()).select_from(EventDB).where(
                 or_(EventDB.terminado == 1, EventDB.cancelado == 1)
             )
         ) or 0
 
         # Count LO/NP for active events
-        total_lo = await session.scalar(
+        total_lo = session.scalar(
             select(func.count()).select_from(EventDB).where(
                 and_(active_cond, EventDB.reference.like('LO%'))
             )
         ) or 0
-        total_np = await session.scalar(
+        total_np = session.scalar(
             select(func.count()).select_from(EventDB).where(
                 and_(active_cond, EventDB.reference.like('NP%'))
             )
@@ -405,15 +383,15 @@ async def get_dashboard_quick_stats():
         for tipo_id, tipo_name in tipo_map.items():
             tipo_cond = and_(active_cond, EventDB.tipo_id == tipo_id)
 
-            count = await session.scalar(
+            count = session.scalar(
                 select(func.count()).select_from(EventDB).where(tipo_cond)
             ) or 0
-            lo = await session.scalar(
+            lo = session.scalar(
                 select(func.count()).select_from(EventDB).where(
                     and_(tipo_cond, EventDB.reference.like('LO%'))
                 )
             ) or 0
-            np = await session.scalar(
+            np = session.scalar(
                 select(func.count()).select_from(EventDB).where(
                     and_(tipo_cond, EventDB.reference.like('NP%'))
                 )
@@ -441,7 +419,7 @@ async def list_events(
     order_by: str = "data_fim"
 ):
     """List events with filters - returns {events: [...]} format for dashboard compatibility"""
-    async with get_session() as session:
+    with get_session() as session:
         query = select(EventDB)
 
         conditions = []
@@ -473,7 +451,7 @@ async def list_events(
 
         query = query.offset(offset).limit(limit)
 
-        result = await session.execute(query)
+        result = session.execute(query)
         events = result.scalars().all()
 
         # Convert to dict format with ativo field
@@ -538,8 +516,8 @@ async def get_events_batch(references: List[str]):
     if not references:
         return {"events": [], "found": 0, "requested": 0}
 
-    async with get_session() as session:
-        result = await session.execute(
+    with get_session() as session:
+        result = session.execute(
             select(EventDB).where(EventDB.reference.in_(references))
         )
         events = result.scalars().all()
@@ -587,7 +565,7 @@ async def list_vehicle_analyses(
     """
     from sqlalchemy import text
 
-    async with get_session() as session:
+    with get_session() as session:
         # Build query
         where_clause = "WHERE ai_score IS NOT NULL"
         params = {"limit": limit, "offset": offset}
@@ -597,14 +575,14 @@ async def list_vehicle_analyses(
             params["rec"] = recommendation
 
         # Get total count
-        count_result = await session.execute(
+        count_result = session.execute(
             text(f"SELECT COUNT(*) FROM event_vehicle_data {where_clause}"),
             params
         )
         total = count_result.scalar() or 0
 
         # Get analyses
-        result = await session.execute(
+        result = session.execute(
             text(f"""
                 SELECT
                     evd.reference, evd.matricula, evd.event_titulo, evd.event_valor_base, evd.event_lance_atual,
@@ -646,7 +624,7 @@ async def list_vehicle_analyses(
             analyses.append(data)
 
         # Get stats
-        stats_result = await session.execute(
+        stats_result = session.execute(
             text("""
                 SELECT
                     ai_recommendation,
@@ -682,9 +660,9 @@ async def get_vehicle_data(reference: str):
     """
     from sqlalchemy import text
 
-    async with get_session() as session:
+    with get_session() as session:
         # Query the event_vehicle_data table directly
-        result = await session.execute(
+        result = session.execute(
             text("""
                 SELECT
                     reference, matricula, event_titulo, event_valor_base, event_lance_atual,
@@ -737,8 +715,8 @@ async def get_vehicle_data(reference: str):
 async def get_event(reference: str):
     """Get event details by reference - returns ALL fields"""
     try:
-        async with get_session() as session:
-            result = await session.execute(
+        with get_session() as session:
+            result = session.execute(
                 select(EventDB).where(EventDB.reference == reference)
             )
             event = result.scalar_one_or_none()
@@ -788,7 +766,7 @@ async def get_ending_soon(
     tipo_id: Optional[int] = None
 ):
     """Get events ending soon"""
-    async with get_session() as session:
+    with get_session() as session:
         now = datetime.utcnow()
         cutoff = now + timedelta(hours=hours)
 
@@ -806,7 +784,7 @@ async def get_ending_soon(
 
         query = query.order_by(EventDB.data_fim).limit(limit)
 
-        result = await session.execute(query)
+        result = session.execute(query)
         events = result.scalars().all()
 
         return [EventSummary.model_validate(e) for e in events]
@@ -816,16 +794,16 @@ async def get_ending_soon(
 async def get_price_history(reference: str, limit: int = Query(500, le=1000)):
     """Get price history for an event - returns all bids"""
     try:
-        async with get_session() as session:
+        with get_session() as session:
             # Debug: count total records first
             from sqlalchemy import func
-            count_result = await session.execute(
+            count_result = session.execute(
                 select(func.count()).select_from(PriceHistoryDB).where(PriceHistoryDB.reference == reference)
             )
             total_count = count_result.scalar()
             print(f"[DEBUG] price_history for {reference}: {total_count} records in DB", flush=True)
 
-            result = await session.execute(
+            result = session.execute(
                 select(PriceHistoryDB)
                 .where(PriceHistoryDB.reference == reference)
                 .order_by(PriceHistoryDB.recorded_at)
@@ -847,8 +825,8 @@ async def get_price_history(reference: str, limit: int = Query(500, le=1000)):
 @app.get("/distritos")
 async def list_distritos():
     """List all distritos with event counts"""
-    async with get_session() as session:
-        result = await session.execute(
+    with get_session() as session:
+        result = session.execute(
             select(EventDB.distrito, func.count())
             .where(
                 and_(
@@ -875,8 +853,8 @@ async def list_tipos():
         6: "Direitos"
     }
 
-    async with get_session() as session:
-        result = await session.execute(
+    with get_session() as session:
+        result = session.execute(
             select(EventDB.tipo_id, func.count())
             .where(and_(EventDB.terminado == 0, EventDB.cancelado == 0))
             .group_by(EventDB.tipo_id)
@@ -891,8 +869,8 @@ async def list_tipos():
 @app.get("/filters/subtypes/{tipo_id}")
 async def get_subtypes(tipo_id: int):
     """Get subtypes for a specific tipo_id"""
-    async with get_session() as session:
-        result = await session.execute(
+    with get_session() as session:
+        result = session.execute(
             select(EventDB.subtipo, func.count())
             .where(
                 and_(
@@ -920,12 +898,12 @@ async def dashboard_ending_soon(hours: int = 24, limit: int = 1000, include_term
     - include_terminated: include recently terminated events (default True)
     - terminated_hours: how far back to look for terminated events (default 120h = 5 days)
     """
-    async with get_session() as session:
+    with get_session() as session:
         now = datetime.utcnow()
         cutoff = now + timedelta(hours=hours)
 
         # Get active events ending soon
-        result = await session.execute(
+        result = session.execute(
             select(EventDB).where(
                 and_(
                     EventDB.terminado == 0,
@@ -941,7 +919,7 @@ async def dashboard_ending_soon(hours: int = 24, limit: int = 1000, include_term
         terminated_events = []
         if include_terminated:
             terminated_cutoff = now - timedelta(hours=terminated_hours)
-            terminated_result = await session.execute(
+            terminated_result = session.execute(
                 select(EventDB).where(
                     and_(
                         EventDB.terminado == 1,
@@ -985,13 +963,13 @@ async def dashboard_recent_bids(limit: int = 30, hours: int = 120):
     """Get recent bid activity with price changes from price_history table.
     Shows only the most recent bid per event, limited to last N hours (default 120h = 5 days).
     Also includes last bids from recently terminated events."""
-    async with get_session() as session:
+    with get_session() as session:
         # Calculate cutoff time
         now = datetime.utcnow()
         cutoff = now - timedelta(hours=hours)
 
         # Get recent price history entries (already has old_price, new_price, change_amount)
-        result = await session.execute(
+        result = session.execute(
             select(PriceHistoryDB)
             .where(
                 and_(
@@ -1013,7 +991,7 @@ async def dashboard_recent_bids(limit: int = 30, hours: int = 120):
                 unique_entries.append((h, None))
 
         # Also get recently terminated events to include their last bids
-        terminated_result = await session.execute(
+        terminated_result = session.execute(
             select(EventDB).where(
                 and_(
                     EventDB.terminado == 1,
@@ -1030,7 +1008,7 @@ async def dashboard_recent_bids(limit: int = 30, hours: int = 120):
         for event in terminated_events:
             if event.reference not in seen_refs:
                 # Get the last price history entry for this event
-                last_bid_result = await session.execute(
+                last_bid_result = session.execute(
                     select(PriceHistoryDB)
                     .where(PriceHistoryDB.reference == event.reference)
                     .order_by(desc(PriceHistoryDB.recorded_at))
@@ -1051,7 +1029,7 @@ async def dashboard_recent_bids(limit: int = 30, hours: int = 120):
         refs_with_history = [h.reference for h, e in unique_entries if h is not None]
         events_map = {}
         if refs_with_history:
-            events_result = await session.execute(
+            events_result = session.execute(
                 select(EventDB).where(EventDB.reference.in_(refs_with_history))
             )
             events_map = {e.reference: e for e in events_result.scalars().all()}
@@ -1109,9 +1087,9 @@ async def dashboard_recent_bids(limit: int = 30, hours: int = 120):
 @app.get("/dashboard/stats-by-distrito")
 async def dashboard_stats_by_distrito(limit: int = 5):
     """Get stats grouped by distrito with breakdown by type"""
-    async with get_session() as session:
+    with get_session() as session:
         # Get all active events with distrito
-        result = await session.execute(
+        result = session.execute(
             select(EventDB.distrito, EventDB.tipo_id).where(
                 and_(
                     EventDB.terminado == 0,
@@ -1144,8 +1122,8 @@ async def dashboard_stats_by_distrito(limit: int = 5):
 @app.get("/dashboard/recent-events")
 async def dashboard_recent_events(limit: int = 20, days: int = 7):
     """Get recently added events"""
-    async with get_session() as session:
-        result = await session.execute(
+    with get_session() as session:
+        result = session.execute(
             select(EventDB).where(
                 and_(EventDB.terminado == 0, EventDB.cancelado == 0)
             ).order_by(desc(EventDB.data_atualizacao)).limit(limit)
@@ -1170,14 +1148,14 @@ async def dashboard_recent_events(limit: int = 20, days: int = 7):
 @app.get("/db/stats")
 async def db_stats():
     """Get database statistics"""
-    async with get_session() as session:
-        total = await session.scalar(select(func.count()).select_from(EventDB))
-        active = await session.scalar(
+    with get_session() as session:
+        total = session.scalar(select(func.count()).select_from(EventDB))
+        active = session.scalar(
             select(func.count()).select_from(EventDB).where(
                 and_(EventDB.terminado == 0, EventDB.cancelado == 0)
             )
         )
-        type_query = await session.execute(
+        type_query = session.execute(
             select(EventDB.tipo_id, func.count()).group_by(EventDB.tipo_id)
         )
         by_type = {str(t or 0): c for t, c in type_query.all()}
@@ -1192,8 +1170,8 @@ async def db_stats():
 @app.get("/volatile/{reference}")
 async def get_volatile_data(reference: str):
     """Get volatile/real-time data for an event"""
-    async with get_session() as session:
-        result = await session.execute(
+    with get_session() as session:
+        result = session.execute(
             select(EventDB).where(EventDB.reference == reference)
         )
         event = result.scalar_one_or_none()
@@ -1218,7 +1196,7 @@ async def queue_refresh_request(reference: str, refresh_type: str = "price"):
     Returns the request ID for polling.
     """
     try:
-        async with get_session() as session:
+        with get_session() as session:
             # Create refresh request with state=0 (pending)
             refresh_log = RefreshLogDB(
                 reference=reference,
@@ -1226,8 +1204,8 @@ async def queue_refresh_request(reference: str, refresh_type: str = "price"):
                 state=0  # pending
             )
             session.add(refresh_log)
-            await session.commit()
-            await session.refresh(refresh_log)
+            session.commit()
+            session.refresh(refresh_log)
 
             return {
                 "success": True,
@@ -1249,8 +1227,8 @@ async def get_refresh_status(request_id: int):
     States: 0=pending, 1=processing, 2=completed, 3=error
     """
     try:
-        async with get_session() as session:
-            result = await session.execute(
+        with get_session() as session:
+            result = session.execute(
                 select(RefreshLogDB).where(RefreshLogDB.id == request_id)
             )
             refresh_log = result.scalar_one_or_none()
@@ -1276,12 +1254,12 @@ async def get_refresh_status(request_id: int):
 async def get_refresh_stats():
     """Get refresh request statistics - counts completed refreshes (state=2)"""
     try:
-        async with get_session() as session:
+        with get_session() as session:
             now = datetime.utcnow()
             cutoff_24h = now - timedelta(hours=24)
 
             # Count COMPLETED refreshes in last 24h (state=2)
-            completed_24h = await session.scalar(
+            completed_24h = session.scalar(
                 select(func.count()).select_from(RefreshLogDB).where(
                     and_(
                         RefreshLogDB.created_at >= cutoff_24h,
@@ -1291,14 +1269,14 @@ async def get_refresh_stats():
             )
 
             # Count pending (state=0)
-            pending = await session.scalar(
+            pending = session.scalar(
                 select(func.count()).select_from(RefreshLogDB).where(
                     RefreshLogDB.state == 0
                 )
             )
 
             # Total completed all-time
-            total_completed = await session.scalar(
+            total_completed = session.scalar(
                 select(func.count()).select_from(RefreshLogDB).where(
                     RefreshLogDB.state == 2
                 )
@@ -1321,12 +1299,12 @@ async def get_refresh_stats():
 async def auto_pipelines_status():
     """Returns pipeline status and event urgency counts from database"""
     try:
-        async with get_session() as session:
+        with get_session() as session:
             from datetime import timedelta
             now = datetime.utcnow()
 
             # Read pipeline states from database
-            pipeline_result = await session.execute(select(PipelineStateDB))
+            pipeline_result = session.execute(select(PipelineStateDB))
             pipeline_states = pipeline_result.scalars().all()
 
             pipelines = {}
@@ -1360,7 +1338,7 @@ async def auto_pipelines_status():
             soon_cutoff = now + timedelta(hours=24)
 
             # Get all active events ending in next 24h
-            result = await session.execute(
+            result = session.execute(
                 select(EventDB).where(
                     and_(
                         EventDB.terminado == 0,
@@ -1425,11 +1403,11 @@ async def websocket_notifications(websocket: WebSocket):
 @app.get("/notifications/count")
 async def notifications_count():
     """Get count of unread notifications"""
-    async with get_session() as session:
-        total = await session.scalar(
+    with get_session() as session:
+        total = session.scalar(
             select(func.count()).select_from(NotificationDB)
         ) or 0
-        unread = await session.scalar(
+        unread = session.scalar(
             select(func.count()).select_from(NotificationDB).where(NotificationDB.read == False)
         ) or 0
         return {"count": total, "unread": unread}
@@ -1438,9 +1416,9 @@ async def notifications_count():
 @app.get("/notifications")
 async def notifications_list(limit: int = 50, offset: int = 0):
     """Get list of notifications"""
-    async with get_session() as session:
+    with get_session() as session:
         query = select(NotificationDB).order_by(desc(NotificationDB.created_at)).limit(limit).offset(offset)
-        result = await session.execute(query)
+        result = session.execute(query)
         notifications = result.scalars().all()
 
         return [
@@ -1465,34 +1443,34 @@ async def notifications_list(limit: int = 50, offset: int = 0):
 @app.put("/notifications/{notification_id}/read")
 async def mark_notification_read(notification_id: int, read: bool = True):
     """Mark notification as read/unread"""
-    async with get_session() as session:
-        notification = await session.get(NotificationDB, notification_id)
+    with get_session() as session:
+        notification = session.get(NotificationDB, notification_id)
         if not notification:
             raise HTTPException(status_code=404, detail="Notification not found")
         notification.read = read
-        await session.commit()
+        session.commit()
         return {"success": True}
 
 
 @app.post("/notifications/read-all")
 async def mark_all_notifications_read():
     """Mark all notifications as read"""
-    async with get_session() as session:
+    with get_session() as session:
         from sqlalchemy import update
-        await session.execute(
+        session.execute(
             update(NotificationDB).where(NotificationDB.read == False).values(read=True)
         )
-        await session.commit()
+        session.commit()
         return {"success": True}
 
 
 @app.delete("/notifications/delete-all")
 async def delete_all_notifications():
     """Delete all notifications"""
-    async with get_session() as session:
+    with get_session() as session:
         from sqlalchemy import delete
-        await session.execute(delete(NotificationDB))
-        await session.commit()
+        session.execute(delete(NotificationDB))
+        session.commit()
         # Reset the WebSocket manager's last notification ID
         ws_manager._last_notification_id = 0
         return {"success": True}
@@ -1512,9 +1490,9 @@ def parse_json_field(value):
 @app.get("/notification-rules")
 async def get_notification_rules():
     """Get all notification rules"""
-    async with get_session() as session:
+    with get_session() as session:
         query = select(NotificationRuleDB).order_by(desc(NotificationRuleDB.created_at))
-        result = await session.execute(query)
+        result = session.execute(query)
         rules = result.scalars().all()
 
         return [
@@ -1539,11 +1517,11 @@ async def get_notification_rules():
 async def create_notification_rule(rule: NotificationRuleCreate):
     """Create a new notification rule"""
     print(f"📝 Creating rule: {rule}")  # Debug log
-    async with get_session() as session:
+    with get_session() as session:
         # Get current price if event-specific rule
         last_price = None
         if rule.event_reference:
-            event = await session.get(EventDB, rule.event_reference)
+            event = session.get(EventDB, rule.event_reference)
             if event:
                 last_price = event.lance_atual
 
@@ -1559,8 +1537,8 @@ async def create_notification_rule(rule: NotificationRuleCreate):
             last_price=last_price
         )
         session.add(db_rule)
-        await session.commit()
-        await session.refresh(db_rule)
+        session.commit()
+        session.refresh(db_rule)
 
         return {"id": db_rule.id, "success": True}
 
@@ -1568,25 +1546,25 @@ async def create_notification_rule(rule: NotificationRuleCreate):
 @app.delete("/notification-rules/{rule_id}")
 async def delete_notification_rule(rule_id: int):
     """Delete a notification rule"""
-    async with get_session() as session:
-        rule = await session.get(NotificationRuleDB, rule_id)
+    with get_session() as session:
+        rule = session.get(NotificationRuleDB, rule_id)
         if not rule:
             raise HTTPException(status_code=404, detail="Rule not found")
-        await session.delete(rule)
-        await session.commit()
+        session.delete(rule)
+        session.commit()
         return {"success": True}
 
 
 @app.put("/notification-rules/{rule_id}")
 async def update_notification_rule(rule_id: int, active: bool):
     """Enable/disable a notification rule"""
-    async with get_session() as session:
-        rule = await session.get(NotificationRuleDB, rule_id)
+    with get_session() as session:
+        rule = session.get(NotificationRuleDB, rule_id)
         if not rule:
             raise HTTPException(status_code=404, detail="Rule not found")
         rule.active = active
         rule.updated_at = datetime.utcnow()
-        await session.commit()
+        session.commit()
         return {"success": True}
 
 
@@ -1594,7 +1572,7 @@ async def update_notification_rule(rule_id: int, active: bool):
 async def check_price_changes():
     """Check for price changes on watched events and create notifications"""
     notifications_created = 0
-    async with get_session() as session:
+    with get_session() as session:
         # Get all active event-specific rules
         rules_query = select(NotificationRuleDB).where(
             and_(
@@ -1602,12 +1580,12 @@ async def check_price_changes():
                 NotificationRuleDB.active == True
             )
         )
-        result = await session.execute(rules_query)
+        result = session.execute(rules_query)
         rules = result.scalars().all()
 
         for rule in rules:
             # Get current event data
-            event = await session.get(EventDB, rule.event_reference)
+            event = session.get(EventDB, rule.event_reference)
             if not event:
                 continue
 
@@ -1634,7 +1612,7 @@ async def check_price_changes():
 
                 notifications_created += 1
 
-        await session.commit()
+        session.commit()
 
     return {"notifications_created": notifications_created}
 
@@ -1644,8 +1622,8 @@ async def check_price_changes():
 @app.get("/favorites")
 async def get_favorites():
     """Get all favorites with current event data"""
-    async with get_session() as session:
-        result = await session.execute(
+    with get_session() as session:
+        result = session.execute(
             select(FavoriteDB).order_by(desc(FavoriteDB.created_at))
         )
         favorites = result.scalars().all()
@@ -1654,7 +1632,7 @@ async def get_favorites():
         enriched = []
         for fav in favorites:
             # Get current event info
-            event = await session.scalar(
+            event = session.scalar(
                 select(EventDB).where(EventDB.reference == fav.event_reference)
             )
 
@@ -1709,16 +1687,16 @@ async def get_favorites():
 @app.get("/favorites/count")
 async def get_favorites_count():
     """Get count of favorites"""
-    async with get_session() as session:
-        total = await session.scalar(select(func.count()).select_from(FavoriteDB)) or 0
+    with get_session() as session:
+        total = session.scalar(select(func.count()).select_from(FavoriteDB)) or 0
         return {"count": total}
 
 
 @app.get("/favorites/{reference}")
 async def get_favorite(reference: str):
     """Check if event is favorited and get its data"""
-    async with get_session() as session:
-        fav = await session.scalar(
+    with get_session() as session:
+        fav = session.scalar(
             select(FavoriteDB).where(FavoriteDB.event_reference == reference)
         )
         if not fav:
@@ -1742,16 +1720,16 @@ async def add_favorite(data: dict):
     if not reference:
         raise HTTPException(status_code=400, detail="event_reference is required")
 
-    async with get_session() as session:
+    with get_session() as session:
         # Check if already favorited
-        existing = await session.scalar(
+        existing = session.scalar(
             select(FavoriteDB).where(FavoriteDB.event_reference == reference)
         )
         if existing:
             return {"id": existing.id, "message": "Already favorited"}
 
         # Get event data
-        event = await session.scalar(
+        event = session.scalar(
             select(EventDB).where(EventDB.reference == reference)
         )
         if not event:
@@ -1776,8 +1754,8 @@ async def add_favorite(data: dict):
         )
 
         session.add(favorite)
-        await session.commit()
-        await session.refresh(favorite)
+        session.commit()
+        session.refresh(favorite)
 
         return {"id": favorite.id, "message": "Favorite added"}
 
@@ -1785,15 +1763,15 @@ async def add_favorite(data: dict):
 @app.delete("/favorites/{reference}")
 async def remove_favorite(reference: str):
     """Remove event from favorites"""
-    async with get_session() as session:
-        fav = await session.scalar(
+    with get_session() as session:
+        fav = session.scalar(
             select(FavoriteDB).where(FavoriteDB.event_reference == reference)
         )
         if not fav:
             raise HTTPException(status_code=404, detail="Favorite not found")
 
-        await session.delete(fav)
-        await session.commit()
+        session.delete(fav)
+        session.commit()
 
         return {"message": "Favorite removed"}
 
@@ -1801,8 +1779,8 @@ async def remove_favorite(reference: str):
 @app.put("/favorites/{reference}")
 async def update_favorite(reference: str, data: dict):
     """Update favorite notification preferences"""
-    async with get_session() as session:
-        fav = await session.scalar(
+    with get_session() as session:
+        fav = session.scalar(
             select(FavoriteDB).where(FavoriteDB.event_reference == reference)
         )
         if not fav:
@@ -1821,7 +1799,7 @@ async def update_favorite(reference: str, data: dict):
             fav.notes = data["notes"]
 
         fav.updated_at = datetime.utcnow()
-        await session.commit()
+        session.commit()
 
         return {"message": "Favorite updated"}
 
@@ -1831,14 +1809,14 @@ async def check_favorites_prices():
     """Check for price changes on favorited events and create notifications"""
     notifications_created = 0
 
-    async with get_session() as session:
-        favorites = await session.execute(
+    with get_session() as session:
+        favorites = session.execute(
             select(FavoriteDB).where(FavoriteDB.notify_price_change == True)
         )
         favorites = favorites.scalars().all()
 
         for fav in favorites:
-            event = await session.scalar(
+            event = session.scalar(
                 select(EventDB).where(EventDB.reference == fav.event_reference)
             )
             if not event or event.terminado or event.cancelado:
@@ -1881,7 +1859,7 @@ async def check_favorites_prices():
 
                 notifications_created += 1
 
-        await session.commit()
+        session.commit()
 
     return {"notifications_created": notifications_created}
 
@@ -1969,7 +1947,7 @@ async def list_ai_tips(
     tipo: Optional[str] = Query(None, description="Filter by type: imoveis, veiculos"),
 ):
     """List AI tips with pagination and filters"""
-    async with get_session() as session:
+    with get_session() as session:
         # Base query
         query = select(EventAiTipDB)
         count_query = select(func.count(EventAiTipDB.id))
@@ -1994,7 +1972,7 @@ async def list_ai_tips(
                 count_query = count_query.where(EventAiTipDB.event_tipo == tipo_map[tipo])
 
         # Get total count
-        total_result = await session.execute(count_query)
+        total_result = session.execute(count_query)
         total = total_result.scalar() or 0
 
         # Apply pagination and ordering
@@ -2002,7 +1980,7 @@ async def list_ai_tips(
         query = query.order_by(EventAiTipDB.created_at.desc()).offset(offset).limit(page_size)
 
         # Execute
-        result = await session.execute(query)
+        result = session.execute(query)
         tips_db = result.scalars().all()
 
         # Convert to response
@@ -2042,9 +2020,9 @@ async def list_ai_tips(
 @app.get("/ai/tips/{reference}", response_model=AiTipResponse)
 async def get_ai_tip(reference: str):
     """Get AI tip for a specific event"""
-    async with get_session() as session:
+    with get_session() as session:
         query = select(EventAiTipDB).where(EventAiTipDB.reference == reference)
-        result = await session.execute(query)
+        result = session.execute(query)
         tip = result.scalar_one_or_none()
 
         if not tip:
@@ -2076,15 +2054,15 @@ async def get_ai_tip(reference: str):
 @app.get("/ai/pipeline/status", response_model=AiPipelineStatusResponse)
 async def get_ai_pipeline_status():
     """Get AI pipeline processing status"""
-    async with get_session() as session:
+    with get_session() as session:
         # Get pipeline state
         query = select(AiPipelineStateDB).where(AiPipelineStateDB.pipeline_name == "ai_tips")
-        result = await session.execute(query)
+        result = session.execute(query)
         state = result.scalar_one_or_none()
 
         # Count pending tips
         pending_query = select(func.count(EventAiTipDB.id)).where(EventAiTipDB.status == "pending")
-        pending_result = await session.execute(pending_query)
+        pending_result = session.execute(pending_query)
         pending_count = pending_result.scalar() or 0
 
         if state:
@@ -2114,13 +2092,13 @@ async def get_ai_pipeline_status():
 @app.get("/ai/stats")
 async def get_ai_stats():
     """Get AI tips statistics"""
-    async with get_session() as session:
+    with get_session() as session:
         # Count by status
         status_query = select(
             EventAiTipDB.status,
             func.count(EventAiTipDB.id)
         ).group_by(EventAiTipDB.status)
-        status_result = await session.execute(status_query)
+        status_result = session.execute(status_query)
         status_counts = {row[0]: row[1] for row in status_result.all()}
 
         # Count by recommendation
@@ -2128,21 +2106,21 @@ async def get_ai_stats():
             EventAiTipDB.tip_recommendation,
             func.count(EventAiTipDB.id)
         ).where(EventAiTipDB.status == "completed").group_by(EventAiTipDB.tip_recommendation)
-        rec_result = await session.execute(rec_query)
+        rec_result = session.execute(rec_query)
         rec_counts = {row[0]: row[1] for row in rec_result.all() if row[0]}
 
         # Average confidence
         conf_query = select(func.avg(EventAiTipDB.tip_confidence)).where(
             EventAiTipDB.status == "completed"
         )
-        conf_result = await session.execute(conf_query)
+        conf_result = session.execute(conf_query)
         avg_confidence = conf_result.scalar()
 
         # Average processing time
         time_query = select(func.avg(EventAiTipDB.processing_time_ms)).where(
             EventAiTipDB.status == "completed"
         )
-        time_result = await session.execute(time_query)
+        time_result = session.execute(time_query)
         avg_time_ms = time_result.scalar()
 
         return {
