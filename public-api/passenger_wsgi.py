@@ -81,8 +81,8 @@ def application(environ, start_response):
             if k.lower() not in skip_headers
         ]
 
-        # Add CORS headers
-        response_headers.extend(CORS_HEADERS)
+        # Note: CORS headers are already added by FastAPI's CORSMiddleware
+        # Don't add them again here to avoid duplicate headers
 
         start_response(status, response_headers)
         return [response.content]
