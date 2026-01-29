@@ -1510,15 +1510,16 @@
         <div class="footer-container">
             <div class="footer-brand">
                 <img src="assets/favicon-32x32.png" alt="Martelo" class="footer-logo">
-                <span class="footer-text">Martelo</span>
+                <span class="footer-text">© <span id="footer-year"></span> Martelo. Todos os direitos reservados.</span>
             </div>
             <div class="footer-signature">
                 <a href="https://nuno.mansilhas.pt/" target="_blank">
-                    Feito com <span class="heart">❤️</span> em Portugal
+                    Desenvolvido com <span class="heart">❤️</span> em Portugal
                 </a>
             </div>
         </div>
     </footer>
+    <script>document.getElementById('footer-year').textContent = new Date().getFullYear();</script>
 
     <script>
         // Countdown animation
