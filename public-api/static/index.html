@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Martelo - E-Leilões Enhanced</title>
-    <meta name="description" content="Melhora a tua experiência no e-leiloes.pt">
+    <meta name="description" content="Melhora a tua experiência no e-leiloes.pt com carrossel de imagens, preços enriquecidos, countdown em tempo real e muito mais.">
     <link rel="icon" type="image/png" href="extension/icons/icon48.png">
     <style>
         * {
@@ -13,188 +13,268 @@
             box-sizing: border-box;
         }
 
-        html, body {
-            height: 100%;
+        html {
+            scroll-behavior: smooth;
         }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%);
+            background: #0f172a;
             color: #f1f5f9;
+            line-height: 1.6;
+        }
+
+        /* ============================================ */
+        /* NAVIGATION                                   */
+        /* ============================================ */
+
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: white;
+        }
+
+        .nav-logo {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+        }
+
+        .nav-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 32px;
+            align-items: center;
+        }
+
+        .nav-links a {
+            color: #94a3b8;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.2s;
+        }
+
+        .nav-links a:hover {
+            color: white;
+        }
+
+        .nav-cta {
+            background: #3b82f6 !important;
+            color: white !important;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+
+        .nav-cta:hover {
+            background: #2563eb !important;
+        }
+
+        /* ============================================ */
+        /* HERO SECTION                                 */
+        /* ============================================ */
+
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%);
+            padding: 120px 24px 80px;
+            position: relative;
             overflow: hidden;
         }
 
-        /* ============================================ */
-        /* DESKTOP LAYOUT (>768px)                     */
-        /* ============================================ */
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 800px;
+            height: 800px;
+            background: radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, transparent 70%);
+            pointer-events: none;
+        }
 
-        .container {
-            height: 100%;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            align-items: center;
-            padding: 40px 60px;
-            gap: 60px;
+        .hero-container {
             max-width: 1200px;
             margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 80px;
+            align-items: center;
         }
 
-        /* Left column - Info */
-        .info {
-            display: flex;
-            flex-direction: column;
+        .hero-content {
+            position: relative;
+            z-index: 1;
         }
 
-        .logo {
-            width: 72px;
-            height: 72px;
-            border-radius: 18px;
-            margin-bottom: 20px;
-        }
-
-        h1 {
-            font-size: 2.5rem;
-            font-weight: 700;
-            margin-bottom: 8px;
-        }
-
-        .tagline {
-            color: #94a3b8;
-            font-size: 1.1rem;
-            margin-bottom: 32px;
-        }
-
-        .features {
-            display: flex;
-            gap: 24px;
-            margin-bottom: 32px;
-        }
-
-        .feature {
-            display: flex;
+        .hero-badge {
+            display: inline-flex;
             align-items: center;
             gap: 8px;
+            background: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            padding: 8px 16px;
+            border-radius: 50px;
             font-size: 0.85rem;
+            color: #60a5fa;
+            margin-bottom: 24px;
+        }
+
+        .hero-badge-dot {
+            width: 8px;
+            height: 8px;
+            background: #22c55e;
+            border-radius: 50%;
+            animation: pulse-dot 2s infinite;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .hero h1 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            line-height: 1.1;
+            margin-bottom: 24px;
+            background: linear-gradient(135deg, #ffffff 0%, #94a3b8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero h1 span {
+            background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+        }
+
+        .hero-description {
+            font-size: 1.25rem;
             color: #94a3b8;
+            margin-bottom: 40px;
+            max-width: 500px;
         }
 
-        .feature-icon {
-            font-size: 1.3rem;
-        }
-
-        .buttons {
+        .hero-buttons {
             display: flex;
-            flex-direction: column;
-            gap: 12px;
-            margin-bottom: 32px;
+            gap: 16px;
+            margin-bottom: 48px;
         }
 
         .btn {
-            display: flex;
+            display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: 12px;
-            padding: 16px 24px;
+            gap: 10px;
+            padding: 16px 32px;
             border-radius: 12px;
             text-decoration: none;
             font-size: 1rem;
             font-weight: 600;
-            transition: all 0.2s;
+            transition: all 0.3s;
             border: none;
             cursor: pointer;
         }
 
         .btn-primary {
-            background: #3b82f6;
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
             color: white;
+            box-shadow: 0 10px 40px rgba(59, 130, 246, 0.3);
         }
 
         .btn-primary:hover {
-            background: #2563eb;
-            transform: translateY(-2px);
-            box-shadow: 0 10px 30px rgba(59, 130, 246, 0.3);
+            transform: translateY(-3px);
+            box-shadow: 0 15px 50px rgba(59, 130, 246, 0.4);
         }
 
         .btn-secondary {
-            background: rgba(255,255,255,0.08);
+            background: rgba(255,255,255,0.05);
             color: #e2e8f0;
+            border: 1px solid rgba(255,255,255,0.1);
         }
 
         .btn-secondary:hover {
-            background: rgba(255,255,255,0.12);
-            transform: translateY(-1px);
+            background: rgba(255,255,255,0.1);
+            transform: translateY(-2px);
         }
 
-        .btn-disabled {
-            background: rgba(255,255,255,0.03);
-            color: rgba(255,255,255,0.3);
-            cursor: not-allowed;
-            pointer-events: none;
-        }
-
-        .btn-badge {
-            font-size: 0.6rem;
-            background: rgba(255,255,255,0.15);
-            padding: 3px 8px;
-            border-radius: 4px;
-        }
-
-        .footer {
-            font-size: 0.8rem;
-            color: #475569;
-        }
-
-        .footer a {
-            color: #475569;
-            text-decoration: none;
-            transition: color 0.2s;
-        }
-
-        .footer a:hover {
-            color: #64748b;
-        }
-
-        .footer a:hover .heart {
-            animation: pulse 0.5s ease infinite;
-        }
-
-        .heart {
-            color: #ef4444;
-            display: inline-block;
-        }
-
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.3); }
-        }
-
-        /* Right column - Preview */
-        .preview {
+        .hero-stats {
             display: flex;
-            flex-direction: column;
-            align-items: center;
+            gap: 48px;
         }
 
-        .preview-label {
-            font-size: 0.75rem;
+        .stat {
+            text-align: left;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: white;
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
             color: #64748b;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            margin-bottom: 16px;
+        }
+
+        /* Hero Preview */
+        .hero-preview {
+            position: relative;
+            z-index: 1;
+        }
+
+        .preview-wrapper {
+            position: relative;
+            perspective: 1000px;
         }
 
         .card-mock {
             background: white;
-            border-radius: 20px;
+            border-radius: 24px;
             overflow: hidden;
             color: #1f2937;
-            width: 100%;
-            max-width: 340px;
-            box-shadow: 0 25px 80px rgba(0,0,0,0.4);
+            box-shadow: 0 40px 100px rgba(0,0,0,0.5);
+            transform: rotateY(-5deg) rotateX(5deg);
+            transition: transform 0.5s;
+        }
+
+        .card-mock:hover {
+            transform: rotateY(0) rotateX(0);
         }
 
         .card-image {
-            height: 160px;
+            height: 200px;
             background: linear-gradient(135deg, #3b82f6, #8b5cf6);
             position: relative;
             display: flex;
@@ -203,29 +283,51 @@
         }
 
         .card-image-icon {
-            font-size: 3rem;
+            font-size: 4rem;
             opacity: 0.6;
         }
 
         .carousel-badge {
             position: absolute;
-            top: 12px;
-            left: 12px;
-            background: rgba(0,0,0,0.6);
+            top: 16px;
+            left: 16px;
+            background: rgba(0,0,0,0.7);
             color: white;
-            font-size: 0.7rem;
-            padding: 4px 10px;
+            font-size: 0.8rem;
+            padding: 6px 12px;
             border-radius: 8px;
             backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
+
+        .carousel-nav {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 36px;
+            height: 36px;
+            background: rgba(255,255,255,0.9);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            color: #1f2937;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        .carousel-nav.prev { left: 12px; }
+        .carousel-nav.next { right: 12px; }
 
         .carousel-dots {
             position: absolute;
-            bottom: 12px;
+            bottom: 16px;
             left: 50%;
             transform: translateX(-50%);
             display: flex;
-            gap: 6px;
+            gap: 8px;
         }
 
         .dot {
@@ -233,6 +335,7 @@
             height: 8px;
             border-radius: 50%;
             background: rgba(255,255,255,0.4);
+            transition: all 0.3s;
         }
 
         .dot.active {
@@ -242,38 +345,39 @@
         }
 
         .card-content {
-            padding: 20px;
+            padding: 24px;
         }
 
         .card-title {
-            font-size: 1rem;
+            font-size: 1.1rem;
             font-weight: 600;
-            margin-bottom: 16px;
+            margin-bottom: 20px;
             color: #1f2937;
         }
 
         .card-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            margin-bottom: 16px;
+            gap: 16px;
+            margin-bottom: 20px;
         }
 
         .card-item {
             background: #f8fafc;
-            padding: 12px;
-            border-radius: 10px;
+            padding: 16px;
+            border-radius: 12px;
         }
 
         .card-label {
-            font-size: 0.65rem;
+            font-size: 0.7rem;
             color: #9ca3af;
             text-transform: uppercase;
-            margin-bottom: 4px;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
         }
 
         .card-value {
-            font-size: 1rem;
+            font-size: 1.1rem;
             font-weight: 700;
             color: #374151;
         }
@@ -282,256 +386,776 @@
             color: #d97706;
         }
 
+        .card-value.green {
+            color: #16a34a;
+        }
+
         .card-countdown {
-            background: #f1f5f9;
-            margin: 0 -20px -20px;
-            padding: 14px 20px;
+            background: linear-gradient(135deg, #fef3c7, #fde68a);
+            margin: 0 -24px -24px;
+            padding: 16px 24px;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 8px;
-            font-size: 0.85rem;
-            color: #64748b;
-            border-radius: 0 0 20px 20px;
+            gap: 10px;
+            font-size: 0.9rem;
+            color: #92400e;
+            border-radius: 0 0 24px 24px;
         }
 
         .countdown-time {
             color: #dc2626;
             font-weight: 700;
+            font-size: 1.1rem;
+        }
+
+        .card-actions {
+            position: absolute;
+            bottom: 100px;
+            right: -20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .action-btn {
+            width: 44px;
+            height: 44px;
+            background: white;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            font-size: 1.2rem;
         }
 
         /* ============================================ */
-        /* MOBILE LAYOUT (<768px)                      */
+        /* FEATURES SECTION                             */
         /* ============================================ */
 
-        @media (max-width: 768px) {
-            body {
-                overflow-y: auto;
-            }
+        .features {
+            padding: 120px 24px;
+            background: #0f172a;
+        }
 
-            .container {
-                display: flex;
-                flex-direction: column;
-                padding: 24px 20px;
-                gap: 24px;
-                height: auto;
-                min-height: 100%;
-            }
+        .section-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
 
-            .info {
-                order: 2;
+        .section-header {
+            text-align: center;
+            margin-bottom: 80px;
+        }
+
+        .section-label {
+            display: inline-block;
+            font-size: 0.85rem;
+            color: #3b82f6;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 16px;
+        }
+
+        .section-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+
+        .section-description {
+            color: #94a3b8;
+            font-size: 1.1rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 32px;
+        }
+
+        .feature-card {
+            background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 20px;
+            padding: 32px;
+            transition: all 0.3s;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-8px);
+            border-color: rgba(59, 130, 246, 0.3);
+            box-shadow: 0 20px 60px rgba(59, 130, 246, 0.15);
+        }
+
+        .feature-icon {
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+        }
+
+        .feature-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .feature-description {
+            color: #94a3b8;
+            font-size: 0.95rem;
+            line-height: 1.7;
+        }
+
+        /* ============================================ */
+        /* HOW IT WORKS SECTION                         */
+        /* ============================================ */
+
+        .how-it-works {
+            padding: 120px 24px;
+            background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+        }
+
+        .steps-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 48px;
+            margin-top: 60px;
+        }
+
+        .step {
+            text-align: center;
+            position: relative;
+        }
+
+        .step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            top: 40px;
+            right: -24px;
+            width: 48px;
+            height: 2px;
+            background: linear-gradient(90deg, #3b82f6, transparent);
+        }
+
+        .step-number {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            font-weight: 700;
+            margin: 0 auto 24px;
+            box-shadow: 0 10px 40px rgba(59, 130, 246, 0.3);
+        }
+
+        .step-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .step-description {
+            color: #94a3b8;
+            font-size: 0.95rem;
+        }
+
+        /* ============================================ */
+        /* CTA SECTION                                  */
+        /* ============================================ */
+
+        .cta {
+            padding: 120px 24px;
+            background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
+            text-align: center;
+        }
+
+        .cta-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .cta h2 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 24px;
+        }
+
+        .cta p {
+            color: #94a3b8;
+            font-size: 1.2rem;
+            margin-bottom: 40px;
+        }
+
+        .cta-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .btn-chrome {
+            background: linear-gradient(135deg, #4285f4, #34a853);
+        }
+
+        .btn-tampermonkey {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .btn-disabled {
+            background: rgba(255,255,255,0.05);
+            color: rgba(255,255,255,0.4);
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        .btn-badge {
+            font-size: 0.65rem;
+            background: rgba(255,255,255,0.2);
+            padding: 4px 10px;
+            border-radius: 4px;
+            margin-left: 4px;
+        }
+
+        /* ============================================ */
+        /* FOOTER                                       */
+        /* ============================================ */
+
+        footer {
+            padding: 40px 24px;
+            background: #0a0f1a;
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .footer-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .footer-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .footer-logo {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+        }
+
+        .footer-text {
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+
+        .footer-signature {
+            text-align: right;
+        }
+
+        .footer-signature a {
+            color: #64748b;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.2s;
+        }
+
+        .footer-signature a:hover {
+            color: #94a3b8;
+        }
+
+        .footer-signature a:hover .heart {
+            animation: pulse-heart 0.5s ease infinite;
+        }
+
+        .heart {
+            color: #ef4444;
+            display: inline-block;
+        }
+
+        @keyframes pulse-heart {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.3); }
+        }
+
+        /* ============================================ */
+        /* MOBILE RESPONSIVE                            */
+        /* ============================================ */
+
+        .mobile-menu-btn {
+            display: none;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        @media (max-width: 1024px) {
+            .hero-container {
+                grid-template-columns: 1fr;
+                gap: 60px;
                 text-align: center;
-                align-items: center;
             }
 
-            .logo {
-                width: 56px;
-                height: 56px;
-                margin-bottom: 12px;
-            }
-
-            h1 {
-                font-size: 1.8rem;
-            }
-
-            .tagline {
-                font-size: 0.9rem;
-                margin-bottom: 20px;
-            }
-
-            .features {
-                justify-content: center;
-                gap: 16px;
-                margin-bottom: 20px;
-                flex-wrap: wrap;
-            }
-
-            .feature {
-                font-size: 0.75rem;
-            }
-
-            .buttons {
-                width: 100%;
-                max-width: 320px;
-                gap: 10px;
-                margin-bottom: 20px;
-            }
-
-            .btn {
-                padding: 14px 20px;
-                font-size: 0.9rem;
-            }
-
-            .preview {
+            .hero-content {
                 order: 1;
             }
 
-            .preview-label {
-                font-size: 0.65rem;
-                margin-bottom: 12px;
+            .hero-preview {
+                order: 2;
+            }
+
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+
+            .hero-description {
+                margin: 0 auto 40px;
+            }
+
+            .hero-buttons {
+                justify-content: center;
+            }
+
+            .hero-stats {
+                justify-content: center;
             }
 
             .card-mock {
+                transform: none;
+                max-width: 400px;
+                margin: 0 auto;
+            }
+
+            .card-actions {
+                display: none;
+            }
+
+            .features-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .steps-grid {
+                grid-template-columns: 1fr;
+                gap: 40px;
+            }
+
+            .step:not(:last-child)::after {
+                display: none;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .nav-links {
+                display: none;
+            }
+
+            .mobile-menu-btn {
+                display: block;
+            }
+
+            .hero {
+                padding: 100px 20px 60px;
+            }
+
+            .hero h1 {
+                font-size: 2rem;
+            }
+
+            .hero-description {
+                font-size: 1rem;
+            }
+
+            .hero-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .btn {
+                width: 100%;
                 max-width: 300px;
+            }
+
+            .hero-stats {
+                flex-direction: column;
+                gap: 24px;
+            }
+
+            .stat {
+                text-align: center;
+            }
+
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .section-title {
+                font-size: 1.8rem;
+            }
+
+            .cta h2 {
+                font-size: 1.8rem;
+            }
+
+            .cta-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .footer-container {
+                flex-direction: column;
+                gap: 20px;
+                text-align: center;
+            }
+
+            .footer-signature {
+                text-align: center;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .hero h1 {
+                font-size: 1.75rem;
+            }
+
+            .card-mock {
                 border-radius: 16px;
             }
 
             .card-image {
-                height: 120px;
-            }
-
-            .card-image-icon {
-                font-size: 2rem;
-            }
-
-            .carousel-badge {
-                font-size: 0.6rem;
-                padding: 3px 8px;
-            }
-
-            .carousel-dots {
-                gap: 4px;
-            }
-
-            .dot {
-                width: 6px;
-                height: 6px;
-            }
-
-            .dot.active {
-                width: 18px;
+                height: 150px;
             }
 
             .card-content {
-                padding: 14px;
-            }
-
-            .card-title {
-                font-size: 0.85rem;
-                margin-bottom: 12px;
-            }
-
-            .card-grid {
-                gap: 8px;
-                margin-bottom: 12px;
-            }
-
-            .card-item {
-                padding: 10px;
-            }
-
-            .card-label {
-                font-size: 0.55rem;
-            }
-
-            .card-value {
-                font-size: 0.85rem;
+                padding: 16px;
             }
 
             .card-countdown {
-                margin: 0 -14px -14px;
-                padding: 10px 14px;
-                font-size: 0.75rem;
+                margin: 0 -16px -16px;
+                padding: 12px 16px;
                 border-radius: 0 0 16px 16px;
-            }
-
-            .footer {
-                font-size: 0.7rem;
-                order: 3;
-            }
-        }
-
-        /* Small phones */
-        @media (max-width: 380px) {
-            .features {
-                gap: 12px;
-            }
-
-            .card-mock {
-                max-width: 260px;
             }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="info">
-            <img src="extension/icons/icon128.png" alt="Martelo" class="logo">
-            <h1>Martelo</h1>
-            <p class="tagline">Melhora a tua experiência no e-leiloes.pt</p>
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-container">
+            <a href="#" class="nav-brand">
+                <img src="extension/icons/icon48.png" alt="Martelo" class="nav-logo">
+                <span class="nav-title">Martelo</span>
+            </a>
+            <div class="nav-links">
+                <a href="#features">Funcionalidades</a>
+                <a href="#how-it-works">Como funciona</a>
+                <a href="dashboard.html" class="nav-cta">Dashboard</a>
+            </div>
+            <button class="mobile-menu-btn">☰</button>
+        </div>
+    </nav>
 
-            <div class="features">
-                <div class="feature">
-                    <span class="feature-icon">🖼️</span>
-                    <span>Carrossel</span>
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-container">
+            <div class="hero-content">
+                <div class="hero-badge">
+                    <span class="hero-badge-dot"></span>
+                    Versão 1.0 disponível
                 </div>
-                <div class="feature">
-                    <span class="feature-icon">💰</span>
-                    <span>Preços</span>
+                <h1>Transforma a tua experiência no <span>e-leiloes.pt</span></h1>
+                <p class="hero-description">
+                    Carrossel de imagens, preços enriquecidos, countdown em tempo real,
+                    integração GPS e muito mais. Tudo numa extensão gratuita.
+                </p>
+                <div class="hero-buttons">
+                    <a href="martelo.user.js" class="btn btn-primary">
+                        🐒 Instalar Userscript
+                    </a>
+                    <a href="dashboard.html" class="btn btn-secondary">
+                        📊 Ver Dashboard
+                    </a>
                 </div>
-                <div class="feature">
-                    <span class="feature-icon">⏱️</span>
-                    <span>Countdown</span>
-                </div>
-                <div class="feature">
-                    <span class="feature-icon">📍</span>
-                    <span>GPS</span>
+                <div class="hero-stats">
+                    <div class="stat">
+                        <div class="stat-value">6+</div>
+                        <div class="stat-label">Funcionalidades</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">100%</div>
+                        <div class="stat-label">Gratuito</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">🇵🇹</div>
+                        <div class="stat-label">Made in Portugal</div>
+                    </div>
                 </div>
             </div>
+            <div class="hero-preview">
+                <div class="preview-wrapper">
+                    <div class="card-mock">
+                        <div class="card-image">
+                            <span class="card-image-icon">🏠</span>
+                            <span class="carousel-badge">📷 5 fotos</span>
+                            <span class="carousel-nav prev">‹</span>
+                            <span class="carousel-nav next">›</span>
+                            <div class="carousel-dots">
+                                <div class="dot active"></div>
+                                <div class="dot"></div>
+                                <div class="dot"></div>
+                                <div class="dot"></div>
+                                <div class="dot"></div>
+                            </div>
+                        </div>
+                        <div class="card-content">
+                            <div class="card-title">T3 Apartamento em Lisboa</div>
+                            <div class="card-grid">
+                                <div class="card-item">
+                                    <div class="card-label">Valor Base</div>
+                                    <div class="card-value">150.000 €</div>
+                                </div>
+                                <div class="card-item">
+                                    <div class="card-label">Lance Atual</div>
+                                    <div class="card-value highlight">125.000 €</div>
+                                </div>
+                                <div class="card-item">
+                                    <div class="card-label">Valor Mercado</div>
+                                    <div class="card-value">220.000 €</div>
+                                </div>
+                                <div class="card-item">
+                                    <div class="card-label">Desconto</div>
+                                    <div class="card-value green">-43%</div>
+                                </div>
+                            </div>
+                            <div class="card-countdown">
+                                <span>⏱️</span>
+                                <span>Termina em</span>
+                                <span class="countdown-time">2d 14h 32m 15s</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-actions">
+                        <div class="action-btn">📍</div>
+                        <div class="action-btn">❤️</div>
+                        <div class="action-btn">📤</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
 
-            <div class="buttons">
-                <a href="dashboard.html" class="btn btn-primary">
-                    📊 Abrir Dashboard
-                </a>
-                <a href="martelo.user.js" class="btn btn-secondary">
-                    🐒 Instalar Tampermonkey
+    <!-- Features Section -->
+    <section class="features" id="features">
+        <div class="section-container">
+            <div class="section-header">
+                <span class="section-label">Funcionalidades</span>
+                <h2 class="section-title">Tudo o que precisas para leilões</h2>
+                <p class="section-description">
+                    Ferramentas poderosas para te ajudar a encontrar as melhores oportunidades e tomar decisões informadas.
+                </p>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">🖼️</div>
+                    <h3 class="feature-title">Carrossel de Imagens</h3>
+                    <p class="feature-description">
+                        Navega por todas as fotos do imóvel diretamente no card, sem precisar abrir a página do leilão.
+                    </p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">💰</div>
+                    <h3 class="feature-title">Preços Enriquecidos</h3>
+                    <p class="feature-description">
+                        Vê o valor de mercado estimado, percentagem de desconto e histórico de preços para cada imóvel.
+                    </p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">⏱️</div>
+                    <h3 class="feature-title">Countdown em Tempo Real</h3>
+                    <p class="feature-description">
+                        Acompanha o tempo restante de cada leilão com contagem regressiva precisa ao segundo.
+                    </p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📍</div>
+                    <h3 class="feature-title">Integração GPS</h3>
+                    <p class="feature-description">
+                        Abre a localização diretamente no Google Maps ou Waze com um clique.
+                    </p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">❤️</div>
+                    <h3 class="feature-title">Lista de Favoritos</h3>
+                    <p class="feature-description">
+                        Guarda os teus leilões favoritos e acompanha-os facilmente no dashboard.
+                    </p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📊</div>
+                    <h3 class="feature-title">Dashboard Completo</h3>
+                    <p class="feature-description">
+                        Visualiza todos os leilões, filtra por categoria, preço, localização e muito mais.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How it Works Section -->
+    <section class="how-it-works" id="how-it-works">
+        <div class="section-container">
+            <div class="section-header">
+                <span class="section-label">Como funciona</span>
+                <h2 class="section-title">Começa em 3 passos simples</h2>
+                <p class="section-description">
+                    Instalação rápida e fácil. Em menos de um minuto estás pronto para usar.
+                </p>
+            </div>
+            <div class="steps-grid">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <h3 class="step-title">Instala a extensão</h3>
+                    <p class="step-description">
+                        Instala o Tampermonkey no teu browser e depois instala o nosso userscript.
+                    </p>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <h3 class="step-title">Visita o e-leiloes.pt</h3>
+                    <p class="step-description">
+                        Acede ao site normalmente. A extensão ativa-se automaticamente.
+                    </p>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <h3 class="step-title">Desfruta das melhorias</h3>
+                    <p class="step-description">
+                        Todos os cards são melhorados automaticamente com as novas funcionalidades.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta">
+        <div class="cta-container">
+            <h2>Pronto para começar?</h2>
+            <p>
+                Instala agora e transforma a tua experiência no e-leiloes.pt.
+                É gratuito e leva menos de um minuto.
+            </p>
+            <div class="cta-buttons">
+                <a href="martelo.user.js" class="btn btn-primary btn-tampermonkey">
+                    🐒 Instalar Tampermonkey Script
                 </a>
                 <div class="btn btn-disabled">
-                    🧩 Chrome Extension <span class="btn-badge">Em breve</span>
+                    🧩 Chrome Extension
+                    <span class="btn-badge">Em breve</span>
                 </div>
             </div>
+        </div>
+    </section>
 
-            <div class="footer">
+    <!-- Footer -->
+    <footer>
+        <div class="footer-container">
+            <div class="footer-brand">
+                <img src="extension/icons/icon48.png" alt="Martelo" class="footer-logo">
+                <span class="footer-text">Martelo - E-Leilões Enhanced</span>
+            </div>
+            <div class="footer-signature">
                 <a href="https://nuno.mansilhas.pt/" target="_blank">
                     Desenvolvido com <span class="heart">❤️</span> em Portugal
                 </a>
             </div>
         </div>
+    </footer>
 
-        <div class="preview">
-            <div class="preview-label">Preview</div>
-            <div class="card-mock">
-                <div class="card-image">
-                    <span class="card-image-icon">🏠</span>
-                    <span class="carousel-badge">5 📷</span>
-                    <div class="carousel-dots">
-                        <div class="dot active"></div>
-                        <div class="dot"></div>
-                        <div class="dot"></div>
-                        <div class="dot"></div>
-                        <div class="dot"></div>
-                    </div>
-                </div>
-                <div class="card-content">
-                    <div class="card-title">T3 Apartamento em Lisboa</div>
-                    <div class="card-grid">
-                        <div class="card-item">
-                            <div class="card-label">Valor Base</div>
-                            <div class="card-value">150.000 €</div>
-                        </div>
-                        <div class="card-item">
-                            <div class="card-label">Lance Atual</div>
-                            <div class="card-value highlight">125.000 €</div>
-                        </div>
-                    </div>
-                    <div class="card-countdown">
-                        <span>⏱️</span>
-                        <span>Termina em</span>
-                        <span class="countdown-time">2d 14h 32m</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+    <script>
+        // Smooth scroll for navigation links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Countdown animation
+        function updateCountdown() {
+            const countdownEl = document.querySelector('.countdown-time');
+            if (countdownEl) {
+                // Parse current time
+                const text = countdownEl.textContent;
+                const match = text.match(/(\d+)d (\d+)h (\d+)m (\d+)s/);
+                if (match) {
+                    let [_, days, hours, minutes, seconds] = match.map(Number);
+
+                    seconds--;
+                    if (seconds < 0) {
+                        seconds = 59;
+                        minutes--;
+                    }
+                    if (minutes < 0) {
+                        minutes = 59;
+                        hours--;
+                    }
+                    if (hours < 0) {
+                        hours = 23;
+                        days--;
+                    }
+                    if (days < 0) {
+                        days = hours = minutes = seconds = 0;
+                    }
+
+                    countdownEl.textContent = `${days}d ${hours}h ${minutes}m ${seconds}s`;
+                }
+            }
+        }
+        setInterval(updateCountdown, 1000);
+
+        // Carousel animation
+        let currentDot = 0;
+        function animateCarousel() {
+            const dots = document.querySelectorAll('.carousel-dots .dot');
+            dots.forEach((dot, i) => {
+                dot.classList.toggle('active', i === currentDot);
+            });
+            currentDot = (currentDot + 1) % dots.length;
+        }
+        setInterval(animateCarousel, 2000);
+
+        // Nav background on scroll
+        window.addEventListener('scroll', () => {
+            const nav = document.querySelector('nav');
+            if (window.scrollY > 50) {
+                nav.style.background = 'rgba(15, 23, 42, 0.98)';
+            } else {
+                nav.style.background = 'rgba(15, 23, 42, 0.95)';
+            }
+        });
+    </script>
 </body>
 </html>
