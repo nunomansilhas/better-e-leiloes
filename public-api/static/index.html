@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Martelo - Melhora a tua experiência no e-leiloes.pt</title>
-    <meta name="description" content="Martelo é uma extensão para Chrome que melhora a experiência no site e-leiloes.pt com cards melhorados, carrossel de imagens, dados enriquecidos e dashboard.">
+    <title>Martelo - E-Leilões Enhanced</title>
+    <meta name="description" content="Melhora a tua experiência no e-leiloes.pt">
     <link rel="icon" type="image/png" href="extension/icons/icon48.png">
     <style>
         * {
@@ -13,126 +13,113 @@
             box-sizing: border-box;
         }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #1e293b 100%);
-            min-height: 100vh;
-            color: #f1f5f9;
+        html, body {
+            height: 100%;
+            overflow: hidden;
         }
 
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%);
+            color: #f1f5f9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             padding: 20px;
         }
 
-        /* Header */
-        header {
+        .container {
             text-align: center;
-            padding: 60px 20px 40px;
+            max-width: 400px;
+            width: 100%;
         }
 
         .logo {
-            width: 80px;
-            height: 80px;
-            border-radius: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 10px 40px rgba(59, 130, 246, 0.3);
+            width: 64px;
+            height: 64px;
+            border-radius: 16px;
+            margin-bottom: 16px;
         }
 
         h1 {
-            font-size: 3rem;
+            font-size: 2rem;
             font-weight: 700;
-            margin-bottom: 10px;
-            background: linear-gradient(135deg, #60a5fa, #a78bfa);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            margin-bottom: 8px;
         }
 
         .tagline {
-            font-size: 1.25rem;
             color: #94a3b8;
-            margin-bottom: 30px;
+            font-size: 0.95rem;
+            margin-bottom: 32px;
         }
 
-        /* Hero Section */
-        .hero {
+        .buttons {
             display: flex;
-            flex-wrap: wrap;
-            gap: 40px;
-            align-items: center;
-            justify-content: center;
-            padding: 40px 0;
-        }
-
-        .hero-content {
-            flex: 1;
-            min-width: 300px;
-            max-width: 500px;
-        }
-
-        .hero-content h2 {
-            font-size: 2rem;
-            margin-bottom: 20px;
-            color: #e2e8f0;
-        }
-
-        .hero-content p {
-            color: #94a3b8;
-            line-height: 1.8;
-            margin-bottom: 20px;
-        }
-
-        .hero-image {
-            flex: 1;
-            min-width: 300px;
-            max-width: 600px;
-        }
-
-        .hero-image img {
-            width: 100%;
-            border-radius: 16px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
-        }
-
-        /* Buttons */
-        .btn-group {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
-            margin-top: 30px;
+            flex-direction: column;
+            gap: 12px;
         }
 
         .btn {
-            display: inline-flex;
+            display: flex;
             align-items: center;
-            gap: 10px;
-            padding: 16px 32px;
+            justify-content: space-between;
+            padding: 16px 20px;
             border-radius: 12px;
-            font-size: 1rem;
-            font-weight: 600;
             text-decoration: none;
-            transition: all 0.3s ease;
-            cursor: pointer;
+            transition: all 0.2s ease;
             border: none;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 500;
+        }
+
+        .btn-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .btn-icon {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+
+        .btn-text {
+            text-align: left;
+        }
+
+        .btn-title {
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+
+        .btn-desc {
+            font-size: 0.75rem;
+            opacity: 0.7;
+        }
+
+        .btn-arrow {
+            opacity: 0.5;
+            font-size: 1.2rem;
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            background: #3b82f6;
             color: white;
-            box-shadow: 0 4px 20px rgba(59, 130, 246, 0.4);
         }
 
         .btn-primary:hover {
+            background: #2563eb;
             transform: translateY(-2px);
-            box-shadow: 0 6px 30px rgba(59, 130, 246, 0.5);
         }
 
         .btn-secondary {
             background: rgba(255, 255, 255, 0.1);
             color: white;
-            border: 1px solid rgba(255, 255, 255, 0.2);
         }
 
         .btn-secondary:hover {
@@ -140,370 +127,104 @@
             transform: translateY(-2px);
         }
 
-        .btn svg {
-            width: 20px;
-            height: 20px;
+        .btn-outline {
+            background: transparent;
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
 
-        /* Features */
-        .features {
-            padding: 60px 0;
-        }
-
-        .features h2 {
-            text-align: center;
-            font-size: 2rem;
-            margin-bottom: 50px;
-            color: #e2e8f0;
-        }
-
-        .features-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 30px;
-        }
-
-        .feature-card {
+        .btn-outline:hover {
             background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 16px;
-            padding: 30px;
-            transition: all 0.3s ease;
+            transform: translateY(-2px);
         }
 
-        .feature-card:hover {
-            background: rgba(255, 255, 255, 0.08);
-            transform: translateY(-5px);
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-        }
-
-        .feature-icon {
-            font-size: 2.5rem;
-            margin-bottom: 15px;
-        }
-
-        .feature-card h3 {
-            font-size: 1.25rem;
-            margin-bottom: 10px;
-            color: #e2e8f0;
-        }
-
-        .feature-card p {
-            color: #94a3b8;
-            line-height: 1.6;
-        }
-
-        /* Installation */
-        .installation {
-            padding: 60px 0;
-            text-align: center;
-        }
-
-        .installation h2 {
-            font-size: 2rem;
-            margin-bottom: 20px;
-            color: #e2e8f0;
-        }
-
-        .installation p {
-            color: #94a3b8;
-            max-width: 600px;
-            margin: 0 auto 40px;
-            line-height: 1.8;
-        }
-
-        .install-steps {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 30px;
-            margin-bottom: 40px;
-        }
-
-        .step {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 16px;
-            padding: 30px;
-            width: 280px;
-            text-align: center;
-        }
-
-        .step-number {
-            width: 50px;
-            height: 50px;
-            background: linear-gradient(135deg, #3b82f6, #2563eb);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
-            font-weight: 700;
-            margin: 0 auto 15px;
-        }
-
-        .step h3 {
-            font-size: 1.1rem;
-            margin-bottom: 10px;
-            color: #e2e8f0;
-        }
-
-        .step p {
-            color: #94a3b8;
-            font-size: 0.9rem;
-            margin: 0;
-        }
-
-        /* Dashboard Section */
-        .dashboard-section {
-            padding: 60px 0;
-            text-align: center;
-        }
-
-        .dashboard-section h2 {
-            font-size: 2rem;
-            margin-bottom: 20px;
-            color: #e2e8f0;
-        }
-
-        .dashboard-section p {
-            color: #94a3b8;
-            max-width: 600px;
-            margin: 0 auto 30px;
-            line-height: 1.8;
-        }
-
-        /* Footer */
-        footer {
-            text-align: center;
-            padding: 40px 20px;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-            margin-top: 40px;
-        }
-
-        footer p {
+        .footer {
+            margin-top: 32px;
+            font-size: 0.75rem;
             color: #64748b;
-            font-size: 0.9rem;
         }
 
-        footer a {
+        .footer a {
             color: #60a5fa;
             text-decoration: none;
         }
 
-        footer a:hover {
+        .footer a:hover {
             text-decoration: underline;
         }
 
-        /* Responsive */
-        @media (max-width: 768px) {
+        /* Mobile adjustments */
+        @media (max-width: 480px) {
+            .logo {
+                width: 56px;
+                height: 56px;
+            }
+
             h1 {
-                font-size: 2rem;
-            }
-
-            .tagline {
-                font-size: 1rem;
-            }
-
-            .hero-content h2 {
-                font-size: 1.5rem;
+                font-size: 1.75rem;
             }
 
             .btn {
-                padding: 14px 24px;
-                font-size: 0.9rem;
-            }
-
-            .btn-group {
-                flex-direction: column;
-            }
-
-            .btn-group .btn {
-                width: 100%;
-                justify-content: center;
+                padding: 14px 16px;
             }
         }
 
-        /* Userscript section */
-        .userscript-section {
-            background: rgba(251, 191, 36, 0.1);
-            border: 1px solid rgba(251, 191, 36, 0.3);
-            border-radius: 16px;
-            padding: 30px;
-            margin: 40px 0;
-            text-align: center;
-        }
+        /* Taller screens - add some breathing room */
+        @media (min-height: 700px) {
+            .buttons {
+                gap: 16px;
+            }
 
-        .userscript-section h3 {
-            color: #fbbf24;
-            margin-bottom: 15px;
-        }
-
-        .userscript-section p {
-            color: #94a3b8;
-            margin-bottom: 20px;
-        }
-
-        .code-block {
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 8px;
-            padding: 15px;
-            font-family: monospace;
-            font-size: 0.85rem;
-            color: #a5b4fc;
-            overflow-x: auto;
-            text-align: left;
-            margin-top: 15px;
+            .tagline {
+                margin-bottom: 40px;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <header>
-            <img src="extension/icons/icon128.png" alt="Martelo Logo" class="logo">
-            <h1>Martelo</h1>
-            <p class="tagline">Melhora a tua experiência no e-leiloes.pt</p>
-        </header>
+        <img src="extension/icons/icon128.png" alt="Martelo" class="logo">
+        <h1>Martelo</h1>
+        <p class="tagline">Melhora a tua experiência no e-leiloes.pt</p>
 
-        <section class="hero">
-            <div class="hero-content">
-                <h2>Cards melhorados com dados enriquecidos</h2>
-                <p>
-                    A extensão Martelo transforma a experiência no site e-leiloes.pt,
-                    adicionando carrossel de imagens, informações detalhadas dos leilões,
-                    contagem regressiva em tempo real e muito mais.
-                </p>
-                <div class="btn-group">
-                    <a href="better-e-leiloes-extension.zip" class="btn btn-primary" download>
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                            <polyline points="7 10 12 15 17 10"></polyline>
-                            <line x1="12" y1="15" x2="12" y2="3"></line>
-                        </svg>
-                        Download Extensão
-                    </a>
-                    <a href="dashboard.html" class="btn btn-secondary">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                            <polyline points="9 22 9 12 15 12 15 22"></polyline>
-                        </svg>
-                        Abrir Dashboard
-                    </a>
+        <div class="buttons">
+            <a href="https://chromewebstore.google.com/detail/martelo" class="btn btn-primary" target="_blank">
+                <div class="btn-left">
+                    <span class="btn-icon">🧩</span>
+                    <div class="btn-text">
+                        <div class="btn-title">Extensão Chrome</div>
+                        <div class="btn-desc">Instalar da Chrome Web Store</div>
+                    </div>
                 </div>
-            </div>
-        </section>
-
-        <section class="features">
-            <h2>Funcionalidades</h2>
-            <div class="features-grid">
-                <div class="feature-card">
-                    <div class="feature-icon">🖼️</div>
-                    <h3>Carrossel de Imagens</h3>
-                    <p>Vê todas as fotos do leilão num carrossel interativo com lightbox para visualização em ecrã cheio.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">💰</div>
-                    <h3>Valores Detalhados</h3>
-                    <p>Visualiza valor base, valor de abertura, valor mínimo e lance atual de forma clara e organizada.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">⏱️</div>
-                    <h3>Contagem Regressiva</h3>
-                    <p>Acompanha o tempo restante de cada leilão em tempo real, com alertas visuais quando está a terminar.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">📍</div>
-                    <h3>Localização GPS</h3>
-                    <p>Acede rapidamente ao Google Maps para ver a localização exata dos imóveis.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">🔄</div>
-                    <h3>Sincronização</h3>
-                    <p>Atualiza os dados dos leilões em tempo real através da nossa API.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">📊</div>
-                    <h3>Dashboard Completo</h3>
-                    <p>Acede ao dashboard para ver estatísticas, favoritos e notificações de alterações de preço.</p>
-                </div>
-            </div>
-        </section>
-
-        <section class="installation">
-            <h2>Como Instalar</h2>
-            <p>A instalação é rápida e simples. Segue estes passos:</p>
-
-            <div class="install-steps">
-                <div class="step">
-                    <div class="step-number">1</div>
-                    <h3>Download</h3>
-                    <p>Faz download do ficheiro ZIP da extensão clicando no botão acima.</p>
-                </div>
-                <div class="step">
-                    <div class="step-number">2</div>
-                    <h3>Extrair</h3>
-                    <p>Extrai o conteúdo do ZIP para uma pasta no teu computador.</p>
-                </div>
-                <div class="step">
-                    <div class="step-number">3</div>
-                    <h3>Chrome Extensions</h3>
-                    <p>Abre <code>chrome://extensions</code> e ativa o "Modo de programador".</p>
-                </div>
-                <div class="step">
-                    <div class="step-number">4</div>
-                    <h3>Carregar</h3>
-                    <p>Clica em "Carregar sem compactação" e seleciona a pasta extraída.</p>
-                </div>
-            </div>
-
-            <a href="better-e-leiloes-extension.zip" class="btn btn-primary" download>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                    <polyline points="7 10 12 15 17 10"></polyline>
-                    <line x1="12" y1="15" x2="12" y2="3"></line>
-                </svg>
-                Download Extensão (ZIP)
+                <span class="btn-arrow">→</span>
             </a>
-        </section>
 
-        <section class="userscript-section">
-            <h3>Alternativa: Tampermonkey Userscript</h3>
-            <p>Se preferires usar o Tampermonkey em vez de uma extensão nativa, podes instalar o userscript:</p>
-            <a href="https://raw.githubusercontent.com/nunomansilhas/better-e-leiloes/main/betterE-Leiloes-CardEnhancer.user.js" class="btn btn-secondary" target="_blank">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                    <polyline points="14 2 14 8 20 8"></polyline>
-                    <line x1="16" y1="13" x2="8" y2="13"></line>
-                    <line x1="16" y1="17" x2="8" y2="17"></line>
-                </svg>
-                Instalar Userscript
+            <a href="dashboard.html" class="btn btn-secondary">
+                <div class="btn-left">
+                    <span class="btn-icon">📊</span>
+                    <div class="btn-text">
+                        <div class="btn-title">Dashboard</div>
+                        <div class="btn-desc">Estatísticas, favoritos e alertas</div>
+                    </div>
+                </div>
+                <span class="btn-arrow">→</span>
             </a>
-            <div class="code-block">
-                // Requer Tampermonkey ou Greasemonkey instalado no browser
-            </div>
-        </section>
 
-        <section class="dashboard-section">
-            <h2>Dashboard Online</h2>
-            <p>
-                Acede ao dashboard para ver todos os leilões, criar alertas de preço,
-                marcar favoritos e receber notificações quando os preços mudam.
-            </p>
-            <a href="dashboard.html" class="btn btn-primary">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                    <polyline points="9 22 9 12 15 12 15 22"></polyline>
-                </svg>
-                Aceder ao Dashboard
+            <a href="https://raw.githubusercontent.com/nunomansilhas/better-e-leiloes/main/frontend/betterE-Leiloes-CardEnhancer.user.js" class="btn btn-outline" target="_blank">
+                <div class="btn-left">
+                    <span class="btn-icon">🐒</span>
+                    <div class="btn-text">
+                        <div class="btn-title">Tampermonkey</div>
+                        <div class="btn-desc">Alternativa via userscript</div>
+                    </div>
+                </div>
+                <span class="btn-arrow">→</span>
             </a>
-        </section>
+        </div>
 
-        <footer>
-            <p>
-                Desenvolvido por <a href="https://github.com/nunomansilhas" target="_blank">Nuno Mansilhas</a> |
-                <a href="https://github.com/nunomansilhas/better-e-leiloes" target="_blank">GitHub</a>
-            </p>
-        </footer>
+        <div class="footer">
+            <a href="https://github.com/nunomansilhas" target="_blank">Nuno Mansilhas</a>
+        </div>
     </div>
 </body>
 </html>
