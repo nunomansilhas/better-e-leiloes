@@ -8,14 +8,22 @@ sys.path.insert(0, os.path.dirname(__file__))
 from dotenv import load_dotenv
 load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
 
+# Enable nested event loops (fixes async issues with Passenger)
+import nest_asyncio
+nest_asyncio.apply()
+
 # Import the FastAPI app
 from main import app
 
 # Use TestClient for proper async handling with Passenger WSGI
 from starlette.testclient import TestClient
 
-# Create a persistent TestClient (handles async properly)
-client = TestClient(app, raise_server_exceptions=False)
+# CORS headers to add to all responses
+CORS_HEADERS = [
+    ('Access-Control-Allow-Origin', '*'),
+    ('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS'),
+    ('Access-Control-Allow-Headers', '*'),
+]
 
 
 def application(environ, start_response):
@@ -39,26 +47,29 @@ def application(environ, start_response):
             headers['Content-Length'] = value
 
     try:
-        # Route request based on method
-        if method == 'GET':
-            response = client.get(full_path, headers=headers)
-        elif method == 'POST':
-            content_length = int(environ.get('CONTENT_LENGTH', 0) or 0)
-            body = environ['wsgi.input'].read(content_length) if content_length > 0 else b''
-            content_type = environ.get('CONTENT_TYPE', 'application/json')
-            response = client.post(full_path, content=body, headers={**headers, 'Content-Type': content_type})
-        elif method == 'PUT':
-            content_length = int(environ.get('CONTENT_LENGTH', 0) or 0)
-            body = environ['wsgi.input'].read(content_length) if content_length > 0 else b''
-            content_type = environ.get('CONTENT_TYPE', 'application/json')
-            response = client.put(full_path, content=body, headers={**headers, 'Content-Type': content_type})
-        elif method == 'DELETE':
-            response = client.delete(full_path, headers=headers)
-        elif method == 'OPTIONS':
-            # Handle CORS preflight
-            response = client.options(full_path, headers=headers)
-        else:
-            response = client.get(full_path, headers=headers)
+        # Create a fresh TestClient for each request to avoid concurrency issues
+        with TestClient(app, raise_server_exceptions=False) as client:
+            # Route request based on method
+            if method == 'GET':
+                response = client.get(full_path, headers=headers)
+            elif method == 'POST':
+                content_length = int(environ.get('CONTENT_LENGTH', 0) or 0)
+                body = environ['wsgi.input'].read(content_length) if content_length > 0 else b''
+                content_type = environ.get('CONTENT_TYPE', 'application/json')
+                response = client.post(full_path, content=body, headers={**headers, 'Content-Type': content_type})
+            elif method == 'PUT':
+                content_length = int(environ.get('CONTENT_LENGTH', 0) or 0)
+                body = environ['wsgi.input'].read(content_length) if content_length > 0 else b''
+                content_type = environ.get('CONTENT_TYPE', 'application/json')
+                response = client.put(full_path, content=body, headers={**headers, 'Content-Type': content_type})
+            elif method == 'DELETE':
+                response = client.delete(full_path, headers=headers)
+            elif method == 'OPTIONS':
+                # Handle CORS preflight directly
+                start_response('200 OK', CORS_HEADERS + [('Content-Length', '0')])
+                return [b'']
+            else:
+                response = client.get(full_path, headers=headers)
 
         # Build status line
         status = f"{response.status_code} {response.reason_phrase or 'OK'}"
@@ -69,6 +80,9 @@ def application(environ, start_response):
             (k, v) for k, v in response.headers.items()
             if k.lower() not in skip_headers
         ]
+
+        # Add CORS headers
+        response_headers.extend(CORS_HEADERS)
 
         start_response(status, response_headers)
         return [response.content]
@@ -89,8 +103,5 @@ def application(environ, start_response):
         start_response('500 Internal Server Error', [
             ('Content-Type', 'application/json'),
             ('Content-Length', str(len(error_body))),
-            ('Access-Control-Allow-Origin', '*'),
-            ('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS'),
-            ('Access-Control-Allow-Headers', '*')
-        ])
+        ] + CORS_HEADERS)
         return [error_body]
