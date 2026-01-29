@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Martelo - E-Leilões Enhanced
 // @namespace    https://martelo.pt
-// @version      2.0.0
+// @version      2.1.0
 // @description  Melhora a experiência no e-leiloes.pt com cards melhorados, carrossel de imagens e dados enriquecidos.
 // @author       Nuno Mansilhas
 // @match        https://e-leiloes.pt/*
@@ -607,30 +607,83 @@
     }
 
     // ====================================
-    // API (using GM_xmlhttpRequest to bypass ad blockers)
+    // API - Using e-leiloes.pt official API directly (FAST!)
     // ====================================
+
+    // Transform e-leiloes.pt API response to our expected format
+    function transformApiResponse(item) {
+        if (!item) return null;
+
+        // Parse GPS coordinates
+        let latitude = null, longitude = null;
+        try {
+            if (item.coordenadasLAT) latitude = parseFloat(item.coordenadasLAT);
+            if (item.coordenadasLON) longitude = parseFloat(item.coordenadasLON);
+        } catch (e) {}
+
+        // Parse fotos - transform to our format
+        const fotos = (item.fotos || []).map(f => ({
+            image: f.image || f.url || f,
+            thumbnail: f.thumbnail || f.image || f
+        }));
+
+        return {
+            reference: item.referencia,
+            titulo: item.titulo,
+            tipo_id: item.tipoId,
+            tipo: item.tipo,
+            subtipo: item.subtipo,
+            tipologia: item.tipologia,
+            valor_base: item.valorBase,
+            valor_abertura: item.valorAbertura,
+            valor_minimo: item.valorMinimo,
+            lance_atual: item.lanceAtual || 0,
+            data_inicio: item.dataInicio,
+            data_fim: item.dataFim,
+            distrito: item.moradaDistrito,
+            concelho: item.moradaConcelho,
+            freguesia: item.moradaFreguesia,
+            morada: item.morada,
+            latitude: latitude,
+            longitude: longitude,
+            area_util: item.areaUtilPrivativa,
+            area_bruta: item.areaTotal,
+            matricula: item.matricula,
+            marca: item.marca,
+            modelo: item.modelo,
+            fotos: fotos,
+            terminado: item.terminado || false,
+            cancelado: item.cancelado || false
+        };
+    }
 
     function getEventFromAPI(reference) {
         if (!CONFIG.ENABLE_API_ENRICHMENT) return Promise.resolve(null);
 
+        // Use e-leiloes.pt official API directly - much faster!
         return new Promise((resolve) => {
             GM_xmlhttpRequest({
                 method: 'GET',
-                url: `${CONFIG.API_BASE}/events/${reference}`,
-                timeout: 3000,  // 3 second timeout - fail fast if API unavailable
+                url: `https://www.e-leiloes.pt/api/eventos/${reference}`,
+                timeout: 3000,
                 headers: {
                     'Accept': 'application/json'
                 },
                 onload: function(response) {
                     if (response.status === 200) {
                         try {
-                            resolve(JSON.parse(response.responseText));
+                            const data = JSON.parse(response.responseText);
+                            const item = data.item;
+                            if (item) {
+                                resolve(transformApiResponse(item));
+                            } else {
+                                resolve({ _notFound: true });
+                            }
                         } catch (e) {
                             console.error(`❌ JSON parse error for ${reference}:`, e);
                             resolve(null);
                         }
                     } else if (response.status === 404) {
-                        // Event not in database - return special marker
                         resolve({ _notFound: true });
                     } else {
                         resolve(null);
