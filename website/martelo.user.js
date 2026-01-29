@@ -28,7 +28,7 @@
     // ====================================
 
     const CONFIG = {
-        API_BASE: 'https://martelo.pt/api',
+        API_BASE: 'https://martelo.pt/public-api',
         DASHBOARD_URL: 'https://martelo.pt/dashboard.html',
         ENABLE_API_ENRICHMENT: true,
         MAX_CAROUSEL_IMAGES: 10
