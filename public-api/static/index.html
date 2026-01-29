@@ -5367,8 +5367,9 @@
 
     <script>
         // ============== API CONFIGURATION ==============
-        // IMPORTANT: Use www.martelo.pt to match the origin (avoid CORS issues)
-        const API_BASE = 'https://www.martelo.pt/api';
+        // API is at martelo.pt/api (cPanel config uses martelo.pt without www)
+        // We use protocol-relative to auto-match http/https
+        const API_BASE = location.protocol + '//martelo.pt/api';
         const BACKEND_URL = window.BACKEND_URL || API_BASE;
 
         // Disable WebSockets (not supported by Passenger/WSGI)

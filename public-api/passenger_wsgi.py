@@ -85,8 +85,12 @@ def application(environ, start_response):
             "detail": error_detail
         }).encode('utf-8')
 
+        # Include CORS headers even on error responses
         start_response('500 Internal Server Error', [
             ('Content-Type', 'application/json'),
-            ('Content-Length', str(len(error_body)))
+            ('Content-Length', str(len(error_body))),
+            ('Access-Control-Allow-Origin', '*'),
+            ('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS'),
+            ('Access-Control-Allow-Headers', '*')
         ])
         return [error_body]
