@@ -15,7 +15,6 @@
 
         html, body {
             height: 100%;
-            overflow: hidden;
         }
 
         body {
@@ -25,67 +24,105 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 20px;
+            padding: 16px;
+            overflow: hidden;
         }
 
         .container {
-            text-align: center;
-            max-width: 400px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            max-width: 900px;
             width: 100%;
+            align-items: center;
+        }
+
+        /* Left side - Info */
+        .info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 8px;
         }
 
         .logo {
-            width: 64px;
-            height: 64px;
-            border-radius: 16px;
-            margin-bottom: 16px;
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
         }
 
         h1 {
-            font-size: 2rem;
+            font-size: 1.75rem;
             font-weight: 700;
-            margin-bottom: 8px;
+        }
+
+        .version {
+            font-size: 0.65rem;
+            background: rgba(255,255,255,0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-left: 8px;
         }
 
         .tagline {
             color: #94a3b8;
-            font-size: 0.95rem;
-            margin-bottom: 32px;
+            font-size: 0.9rem;
+            margin-bottom: 20px;
         }
 
+        /* Features row */
+        .features {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .feature {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            color: #94a3b8;
+        }
+
+        .feature-icon {
+            font-size: 1rem;
+        }
+
+        /* Buttons */
         .buttons {
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 8px;
         }
 
         .btn {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 16px 20px;
-            border-radius: 12px;
+            padding: 12px 16px;
+            border-radius: 10px;
             text-decoration: none;
             transition: all 0.2s ease;
             border: none;
             cursor: pointer;
-            font-size: 0.95rem;
+            font-size: 0.85rem;
             font-weight: 500;
         }
 
         .btn-left {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
         }
 
         .btn-icon {
-            width: 24px;
-            height: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.2rem;
+            font-size: 1.1rem;
         }
 
         .btn-text {
@@ -94,17 +131,15 @@
 
         .btn-title {
             font-weight: 600;
-            margin-bottom: 2px;
         }
 
         .btn-desc {
-            font-size: 0.75rem;
+            font-size: 0.65rem;
             opacity: 0.7;
         }
 
         .btn-arrow {
             opacity: 0.5;
-            font-size: 1.2rem;
         }
 
         .btn-primary {
@@ -124,34 +159,28 @@
             pointer-events: none;
         }
 
-        .btn-disabled .btn-arrow {
-            opacity: 0.2;
-        }
-
         .btn-badge {
-            font-size: 0.6rem;
+            font-size: 0.55rem;
             background: rgba(255, 255, 255, 0.15);
-            padding: 2px 6px;
-            border-radius: 4px;
-            margin-left: 8px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            padding: 2px 5px;
+            border-radius: 3px;
+            margin-left: 6px;
         }
 
         .btn-secondary {
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.08);
             color: white;
         }
 
         .btn-secondary:hover {
-            background: rgba(255, 255, 255, 0.15);
+            background: rgba(255, 255, 255, 0.12);
             transform: translateY(-2px);
         }
 
         .btn-outline {
             background: transparent;
             color: white;
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.15);
         }
 
         .btn-outline:hover {
@@ -160,19 +189,19 @@
         }
 
         .footer {
-            margin-top: 32px;
-            font-size: 0.8rem;
-            color: #64748b;
+            margin-top: 16px;
+            font-size: 0.7rem;
+            color: #475569;
         }
 
         .footer a {
-            color: #64748b;
+            color: #475569;
             text-decoration: none;
             transition: color 0.2s;
         }
 
         .footer a:hover {
-            color: #94a3b8;
+            color: #64748b;
         }
 
         .footer a:hover .heart {
@@ -182,7 +211,6 @@
         .heart {
             color: #ef4444;
             display: inline-block;
-            transition: transform 0.2s;
         }
 
         @keyframes pulse {
@@ -190,79 +218,361 @@
             50% { transform: scale(1.3); }
         }
 
-        /* Mobile adjustments */
-        @media (max-width: 480px) {
-            .logo {
-                width: 56px;
-                height: 56px;
+        /* Right side - Preview */
+        .preview {
+            position: relative;
+        }
+
+        .preview-label {
+            position: absolute;
+            top: -24px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.65rem;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .comparison {
+            display: flex;
+            gap: 12px;
+            align-items: stretch;
+        }
+
+        .card-preview {
+            flex: 1;
+            background: #fff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            font-size: 0.65rem;
+            color: #1f2937;
+        }
+
+        .card-preview.before {
+            opacity: 0.6;
+            transform: scale(0.95);
+            filter: grayscale(30%);
+        }
+
+        .card-preview.after {
+            transform: scale(1.02);
+            box-shadow: 0 15px 50px rgba(59, 130, 246, 0.3);
+        }
+
+        .card-image {
+            height: 80px;
+            background: linear-gradient(135deg, #cbd5e1, #94a3b8);
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card-preview.after .card-image {
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+        }
+
+        .card-image-icon {
+            font-size: 1.5rem;
+            opacity: 0.5;
+        }
+
+        .carousel-dots {
+            position: absolute;
+            bottom: 6px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 3px;
+        }
+
+        .carousel-dot {
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.5);
+        }
+
+        .carousel-dot.active {
+            background: white;
+            width: 10px;
+            border-radius: 2px;
+        }
+
+        .carousel-counter {
+            position: absolute;
+            top: 6px;
+            left: 6px;
+            background: rgba(0,0,0,0.5);
+            color: white;
+            font-size: 0.5rem;
+            padding: 2px 5px;
+            border-radius: 4px;
+        }
+
+        .card-body {
+            padding: 10px;
+        }
+
+        .card-title {
+            font-weight: 600;
+            font-size: 0.6rem;
+            margin-bottom: 8px;
+            color: #374151;
+        }
+
+        .card-values {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .value-item {
+            flex: 1;
+        }
+
+        .value-label {
+            font-size: 0.5rem;
+            color: #9ca3af;
+            text-transform: uppercase;
+        }
+
+        .value-amount {
+            font-size: 0.6rem;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .value-amount.highlight {
+            color: #d97706;
+            background: #fef3c7;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+
+        .card-countdown {
+            background: #f3f4f6;
+            margin: -10px;
+            margin-top: 8px;
+            padding: 6px 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            font-size: 0.55rem;
+            color: #6b7280;
+        }
+
+        .countdown-time {
+            color: #dc2626;
+            font-weight: 600;
+        }
+
+        .comparison-arrow {
+            display: flex;
+            align-items: center;
+            color: #3b82f6;
+            font-size: 1.2rem;
+            opacity: 0.8;
+        }
+
+        .comparison-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 8px;
+            font-size: 0.6rem;
+            color: #64748b;
+        }
+
+        .label-before {
+            opacity: 0.5;
+        }
+
+        .label-after {
+            color: #3b82f6;
+        }
+
+        /* Mobile - stack vertically */
+        @media (max-width: 768px) {
+            body {
+                overflow-y: auto;
+                padding: 24px 16px;
             }
 
-            h1 {
-                font-size: 1.75rem;
+            .container {
+                grid-template-columns: 1fr;
+                gap: 30px;
             }
 
-            .btn {
-                padding: 14px 16px;
+            .info {
+                text-align: center;
+            }
+
+            .header {
+                justify-content: center;
+            }
+
+            .features {
+                justify-content: center;
+                flex-wrap: wrap;
+            }
+
+            .preview {
+                order: -1;
+            }
+
+            .comparison {
+                max-width: 320px;
+                margin: 0 auto;
+            }
+
+            .footer {
+                text-align: center;
             }
         }
 
-        /* Taller screens */
-        @media (min-height: 700px) {
-            .buttons {
-                gap: 16px;
+        @media (max-width: 400px) {
+            .features {
+                gap: 10px;
             }
 
-            .tagline {
-                margin-bottom: 40px;
+            .feature {
+                font-size: 0.65rem;
+            }
+
+            .card-preview {
+                font-size: 0.55rem;
             }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <img src="extension/icons/icon128.png" alt="Martelo" class="logo">
-        <h1>Martelo</h1>
-        <p class="tagline">Melhora a tua experiência no e-leiloes.pt</p>
+        <div class="info">
+            <div class="header">
+                <img src="extension/icons/icon128.png" alt="Martelo" class="logo">
+                <h1>Martelo <span class="version">v2.0</span></h1>
+            </div>
+            <p class="tagline">Melhora a tua experiência no e-leiloes.pt</p>
 
-        <div class="buttons">
-            <div class="btn btn-disabled">
-                <div class="btn-left">
-                    <span class="btn-icon">🧩</span>
-                    <div class="btn-text">
-                        <div class="btn-title">Extensão Chrome <span class="btn-badge">Em breve</span></div>
-                        <div class="btn-desc">Aguarda aprovação da Chrome Web Store</div>
-                    </div>
+            <div class="features">
+                <div class="feature">
+                    <span class="feature-icon">🖼️</span>
+                    <span>Carrossel</span>
                 </div>
-                <span class="btn-arrow">→</span>
+                <div class="feature">
+                    <span class="feature-icon">💰</span>
+                    <span>Preços</span>
+                </div>
+                <div class="feature">
+                    <span class="feature-icon">⏱️</span>
+                    <span>Countdown</span>
+                </div>
+                <div class="feature">
+                    <span class="feature-icon">📍</span>
+                    <span>GPS</span>
+                </div>
             </div>
 
-            <a href="dashboard.html" class="btn btn-primary">
-                <div class="btn-left">
-                    <span class="btn-icon">📊</span>
-                    <div class="btn-text">
-                        <div class="btn-title">Dashboard</div>
-                        <div class="btn-desc">Estatísticas, favoritos e alertas</div>
+            <div class="buttons">
+                <div class="btn btn-disabled">
+                    <div class="btn-left">
+                        <span class="btn-icon">🧩</span>
+                        <div class="btn-text">
+                            <div class="btn-title">Chrome Extension <span class="btn-badge">Em breve</span></div>
+                            <div class="btn-desc">Aguarda aprovação</div>
+                        </div>
                     </div>
+                    <span class="btn-arrow">→</span>
                 </div>
-                <span class="btn-arrow">→</span>
-            </a>
 
-            <a href="martelo.user.js" class="btn btn-outline" id="tampermonkey-btn">
-                <div class="btn-left">
-                    <span class="btn-icon">🐒</span>
-                    <div class="btn-text">
-                        <div class="btn-title">Tampermonkey</div>
-                        <div class="btn-desc">Instalar userscript (requer Tampermonkey)</div>
+                <a href="dashboard.html" class="btn btn-primary">
+                    <div class="btn-left">
+                        <span class="btn-icon">📊</span>
+                        <div class="btn-text">
+                            <div class="btn-title">Dashboard</div>
+                            <div class="btn-desc">Estatísticas e alertas</div>
+                        </div>
                     </div>
-                </div>
-                <span class="btn-arrow">→</span>
-            </a>
+                    <span class="btn-arrow">→</span>
+                </a>
+
+                <a href="martelo.user.js" class="btn btn-outline">
+                    <div class="btn-left">
+                        <span class="btn-icon">🐒</span>
+                        <div class="btn-text">
+                            <div class="btn-title">Tampermonkey</div>
+                            <div class="btn-desc">Instalar userscript</div>
+                        </div>
+                    </div>
+                    <span class="btn-arrow">→</span>
+                </a>
+            </div>
+
+            <div class="footer">
+                <a href="https://nuno.mansilhas.pt/" target="_blank">
+                    Desenvolvido com <span class="heart">❤️</span> em Portugal
+                </a>
+            </div>
         </div>
 
-        <div class="footer">
-            <a href="https://nuno.mansilhas.pt/" target="_blank">
-                Desenvolvido com <span class="heart">❤️</span> em Portugal
-            </a>
+        <div class="preview">
+            <div class="comparison">
+                <div class="card-preview before">
+                    <div class="card-image">
+                        <span class="card-image-icon">🏠</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="card-title">T3 Apartamento Lisboa</div>
+                        <div class="card-values">
+                            <div class="value-item">
+                                <div class="value-label">Preço</div>
+                                <div class="value-amount">125.000 €</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="comparison-arrow">→</div>
+
+                <div class="card-preview after">
+                    <div class="card-image">
+                        <span class="card-image-icon">🏠</span>
+                        <div class="carousel-counter">5 📷</div>
+                        <div class="carousel-dots">
+                            <div class="carousel-dot active"></div>
+                            <div class="carousel-dot"></div>
+                            <div class="carousel-dot"></div>
+                            <div class="carousel-dot"></div>
+                            <div class="carousel-dot"></div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="card-title">T3 Apartamento Lisboa</div>
+                        <div class="card-values">
+                            <div class="value-item">
+                                <div class="value-label">VB</div>
+                                <div class="value-amount">150.000 €</div>
+                            </div>
+                            <div class="value-item">
+                                <div class="value-label">Lance</div>
+                                <div class="value-amount highlight">125.000 €</div>
+                            </div>
+                        </div>
+                        <div class="card-countdown">
+                            <span>⏱️</span>
+                            <span>Termina:</span>
+                            <span class="countdown-time">2d 14h 32m</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="comparison-labels">
+                <span class="label-before">Antes</span>
+                <span class="label-after">Com Martelo ✨</span>
+            </div>
         </div>
     </div>
 </body>
