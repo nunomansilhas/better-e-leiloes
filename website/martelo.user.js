@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Martelo - E-Leilões Enhanced
 // @namespace    https://martelo.pt
-// @version      2.1.0
+// @version      2.2.0
 // @description  Melhora a experiência no e-leiloes.pt com cards melhorados, carrossel de imagens e dados enriquecidos.
 // @author       Nuno Mansilhas
 // @match        https://e-leiloes.pt/*
@@ -701,43 +701,6 @@
         });
     }
 
-    // Scrape event via our backend (uses official API + saves to DB)
-    function scrapeEventViaBackend(reference) {
-        return new Promise((resolve) => {
-            GM_xmlhttpRequest({
-                method: 'POST',
-                url: `${CONFIG.API_BASE}/scrape/stage2/api?references=${reference}&save_to_db=true`,
-                timeout: 10000,  // 10 second timeout for scraping
-                headers: {
-                    'Accept': 'application/json'
-                },
-                onload: function(response) {
-                    if (response.status === 200) {
-                        try {
-                            const data = JSON.parse(response.responseText);
-                            // Return first event from the response
-                            resolve(data.events && data.events.length > 0 ? data.events[0] : null);
-                        } catch (e) {
-                            console.error(`❌ JSON parse error:`, e);
-                            resolve(null);
-                        }
-                    } else {
-                        console.error(`❌ Scrape failed for ${reference}:`, response.status);
-                        resolve(null);
-                    }
-                },
-                onerror: function(error) {
-                    console.error(`❌ Scrape error for ${reference}:`, error);
-                    resolve(null);
-                },
-                ontimeout: function() {
-                    console.error(`❌ Scrape timeout for ${reference}`);
-                    resolve(null);
-                }
-            });
-        });
-    }
-
     // ====================================
     // LIGHTBOX
     // ====================================
@@ -1091,43 +1054,6 @@
             });
             buttonsDiv.appendChild(mapBtn);
         }
-
-        // Refresh button - scrapes via backend (uses official API + saves to DB)
-        const refreshBtn = document.createElement('button');
-        refreshBtn.className = 'better-action-btn refresh';
-        refreshBtn.title = 'Atualizar dados (scrape via API oficial)';
-        refreshBtn.innerHTML = '<i class="pi pi-sync"></i>';
-        refreshBtn.addEventListener('click', async (e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            refreshBtn.classList.add('loading');
-
-            const scrapedEvent = await scrapeEventViaBackend(reference);
-
-            if (scrapedEvent) {
-                refreshBtn.classList.remove('loading');
-                refreshBtn.innerHTML = '<i class="pi pi-check"></i>';
-
-                // Re-enhance card with fresh data after a short delay
-                setTimeout(async () => {
-                    refreshBtn.innerHTML = '<i class="pi pi-sync"></i>';
-                    // Remove enhanced flag to allow re-enhancement
-                    delete card.dataset.betterEnhanced;
-                    // Remove our added elements
-                    card.querySelectorAll('.better-carousel, .better-card-content, .better-action-buttons').forEach(el => el.remove());
-                    // Show native image again
-                    const nativeImg = card.querySelector('.p-evento-image');
-                    if (nativeImg) nativeImg.style.display = '';
-                    // Re-enhance with fresh data from our backend
-                    await enhanceCard(card);
-                }, 1000);
-            } else {
-                refreshBtn.classList.remove('loading');
-                refreshBtn.innerHTML = '<i class="pi pi-times"></i>';
-                setTimeout(() => { refreshBtn.innerHTML = '<i class="pi pi-sync"></i>'; }, 2000);
-            }
-        });
-        buttonsDiv.appendChild(refreshBtn);
 
         // Find the native star's container and insert our buttons inline
         // Structure: <div class="flex align-items-center gap-1"><span class="p-tag">...</span><i class="pi pi-star">...</i></div>
