@@ -1317,3 +1317,248 @@ body {
         height: 44px;
     }
 }
+
+/* ============================================ */
+/* LIGHT MODE OVERRIDES                        */
+/* ============================================ */
+
+[data-theme="light"] body {
+    background: #f8fafc;
+    color: #18181b;
+}
+
+[data-theme="light"] .nav-container {
+    background: rgba(255, 255, 255, 0.9);
+    border-color: rgba(0,0,0,0.08);
+}
+
+[data-theme="light"] .nav-brand {
+    color: #18181b;
+}
+
+[data-theme="light"] .nav-links a {
+    color: #52525b;
+}
+
+[data-theme="light"] .nav-links a:hover {
+    color: #18181b;
+    background: rgba(0,0,0,0.05);
+}
+
+[data-theme="light"] .nav-cta {
+    background: #18181b !important;
+    color: white !important;
+}
+
+[data-theme="light"] .nav-cta:hover {
+    background: #27272a !important;
+}
+
+[data-theme="light"] .hero-bg {
+    background:
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(120, 119, 198, 0.08), transparent),
+        radial-gradient(ellipse 60% 40% at 80% 60%, rgba(59, 130, 246, 0.05), transparent);
+}
+
+[data-theme="light"] .hero h1 {
+    color: #18181b;
+}
+
+[data-theme="light"] .hero-description {
+    color: #52525b;
+}
+
+[data-theme="light"] .hero-badge {
+    background: rgba(0,0,0,0.03);
+    border-color: rgba(0,0,0,0.08);
+    color: #52525b;
+}
+
+[data-theme="light"] .btn-secondary {
+    background: rgba(0,0,0,0.03);
+    border-color: rgba(0,0,0,0.1);
+    color: #18181b;
+}
+
+[data-theme="light"] .btn-secondary:hover {
+    background: rgba(0,0,0,0.06);
+}
+
+[data-theme="light"] .card-mock {
+    background: #ffffff;
+    border-color: rgba(0,0,0,0.1);
+    box-shadow: 0 25px 50px -12px rgba(0,0,0,0.15);
+}
+
+[data-theme="light"] .card-content {
+    background: #ffffff;
+}
+
+[data-theme="light"] .card-title {
+    color: #18181b;
+}
+
+[data-theme="light"] .value-box {
+    background: #f4f4f5;
+    border-color: rgba(0,0,0,0.06);
+}
+
+[data-theme="light"] .value-label {
+    color: #71717a;
+}
+
+[data-theme="light"] .value-amount {
+    color: #18181b;
+}
+
+[data-theme="light"] .bento {
+    background: #f8fafc;
+}
+
+[data-theme="light"] .bento-header h2 {
+    color: #18181b;
+}
+
+[data-theme="light"] .bento-header p {
+    color: #52525b;
+}
+
+[data-theme="light"] .section-tag {
+    background: rgba(0,0,0,0.05);
+    color: #52525b;
+}
+
+[data-theme="light"] .bento-card {
+    background: #ffffff;
+    border-color: rgba(0,0,0,0.08);
+}
+
+[data-theme="light"] .bento-card h3 {
+    color: #18181b;
+}
+
+[data-theme="light"] .bento-card p {
+    color: #52525b;
+}
+
+[data-theme="light"] .carousel-thumb {
+    background: #f4f4f5;
+    border-color: rgba(0,0,0,0.1);
+}
+
+[data-theme="light"] .countdown-box {
+    background: #f4f4f5;
+    border-color: rgba(0,0,0,0.06);
+}
+
+[data-theme="light"] .countdown-box .num {
+    color: #18181b;
+}
+
+[data-theme="light"] .countdown-box .label {
+    color: #71717a;
+}
+
+[data-theme="light"] .price-row {
+    background: #f4f4f5;
+    border-color: rgba(0,0,0,0.06);
+}
+
+[data-theme="light"] .price-label {
+    color: #71717a;
+}
+
+[data-theme="light"] .price-value {
+    color: #18181b;
+}
+
+[data-theme="light"] .maps-btn {
+    background: #3b82f6;
+}
+
+[data-theme="light"] .sync-btn {
+    background: #22c55e;
+}
+
+[data-theme="light"] .lightbox-demo {
+    background: #f4f4f5;
+    border-color: rgba(0,0,0,0.1);
+}
+
+[data-theme="light"] .lightbox-nav {
+    background: rgba(0,0,0,0.1);
+    color: #18181b;
+}
+
+[data-theme="light"] .dashboard-preview {
+    background: #f4f4f5;
+    border-color: rgba(0,0,0,0.06);
+}
+
+[data-theme="light"] .dash-stat .num {
+    color: #18181b;
+}
+
+[data-theme="light"] .dash-stat .label {
+    color: #71717a;
+}
+
+[data-theme="light"] .filter-tags .tag {
+    background: #e4e4e7;
+    color: #18181b;
+}
+
+[data-theme="light"] .filter-tags .tag.active {
+    background: #3b82f6;
+    color: white;
+}
+
+[data-theme="light"] .history-chart {
+    background: #f4f4f5;
+    border-color: rgba(0,0,0,0.06);
+}
+
+[data-theme="light"] .install {
+    background: #f8fafc;
+}
+
+[data-theme="light"] .install h2 {
+    color: #18181b;
+}
+
+[data-theme="light"] .install > p {
+    color: #52525b;
+}
+
+[data-theme="light"] .install-card {
+    background: #ffffff;
+    border-color: rgba(0,0,0,0.08);
+}
+
+[data-theme="light"] .install-card h3 {
+    color: #18181b;
+}
+
+[data-theme="light"] .install-card p {
+    color: #52525b;
+}
+
+[data-theme="light"] .install-card ol li {
+    color: #52525b;
+}
+
+[data-theme="light"] footer {
+    border-color: rgba(0,0,0,0.05);
+}
+
+[data-theme="light"] .footer-text {
+    color: #71717a;
+}
+
+[data-theme="light"] .footer-signature a {
+    color: #71717a;
+}
+
+[data-theme="light"] .footer-signature a:hover {
+    color: #52525b;
+}
