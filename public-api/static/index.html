@@ -15,227 +15,89 @@
 
         html, body {
             height: 100%;
-            overflow: hidden;
         }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%);
             color: #f1f5f9;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
+            overflow: hidden;
         }
+
+        /* ============================================ */
+        /* DESKTOP LAYOUT (>768px)                     */
+        /* ============================================ */
 
         .container {
-            text-align: center;
-            max-width: 380px;
-            width: 100%;
+            height: 100%;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            align-items: center;
+            padding: 40px 60px;
+            gap: 60px;
+            max-width: 1200px;
+            margin: 0 auto;
         }
 
-        /* Header */
-        .header {
-            margin-bottom: 24px;
+        /* Left column - Info */
+        .info {
+            display: flex;
+            flex-direction: column;
         }
 
         .logo {
-            width: 56px;
-            height: 56px;
-            border-radius: 14px;
-            margin-bottom: 12px;
+            width: 72px;
+            height: 72px;
+            border-radius: 18px;
+            margin-bottom: 20px;
         }
 
         h1 {
-            font-size: 1.8rem;
+            font-size: 2.5rem;
             font-weight: 700;
-            margin-bottom: 4px;
+            margin-bottom: 8px;
         }
 
         .tagline {
-            color: #64748b;
-            font-size: 0.85rem;
+            color: #94a3b8;
+            font-size: 1.1rem;
+            margin-bottom: 32px;
         }
 
-        /* Preview card */
-        .preview {
-            background: rgba(255,255,255,0.03);
-            border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 16px;
-            padding: 16px;
-            margin-bottom: 20px;
-        }
-
-        .preview-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 12px;
-            font-size: 0.7rem;
-            color: #64748b;
-        }
-
-        .preview-badge {
-            background: rgba(59, 130, 246, 0.2);
-            color: #60a5fa;
-            padding: 3px 8px;
-            border-radius: 4px;
-            font-size: 0.6rem;
-            font-weight: 600;
-        }
-
-        .card-mock {
-            background: white;
-            border-radius: 12px;
-            overflow: hidden;
-            color: #1f2937;
-            text-align: left;
-        }
-
-        .card-image {
-            height: 100px;
-            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-            position: relative;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .card-image-icon {
-            font-size: 2rem;
-            opacity: 0.6;
-        }
-
-        .carousel-badge {
-            position: absolute;
-            top: 8px;
-            left: 8px;
-            background: rgba(0,0,0,0.6);
-            color: white;
-            font-size: 0.6rem;
-            padding: 3px 7px;
-            border-radius: 6px;
-        }
-
-        .carousel-dots {
-            position: absolute;
-            bottom: 8px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 4px;
-        }
-
-        .dot {
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            background: rgba(255,255,255,0.4);
-        }
-
-        .dot.active {
-            background: white;
-            width: 16px;
-            border-radius: 3px;
-        }
-
-        .card-content {
-            padding: 12px;
-        }
-
-        .card-title {
-            font-size: 0.75rem;
-            font-weight: 600;
-            margin-bottom: 10px;
-            color: #374151;
-        }
-
-        .card-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-            margin-bottom: 10px;
-        }
-
-        .card-item {
-            background: #f9fafb;
-            padding: 8px;
-            border-radius: 6px;
-        }
-
-        .card-label {
-            font-size: 0.55rem;
-            color: #9ca3af;
-            text-transform: uppercase;
-            margin-bottom: 2px;
-        }
-
-        .card-value {
-            font-size: 0.75rem;
-            font-weight: 600;
-            color: #374151;
-        }
-
-        .card-value.highlight {
-            color: #d97706;
-        }
-
-        .card-countdown {
-            background: #f3f4f6;
-            margin: 0 -12px -12px;
-            padding: 8px 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            font-size: 0.65rem;
-            color: #6b7280;
-            border-radius: 0 0 12px 12px;
-        }
-
-        .countdown-time {
-            color: #dc2626;
-            font-weight: 700;
-        }
-
-        /* Features */
         .features {
             display: flex;
-            justify-content: center;
-            gap: 20px;
-            margin-bottom: 20px;
+            gap: 24px;
+            margin-bottom: 32px;
         }
 
         .feature {
             display: flex;
-            flex-direction: column;
             align-items: center;
-            gap: 4px;
-            font-size: 0.65rem;
-            color: #64748b;
+            gap: 8px;
+            font-size: 0.85rem;
+            color: #94a3b8;
         }
 
         .feature-icon {
-            font-size: 1.2rem;
+            font-size: 1.3rem;
         }
 
-        /* Buttons */
         .buttons {
             display: flex;
             flex-direction: column;
-            gap: 8px;
-            margin-bottom: 20px;
+            gap: 12px;
+            margin-bottom: 32px;
         }
 
         .btn {
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 10px;
-            padding: 14px 20px;
-            border-radius: 10px;
+            gap: 12px;
+            padding: 16px 24px;
+            border-radius: 12px;
             text-decoration: none;
-            font-size: 0.9rem;
+            font-size: 1rem;
             font-weight: 600;
             transition: all 0.2s;
             border: none;
@@ -250,6 +112,7 @@
         .btn-primary:hover {
             background: #2563eb;
             transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(59, 130, 246, 0.3);
         }
 
         .btn-secondary {
@@ -259,6 +122,7 @@
 
         .btn-secondary:hover {
             background: rgba(255,255,255,0.12);
+            transform: translateY(-1px);
         }
 
         .btn-disabled {
@@ -269,21 +133,21 @@
         }
 
         .btn-badge {
-            font-size: 0.55rem;
+            font-size: 0.6rem;
             background: rgba(255,255,255,0.15);
-            padding: 2px 6px;
-            border-radius: 3px;
+            padding: 3px 8px;
+            border-radius: 4px;
         }
 
-        /* Footer */
         .footer {
-            font-size: 0.7rem;
+            font-size: 0.8rem;
             color: #475569;
         }
 
         .footer a {
             color: #475569;
             text-decoration: none;
+            transition: color 0.2s;
         }
 
         .footer a:hover {
@@ -304,35 +168,338 @@
             50% { transform: scale(1.3); }
         }
 
-        /* Mobile */
-        @media (max-width: 400px) {
+        /* Right column - Preview */
+        .preview {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .preview-label {
+            font-size: 0.75rem;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 16px;
+        }
+
+        .card-mock {
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            color: #1f2937;
+            width: 100%;
+            max-width: 340px;
+            box-shadow: 0 25px 80px rgba(0,0,0,0.4);
+        }
+
+        .card-image {
+            height: 160px;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card-image-icon {
+            font-size: 3rem;
+            opacity: 0.6;
+        }
+
+        .carousel-badge {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            background: rgba(0,0,0,0.6);
+            color: white;
+            font-size: 0.7rem;
+            padding: 4px 10px;
+            border-radius: 8px;
+            backdrop-filter: blur(4px);
+        }
+
+        .carousel-dots {
+            position: absolute;
+            bottom: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 6px;
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.4);
+        }
+
+        .dot.active {
+            background: white;
+            width: 24px;
+            border-radius: 4px;
+        }
+
+        .card-content {
+            padding: 20px;
+        }
+
+        .card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: #1f2937;
+        }
+
+        .card-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .card-item {
+            background: #f8fafc;
+            padding: 12px;
+            border-radius: 10px;
+        }
+
+        .card-label {
+            font-size: 0.65rem;
+            color: #9ca3af;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .card-value {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #374151;
+        }
+
+        .card-value.highlight {
+            color: #d97706;
+        }
+
+        .card-countdown {
+            background: #f1f5f9;
+            margin: 0 -20px -20px;
+            padding: 14px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            color: #64748b;
+            border-radius: 0 0 20px 20px;
+        }
+
+        .countdown-time {
+            color: #dc2626;
+            font-weight: 700;
+        }
+
+        /* ============================================ */
+        /* MOBILE LAYOUT (<768px)                      */
+        /* ============================================ */
+
+        @media (max-width: 768px) {
+            body {
+                overflow-y: auto;
+            }
+
             .container {
-                max-width: 100%;
+                display: flex;
+                flex-direction: column;
+                padding: 24px 20px;
+                gap: 24px;
+                height: auto;
+                min-height: 100%;
+            }
+
+            .info {
+                order: 2;
+                text-align: center;
+                align-items: center;
+            }
+
+            .logo {
+                width: 56px;
+                height: 56px;
+                margin-bottom: 12px;
+            }
+
+            h1 {
+                font-size: 1.8rem;
+            }
+
+            .tagline {
+                font-size: 0.9rem;
+                margin-bottom: 20px;
             }
 
             .features {
-                gap: 14px;
+                justify-content: center;
+                gap: 16px;
+                margin-bottom: 20px;
+                flex-wrap: wrap;
+            }
+
+            .feature {
+                font-size: 0.75rem;
+            }
+
+            .buttons {
+                width: 100%;
+                max-width: 320px;
+                gap: 10px;
+                margin-bottom: 20px;
+            }
+
+            .btn {
+                padding: 14px 20px;
+                font-size: 0.9rem;
+            }
+
+            .preview {
+                order: 1;
+            }
+
+            .preview-label {
+                font-size: 0.65rem;
+                margin-bottom: 12px;
+            }
+
+            .card-mock {
+                max-width: 300px;
+                border-radius: 16px;
+            }
+
+            .card-image {
+                height: 120px;
+            }
+
+            .card-image-icon {
+                font-size: 2rem;
+            }
+
+            .carousel-badge {
+                font-size: 0.6rem;
+                padding: 3px 8px;
+            }
+
+            .carousel-dots {
+                gap: 4px;
+            }
+
+            .dot {
+                width: 6px;
+                height: 6px;
+            }
+
+            .dot.active {
+                width: 18px;
+            }
+
+            .card-content {
+                padding: 14px;
+            }
+
+            .card-title {
+                font-size: 0.85rem;
+                margin-bottom: 12px;
             }
 
             .card-grid {
-                gap: 6px;
+                gap: 8px;
+                margin-bottom: 12px;
+            }
+
+            .card-item {
+                padding: 10px;
+            }
+
+            .card-label {
+                font-size: 0.55rem;
+            }
+
+            .card-value {
+                font-size: 0.85rem;
+            }
+
+            .card-countdown {
+                margin: 0 -14px -14px;
+                padding: 10px 14px;
+                font-size: 0.75rem;
+                border-radius: 0 0 16px 16px;
+            }
+
+            .footer {
+                font-size: 0.7rem;
+                order: 3;
+            }
+        }
+
+        /* Small phones */
+        @media (max-width: 380px) {
+            .features {
+                gap: 12px;
+            }
+
+            .card-mock {
+                max-width: 260px;
             }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
+        <div class="info">
             <img src="extension/icons/icon128.png" alt="Martelo" class="logo">
             <h1>Martelo</h1>
             <p class="tagline">Melhora a tua experiência no e-leiloes.pt</p>
+
+            <div class="features">
+                <div class="feature">
+                    <span class="feature-icon">🖼️</span>
+                    <span>Carrossel</span>
+                </div>
+                <div class="feature">
+                    <span class="feature-icon">💰</span>
+                    <span>Preços</span>
+                </div>
+                <div class="feature">
+                    <span class="feature-icon">⏱️</span>
+                    <span>Countdown</span>
+                </div>
+                <div class="feature">
+                    <span class="feature-icon">📍</span>
+                    <span>GPS</span>
+                </div>
+            </div>
+
+            <div class="buttons">
+                <a href="dashboard.html" class="btn btn-primary">
+                    📊 Abrir Dashboard
+                </a>
+                <a href="martelo.user.js" class="btn btn-secondary">
+                    🐒 Instalar Tampermonkey
+                </a>
+                <div class="btn btn-disabled">
+                    🧩 Chrome Extension <span class="btn-badge">Em breve</span>
+                </div>
+            </div>
+
+            <div class="footer">
+                <a href="https://nuno.mansilhas.pt/" target="_blank">
+                    Desenvolvido com <span class="heart">❤️</span> em Portugal
+                </a>
+            </div>
         </div>
 
         <div class="preview">
-            <div class="preview-header">
-                <span>Como funciona</span>
-                <span class="preview-badge">PREVIEW</span>
-            </div>
+            <div class="preview-label">Preview</div>
             <div class="card-mock">
                 <div class="card-image">
                     <span class="card-image-icon">🏠</span>
@@ -364,43 +531,6 @@
                     </div>
                 </div>
             </div>
-        </div>
-
-        <div class="features">
-            <div class="feature">
-                <span class="feature-icon">🖼️</span>
-                <span>Carrossel</span>
-            </div>
-            <div class="feature">
-                <span class="feature-icon">💰</span>
-                <span>Preços</span>
-            </div>
-            <div class="feature">
-                <span class="feature-icon">⏱️</span>
-                <span>Countdown</span>
-            </div>
-            <div class="feature">
-                <span class="feature-icon">📍</span>
-                <span>GPS</span>
-            </div>
-        </div>
-
-        <div class="buttons">
-            <a href="dashboard.html" class="btn btn-primary">
-                📊 Abrir Dashboard
-            </a>
-            <a href="martelo.user.js" class="btn btn-secondary">
-                🐒 Instalar Tampermonkey
-            </a>
-            <div class="btn btn-disabled">
-                🧩 Chrome Extension <span class="btn-badge">Em breve</span>
-            </div>
-        </div>
-
-        <div class="footer">
-            <a href="https://nuno.mansilhas.pt/" target="_blank">
-                Desenvolvido com <span class="heart">❤️</span> em Portugal
-            </a>
         </div>
     </div>
 </body>
