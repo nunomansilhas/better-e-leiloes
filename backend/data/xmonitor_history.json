@@ -1,26 +1,87 @@
 {
   "events": {
-    "LO1421442025": {
-      "reference": "LO1421442025",
-      "firstSeen": "2026-01-14T09:27:36.085798",
+    "LO1435812025": {
+      "reference": "LO1435812025",
+      "firstSeen": "2026-01-29T10:51:34.384625",
       "history": [
         {
-          "timestamp": "2026-01-14T09:27:36.085798",
-          "lanceAtual": 2843.63,
-          "dataFim": "2026-01-14T10:00:00",
-          "tier": "urgent",
-          "lanceAnterior": 2815.48,
-          "lanceVariacao": 28.15000000000009
+          "timestamp": "2026-01-29T10:51:34.384625",
+          "lanceAtual": 197392.5,
+          "dataFim": "2026-01-29T10:56:31",
+          "tier": "critical",
+          "lanceAnterior": 189690.32,
+          "lanceVariacao": 7702.179999999993,
+          "dataFimAnterior": "2026-01-29T10:51:41",
+          "tempoExtendido": true
         }
       ],
-      "lastUpdate": "2026-01-14T09:27:36.085798",
-      "currentLance": 2843.63,
-      "currentDataFim": "2026-01-14T10:00:00"
+      "lastUpdate": "2026-01-29T10:51:34.384625",
+      "currentLance": 197392.5,
+      "currentDataFim": "2026-01-29T10:56:31"
+    },
+    "NP1134862025": {
+      "reference": "NP1134862025",
+      "firstSeen": "2026-01-29T10:56:36.709611",
+      "history": [
+        {
+          "timestamp": "2026-01-29T10:56:36.709611",
+          "lanceAtual": 3528.0,
+          "dataFim": "2026-01-29T14:30:00",
+          "tier": "soon",
+          "lanceAnterior": 3519.0,
+          "lanceVariacao": 9.0
+        }
+      ],
+      "lastUpdate": "2026-01-29T10:56:36.709611",
+      "currentLance": 3528.0,
+      "currentDataFim": "2026-01-29T14:30:00"
+    },
+    "NP1134962025": {
+      "reference": "NP1134962025",
+      "firstSeen": "2026-01-29T10:56:38.499663",
+      "history": [
+        {
+          "timestamp": "2026-01-29T10:56:38.499663",
+          "lanceAtual": 36001.0,
+          "dataFim": "2026-01-29T14:30:00",
+          "tier": "soon",
+          "lanceAnterior": 35002.01,
+          "lanceVariacao": 998.989999999998
+        },
+        {
+          "timestamp": "2026-01-29T11:57:15.495184",
+          "lanceAtual": 37000.0,
+          "dataFim": "2026-01-29T14:30:00",
+          "tier": "soon",
+          "lanceAnterior": 36001.0,
+          "lanceVariacao": 999.0
+        }
+      ],
+      "lastUpdate": "2026-01-29T11:57:15.495184",
+      "currentLance": 37000.0,
+      "currentDataFim": "2026-01-29T14:30:00"
+    },
+    "NP1157052025": {
+      "reference": "NP1157052025",
+      "firstSeen": "2026-01-29T11:27:01.435749",
+      "history": [
+        {
+          "timestamp": "2026-01-29T11:27:01.435749",
+          "lanceAtual": 772.5,
+          "dataFim": "2026-01-29T14:30:00",
+          "tier": "soon",
+          "lanceAnterior": 772.0,
+          "lanceVariacao": 0.5
+        }
+      ],
+      "lastUpdate": "2026-01-29T11:27:01.435749",
+      "currentLance": 772.5,
+      "currentDataFim": "2026-01-29T14:30:00"
     }
   },
-  "lastUpdated": "2026-01-14T09:27:36.085798",
+  "lastUpdated": "2026-01-29T11:57:15.495184",
   "stats": {
-    "totalUpdates": 1,
-    "eventsTracked": 1
+    "totalUpdates": 5,
+    "eventsTracked": 4
   }
 }
