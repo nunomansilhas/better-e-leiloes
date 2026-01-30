@@ -164,6 +164,36 @@ async function loadLandingStats() {
 }
 
 // ============================================
+// INSTALL MODAL
+// ============================================
+
+function openInstallModal() {
+    const modal = document.getElementById('install-modal');
+    if (modal) {
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+function closeInstallModal(event) {
+    // If called from backdrop click, only close if clicking the backdrop itself
+    if (event && event.target !== event.currentTarget) return;
+
+    const modal = document.getElementById('install-modal');
+    if (modal) {
+        modal.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+}
+
+// Close modal on Escape key
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        closeInstallModal();
+    }
+});
+
+// ============================================
 // FOOTER YEAR
 // ============================================
 

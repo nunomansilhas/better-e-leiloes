@@ -71,9 +71,9 @@
                     mapas integrados. Tudo o que o e-leiloes.pt devia ter.
                 </p>
                 <div class="hero-buttons">
-                    <a href="martelo.user.js" class="btn btn-primary">
+                    <button onclick="openInstallModal()" class="btn btn-primary">
                         Instalar script
-                    </a>
+                    </button>
                     <a href="dashboard.html" class="btn btn-secondary">
                         Ver dashboard
                     </a>
@@ -341,7 +341,7 @@
                 <div class="install-icon">🐒</div>
                 <h3>Userscript</h3>
                 <p>Funciona com Tampermonkey, Violentmonkey ou Greasemonkey em qualquer browser.</p>
-                <a href="martelo.user.js" class="btn btn-primary">Instalar agora</a>
+                <button onclick="openInstallModal()" class="btn btn-primary">Instalar agora</button>
             </div>
             <div class="install-card disabled">
                 <div class="install-icon">🧩</div>
@@ -351,6 +351,73 @@
             </div>
         </div>
     </section>
+
+    <!-- Install Modal -->
+    <div id="install-modal" class="install-modal" onclick="closeInstallModal(event)">
+        <div class="install-modal-content" onclick="event.stopPropagation()">
+            <button class="install-modal-close" onclick="closeInstallModal()">&times;</button>
+
+            <h2>Como instalar o Martelo</h2>
+            <p class="install-modal-subtitle">Segue estes 3 passos simples</p>
+
+            <!-- Step 1 -->
+            <div class="install-step">
+                <div class="install-step-number">1</div>
+                <div class="install-step-content">
+                    <h3>Instala o Tampermonkey</h3>
+                    <p>O Tampermonkey e uma extensao que permite executar scripts personalizados em websites.</p>
+                    <div class="install-browsers">
+                        <a href="https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo" target="_blank" rel="noopener" class="browser-btn">
+                            <span class="browser-icon">Chrome</span>
+                        </a>
+                        <a href="https://addons.mozilla.org/firefox/addon/tampermonkey/" target="_blank" rel="noopener" class="browser-btn">
+                            <span class="browser-icon">Firefox</span>
+                        </a>
+                        <a href="https://microsoftedge.microsoft.com/addons/detail/tampermonkey/iikmkjmpaadaobahmlepeloendndfphd" target="_blank" rel="noopener" class="browser-btn">
+                            <span class="browser-icon">Edge</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 2 -->
+            <div class="install-step">
+                <div class="install-step-number">2</div>
+                <div class="install-step-content">
+                    <h3>Ativa o Modo de Programador</h3>
+                    <p>Necessario para o Tampermonkey funcionar corretamente.</p>
+                    <div class="install-instructions">
+                        <div class="instruction-item">
+                            <strong>Chrome/Edge:</strong> Vai a <code>chrome://extensions</code> e ativa "Modo de programador" no canto superior direito
+                        </div>
+                        <div class="instruction-item">
+                            <strong>Firefox:</strong> Nao e necessario este passo
+                        </div>
+                    </div>
+                    <div class="install-note">
+                        <span class="note-icon">i</span>
+                        <span>Isto e seguro e necessario para extensoes de userscripts funcionarem.</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 3 -->
+            <div class="install-step">
+                <div class="install-step-number">3</div>
+                <div class="install-step-content">
+                    <h3>Instala o Script Martelo</h3>
+                    <p>Clica no botao abaixo. O Tampermonkey vai abrir automaticamente para confirmares a instalacao.</p>
+                    <a href="martelo.user.js" class="btn btn-primary install-final-btn">
+                        Descarregar e Instalar Script
+                    </a>
+                </div>
+            </div>
+
+            <div class="install-done">
+                <p>Depois de instalado, visita <a href="https://e-leiloes.pt" target="_blank" rel="noopener">e-leiloes.pt</a> e ve a magia acontecer!</p>
+            </div>
+        </div>
+    </div>
 
     <!-- Footer -->
     <footer>
