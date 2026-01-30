@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="pt" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Política de Privacidade - Martelo</title>
+    <meta name="description" content="Política de Privacidade da extensão Martelo (Better E-Leilões) para Chrome.">
+
+    <!-- Favicons -->
+    <link rel="icon" type="image/x-icon" href="assets/favicon.ico">
+    <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16x16.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32x32.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
+    <meta name="theme-color" content="#0f172a">
+    <link rel="stylesheet" href="assets/css/style.css">
+    <style>
+        .privacy-page {
+            min-height: 100vh;
+            padding: 120px 20px 60px;
+        }
+        .privacy-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .privacy-container h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .privacy-container .last-updated {
+            color: var(--text-muted);
+            margin-bottom: 3rem;
+            font-size: 0.9rem;
+        }
+        .privacy-container h2 {
+            font-size: 1.4rem;
+            margin: 2.5rem 0 1rem;
+            color: var(--text-primary);
+        }
+        .privacy-container p, .privacy-container li {
+            color: var(--text-secondary);
+            line-height: 1.8;
+            margin-bottom: 1rem;
+        }
+        .privacy-container ul {
+            padding-left: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .privacy-container li {
+            margin-bottom: 0.5rem;
+        }
+        .privacy-container strong {
+            color: var(--text-primary);
+        }
+        .privacy-container a {
+            color: #6366f1;
+        }
+        .privacy-container a:hover {
+            text-decoration: underline;
+        }
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-muted);
+            margin-bottom: 2rem;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        .back-link:hover {
+            color: var(--text-primary);
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-container">
+            <a href="index.html" class="nav-brand">
+                <img src="assets/favicon-32x32.png" alt="Martelo" class="nav-logo">
+                <span class="nav-title">Martelo</span>
+            </a>
+            <div class="nav-links">
+                <a href="index.html#features">Features</a>
+                <a href="index.html#install">Instalar</a>
+                <button class="theme-toggle" onclick="toggleTheme()" title="Alternar tema">
+                    <span class="icon-sun">☀️</span>
+                    <span class="icon-moon">🌙</span>
+                </button>
+                <a href="dashboard.html" class="nav-cta">Dashboard</a>
+            </div>
+            <button class="mobile-menu-btn">☰</button>
+        </div>
+    </nav>
+
+    <main class="privacy-page">
+        <div class="privacy-container">
+            <a href="index.html" class="back-link">← Voltar ao início</a>
+
+            <h1>Política de Privacidade</h1>
+            <p class="last-updated">Última atualização: Janeiro 2025</p>
+
+            <p>Esta Política de Privacidade descreve como a extensão <strong>Martelo (Better E-Leilões)</strong> trata os dados dos utilizadores. A nossa extensão foi desenvolvida com privacidade em mente - não recolhemos, armazenamos nem partilhamos dados pessoais.</p>
+
+            <h2>1. Dados que Recolhemos</h2>
+            <p><strong>Não recolhemos dados pessoais.</strong> A extensão Martelo:</p>
+            <ul>
+                <li>Não recolhe informações de identificação pessoal</li>
+                <li>Não rastreia a sua atividade de navegação</li>
+                <li>Não utiliza cookies de rastreamento</li>
+                <li>Não envia dados para servidores externos (exceto se configurar um servidor próprio)</li>
+            </ul>
+
+            <h2>2. Dados Armazenados Localmente</h2>
+            <p>A extensão armazena <strong>apenas no seu browser</strong> (usando chrome.storage.sync):</p>
+            <ul>
+                <li><strong>Preferências de configuração:</strong> URL do servidor backend (se utilizar um servidor próprio)</li>
+                <li><strong>Definições da extensão:</strong> Preferências de visualização e configurações técnicas</li>
+            </ul>
+            <p>Estes dados são armazenados localmente no seu dispositivo e podem ser eliminados a qualquer momento removendo a extensão.</p>
+
+            <h2>3. Acesso a Websites</h2>
+            <p>A extensão necessita de permissão para aceder ao domínio <strong>e-leiloes.pt</strong> para:</p>
+            <ul>
+                <li>Ler informações públicas dos leilões (imagens, preços, datas)</li>
+                <li>Melhorar a apresentação visual dos cartões de leilão</li>
+                <li>Adicionar funcionalidades como carrossel de imagens e contagem regressiva</li>
+            </ul>
+            <p>A extensão <strong>apenas lê</strong> dados públicos já visíveis na página. Não modifica, submete nem intercepta dados.</p>
+
+            <h2>4. Servidor Backend (Opcional)</h2>
+            <p>Se optar por utilizar um servidor backend próprio:</p>
+            <ul>
+                <li>A comunicação é feita apenas com o servidor que você configurar</li>
+                <li>Por defeito, a extensão não comunica com servidores externos</li>
+                <li>Pode configurar o URL do servidor nas definições da extensão</li>
+            </ul>
+
+            <h2>5. Partilha de Dados</h2>
+            <p><strong>Não vendemos, trocamos nem transferimos dados a terceiros.</strong></p>
+            <p>Não utilizamos dados para:</p>
+            <ul>
+                <li>Publicidade direcionada</li>
+                <li>Análise de comportamento</li>
+                <li>Determinação de credibilidade</li>
+                <li>Fins de empréstimo</li>
+            </ul>
+
+            <h2>6. Segurança</h2>
+            <p>A extensão:</p>
+            <ul>
+                <li>Não executa código remoto</li>
+                <li>Todo o código está incluído no pacote da extensão</li>
+                <li>O código fonte está disponível para auditoria</li>
+            </ul>
+
+            <h2>7. Seus Direitos</h2>
+            <p>Pode a qualquer momento:</p>
+            <ul>
+                <li>Desinstalar a extensão para remover todos os dados locais</li>
+                <li>Limpar os dados da extensão nas definições do browser</li>
+                <li>Auditar o código fonte da extensão</li>
+            </ul>
+
+            <h2>8. Alterações a esta Política</h2>
+            <p>Quaisquer alterações a esta política serão publicadas nesta página com a data de atualização revista. Recomendamos que reveja periodicamente esta política.</p>
+
+            <h2>9. Contacto</h2>
+            <p>Para questões sobre esta Política de Privacidade, contacte:</p>
+            <ul>
+                <li>Email: <a href="mailto:nuno@mansilhas.com">nuno@mansilhas.com</a></li>
+                <li>GitHub: <a href="https://github.com/nunomansilhas" target="_blank" rel="noopener">github.com/nunomansilhas</a></li>
+            </ul>
+
+            <p style="margin-top: 3rem; padding-top: 2rem; border-top: 1px solid var(--border-color);">
+                <strong>Resumo:</strong> A extensão Martelo respeita a sua privacidade. Não recolhemos dados pessoais, não rastreamos a sua atividade e não partilhamos informações com terceiros. Todos os dados são processados localmente no seu browser.
+            </p>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-container">
+            <div class="footer-content">
+                <p>Martelo - Better E-Leilões</p>
+                <p class="footer-links">
+                    <a href="index.html">Início</a> ·
+                    <a href="privacy.html">Privacidade</a> ·
+                    <a href="https://github.com/nunomansilhas" target="_blank" rel="noopener">GitHub</a>
+                </p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="assets/js/main.js"></script>
+</body>
+</html>
