@@ -1070,6 +1070,22 @@ body {
             font-size: 0.85rem;
         }
 
+        .footer-links {
+            display: flex;
+            gap: 24px;
+        }
+
+        .footer-links a {
+            color: #71717a;
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: color 0.2s;
+        }
+
+        .footer-links a:hover {
+            color: #a5b4fc;
+        }
+
         .footer-signature a {
             color: #52525b;
             text-decoration: none;
@@ -1643,6 +1659,14 @@ body {
 
 [data-theme="light"] .footer-text {
     color: #71717a;
+}
+
+[data-theme="light"] .footer-links a {
+    color: #71717a;
+}
+
+[data-theme="light"] .footer-links a:hover {
+    color: #6366f1;
 }
 
 [data-theme="light"] .footer-signature a {

@@ -1,0 +1,11 @@
+# Martelo - robots.txt
+# https://martelo.pt
+
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://martelo.pt/sitemap.xml
+
+# Crawl-delay (optional, be nice to servers)
+Crawl-delay: 1
