@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Better E-Leilões",
+  "name": "Martelo",
   "version": "1.0.0",
-  "description": "Melhora a experiência do E-Leilões com carrossel de imagens, preços detalhados, contagem regressiva e integração com o dashboard",
+  "description": "Melhora a experiência do e-leiloes.pt com carrossel de imagens, preços detalhados, contagem regressiva e integração com Google Maps.",
   "author": "Nuno Mansilhas",
   "icons": {
     "16": "icons/icon16.png",
@@ -25,7 +25,7 @@
       "48": "icons/icon48.png",
       "128": "icons/icon128.png"
     },
-    "default_title": "Better E-Leilões"
+    "default_title": "Martelo"
   },
   "content_scripts": [
     {
