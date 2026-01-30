@@ -48,4 +48,6 @@ Thumbs.db
 
 # Logs
 *.log
-*.zip
+
+# Build artifacts (but not website distribution zips)
+frontend/better-e-leiloes-extension.zip
